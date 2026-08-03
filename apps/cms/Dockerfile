@@ -24,7 +24,13 @@ RUN npm run build
 
 # Production stage
 FROM node:22-alpine
-RUN apk add --no-cache vips-dev
+# curl est requis par le healthcheck de Coolify, qui l'essaie AVANT wget.
+# wget existe deja (BusyBox), curl non — d'ou l'avertissement au deploiement
+# « The healthcheck needs a curl or wget command ... make sure that it is
+# available in the image », suivi de « New container is not healthy, rolling
+# back ». Constate le 2026-08-03 : `which wget` rend /usr/bin/wget, `which curl`
+# rend ABSENT, alors que Strapi demarrait correctement.
+RUN apk add --no-cache vips-dev curl
 ENV NODE_ENV=production
 
 WORKDIR /opt/

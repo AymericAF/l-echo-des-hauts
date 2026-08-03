@@ -45,6 +45,11 @@ COPY --from=build /opt/app ./
 RUN chown -R node:node /opt/app
 USER node
 EXPOSE 1337
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:1337/_health || exit 1
+# Pas de HEALTHCHECK ici — deliberement. Coolify lit `.State.Health` du conteneur et
+# roule en arriere des qu'il est `unhealthy`, sans jamais dire POURQUOI la commande a
+# echoue : le 2026-08-03, Strapi journalisait « started successfully » et l'admin etait
+# joignable, mais le deploiement rollbackait quand meme. Un controle qui echoue en
+# silence bloque tout et n'apprend rien. Le controle de sante appartient donc a Coolify
+# (onglet Healthcheck), ou ses parametres sont visibles et modifiables sans reconstruire
+# l'image : Port 1337, Path /admin, Return Code 200.
 CMD ["npm", "run", "start"]

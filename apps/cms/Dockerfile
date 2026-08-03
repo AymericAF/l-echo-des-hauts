@@ -1,10 +1,15 @@
 # Build stage
 FROM node:22-alpine AS build
-RUN apk update && apk add --no-cache build-base gcc autoconf automake zlib-dev libpng-dev bash vips-dev git > /dev/null 2>&1
+RUN apk update && apk add --no-cache build-base gcc autoconf automake zlib-dev libpng-dev bash vips-dev git
 
 WORKDIR /opt/
 COPY package.json package-lock.json ./
 RUN npm install -g node-gyp
+# vips-dev est installe ci-dessus : sans cette variable, sharp prefere compiler
+# contre la libvips systeme plutot que d'utiliser son binaire precompile, et
+# la compilation echoue (« Please add node-addon-api to your dependencies »).
+# Le package-lock.json contient bien @img/sharp-linuxmusl-x64 : il n'y a rien a compiler.
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 RUN npm config set fetch-retry-maxtimeout 600000 -g && npm ci
 ENV PATH=/opt/node_modules/.bin:$PATH
 
@@ -24,6 +29,7 @@ ENV NODE_ENV=production
 
 WORKDIR /opt/
 COPY --from=build /opt/package.json /opt/package-lock.json ./
+ENV SHARP_IGNORE_GLOBAL_LIBVIPS=1
 RUN npm ci --omit=dev && npm cache clean --force  # --omit=dev replaces the deprecated --only=production
 ENV PATH=/opt/node_modules/.bin:$PATH
 

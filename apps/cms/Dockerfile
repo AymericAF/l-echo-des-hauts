@@ -45,11 +45,20 @@ COPY --from=build /opt/app ./
 RUN chown -R node:node /opt/app
 USER node
 EXPOSE 1337
-# Pas de HEALTHCHECK ici — deliberement. Coolify lit `.State.Health` du conteneur et
-# roule en arriere des qu'il est `unhealthy`, sans jamais dire POURQUOI la commande a
-# echoue : le 2026-08-03, Strapi journalisait « started successfully » et l'admin etait
-# joignable, mais le deploiement rollbackait quand meme. Un controle qui echoue en
-# silence bloque tout et n'apprend rien. Le controle de sante appartient donc a Coolify
-# (onglet Healthcheck), ou ses parametres sont visibles et modifiables sans reconstruire
-# l'image : Port 1337, Path /admin, Return Code 200.
+# HEALTHCHECK OBLIGATOIRE : Coolify ne tolere pas son absence. Retire le 2026-08-03,
+# le deploiement a echoue autrement — « docker inspect --format='{{json
+# .State.Health.Status}}' … : map has no entry for key "Health" ». Coolify SUPPOSE que la
+# cle existe ; sans HEALTHCHECK dans l'image, son inspection plante et il roule en arriere.
+#
+# La commande teste UNIQUEMENT que le port accepte une connexion TCP, avec node — deja
+# present. Elle n'utilise ni wget ni curl, ne depend d'aucun chemin HTTP, d'aucun code de
+# retour et d'aucune resolution de « localhost ». C'est ce qui la distingue de la version
+# precedente (`wget --spider http://localhost:1337/_health`), qui echouait sans jamais dire
+# pourquoi : elle cumulait quatre causes possibles, dont `config/server.ts` qui prend
+# `host: env('HOST', '0.0.0.0')` — une variable HOST dans Coolify et Strapi n'ecoute plus
+# sur localhost, alors que le proxy, lui, l'atteint parfaitement.
+#
+# start-period a 90s : Strapi mettait ~40s a journaliser « started successfully ».
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+  CMD node -e "require('net').connect(1337,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
 CMD ["npm", "run", "start"]

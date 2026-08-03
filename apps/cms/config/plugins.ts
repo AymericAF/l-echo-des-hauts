@@ -34,11 +34,13 @@ const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Plugin =>
   upload: {
     config: {
       provider: 'local',
-      providerOptions: {
-        // 64 Mio — 1,8x la borne HAUTE par fichier des videos du chemin B (35,8 Mio).
-        // sizeLimit est un plafond PAR FICHIER, jamais un budget total.
-        sizeLimit: 64 * 1024 * 1024,
-      },
+      // 64 Mio — 1,8x la borne HAUTE par fichier des videos du chemin B (35,8 Mio).
+      // sizeLimit est un plafond PAR FICHIER, jamais un budget total.
+      // Place ICI et non dans providerOptions : Strapi 5.51 avertit au demarrage
+      // « sizeLimit argument will be ignored from upload.config.providerOptions,
+      // move it to upload.config ». Dans providerOptions il serait ignore a terme.
+      sizeLimit: 64 * 1024 * 1024,
+      providerOptions: {},
       actionOptions: { upload: {}, uploadStream: {}, delete: {} },
       security: {
         allowedTypes: allowedMediaTypes,

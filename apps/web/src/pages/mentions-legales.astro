@@ -27,9 +27,9 @@ const derniereMiseAJour = '2026-08-03';
       <section>
         <h2>Éditeur</h2>
         <p>
-          Site édité par <span>[À COMPLÉTER — raison sociale et statut]</span>,
-          <span>[À COMPLÉTER — adresse]</span>.<br />
-          Directeur de la publication : <span>[À COMPLÉTER]</span>.<br />
+          Site édité par Monsieur Aymeric Filliot EI,
+          230 rue Eloi Morel, 80000 Amiens.<br />
+          Directeur de la publication : Aymeric Filliot.<br />
           Contact : <a href="mailto:contact@echo.ayfiweb.fr">contact@echo.ayfiweb.fr</a>
         </p>
       </section>
@@ -37,7 +37,21 @@ const derniereMiseAJour = '2026-08-03';
       <section>
         <h2>Hébergement</h2>
         <p>
-          <span>[À COMPLÉTER — hébergeur, raison sociale et adresse]</span>
+          {/* NE PAS recopier o2switch depuis aymeric-filliot.fr : ce site n'est pas
+              heberge au meme endroit. L'Echo des Hauts tourne sur le VPS Hostinger
+              (Coolify), cf. runbook de provisionnement.
+
+              A VERIFIER SUR LA FACTURE : Hostinger a DEUX entites juridiques.
+                - HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023 Larnaca,
+                  Chypre — c'est celle que recopient la plupart des mentions legales
+                  francaises, valeur retenue ici par defaut.
+                - HOSTINGER operations, UAB, Svitrigailos g. 34, LT-03230 Vilnius,
+                  Lituanie — creee le 28/04/2023, son objet social couvre l'hebergement
+                  et l'infrastructure de calcul.
+              Laquelle facture le VPS n'a pas pu etre etabli depuis des sources
+              publiques. Confronter a la facture ou au contrat, et corriger si besoin. */}
+          Site hébergé par HOSTINGER INTERNATIONAL LTD,
+          61 Lordou Vironos Street, 6023 Larnaca, Chypre.
         </p>
       </section>
 

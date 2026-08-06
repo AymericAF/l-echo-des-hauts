@@ -1,0 +1,15 @@
+{
+  "collectionName": "components_bloc_textes",
+  "info": {
+    "displayName": "Texte",
+    "icon": "align-left",
+    "description": "Corps de texte. Seul bloc dont les titres h2/h3 alimentent le sommaire (§4.5)."
+  },
+  "options": {},
+  "attributes": {
+    "contenu": {
+      "type": "blocks",
+      "required": true
+    }
+  }
+}

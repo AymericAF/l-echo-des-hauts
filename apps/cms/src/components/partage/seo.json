@@ -1,0 +1,30 @@
+{
+  "collectionName": "components_partage_seos",
+  "info": {
+    "displayName": "Seo",
+    "icon": "search",
+    "description": "Surcharge SEO. Tout est optionnel et reste VIDE par defaut : les valeurs par defaut sont calculees au build, jamais ecrites en base (A-07)."
+  },
+  "options": {},
+  "attributes": {
+    "metaTitre": {
+      "type": "string",
+      "maxLength": 60
+    },
+    "metaDescription": {
+      "type": "text",
+      "maxLength": 160
+    },
+    "imagePartage": {
+      "type": "media",
+      "multiple": false
+    },
+    "noindex": {
+      "type": "boolean",
+      "default": false
+    },
+    "canonique": {
+      "type": "string"
+    }
+  }
+}

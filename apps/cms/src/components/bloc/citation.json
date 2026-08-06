@@ -1,0 +1,21 @@
+{
+  "collectionName": "components_bloc_citations",
+  "info": {
+    "displayName": "Citation",
+    "icon": "quote-right",
+    "description": "Citation mise en exergue. auteurCitation est un texte libre, pas une relation."
+  },
+  "options": {},
+  "attributes": {
+    "texte": {
+      "type": "text",
+      "required": true
+    },
+    "auteurCitation": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    }
+  }
+}

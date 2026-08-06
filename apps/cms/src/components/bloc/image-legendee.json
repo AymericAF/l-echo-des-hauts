@@ -1,0 +1,25 @@
+{
+  "collectionName": "components_bloc_image_legendees",
+  "info": {
+    "displayName": "Image legendee",
+    "icon": "image",
+    "description": "Image avec figcaption. L alternative textuelle vient de l alternativeText natif de la Media Library, jamais de legende (A-04)."
+  },
+  "options": {},
+  "attributes": {
+    "image": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "legende": {
+      "type": "string"
+    },
+    "credit": {
+      "type": "string"
+    }
+  }
+}

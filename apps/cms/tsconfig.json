@@ -38,6 +38,8 @@
     "src/admin/",
     // Do not include test files
     "**/*.test.*",
+    // Do not include the test harness (spec + helpers)
+    "tests/",
     // Do not include plugins in the server compilation
     "src/plugins/**"
   ]

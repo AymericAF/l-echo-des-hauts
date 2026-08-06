@@ -1,0 +1,22 @@
+{
+  "collectionName": "components_bloc_chiffre_entrees",
+  "info": {
+    "displayName": "Chiffre entree",
+    "icon": "hashtag",
+    "description": "Entree d un bloc chiffres-cles (nom arbitre A-24). valeur est un Text, pas un Number (A-25) : 3,5 M, +12 %, 1 sur 4."
+  },
+  "options": {},
+  "attributes": {
+    "valeur": {
+      "type": "string",
+      "required": true
+    },
+    "unite": {
+      "type": "string"
+    },
+    "libelle": {
+      "type": "string",
+      "required": true
+    }
+  }
+}

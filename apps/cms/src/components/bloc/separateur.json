@@ -1,0 +1,21 @@
+{
+  "collectionName": "components_bloc_separateurs",
+  "info": {
+    "displayName": "Separateur",
+    "icon": "minus",
+    "description": "Rendu en hr decore en CSS. La variante espace sort du flux de lecture assistee."
+  },
+  "options": {},
+  "attributes": {
+    "style": {
+      "type": "enumeration",
+      "enum": [
+        "ligne",
+        "points",
+        "espace"
+      ],
+      "required": true,
+      "default": "ligne"
+    }
+  }
+}

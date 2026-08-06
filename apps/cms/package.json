@@ -12,7 +12,8 @@
     "start": "strapi start",
     "strapi": "strapi",
     "upgrade": "npx @strapi/upgrade latest",
-    "upgrade:dry": "npx @strapi/upgrade latest --dry"
+    "upgrade:dry": "npx @strapi/upgrade latest --dry",
+    "test": "node --test tests/modele-donnees.test.ts tests/articles-lies.test.ts"
   },
   "dependencies": {
     "@strapi/database": "5.51.1",

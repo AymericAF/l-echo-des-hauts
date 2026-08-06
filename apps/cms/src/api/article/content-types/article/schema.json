@@ -1,0 +1,143 @@
+{
+  "kind": "collectionType",
+  "collectionName": "articles",
+  "info": {
+    "singularName": "article",
+    "pluralName": "articles",
+    "displayName": "Article",
+    "description": "Article editorial. Modele de donnees §2.1 (PDF §3.1)."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
+    }
+  },
+  "attributes": {
+    "titre": {
+      "type": "string",
+      "required": true,
+      "maxLength": 120,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "titre",
+      "required": true
+    },
+    "chapo": {
+      "type": "text",
+      "required": true,
+      "maxLength": 300,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "contenu": {
+      "type": "dynamiczone",
+      "required": true,
+      "min": 1,
+      "components": [
+        "bloc.texte",
+        "bloc.citation",
+        "bloc.galerie",
+        "bloc.encadre",
+        "bloc.video",
+        "bloc.image-legendee",
+        "bloc.separateur",
+        "bloc.chiffres-cles"
+      ],
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "imageCouverture": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images"
+      ],
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "legendeCouverture": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "auteur": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::auteur.auteur",
+      "inversedBy": "articles",
+      "required": true
+    },
+    "categorie": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::categorie.categorie",
+      "required": true
+    },
+    "tags": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::tag.tag"
+    },
+    "dossier": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::dossier.dossier",
+      "inversedBy": "articles"
+    },
+    "articlesLies": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::article.article"
+    },
+    "datePublication": {
+      "type": "datetime",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "aLaUne": {
+      "type": "boolean",
+      "default": false,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "seo": {
+      "type": "component",
+      "repeatable": false,
+      "component": "partage.seo",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    }
+  }
+}

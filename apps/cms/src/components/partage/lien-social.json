@@ -1,0 +1,29 @@
+{
+  "collectionName": "components_partage_lien_socials",
+  "info": {
+    "displayName": "Lien social",
+    "icon": "link",
+    "description": "Liste FERMEE volontairement : chaque valeur correspond a une icone SVG inline. Ajouter une valeur sans son icone casse le rendu (A-30)."
+  },
+  "options": {},
+  "attributes": {
+    "plateforme": {
+      "type": "enumeration",
+      "enum": [
+        "linkedin",
+        "x",
+        "bluesky",
+        "mastodon",
+        "instagram",
+        "facebook",
+        "youtube",
+        "site"
+      ],
+      "required": true
+    },
+    "url": {
+      "type": "string",
+      "required": true
+    }
+  }
+}

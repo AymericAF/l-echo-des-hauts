@@ -1,0 +1,78 @@
+{
+  "kind": "collectionType",
+  "collectionName": "auteurs",
+  "info": {
+    "singularName": "auteur",
+    "pluralName": "auteurs",
+    "displayName": "Auteur",
+    "description": "Signature de la redaction. Modele de donnees §2.2 (PDF §3.2)."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
+    }
+  },
+  "attributes": {
+    "nom": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "nom",
+      "required": true
+    },
+    "fonction": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "bio": {
+      "type": "blocks",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images"
+      ],
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "reseaux": {
+      "type": "component",
+      "repeatable": true,
+      "component": "partage.lien-social",
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "articles": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::article.article",
+      "mappedBy": "auteur"
+    }
+  }
+}

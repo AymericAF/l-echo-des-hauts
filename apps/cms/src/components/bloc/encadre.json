@@ -1,0 +1,28 @@
+{
+  "collectionName": "components_bloc_encadres",
+  "info": {
+    "displayName": "Encadre",
+    "icon": "exclamation-triangle",
+    "description": "Encart lateral. Ses titres sont rendus en h4 minimum et exclus du sommaire (A-21)."
+  },
+  "options": {},
+  "attributes": {
+    "titre": {
+      "type": "string"
+    },
+    "contenu": {
+      "type": "blocks",
+      "required": true
+    },
+    "variante": {
+      "type": "enumeration",
+      "enum": [
+        "info",
+        "alerte",
+        "complement"
+      ],
+      "required": true,
+      "default": "info"
+    }
+  }
+}

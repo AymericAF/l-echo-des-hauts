@@ -1,0 +1,32 @@
+{
+  "collectionName": "components_bloc_galeries",
+  "info": {
+    "displayName": "Galerie",
+    "icon": "images",
+    "description": "Serie d images. Une seule legende pour la galerie entiere (A-22). Le carrousel est rendu en CSS, sans JavaScript (A-05)."
+  },
+  "options": {},
+  "attributes": {
+    "images": {
+      "type": "media",
+      "multiple": true,
+      "required": true,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "legende": {
+      "type": "string"
+    },
+    "disposition": {
+      "type": "enumeration",
+      "enum": [
+        "grille",
+        "carrousel",
+        "pleine-largeur"
+      ],
+      "required": true,
+      "default": "grille"
+    }
+  }
+}

@@ -1,0 +1,88 @@
+---
+/**
+ * Layout global. Toute page du site passe par ici.
+ *
+ * Ce qu il fait, et pourquoi c est ici plutot que dans chaque page :
+ *   - il lit le Single Type `Configuration` de la locale demandee (une seule fois, via
+ *     le Content Layer) et le passe a l en-tete et au pied de page ;
+ *   - il calcule les valeurs SEO par defaut AU BUILD, jamais en base (A-07) : titre
+ *     tronque a 60 sur une frontiere de mot (A-26), description repliee sur
+ *     `descriptionDefaut`, canonique = URL absolue de la page.
+ *
+ * Ce qu il ne fait PAS, volontairement : la bascule FR/EN. T-04 interdit de fabriquer
+ * l URL de contrepartie par manipulation de chaine ; elle doit venir du registre des
+ * routes reellement emises, qui n existe pas encore. Un lien fabrique ici serait faux
+ * pour toute page dont le slug differe d une locale a l autre — c est-a-dire toutes,
+ * les `uid` etant localises d office (A-06).
+ *
+ * ZERO JavaScript : aucune balise <script>, aucun composant hydrate.
+ */
+import { getEntry } from 'astro:content';
+import type { Locale } from '../lib/domaine.ts';
+import { urlMedia } from '../lib/media.ts';
+import EnTete from '../components/EnTete.astro';
+import PiedDePage from '../components/PiedDePage.astro';
+import '../styles/tokens.css';
+import '../styles/base.css';
+
+interface Props {
+  titre: string;
+  description?: string;
+  locale?: Locale;
+  /** Passe a `true` sur une page que le sitemap et l index ne doivent pas voir (A-29). */
+  noindex?: boolean;
+}
+
+const { titre, description, locale = 'fr', noindex = false } = Astro.props;
+
+const entree = await getEntry('configurations', locale);
+const configuration = entree?.data ?? null;
+
+/** A-26 : le titre d article peut faire 120 caracteres, la balise <title> vise 60. */
+function tronquerSurUnMot(texte: string, longueur: number): string {
+  if (texte.length <= longueur) return texte;
+  const coupe = texte.slice(0, longueur - 1);
+  const espace = coupe.lastIndexOf(' ');
+  return `${(espace > longueur / 2 ? coupe.slice(0, espace) : coupe).trimEnd()}…`;
+}
+
+const nomSite = configuration?.nomSite ?? null;
+const titreComplet = nomSite ? `${tronquerSurUnMot(titre, 60)} — ${nomSite}` : tronquerSurUnMot(titre, 60);
+const descriptionFinale = description ?? configuration?.descriptionDefaut ?? null;
+const canonique = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).href;
+const prefixe = locale === 'fr' ? '' : `/${locale}`;
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titreComplet}</title>
+    {descriptionFinale && <meta name="description" content={descriptionFinale} />}
+    <link rel="canonical" href={canonique} />
+    {noindex && <meta name="robots" content="noindex" />}
+    {
+      configuration?.favicon && (
+        <link rel="icon" href={urlMedia(configuration.favicon)} type={configuration.favicon.mime ?? undefined} />
+      )
+    }
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={titreComplet} />
+    {descriptionFinale && <meta property="og:description" content={descriptionFinale} />}
+    <meta property="og:url" content={canonique} />
+    {
+      configuration?.imagePartageDefaut && (
+        <meta property="og:image" content={urlMedia(configuration.imagePartageDefaut)} />
+      )
+    }
+  </head>
+  <body>
+    <a class="lien-evitement" href="#contenu">Aller au contenu</a>
+    <EnTete configuration={configuration} accueil={`${prefixe}/`} />
+    <main id="contenu" class="contenu-principal">
+      <slot />
+    </main>
+    <PiedDePage configuration={configuration} mentionsLegales={`${prefixe}/mentions-legales`} />
+  </body>
+</html>

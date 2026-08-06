@@ -1,17 +1,41 @@
 ---
+/**
+ * Accueil — etat provisoire.
+ *
+ * La vraie page d accueil (une a la une, dernieres publications, dossiers en cours,
+ * §2.1) appartient au lot des PAGES, qui n est pas encore ecrit. Cette version-ci
+ * existe pour deux raisons : conserver la route, et EXERCER au build la chaine
+ * complete loader → mapping → layout → en-tete/pied de page.
+ *
+ * Les titres ne sont volontairement pas cliquables : la route `/article/[slug]` n existe
+ * pas encore, et un lien mort vaut moins qu un lien absent.
+ */
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
 
+const articles = (await getCollection('articles'))
+  .filter((entree) => entree.data.locale === 'fr')
+  .sort((a, b) => b.data.datePublication.localeCompare(a.data.datePublication));
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Base titre="Accueil">
+  <h1>L Echo des Hauts</h1>
+
+  {
+    articles.length === 0 ? (
+      <p>
+        Aucun article n est encore publie dans Strapi. Le site se construit a partir de
+        la base : tant qu elle est vide, cette page l est aussi.
+      </p>
+    ) : (
+      <ul>
+        {articles.slice(0, 10).map((entree) => (
+          <li>
+            <strong>{entree.data.titre}</strong> — {entree.data.categorie.nom},{' '}
+            {entree.data.auteur.nom}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</Base>

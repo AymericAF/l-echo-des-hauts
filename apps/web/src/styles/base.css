@@ -1,0 +1,119 @@
+/*
+ * Feuille de base : elements HTML nus, mise en page du squelette.
+ * Aucune valeur en dur — tout vient de `tokens.css`.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Une ancre de sommaire ne doit pas glisser sous l en-tete (A-21). */
+  scroll-padding-top: var(--espace-8);
+}
+
+body {
+  margin: 0;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  font-family: var(--police-texte);
+  font-size: var(--taille-m);
+  line-height: var(--interligne-texte);
+  -webkit-text-size-adjust: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--police-titre);
+  line-height: var(--interligne-titre);
+  margin: 0 0 var(--espace-3);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--taille-xxl); }
+h2 { font-size: var(--taille-xl); }
+h3 { font-size: var(--taille-l); }
+
+p,
+ul,
+ol,
+blockquote,
+figure {
+  margin: 0 0 var(--espace-4);
+}
+
+a {
+  color: var(--couleur-lien);
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--couleur-focus);
+  outline-offset: 2px;
+}
+
+img,
+svg,
+picture {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Lien d evitement : visible uniquement au clavier, zero JavaScript. */
+.lien-evitement {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--couleur-accent);
+  color: var(--couleur-accent-contraste);
+  padding: var(--espace-2) var(--espace-4);
+  z-index: 10;
+}
+
+.lien-evitement:focus {
+  left: var(--espace-2);
+  top: var(--espace-2);
+}
+
+.contenu-principal {
+  flex: 1 0 auto;
+  width: min(100% - 2 * var(--espace-4), var(--largeur-page));
+  margin-inline: auto;
+  padding-block: var(--espace-8);
+}
+
+/* Reserve aux lecteurs d ecran (libelles de bascule, complements d intitule). */
+.hors-ecran {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Etat visible et explicite quand le Single Type Configuration n existe pas encore. */
+.bandeau-gabarit {
+  background: var(--couleur-fond-doux);
+  border-bottom: 2px dashed var(--couleur-focus);
+  color: var(--couleur-texte-doux);
+  font-size: var(--taille-s);
+  padding: var(--espace-2) var(--espace-4);
+  text-align: center;
+}

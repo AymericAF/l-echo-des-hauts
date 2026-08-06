@@ -1,0 +1,66 @@
+---
+/**
+ * Pied de page global, alimente par le Single Type `Configuration` (§3.8) :
+ * `texteFooter` (Blocks) et `reseaux` (component repetable `partage.lien-social`).
+ *
+ * Le lien vers les mentions legales est en dur, pas tire de `Configuration` : c est une
+ * ROUTE du §4.2, pas un reglage. `mentionsLegales` porte le contenu de cette page, la
+ * mention de nature fictive du media comprise (A-33), et n a rien a faire ici.
+ */
+import type { Configuration } from '../lib/domaine.ts';
+import RichTexte from './RichTexte.astro';
+import LiensSociaux from './LiensSociaux.astro';
+
+interface Props {
+  configuration: Configuration | null;
+  mentionsLegales: string;
+}
+
+const { configuration, mentionsLegales } = Astro.props;
+---
+
+<footer class="pied">
+  <div class="pied__interieur">
+    {
+      configuration?.texteFooter && (
+        <div class="pied__texte">
+          <RichTexte noeuds={configuration.texteFooter} />
+        </div>
+      )
+    }
+
+    {configuration && <LiensSociaux liens={configuration.reseaux} intitule="Reseaux du journal" />}
+
+    <nav class="pied__navigation" aria-label="Liens de bas de page">
+      <ul>
+        <li><a href={mentionsLegales}>Mentions legales</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .pied {
+    background: var(--couleur-fond-doux);
+    border-top: var(--bordure-fine);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+
+  .pied__interieur {
+    width: min(100% - 2 * var(--espace-4), var(--largeur-page));
+    margin-inline: auto;
+    padding-block: var(--espace-8);
+    display: grid;
+    gap: var(--espace-4);
+  }
+
+  .pied__navigation ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-4);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+</style>

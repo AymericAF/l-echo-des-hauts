@@ -1,0 +1,92 @@
+---
+/**
+ * En-tete global, alimente par le Single Type `Configuration` (§3.8).
+ *
+ * A-35 : `logo` et `logoSombre` sont servis par un <picture> avec
+ * `media="(prefers-color-scheme: dark)"`. Pas de bouton de bascule — il exigerait de
+ * lire un choix persiste avant peinture, donc du JavaScript sur toutes les pages, ce
+ * que la §1 interdit sans amendement possible.
+ *
+ * Quand `configuration` vaut null (aucune entree en base), l en-tete le DIT au lieu de
+ * ressembler a un en-tete fini : un gabarit muet ferait passer une base vide pour un
+ * site en ordre de marche.
+ */
+import type { Configuration } from '../lib/domaine.ts';
+import { urlMedia } from '../lib/media.ts';
+
+interface Props {
+  configuration: Configuration | null;
+  accueil: string;
+}
+
+const { configuration, accueil } = Astro.props;
+---
+
+<header class="en-tete">
+  {
+    configuration === null ? (
+      <p class="bandeau-gabarit">
+        Configuration Strapi absente : le Single Type <code>Configuration</code> n a
+        aucune entree. Nom du site, logo et description ne peuvent pas etre affiches.
+      </p>
+    ) : (
+      <div class="en-tete__interieur">
+        <a class="en-tete__marque" href={accueil}>
+          {configuration.logoSombre ? (
+            <picture>
+              <source
+                srcset={urlMedia(configuration.logoSombre)}
+                media="(prefers-color-scheme: dark)"
+              />
+              <img
+                src={urlMedia(configuration.logo)}
+                alt={configuration.logo.alternative ?? configuration.nomSite}
+                width={configuration.logo.largeur ?? undefined}
+                height={configuration.logo.hauteur ?? undefined}
+              />
+            </picture>
+          ) : (
+            <img
+              src={urlMedia(configuration.logo)}
+              alt={configuration.logo.alternative ?? configuration.nomSite}
+              width={configuration.logo.largeur ?? undefined}
+              height={configuration.logo.hauteur ?? undefined}
+            />
+          )}
+          <span class="hors-ecran">{configuration.nomSite}</span>
+        </a>
+
+        {configuration.baseline && <p class="en-tete__baseline">{configuration.baseline}</p>}
+      </div>
+    )
+  }
+</header>
+
+<style>
+  .en-tete {
+    background: var(--couleur-surface);
+    border-bottom: var(--bordure-fine);
+  }
+
+  .en-tete__interieur {
+    width: min(100% - 2 * var(--espace-4), var(--largeur-page));
+    margin-inline: auto;
+    padding-block: var(--espace-4);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--espace-2) var(--espace-6);
+  }
+
+  .en-tete__marque img {
+    display: block;
+    max-height: 3rem;
+    width: auto;
+  }
+
+  .en-tete__baseline {
+    margin: 0;
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+</style>

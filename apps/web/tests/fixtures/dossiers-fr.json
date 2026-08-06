@@ -1,0 +1,56 @@
+{
+  "_note": "GET /api/dossiers?locale=fr. `articles` est une relation : elle est localisee d office, la liste de la localisation EN est la sienne et ne se remplit pas depuis la FR (docs/modele-donnees.md §2.5).",
+  "data": [
+    {
+      "id": 1,
+      "documentId": "dos0000000000000000001",
+      "titre": "La vallee se reconstruit",
+      "slug": "la-vallee-se-reconstruit",
+      "dateOuverture": "2026-02-01",
+      "locale": "fr",
+      "updatedAt": "2026-02-01T07:00:00.000Z",
+      "introduction": [
+        { "type": "paragraph", "children": [{ "type": "text", "text": "Cinq articles sur dix-huit mois de chantiers." }] }
+      ],
+      "imageHero": {
+        "id": 88,
+        "documentId": "med0000000000000000088",
+        "url": "/uploads/hero_dossier_1122.jpg",
+        "alternativeText": "Vue aerienne de la vallee en travaux",
+        "width": 2400,
+        "height": 900,
+        "mime": "image/jpeg"
+      },
+      "articles": [
+        {
+          "id": 12,
+          "documentId": "art0000000000000000001",
+          "titre": "Le viaduc rouvre apres dix-huit mois de travaux",
+          "slug": "viaduc-rouvre-apres-dix-huit-mois-de-travaux",
+          "datePublication": "2026-03-04T07:30:00.000Z"
+        }
+      ],
+      "seo": null,
+      "localizations": [
+        { "id": 11, "documentId": "dos0000000000000000001", "locale": "en", "slug": "the-valley-rebuilds" }
+      ]
+    },
+    {
+      "id": 2,
+      "documentId": "dos0000000000000000002",
+      "titre": "Ecoles : la carte scolaire en question",
+      "slug": "ecoles-la-carte-scolaire-en-question",
+      "dateOuverture": null,
+      "locale": "fr",
+      "updatedAt": "2026-02-03T07:00:00.000Z",
+      "introduction": null,
+      "imageHero": null,
+      "articles": [],
+      "seo": null,
+      "localizations": []
+    }
+  ],
+  "meta": {
+    "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 2 }
+  }
+}

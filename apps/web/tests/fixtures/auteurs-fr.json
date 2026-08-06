@@ -1,0 +1,54 @@
+{
+  "_note": "GET /api/auteurs?locale=fr. `nom` est reellement partage entre locales (chaine, ni relation ni uid), mais `slug` est un uid : il est localise d office (docs/modele-donnees.md §2.2).",
+  "data": [
+    {
+      "id": 3,
+      "documentId": "aut0000000000000000003",
+      "nom": "Camille Ferrand",
+      "slug": "camille-ferrand",
+      "fonction": "Cheffe de rubrique Amenagement",
+      "locale": "fr",
+      "updatedAt": "2026-01-20T08:00:00.000Z",
+      "bio": [
+        { "type": "paragraph", "children": [{ "type": "text", "text": "Suit les chantiers de la vallee depuis huit ans." }] }
+      ],
+      "photo": {
+        "id": 85,
+        "documentId": "med0000000000000000085",
+        "url": "/uploads/portrait_camille_ff66.jpg",
+        "alternativeText": "Portrait de Camille Ferrand",
+        "width": 800,
+        "height": 800,
+        "mime": "image/jpeg"
+      },
+      "reseaux": [
+        { "id": 300, "plateforme": "linkedin", "url": "https://www.linkedin.com/in/exemple" },
+        { "id": 301, "plateforme": "site", "url": "https://exemple.invalid" }
+      ],
+      "localizations": [
+        {
+          "id": 33,
+          "documentId": "aut0000000000000000003",
+          "locale": "en",
+          "slug": "camille-ferrand"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "documentId": "aut0000000000000000004",
+      "nom": "Tarik Belhadj",
+      "slug": "tarik-belhadj",
+      "fonction": null,
+      "locale": "fr",
+      "updatedAt": "2026-01-20T08:05:00.000Z",
+      "bio": null,
+      "photo": null,
+      "reseaux": [],
+      "localizations": []
+    }
+  ],
+  "meta": {
+    "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 2 }
+  }
+}

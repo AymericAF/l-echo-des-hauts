@@ -9,7 +9,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "node --test tests/mapping.test.ts tests/requete.test.ts",
+    "verifier:sortie": "node scripts/verifier-sortie.mjs"
   },
   "dependencies": {
     "astro": "^7.1.6"

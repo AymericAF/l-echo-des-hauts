@@ -1,0 +1,65 @@
+---
+/**
+ * Liste des reseaux, alimentee par `Configuration.reseaux` (ou `Auteur.reseaux`).
+ *
+ * A-30 ferme l enum des plateformes parce que « chaque valeur correspond a une icone
+ * SVG inline (zero JS, pas d icon font) ; ajouter une valeur sans son icone casse le
+ * rendu ». LES HUIT GLYPHES NE SONT PAS ENCORE DESSINES : ce composant rend donc le
+ * NOM de la plateforme, en toutes lettres. C est deliberement provisoire — poser ici
+ * des formes approximatives passerait pour des marques et serait faux a l ecran comme
+ * en droit. Quand les glyphes existeront, ils remplaceront le libelle visible, qui
+ * deviendra le texte accessible.
+ *
+ * Zero JavaScript : ce ne sont que des <a>.
+ */
+import type { LienSocial } from '../lib/domaine.ts';
+
+interface Props {
+  liens: readonly LienSocial[];
+  intitule: string;
+}
+
+const { liens, intitule } = Astro.props;
+
+const LIBELLES: Record<LienSocial['plateforme'], string> = {
+  linkedin: 'LinkedIn',
+  x: 'X',
+  bluesky: 'Bluesky',
+  mastodon: 'Mastodon',
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  youtube: 'YouTube',
+  site: 'Site web',
+};
+---
+
+{
+  liens.length > 0 && (
+    <nav class="liens-sociaux" aria-label={intitule}>
+      <ul>
+        {liens.map((lien) => (
+          <li>
+            <a href={lien.url} rel="me noopener">
+              {LIBELLES[lien.plateforme]}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+<style>
+  .liens-sociaux ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2) var(--espace-4);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .liens-sociaux a {
+    font-size: var(--taille-s);
+  }
+</style>

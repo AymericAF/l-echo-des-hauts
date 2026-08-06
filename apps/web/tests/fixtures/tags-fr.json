@@ -1,0 +1,28 @@
+{
+  "_note": "GET /api/tags?locale=fr. `nom` est localise et `slug` est un uid : les deux sont par locale (docs/modele-donnees.md §2.4, corrige le 2026-08-07).",
+  "data": [
+    {
+      "id": 7,
+      "documentId": "tag0000000000000000007",
+      "nom": "Mobilite",
+      "slug": "mobilite",
+      "locale": "fr",
+      "updatedAt": "2026-01-22T09:00:00.000Z",
+      "localizations": [
+        { "id": 47, "documentId": "tag0000000000000000007", "locale": "en", "slug": "mobility" }
+      ]
+    },
+    {
+      "id": 9,
+      "documentId": "tag0000000000000000009",
+      "nom": "Travaux",
+      "slug": "travaux",
+      "locale": "fr",
+      "updatedAt": "2026-01-22T09:01:00.000Z",
+      "localizations": []
+    }
+  ],
+  "meta": {
+    "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 2 }
+  }
+}

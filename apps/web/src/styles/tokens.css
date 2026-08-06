@@ -1,0 +1,77 @@
+/*
+ * Tokens de design — la seule source des valeurs visuelles du site.
+ *
+ * Trois contraintes du projet decident de ce fichier :
+ *   - ZERO JavaScript hors /recherche : le theme sombre se sert par
+ *     `prefers-color-scheme`, sans bascule manuelle (A-35). Un selecteur de theme
+ *     exigerait de lire un choix persiste avant peinture, donc du JS sur toutes les pages.
+ *   - Lighthouse 100 en accessibilite : chaque couple texte/fond ci-dessous vise un
+ *     contraste >= 4,5:1 (>= 3:1 pour les grands titres et les bordures).
+ *   - `couleurAccent` d une categorie (A-15) est injectee au build en surchargeant
+ *     `--couleur-accent` sur un conteneur : d ou une variable dediee, jamais une couleur
+ *     ecrite en dur dans un composant.
+ */
+
+:root {
+  /* --- couleurs, mode clair --- */
+  --couleur-fond: #fbfaf7;
+  --couleur-fond-doux: #f2efe8;
+  --couleur-surface: #ffffff;
+  --couleur-texte: #1b1a17;
+  --couleur-texte-doux: #55524b;
+  --couleur-bordure: #d9d4c8;
+  --couleur-accent: #1f5f4a;
+  --couleur-accent-contraste: #ffffff;
+  --couleur-lien: #1a5546;
+  --couleur-focus: #a8551b;
+
+  /* --- typographie --- */
+  --police-titre: Georgia, 'Times New Roman', serif;
+  --police-texte: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --police-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Echelle modulaire (ratio 1,25), fluide sans media query. */
+  --taille-xs: 0.8rem;
+  --taille-s: 0.9rem;
+  --taille-m: 1rem;
+  --taille-l: clamp(1.15rem, 0.9rem + 0.6vw, 1.3rem);
+  --taille-xl: clamp(1.45rem, 1rem + 1.4vw, 1.85rem);
+  --taille-xxl: clamp(1.9rem, 1.2rem + 2.6vw, 2.9rem);
+
+  --graisse-normale: 400;
+  --graisse-forte: 700;
+  --interligne-titre: 1.15;
+  --interligne-texte: 1.65;
+
+  /* --- espacements (echelle 4 px) --- */
+  --espace-1: 0.25rem;
+  --espace-2: 0.5rem;
+  --espace-3: 0.75rem;
+  --espace-4: 1rem;
+  --espace-6: 1.5rem;
+  --espace-8: 2rem;
+  --espace-12: 3rem;
+  --espace-16: 4rem;
+
+  /* --- structure --- */
+  --largeur-lecture: 68ch;
+  --largeur-page: 74rem;
+  --rayon-s: 3px;
+  --rayon-m: 6px;
+  --bordure-fine: 1px solid var(--couleur-bordure);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --couleur-fond: #14150f;
+    --couleur-fond-doux: #1d1e17;
+    --couleur-surface: #1d1e17;
+    --couleur-texte: #f2f0e9;
+    --couleur-texte-doux: #b7b3a8;
+    --couleur-bordure: #3b3c33;
+    --couleur-accent: #7fc9a8;
+    --couleur-accent-contraste: #10120e;
+    --couleur-lien: #8fd3b4;
+    --couleur-focus: #f0a35e;
+  }
+}

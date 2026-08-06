@@ -1,0 +1,118 @@
+---
+/**
+ * Rendu d un champ « Rich text (Blocks) » de Strapi 5 — ni Markdown, ni HTML (§2.2).
+ *
+ * Deux regles du modele sont appliquees ici, et pas ailleurs :
+ *   - A-21 : un titre de niveau 1 saisi dans un Blocks est RETROGRADE. La page ne porte
+ *     qu un seul <h1>, celui de l article. Deux <h1> = avertissement axe-core = porte P2
+ *     ratee. `niveauMin` permet aussi de descendre les titres d un encadre en h4.
+ *   - zero JavaScript : aucun noeud ne produit d attribut interprete cote client.
+ */
+import type { NoeudRichTexte } from '../lib/domaine.ts';
+import { urlMedia } from '../lib/media.ts';
+
+interface Props {
+  noeuds: readonly NoeudRichTexte[];
+  /** Niveau de titre le plus haut autorise dans ce champ (2 par defaut, 4 dans un encadre). */
+  niveauMin?: number;
+}
+
+const { noeuds, niveauMin = 2 } = Astro.props;
+
+type Feuille = {
+  type?: string;
+  text?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  code?: boolean;
+  url?: string;
+  children?: Feuille[];
+};
+
+const niveauTitre = (niveau: unknown): string => {
+  const demande = typeof niveau === 'number' ? niveau : 2;
+  return `h${Math.min(6, Math.max(niveauMin, demande < niveauMin ? niveauMin : demande))}`;
+};
+---
+
+{
+  noeuds.map((noeud) => {
+    const n = noeud as Feuille & { level?: number; format?: string; image?: unknown };
+    const enfants = (n.children ?? []) as Feuille[];
+
+    switch (n.type) {
+      case 'heading': {
+        const Balise = niveauTitre(n.level) as 'h2';
+        return (
+          <Balise>
+            <Astro.self noeuds={enfants as NoeudRichTexte[]} niveauMin={niveauMin} />
+          </Balise>
+        );
+      }
+      case 'paragraph':
+        return (
+          <p>
+            <Astro.self noeuds={enfants as NoeudRichTexte[]} niveauMin={niveauMin} />
+          </p>
+        );
+      case 'list': {
+        const Balise = (n.format === 'ordered' ? 'ol' : 'ul') as 'ul';
+        return (
+          <Balise>
+            <Astro.self noeuds={enfants as NoeudRichTexte[]} niveauMin={niveauMin} />
+          </Balise>
+        );
+      }
+      case 'list-item':
+        return (
+          <li>
+            <Astro.self noeuds={enfants as NoeudRichTexte[]} niveauMin={niveauMin} />
+          </li>
+        );
+      case 'quote':
+        return (
+          <blockquote>
+            <Astro.self noeuds={enfants as NoeudRichTexte[]} niveauMin={niveauMin} />
+          </blockquote>
+        );
+      case 'code':
+        return (
+          <pre><code>{enfants.map((f) => f.text).join('')}</code></pre>
+        );
+      case 'link':
+        return (
+          <a href={n.url}>
+            <Astro.self noeuds={enfants as NoeudRichTexte[]} niveauMin={niveauMin} />
+          </a>
+        );
+      case 'image': {
+        const image = n.image as { url?: string; alternativeText?: string | null; width?: number; height?: number } | undefined;
+        if (!image?.url) return null;
+        return (
+          <img
+            src={urlMedia({ url: image.url, alternative: null, largeur: null, hauteur: null, mime: null })}
+            alt={image.alternativeText ?? ''}
+            width={image.width}
+            height={image.height}
+            loading="lazy"
+            decoding="async"
+          />
+        );
+      }
+      case 'text':
+      case undefined: {
+        let rendu: any = n.text ?? '';
+        if (n.code) rendu = <code>{rendu}</code>;
+        if (n.strikethrough) rendu = <s>{rendu}</s>;
+        if (n.underline) rendu = <u>{rendu}</u>;
+        if (n.italic) rendu = <em>{rendu}</em>;
+        if (n.bold) rendu = <strong>{rendu}</strong>;
+        return rendu;
+      }
+      default:
+        return null;
+    }
+  })
+}

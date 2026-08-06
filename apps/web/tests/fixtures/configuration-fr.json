@@ -1,0 +1,59 @@
+{
+  "_note": "GET /api/configuration?locale=fr — Single Type, donc `data` est un OBJET, pas un tableau. Sur l instance reelle (echoback.ayfiweb.fr, releve du 2026-08-07) cet appel rend 404 tant qu aucune entree n a ete creee : la permission est ouverte, le contenu manque.",
+  "data": {
+    "id": 1,
+    "documentId": "cfg0000000000000000001",
+    "nomSite": "L Echo des Hauts",
+    "baseline": "Le journal de la vallee",
+    "descriptionDefaut": "Le magazine local de la vallee : amenagement, vie locale, culture et environnement.",
+    "locale": "fr",
+    "updatedAt": "2026-02-14T12:00:00.000Z",
+    "logo": {
+      "id": 90,
+      "documentId": "med0000000000000000090",
+      "url": "/uploads/logo_clair_3344.svg",
+      "alternativeText": "L Echo des Hauts",
+      "width": 320,
+      "height": 64,
+      "mime": "image/svg+xml"
+    },
+    "logoSombre": {
+      "id": 91,
+      "documentId": "med0000000000000000091",
+      "url": "/uploads/logo_sombre_5566.svg",
+      "alternativeText": "L Echo des Hauts",
+      "width": 320,
+      "height": 64,
+      "mime": "image/svg+xml"
+    },
+    "favicon": {
+      "id": 92,
+      "documentId": "med0000000000000000092",
+      "url": "/uploads/favicon_7788.png",
+      "alternativeText": null,
+      "width": 512,
+      "height": 512,
+      "mime": "image/png"
+    },
+    "imagePartageDefaut": {
+      "id": 93,
+      "documentId": "med0000000000000000093",
+      "url": "/uploads/partage_defaut_99aa.jpg",
+      "alternativeText": "L Echo des Hauts",
+      "width": 1200,
+      "height": 630,
+      "mime": "image/jpeg"
+    },
+    "reseaux": [
+      { "id": 310, "plateforme": "mastodon", "url": "https://exemple.invalid/@echodeshauts" },
+      { "id": 311, "plateforme": "bluesky", "url": "https://exemple.invalid/profile/echodeshauts" }
+    ],
+    "texteFooter": [
+      { "type": "paragraph", "children": [{ "type": "text", "text": "Demonstrateur technique. Media fictif." }] }
+    ],
+    "mentionsLegales": [
+      { "type": "paragraph", "children": [{ "type": "text", "text": "L Echo des Hauts est un media fictif." }] }
+    ]
+  },
+  "meta": {}
+}

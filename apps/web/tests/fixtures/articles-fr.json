@@ -1,0 +1,282 @@
+{
+  "_note": "Reponse REST Strapi 5 pour GET /api/articles?locale=fr, avec le populate explicite de src/lib/strapi/requete.ts. Derivee champ par champ des schemas d apps/cms (article/schema.json + les 8 blocs). Deux entrees : une complete (tous les blocs, toutes les relations, 4 articlesLies pour exercer la troncature A-13), une minimale (tous les optionnels a null/[]).",
+  "data": [
+    {
+      "id": 12,
+      "documentId": "art0000000000000000001",
+      "titre": "Le viaduc rouvre apres dix-huit mois de travaux",
+      "slug": "viaduc-rouvre-apres-dix-huit-mois-de-travaux",
+      "chapo": "La circulation reprend sur l ouvrage d art, au terme d un chantier plus long que prevu.",
+      "legendeCouverture": "Le viaduc au petit matin, le jour de sa reouverture.",
+      "datePublication": "2026-03-04T07:30:00.000Z",
+      "aLaUne": true,
+      "locale": "fr",
+      "createdAt": "2026-03-01T09:12:00.000Z",
+      "updatedAt": "2026-03-05T11:02:00.000Z",
+      "publishedAt": "2026-03-04T07:35:00.000Z",
+      "imageCouverture": {
+        "id": 31,
+        "documentId": "med0000000000000000031",
+        "url": "/uploads/viaduc_aube_8f2c1a.jpg",
+        "alternativeText": "Un viaduc de pierre enjambant une vallee dans la brume",
+        "width": 2400,
+        "height": 1350,
+        "mime": "image/jpeg"
+      },
+      "auteur": {
+        "id": 3,
+        "documentId": "aut0000000000000000003",
+        "nom": "Camille Ferrand",
+        "slug": "camille-ferrand"
+      },
+      "categorie": {
+        "id": 2,
+        "documentId": "cat0000000000000000002",
+        "nom": "Amenagement",
+        "slug": "amenagement",
+        "couleurAccent": "#1f6f4a"
+      },
+      "tags": [
+        { "id": 7, "documentId": "tag0000000000000000007", "nom": "Mobilite", "slug": "mobilite" },
+        { "id": 9, "documentId": "tag0000000000000000009", "nom": "Travaux", "slug": "travaux" }
+      ],
+      "dossier": {
+        "id": 1,
+        "documentId": "dos0000000000000000001",
+        "titre": "La vallee se reconstruit",
+        "slug": "la-vallee-se-reconstruit"
+      },
+      "articlesLies": [
+        {
+          "id": 4,
+          "documentId": "art0000000000000000004",
+          "titre": "Ce que le chantier a coute",
+          "slug": "ce-que-le-chantier-a-coute",
+          "chapo": "Le detail des depenses, ligne par ligne.",
+          "imageCouverture": {
+            "id": 40,
+            "documentId": "med0000000000000000040",
+            "url": "/uploads/chantier_1b7d.jpg",
+            "alternativeText": "Une grue jaune au-dessus d un pilier de beton",
+            "width": 1600,
+            "height": 900,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "id": 5,
+          "documentId": "art0000000000000000005",
+          "titre": "Les riverains font le bilan",
+          "slug": "les-riverains-font-le-bilan",
+          "chapo": "Dix-huit mois de detours, racontes par ceux qui les ont subis.",
+          "imageCouverture": {
+            "id": 41,
+            "documentId": "med0000000000000000041",
+            "url": "/uploads/riverains_2c8e.jpg",
+            "alternativeText": "Deux habitants discutent devant une palissade de chantier",
+            "width": 1600,
+            "height": 900,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "id": 6,
+          "documentId": "art0000000000000000006",
+          "titre": "Le calendrier des prochains ouvrages",
+          "slug": "le-calendrier-des-prochains-ouvrages",
+          "chapo": "Trois ponts et une passerelle d ici 2029.",
+          "imageCouverture": {
+            "id": 42,
+            "documentId": "med0000000000000000042",
+            "url": "/uploads/passerelle_3d9f.jpg",
+            "alternativeText": "Une passerelle metallique en construction",
+            "width": 1600,
+            "height": 900,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "id": 7,
+          "documentId": "art0000000000000000007",
+          "titre": "Quatrieme article lie, au-dela du plafond A-13",
+          "slug": "quatrieme-article-lie",
+          "chapo": "Present uniquement pour exercer la troncature defensive au build.",
+          "imageCouverture": {
+            "id": 43,
+            "documentId": "med0000000000000000043",
+            "url": "/uploads/quatrieme_4e0a.jpg",
+            "alternativeText": "Photo de remplissage",
+            "width": 1600,
+            "height": 900,
+            "mime": "image/jpeg"
+          }
+        }
+      ],
+      "contenu": [
+        {
+          "__component": "bloc.texte",
+          "id": 101,
+          "contenu": [
+            { "type": "heading", "level": 2, "children": [{ "type": "text", "text": "Dix-huit mois de detours" }] },
+            { "type": "paragraph", "children": [{ "type": "text", "text": "Le premier vehicule a franchi l ouvrage a 6 h 12." }] }
+          ]
+        },
+        {
+          "__component": "bloc.citation",
+          "id": 102,
+          "texte": "On avait fini par s habituer au detour, mais personne ne le regrettera.",
+          "auteurCitation": "Helene Bouvier",
+          "source": "commercante, place du Marche"
+        },
+        {
+          "__component": "bloc.galerie",
+          "id": 103,
+          "legende": "Le chantier, de la premiere pierre a la derniere.",
+          "disposition": "grille",
+          "images": [
+            {
+              "id": 50,
+              "documentId": "med0000000000000000050",
+              "url": "/uploads/galerie_1_aa11.jpg",
+              "alternativeText": "Un pilier de beton en cours de coulage",
+              "width": 1200,
+              "height": 800,
+              "mime": "image/jpeg"
+            },
+            {
+              "id": 51,
+              "documentId": "med0000000000000000051",
+              "url": "/uploads/galerie_2_bb22.jpg",
+              "alternativeText": "Le tablier du viaduc pose a la grue",
+              "width": 1200,
+              "height": 800,
+              "mime": "image/jpeg"
+            }
+          ]
+        },
+        {
+          "__component": "bloc.encadre",
+          "id": 104,
+          "titre": "Ce qu il faut retenir",
+          "variante": "info",
+          "contenu": [
+            { "type": "paragraph", "children": [{ "type": "text", "text": "La circulation est retablie dans les deux sens." }] }
+          ]
+        },
+        {
+          "__component": "bloc.video",
+          "id": 105,
+          "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa",
+          "legende": "La pose du tablier, en trois minutes.",
+          "vignette": {
+            "id": 60,
+            "documentId": "med0000000000000000060",
+            "url": "/uploads/vignette_video_cc33.jpg",
+            "alternativeText": "Le tablier suspendu au-dessus de la vallee",
+            "width": 1280,
+            "height": 720,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "__component": "bloc.image-legendee",
+          "id": 106,
+          "legende": "Le viaduc vu depuis la rive gauche.",
+          "credit": "Photo : Camille Ferrand",
+          "image": {
+            "id": 61,
+            "documentId": "med0000000000000000061",
+            "url": "/uploads/rive_gauche_dd44.jpg",
+            "alternativeText": "Le viaduc vu d en bas, depuis la berge",
+            "width": 1800,
+            "height": 1200,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "__component": "bloc.separateur",
+          "id": 107,
+          "style": "ligne"
+        },
+        {
+          "__component": "bloc.chiffres-cles",
+          "id": 108,
+          "entrees": [
+            { "id": 201, "valeur": "18", "unite": "mois", "libelle": "de fermeture" },
+            { "id": 202, "valeur": "4,2", "unite": "M EUR", "libelle": "de travaux" },
+            { "id": 203, "valeur": "1 sur 4", "unite": null, "libelle": "habitants concernes" }
+          ]
+        }
+      ],
+      "seo": {
+        "id": 70,
+        "metaTitre": null,
+        "metaDescription": null,
+        "noindex": false,
+        "canonique": null,
+        "imagePartage": null
+      },
+      "localizations": [
+        {
+          "id": 13,
+          "documentId": "art0000000000000000001",
+          "locale": "en",
+          "slug": "viaduct-reopens-after-eighteen-months-of-works"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "documentId": "art0000000000000000020",
+      "titre": "Une braderie sans voiture, pour la premiere fois",
+      "slug": "une-braderie-sans-voiture-pour-la-premiere-fois",
+      "chapo": "Le centre-ville sera pietonnise pendant deux jours.",
+      "legendeCouverture": null,
+      "datePublication": "2026-04-18T06:00:00.000Z",
+      "aLaUne": false,
+      "locale": "fr",
+      "createdAt": "2026-04-15T10:00:00.000Z",
+      "updatedAt": "2026-04-18T06:05:00.000Z",
+      "publishedAt": "2026-04-18T06:05:00.000Z",
+      "imageCouverture": {
+        "id": 32,
+        "documentId": "med0000000000000000032",
+        "url": "/uploads/braderie_9a3b.jpg",
+        "alternativeText": "Une rue pietonne bordee d etals",
+        "width": 2000,
+        "height": 1333,
+        "mime": "image/jpeg"
+      },
+      "auteur": {
+        "id": 4,
+        "documentId": "aut0000000000000000004",
+        "nom": "Tarik Belhadj",
+        "slug": "tarik-belhadj"
+      },
+      "categorie": {
+        "id": 3,
+        "documentId": "cat0000000000000000003",
+        "nom": "Vie locale",
+        "slug": "vie-locale",
+        "couleurAccent": null
+      },
+      "tags": [],
+      "dossier": null,
+      "articlesLies": [],
+      "contenu": [
+        {
+          "__component": "bloc.texte",
+          "id": 120,
+          "contenu": [
+            { "type": "paragraph", "children": [{ "type": "text", "text": "La decision a ete prise en conseil municipal." }] }
+          ]
+        }
+      ],
+      "seo": null,
+      "localizations": []
+    }
+  ],
+  "meta": {
+    "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 2 }
+  }
+}

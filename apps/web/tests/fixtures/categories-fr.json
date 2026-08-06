@@ -1,0 +1,58 @@
+{
+  "_note": "GET /api/categories?locale=fr. Les localizations portent un slug EN DIFFERENT du slug FR : en Strapi 5 un `uid` est localise d office (docs/modele-donnees.md, encadre A-06), le slug n est donc jamais partage entre locales.",
+  "data": [
+    {
+      "id": 2,
+      "documentId": "cat0000000000000000002",
+      "nom": "Amenagement",
+      "slug": "amenagement",
+      "description": "Ce qui se construit, se demolit et se repare dans la vallee.",
+      "couleurAccent": "#1f6f4a",
+      "ordreAffichage": 10,
+      "locale": "fr",
+      "updatedAt": "2026-02-11T14:00:00.000Z",
+      "imageHero": {
+        "id": 80,
+        "documentId": "med0000000000000000080",
+        "url": "/uploads/hero_amenagement_ee55.jpg",
+        "alternativeText": "Une grue au-dessus des toits",
+        "width": 2400,
+        "height": 800,
+        "mime": "image/jpeg"
+      },
+      "seo": {
+        "id": 90,
+        "metaTitre": "Amenagement",
+        "metaDescription": null,
+        "noindex": false,
+        "canonique": null,
+        "imagePartage": null
+      },
+      "localizations": [
+        {
+          "id": 22,
+          "documentId": "cat0000000000000000002",
+          "locale": "en",
+          "slug": "planning-and-development"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "documentId": "cat0000000000000000003",
+      "nom": "Vie locale",
+      "slug": "vie-locale",
+      "description": null,
+      "couleurAccent": null,
+      "ordreAffichage": 0,
+      "locale": "fr",
+      "updatedAt": "2026-02-11T14:02:00.000Z",
+      "imageHero": null,
+      "seo": null,
+      "localizations": []
+    }
+  ],
+  "meta": {
+    "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 2 }
+  }
+}

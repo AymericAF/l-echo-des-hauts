@@ -1,85 +1,132 @@
 /**
- * Verifie la SORTIE du build, pas le code source.
+ * Inspecte la SORTIE du build, pas le code source.
  *
  * Deux contraintes dures du projet ne se lisent pas dans un fichier :
  *   - « 0 ko de JavaScript servi hors /recherche » (§1, §5.4, recette §9). Un composant
  *     hydrate par megarde, une integration qui injecte un script, un `<script>` recopie
- *     d un exemple : rien de tout cela ne fait echouer un build Astro. Ca se voit dans
- *     `dist/`, et seulement si on regarde.
+ *     d un exemple : rien de tout cela ne fait echouer un build Astro tout seul. Ca se
+ *     voit dans `dist/`, et seulement si on regarde.
  *   - `output: 'static'` integral (§4.1). Une seule route en `prerender = false` fait
  *     basculer la sortie entiere en mode serveur — la violation ne se voit pas dans le
  *     fichier fautif (T-09).
  *
- * Ce script est un ACOMPTE sur la garde T-09, pas la garde elle-meme : il constate la
- * sortie apres coup, la garde T-09 doit faire echouer le build lui-meme.
- *
- * Sort en 1 au premier manquement. `node scripts/verifier-sortie.mjs`
+ * Ce fichier ne fait que CONSTATER. Ce qui rend la contrainte opposable en machine, c est
+ * `integrations/garde-t09.mjs`, qui appelle `inspecterSortie` depuis le build lui-meme et
+ * le fait sortir en code non nul. Lancer ce script a la main reste utile pour inspecter un
+ * `dist/` deja construit : `npm run verifier:sortie`.
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DIST = path.join(RACINE, 'dist');
+/**
+ * L exception `/recherche`, bornee au plus juste.
+ *
+ * §0 des arbitrages techniques : « /recherche est UNE page, et c est la seule exemptee ».
+ * L exception porte donc sur des chemins EXACTS, jamais sur un sous-arbre :
+ *   - `recherche/` en prefixe libre exempterait `/recherche/avancee/`, et n importe quelle
+ *     page future rangee sous ce segment ;
+ *   - exempter `_astro/` parce que la recherche s en sert ouvrirait le JavaScript a TOUT
+ *     le site : ce repertoire porte les bundles partages, il est servi a toutes les pages.
+ *     C est le vecteur de fuite le plus probable, et il reste ferme.
+ * Le JavaScript legal est celui de Pagefind (§5.4), qui vit dans son propre repertoire.
+ */
+const PAGES_EXEMPTEES = new Set(['recherche/index.html', 'en/recherche/index.html']);
+const JS_EXEMPTE = /^(en\/)?pagefind\/[^/]+\.(js|mjs|cjs)$/;
 
-/** Seule page ou du JavaScript est legal (§0 des arbitrages techniques). */
-const CHEMINS_AUTORISES = [/^recherche\//, /^en\/recherche\//];
+/** Marqueurs d une sortie serveur a la racine de `dist/` (§4.1 : aucune route serveur). */
+const MARQUEURS_SERVEUR = ['_worker.js', 'server', 'functions', '_routes.json'];
 
-if (!fs.existsSync(DIST)) {
-  console.error('dist/ absent : lancer `npm run build` avant la verification.');
-  process.exit(1);
-}
-
-function fichiers(dossier) {
+function fichiersDe(dossier) {
   const trouves = [];
   for (const entree of fs.readdirSync(dossier, { withFileTypes: true })) {
     const complet = path.join(dossier, entree.name);
-    if (entree.isDirectory()) trouves.push(...fichiers(complet));
+    if (entree.isDirectory()) trouves.push(...fichiersDe(complet));
     else trouves.push(complet);
   }
   return trouves;
 }
 
-const tous = fichiers(DIST).map((f) => ({
-  absolu: f,
-  relatif: path.relative(DIST, f).split(path.sep).join('/'),
-}));
-
-const manquements = [];
-
-// 1. Aucun fichier JavaScript servi, hors /recherche.
-for (const fichier of tous) {
-  if (!/\.(js|mjs|cjs)$/.test(fichier.relatif)) continue;
-  if (CHEMINS_AUTORISES.some((motif) => motif.test(fichier.relatif))) continue;
-  manquements.push(`fichier JavaScript servi : ${fichier.relatif}`);
+/**
+ * Les balises ouvrantes du HTML, sans leur contenu textuel.
+ *
+ * Chercher ` on...=` dans le document entier remonterait « one = 1 » ecrit dans un article.
+ * Un faux positif sur une garde dure finit toujours de la meme facon : on la desactive.
+ */
+function balisesOuvrantes(html) {
+  return html.match(/<[a-z][^>]*>/gi) ?? [];
 }
 
-// 2. Aucune balise <script> dans le HTML, hors /recherche.
-for (const fichier of tous) {
-  if (!fichier.relatif.endsWith('.html')) continue;
-  if (CHEMINS_AUTORISES.some((motif) => motif.test(fichier.relatif))) continue;
-  const html = fs.readFileSync(fichier.absolu, 'utf8');
-  if (/<script[\s>]/i.test(html)) manquements.push(`balise <script> dans ${fichier.relatif}`);
-  if (/\son[a-z]+\s*=/i.test(html)) manquements.push(`attribut d evenement inline dans ${fichier.relatif}`);
-}
-
-// 3. Aucune trace de sortie serveur.
-for (const marqueur of ['_worker.js', 'server', 'functions', '_routes.json']) {
-  if (fs.existsSync(path.join(DIST, marqueur))) {
-    manquements.push(`sortie serveur detectee : dist/${marqueur} (§4.1 : aucune route serveur)`);
+/**
+ * @param {string} dist Chemin du repertoire de sortie.
+ * @returns {{manquements: string[], pages: number, fichiers: number, octets: number}}
+ */
+export function inspecterSortie(dist) {
+  if (!fs.existsSync(dist)) {
+    return { manquements: [`sortie absente : ${dist}`], pages: 0, fichiers: 0, octets: 0 };
   }
+
+  const tous = fichiersDe(dist).map((f) => ({
+    absolu: f,
+    relatif: path.relative(dist, f).split(path.sep).join('/'),
+  }));
+
+  const manquements = [];
+
+  // 1. Aucun fichier JavaScript servi, hors le bundle Pagefind de /recherche.
+  for (const fichier of tous) {
+    if (!/\.(js|mjs|cjs)$/.test(fichier.relatif)) continue;
+    if (JS_EXEMPTE.test(fichier.relatif)) continue;
+    manquements.push(`fichier JavaScript servi : ${fichier.relatif}`);
+  }
+
+  // 2. Aucune balise <script> ni attribut d evenement inline, hors la page /recherche.
+  for (const fichier of tous) {
+    if (!fichier.relatif.endsWith('.html')) continue;
+    if (PAGES_EXEMPTEES.has(fichier.relatif)) continue;
+    const html = fs.readFileSync(fichier.absolu, 'utf8');
+    if (/<script[\s>]/i.test(html)) {
+      manquements.push(`balise <script> dans ${fichier.relatif}`);
+    }
+    const baliseFautive = balisesOuvrantes(html).find((b) => /\son[a-z]+\s*=/i.test(b));
+    if (baliseFautive) {
+      manquements.push(
+        `attribut d evenement inline dans ${fichier.relatif} : ${baliseFautive.slice(0, 80)}`,
+      );
+    }
+  }
+
+  // 3. Aucune trace de sortie serveur.
+  for (const marqueur of MARQUEURS_SERVEUR) {
+    if (fs.existsSync(path.join(dist, marqueur))) {
+      manquements.push(`sortie serveur detectee : ${marqueur} (§4.1 : aucune route serveur)`);
+    }
+  }
+
+  return {
+    manquements,
+    pages: tous.filter((f) => f.relatif.endsWith('.html')).length,
+    fichiers: tous.length,
+    octets: tous.reduce((total, f) => total + fs.statSync(f.absolu).size, 0),
+  };
 }
 
-const pages = tous.filter((f) => f.relatif.endsWith('.html')).length;
-const octets = tous.reduce((total, f) => total + fs.statSync(f.absolu).size, 0);
-
-if (manquements.length > 0) {
-  console.error(`\n✖ ${manquements.length} manquement(s) :`);
-  for (const manquement of manquements) console.error(`  - ${manquement}`);
-  process.exit(1);
+/** Le compte rendu au vert, en une ligne. */
+export function resume(rapport) {
+  return (
+    `${rapport.pages} page(s) HTML, ${rapport.fichiers} fichier(s), ` +
+    `${(rapport.octets / 1024).toFixed(1)} Kio : aucun JavaScript servi, aucune sortie serveur.`
+  );
 }
 
-console.log(
-  `✔ ${pages} page(s) HTML, ${tous.length} fichier(s), ${(octets / 1024).toFixed(1)} Kio : ` +
-    'aucun JavaScript servi, aucune sortie serveur.',
-);
+// --- Usage en ligne de commande -------------------------------------------------------
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const racine = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const rapport = inspecterSortie(path.join(racine, 'dist'));
+  if (rapport.manquements.length > 0) {
+    console.error(`\n✖ ${rapport.manquements.length} manquement(s) :`);
+    for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+    process.exit(1);
+  }
+  console.log(`✔ ${resume(rapport)}`);
+}

@@ -10,7 +10,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "node --test tests/mapping.test.ts tests/requete.test.ts",
+    "test": "node --test tests/mapping.test.ts tests/requete.test.ts tests/garde-sortie.test.ts",
     "verifier:sortie": "node scripts/verifier-sortie.mjs"
   },
   "dependencies": {

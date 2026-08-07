@@ -186,3 +186,10 @@ public. Le geste correct est de le **révoquer et le régénérer**, pas de le s
 Le cahier des charges, les arbitrages de conception, le plan éditorial, le protocole de mesure et
 le runbook de provisionnement sont de la **documentation interne** et vivent dans un dépôt privé
 séparé. Ce dépôt-ci est le livrable « code ».
+
+## Licence
+
+Le code de ce dépôt est publié sous **licence MIT** (voir le fichier `LICENSE`) : il peut être
+réutilisé, modifié et redistribué, y compris commercialement, à condition de conserver l'avis de
+copyright. Le contenu éditorial de démonstration — textes, visuels et données du magazine — n'est
+pas du code : il est l'œuvre du projet et sert d'illustration, pas de matériau réutilisable.

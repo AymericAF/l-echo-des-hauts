@@ -126,8 +126,25 @@ async function principal(): Promise<number> {
   return 0;
 }
 
+/*
+ * Le code de sortie se POSE (`process.exitCode`), il ne se force pas
+ * (`process.exit()`) : le processus se termine ensuite de lui-meme, quand ses
+ * handles se sont fermes.
+ *
+ * `process.exit()` coupe les handles libuv encore ouverts — ici les sockets
+ * keep-alive du client HTTP vers Strapi. Sur Node 24 / Windows, la coupure
+ * faisait avorter le processus (« Assertion failed:
+ * !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c », code
+ * 0xC0000409) APRES avoir imprime « Controle 12 : VERT ». La sortie texte
+ * disait vrai, le code de retour disait l'inverse — et c'est le code de retour
+ * qui commande une chaine automatisee.
+ *
+ * `tests/seed-code-sortie.test.ts` exerce les deux sens en sous-processus.
+ */
 principal()
-  .then((code) => process.exit(code))
+  .then((code) => {
+    process.exitCode = code;
+  })
   .catch((e) => {
     if (e instanceof ErreurCorpus) {
       console.error(`\nCORPUS INVALIDE — rien n'a ete ecrit dans Strapi.\n${e.message}`);
@@ -136,5 +153,5 @@ principal()
     } else {
       console.error(e);
     }
-    process.exit(1);
+    process.exitCode = 1;
   });

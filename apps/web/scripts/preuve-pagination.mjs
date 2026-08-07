@@ -223,8 +223,25 @@ function bascule(contenu) {
   return lien ? lien[1] : null;
 }
 
+/**
+ * Les alternates HREFLANG d une page — et eux seuls.
+ *
+ * Le selecteur exige `hreflang`, il ne se contente pas de `rel="alternate"`. Corrige le
+ * 2026-08-07 : le lot SEO (§5.2) a ajoute `<link rel="alternate"
+ * type="application/rss+xml">` dans le `<head>` de toutes les pages, et l ancien
+ * selecteur le comptait comme un hreflang. Les quatre bornes de cette section sont
+ * passees au rouge sur un site parfaitement sain — et la seule qui aurait pu rougir a
+ * raison (« article traduit : les hreflang sont emis », qui attend exactement 3) serait
+ * desormais passee au vert avec 2 vrais hreflang et un flux RSS. Un compteur qui compte
+ * autre chose que ce qu il nomme finit toujours par mentir dans les deux sens.
+ */
 function alternates(contenu) {
-  return liensDe(contenu, /<link rel="alternate"[^>]*href="([^"]+)"/g);
+  const balises = contenu.match(/<link\b[^>]*\brel="alternate"[^>]*>/g) ?? [];
+  return balises
+    .filter((balise) => /\bhreflang="/.test(balise))
+    .map((balise) => balise.match(/\bhref="([^"]+)"/))
+    .filter((trouve) => trouve !== null)
+    .map((trouve) => trouve[1]);
 }
 
 // 1. Article TRADUIT : la bascule atterrit sur sa traduction, avec le slug ANGLAIS.

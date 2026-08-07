@@ -140,6 +140,20 @@ npm run preview   # sert ./dist/ localement
 pour le servir. Le site consomme l'API Strapi **au build**, jamais à la lecture, avec un token API
 en **lecture seule** injecté par l'environnement.
 
+**Deux gardes font échouer le build**, volontairement — elles ne se contournent pas, elles se
+corrigent. Elles inspectent la **sortie** (`dist/`), jamais le code source, parce que c'est le seul
+endroit où les deux contraintes se voient :
+
+| Garde | Ce qu'elle refuse | À la main |
+|---|---|---|
+| `garde-t09` | tout JavaScript servi hors `/recherche`, toute trace de sortie serveur | `npm run verifier:sortie` |
+| `garde-images` | un `<img>` sans `width`/`height` explicites, ou sans `loading` (`lazy` \| `eager`) — cahier §5.3, suppression du CLS | `npm run verifier:images` |
+
+⚠ La garde `garde-images` lit le **HTML**. Elle ne peut donc pas voir qu'une règle CSS annule les
+attributs : un `<img>` dont la CSS laisse **les deux axes en `auto`** est posé à 0 × 0 avant
+d'arriver, et décale la page malgré des attributs corrects. Il faut **un axe défini** — le
+`width: 100%` des blocs, le `height` de l'en-tête. Cette classe-là ne se voit qu'à la mesure.
+
 > **État d'avancement** — `apps/web` est encore le squelette Astro : l'intégration du contenu
 > Strapi (loader, routes, rendu de la Dynamic Zone) est en cours d'écriture. Les commandes
 > ci-dessus fonctionnent, mais le site ne rend pas encore d'articles.

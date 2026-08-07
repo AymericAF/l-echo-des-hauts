@@ -96,6 +96,7 @@ const description =
           alt={article.imageCouverture.alternative ?? ''}
           width={article.imageCouverture.largeur ?? undefined}
           height={article.imageCouverture.hauteur ?? undefined}
+          loading="eager"
           fetchpriority="high"
           decoding="async"
         />

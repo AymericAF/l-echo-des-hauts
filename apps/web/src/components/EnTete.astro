@@ -10,6 +10,18 @@
  * Quand `configuration` vaut null (aucune entree en base), l en-tete le DIT au lieu de
  * ressembler a un en-tete fini : un gabarit muet ferait passer une base vide pour un
  * site en ordre de marche.
+ *
+ * §5.3 — `loading="eager"` sur le logo, ECRIT et non laisse au defaut. Le logo est la
+ * premiere chose de la zone visible immediate : c est exactement l image que le §5.3
+ * exclut du chargement differe. L attribut est explicite parce que la garde §5.3
+ * (`integrations/garde-images.mjs`) refuse un `<img>` muet — un attribut absent ne dit
+ * pas laquelle des deux intentions on avait, et le mode d echec couteux n est pas le
+ * `lazy` oublie, c est le `lazy` pose ici, qui retarderait la premiere peinture.
+ *
+ * Le `<source>` porte SES PROPRES dimensions : il sert un autre fichier que l `<img>`,
+ * et si son rapport de forme differe, la boite reservee d apres l `<img>` n est pas la
+ * sienne — l image sombre arriverait dans une boite qui n est pas la sienne, et le CLS
+ * reviendrait par le seul chemin que le §5.3 ne nomme pas.
  */
 import type { Configuration } from '../lib/domaine.ts';
 import { urlMedia } from '../lib/media.ts';
@@ -37,12 +49,16 @@ const { configuration, accueil } = Astro.props;
               <source
                 srcset={urlMedia(configuration.logoSombre)}
                 media="(prefers-color-scheme: dark)"
+                width={configuration.logoSombre.largeur ?? undefined}
+                height={configuration.logoSombre.hauteur ?? undefined}
               />
               <img
                 src={urlMedia(configuration.logo)}
                 alt={configuration.logo.alternative ?? configuration.nomSite}
                 width={configuration.logo.largeur ?? undefined}
                 height={configuration.logo.hauteur ?? undefined}
+                loading="eager"
+                decoding="async"
               />
             </picture>
           ) : (
@@ -51,6 +67,8 @@ const { configuration, accueil } = Astro.props;
               alt={configuration.logo.alternative ?? configuration.nomSite}
               width={configuration.logo.largeur ?? undefined}
               height={configuration.logo.hauteur ?? undefined}
+              loading="eager"
+              decoding="async"
             />
           )}
           <span class="hors-ecran">{configuration.nomSite}</span>
@@ -78,9 +96,26 @@ const { configuration, accueil } = Astro.props;
     gap: var(--espace-2) var(--espace-6);
   }
 
+  /*
+   * §5.3 — `height` DEFINIE, jamais `max-height`. Ce n est pas une preference de style,
+   * c est ce qui reserve la boite du logo avant qu il n arrive.
+   *
+   * MESURE, pas deduction (banc Chrome headless, 2026-08-07, article servi avec 900 ms de
+   * retard sur les medias) : avec `max-height: 3rem` + `width: auto`, et le
+   * `img { height: auto }` du reset de `styles/base.css`, les DEUX axes etaient en `auto`
+   * — le navigateur ne pouvait alors deriver aucune boite des attributs `width`/`height`
+   * et posait l image a **0 x 0**. Le logo arrivait, l en-tete passait de 57 a 88 px, et
+   * toute la page descendait : **CLS = 0,0554**, un seul decalage, sources
+   * `main#contenu` et `p.en-tete__baseline`. Apres ce correctif : **CLS = 0**.
+   *
+   * La lecon generale, qui vaut pour toute image ajoutee plus tard : les attributs
+   * `width`/`height` ne reservent rien tant que la CSS laisse les deux axes en `auto`.
+   * Il en faut UN de defini — ici `height`, ailleurs le `width: 100%` des blocs. La garde
+   * §5.3 lit le HTML : elle ne peut pas voir cette classe-la, seule une mesure la voit.
+   */
   .en-tete__marque img {
     display: block;
-    max-height: 3rem;
+    height: 3rem;
     width: auto;
   }
 

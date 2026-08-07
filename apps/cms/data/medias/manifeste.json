@@ -368,5 +368,105 @@
     "alternativeText": "Diagramme en barres horizontales de la composition des soixante-deux cartons par nature de pieces",
     "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
     "licence": "oeuvre du projet"
+  },
+  "couvertures/A03.svg": {
+    "alternativeText": "Plan de voirie invente du centre de Val-d'Ambre, trois axes modifies flechees en vert et un tourne-a-gauche barre",
+    "caption": "Trace invente ; aucune voirie reelle n'est representee",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A04.svg": {
+    "alternativeText": "Frise de raccordement a la fibre des quatorze communes, de 2020 a 2027, et trois communes sans date",
+    "caption": "Calendrier reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A07.svg": {
+    "alternativeText": "Quatorze barres donnant la part de residences secondaires par commune, avec la moyenne du plateau a 24 %",
+    "caption": "Serie inventee ; la moyenne de 24 % est celle du plateau",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A08.svg": {
+    "alternativeText": "Courbe des voyages mensuels du car express sur deux saisons, de septembre 2024 a fevrier 2026",
+    "caption": "Serie inventee ; le total de 128 000 voyages est celui de la saison 2025-2026",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A10.svg": {
+    "alternativeText": "Verbatim en grand corps : onze kilometres, deux cent quatorze boites",
+    "caption": "Composition typographique, filet d'accent de la rubrique Vies d'ici",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A12.svg": {
+    "alternativeText": "Six barres donnant l'amplitude horaire de chaque jour de la semaine du medecin de Monteclair",
+    "caption": "Releve d'une semaine, du 16 au 21 fevrier 2026",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A15.svg": {
+    "alternativeText": "Verbatim en grand corps : dix euros soixante-quatre de l'heure",
+    "caption": "Composition typographique, filet d'accent de la rubrique Vies d'ici",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A20.svg": {
+    "alternativeText": "Elevation dessinee des dix facades de la rue Basse, le cinquieme local en pointille parce qu'il est vide",
+    "caption": "Elevation schematique dessinee pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A26.svg": {
+    "alternativeText": "Vingt barres donnant la part de compagnies du plateau dans la programmation du festival, de 2007 a 2026",
+    "caption": "Depouillement des vingt affiches, valeurs inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A27.svg": {
+    "alternativeText": "Boucle reliant neuf points numerotes, la tournee du cinema itinerant",
+    "caption": "Geometrie inventee ; aucun trace reel n'est represente",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A32.svg": {
+    "alternativeText": "Profil en long du sentier des Echarmes sur 7,4 kilometres, le gue signale au kilometre 2,9",
+    "caption": "Profil dessine ; le releve d'altitude est invente",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A39.svg": {
+    "alternativeText": "Fac-simile d'un extrait de compte administratif du centre de sante, huit lignes et un reste a charge",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A40.svg": {
+    "alternativeText": "Grille de quatorze lignes et huit colonnes, trois lignes en pointille pour les maires qui n'ont pas repondu",
+    "caption": "Grille reconstitue graphiquement pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A03-comptage.svg": {
+    "alternativeText": "Dix-huit barres horaires du comptage du tourne-a-gauche, deux pointes a huit heures et a dix-sept heures",
+    "caption": "Comptage invente, dessine pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A10-tournee.svg": {
+    "alternativeText": "Trace sinueux de la tournee a pied, deux cent quatorze points de distribution dont douze cercles ouverts",
+    "caption": "Trace invente ; le decompte des boites est celui de la tournee",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A15-compte.svg": {
+    "alternativeText": "Cascade en cinq colonnes du compte de treize semaines de l'epicerie, du chiffre d'affaires au reste pour deux personnes",
+    "caption": "Compte communique par les gerants, redessine",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A20-rue-basse.svg": {
+    "alternativeText": "Dix paires de barres donnant la surface et la duree d'occupation de chaque local de la rue Basse",
+    "caption": "Releve de terrain du 12 mars 2026, redessine",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A26-affiches.svg": {
+    "alternativeText": "Vingt lignes de carres, un par spectacle programme, les carres pleins etant les compagnies du plateau",
+    "caption": "Depouillement des vingt programmes, redessine",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A32-gue.svg": {
+    "alternativeText": "Profil en travers du gue, quatre niveaux d'eau et les deux culees de la passerelle emportee",
+    "caption": "Profil dessine ; les hauteurs proviennent d'une serie inventee",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A39-occupation.svg": {
+    "alternativeText": "Trois series de cinquante-deux barres hebdomadaires, la troisieme entierement plate",
+    "caption": "Releve du planning du centre de sante, redessine",
+    "licence": "oeuvre du projet"
   }
 }

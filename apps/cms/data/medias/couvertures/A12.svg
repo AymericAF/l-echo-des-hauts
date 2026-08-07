@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <text x="120" y="118" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Une semaine de garde et de consultations, heure par heure</text>
+  <rect x="163" y="285" width="141" height="435" fill="#B4472A" opacity="0.45"/>
+  <text x="233.26666666666665" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">lundi</text>
+  <rect x="390" y="256" width="141" height="464" fill="#B4472A" opacity="0.55"/>
+  <text x="460.26666666666665" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">mardi</text>
+  <rect x="616" y="313" width="141" height="407" fill="#B4472A" opacity="0.65"/>
+  <text x="686.2666666666667" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">mercredi</text>
+  <rect x="843" y="247" width="141" height="473" fill="#B4472A" opacity="0.75"/>
+  <text x="913.2666666666667" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">jeudi</text>
+  <rect x="1070" y="285" width="141" height="435" fill="#B4472A" opacity="0.85"/>
+  <text x="1140.2666666666667" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">vendredi</text>
+  <rect x="1296" y="606" width="141" height="114" fill="#B4472A" opacity="0.95"/>
+  <text x="1366.2666666666667" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">samedi</text>
+  <line x1="100" y1="720" x2="1500" y2="720" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#B4472A">61 h 30 d amplitude, 148 consultations, 412 kilometres</text>
+</svg>

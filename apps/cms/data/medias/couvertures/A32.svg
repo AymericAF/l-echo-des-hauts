@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <text x="120" y="118" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Sentier des Echarmes : 7,4 km, profil en long</text>
+  <polygon points="120,700 120,640 188,595 256,513 324,430 392,475 460,550 528,618 596,565 664,453 732,340 800,288 868,370 936,468 1004,550 1072,603 1140,655 1208,610 1276,528 1344,475 1412,543 1480,633 1480,700" fill="#0E6F87" opacity="0.16"/>
+  <polyline points="120,640 188,595 256,513 324,430 392,475 460,550 528,618 596,565 664,453 732,340 800,288 868,370 936,468 1004,550 1072,603 1140,655 1208,610 1276,528 1344,475 1412,543 1480,633" fill="none" stroke="#0E6F87" stroke-width="5"/>
+  <line x1="664" y1="200" x2="664" y2="700" stroke="#0E6F87" stroke-width="3" stroke-dasharray="10 8"/>
+  <circle cx="664" cy="453" r="14" fill="none" stroke="#0E6F87" stroke-width="6"/>
+  <text x="682" y="222" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#0E6F87">le gue, km 2,9 — passerelle absente</text>
+  <line x1="100" y1="700" x2="1500" y2="700" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#0E6F87">Denivele cumule 640 m ; profil dessine, releve invente</text>
+</svg>

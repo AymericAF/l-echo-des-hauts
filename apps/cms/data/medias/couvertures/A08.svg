@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <text x="120" y="118" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Voyages par mois, septembre 2024 - fevrier 2026 (en milliers)</text>
+  <line x1="120" y1="575" x2="1480" y2="575" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <line x1="120" y1="450" x2="1480" y2="450" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <line x1="120" y1="325" x2="1480" y2="325" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <polyline points="120,554 179,493 238,479 297,507 357,454 416,446 475,400 534,386 593,368 652,482 711,514 770,382 830,364 889,314 948,300 1007,329 1066,275 1125,268 1184,243 1243,257 1303,232 1362,386 1421,436 1480,264" fill="none" stroke="#1F5C4A" stroke-width="5" opacity="0.9"/>
+  <circle cx="120" cy="554" r="7" fill="#1F5C4A"/>
+  <circle cx="297" cy="507" r="7" fill="#1F5C4A"/>
+  <circle cx="475" cy="400" r="7" fill="#1F5C4A"/>
+  <circle cx="652" cy="482" r="7" fill="#1F5C4A"/>
+  <circle cx="830" cy="364" r="7" fill="#1F5C4A"/>
+  <circle cx="1007" cy="329" r="7" fill="#1F5C4A"/>
+  <circle cx="1184" cy="243" r="7" fill="#1F5C4A"/>
+  <circle cx="1362" cy="386" r="7" fill="#1F5C4A"/>
+  <line x1="830" y1="180" x2="830" y2="700" stroke="#1F5C4A" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="8 8"/>
+  <text x="842" y="174" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1F5C4A">saison 2025-2026</text>
+  <line x1="100" y1="700" x2="1500" y2="700" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1F5C4A">128 000 voyages sur la saison 2025-2026</text>
+</svg>

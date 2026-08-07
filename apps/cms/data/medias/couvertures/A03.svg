@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <line x1="140" y1="300" x2="1460" y2="300" stroke="#1A1A1A" stroke-opacity="0.16" stroke-width="26" stroke-linecap="round"/>
+  <line x1="140" y1="470" x2="1460" y2="470" stroke="#1A1A1A" stroke-opacity="0.16" stroke-width="26" stroke-linecap="round"/>
+  <line x1="140" y1="660" x2="1460" y2="660" stroke="#1A1A1A" stroke-opacity="0.16" stroke-width="26" stroke-linecap="round"/>
+  <line x1="330" y1="180" x2="330" y2="780" stroke="#1A1A1A" stroke-opacity="0.16" stroke-width="26" stroke-linecap="round"/>
+  <line x1="700" y1="180" x2="700" y2="780" stroke="#1A1A1A" stroke-opacity="0.16" stroke-width="26" stroke-linecap="round"/>
+  <line x1="1080" y1="180" x2="1080" y2="780" stroke="#1A1A1A" stroke-opacity="0.16" stroke-width="26" stroke-linecap="round"/>
+  <line x1="1330" y1="180" x2="1330" y2="780" stroke="#1A1A1A" stroke-opacity="0.16" stroke-width="26" stroke-linecap="round"/>
+  <path d="M 140 800 C 420 740 700 790 980 720 S 1400 690 1460 640" fill="none" stroke="#0E6F87" stroke-width="14" opacity="0.35"/>
+  <defs><marker id="f" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 12 6 L 0 12 z" fill="#1F5C4A"/></marker></defs>
+  <line x1="330" y1="240" x2="330" y2="740" stroke="#1F5C4A" stroke-width="9" marker-end="url(#f)" opacity="0.9"/>
+  <line x1="700" y1="470" x2="1330" y2="470" stroke="#1F5C4A" stroke-width="9" marker-end="url(#f)" opacity="0.9"/>
+  <line x1="1080" y1="740" x2="1080" y2="320" stroke="#1F5C4A" stroke-width="9" marker-end="url(#f)" opacity="0.9"/>
+  <circle cx="700" cy="660" r="46" fill="none" stroke="#1F5C4A" stroke-width="9"/>
+  <line x1="668" y1="628" x2="732" y2="692" stroke="#1F5C4A" stroke-width="9"/>
+  <text x="120" y="118" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Plan de circulation du centre : six modifications au 1er septembre</text>
+  <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1F5C4A">Trace invente ; aucune voirie reelle n'est representee</text>
+</svg>

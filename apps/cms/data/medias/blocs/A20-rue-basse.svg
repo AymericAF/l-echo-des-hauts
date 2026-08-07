@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <text x="120" y="118" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Dix locaux : surface, et duree d occupation depuis 2010</text>
+  <rect x="150" y="508" width="46" height="192" fill="#8A5A12" opacity="0.5"/>
+  <rect x="204" y="267" width="46" height="433" fill="#8A5A12" opacity="0.85"/>
+  <text x="200" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">1</text>
+  <rect x="282" y="444" width="46" height="256" fill="#8A5A12" opacity="0.5"/>
+  <rect x="336" y="456" width="46" height="244" fill="#8A5A12" opacity="0.85"/>
+  <text x="332" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">2</text>
+  <rect x="414" y="552" width="46" height="148" fill="#8A5A12" opacity="0.5"/>
+  <rect x="468" y="592" width="46" height="108" fill="#8A5A12" opacity="0.85"/>
+  <text x="464" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">3</text>
+  <rect x="546" y="476" width="46" height="224" fill="#8A5A12" opacity="0.5"/>
+  <rect x="600" y="402" width="46" height="298" fill="#8A5A12" opacity="0.85"/>
+  <text x="596" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">4</text>
+  <rect x="678" y="272" width="46" height="428" fill="#8A5A12" opacity="0.5"/>
+  <rect x="732" y="700" width="46" height="0" fill="#8A5A12" opacity="0.85"/>
+  <text x="728" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">5</text>
+  <rect x="810" y="524" width="46" height="176" fill="#8A5A12" opacity="0.5"/>
+  <rect x="864" y="538" width="46" height="162" fill="#8A5A12" opacity="0.85"/>
+  <text x="860" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">6</text>
+  <rect x="942" y="428" width="46" height="272" fill="#8A5A12" opacity="0.5"/>
+  <rect x="996" y="267" width="46" height="433" fill="#8A5A12" opacity="0.85"/>
+  <text x="992" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">7</text>
+  <rect x="1074" y="492" width="46" height="208" fill="#8A5A12" opacity="0.5"/>
+  <rect x="1128" y="619" width="46" height="81" fill="#8A5A12" opacity="0.85"/>
+  <text x="1124" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">8</text>
+  <rect x="1206" y="516" width="46" height="184" fill="#8A5A12" opacity="0.5"/>
+  <rect x="1260" y="511" width="46" height="189" fill="#8A5A12" opacity="0.85"/>
+  <text x="1256" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">9</text>
+  <rect x="1338" y="464" width="46" height="236" fill="#8A5A12" opacity="0.5"/>
+  <rect x="1392" y="375" width="46" height="325" fill="#8A5A12" opacity="0.85"/>
+  <text x="1388" y="738" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">10</text>
+  <line x1="120" y1="700" x2="1490" y2="700" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="150" y="180" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#8A5A12">barre claire : surface en m2 — barre foncee : annees d occupation continue</text>
+  <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#8A5A12">Le local 5 est vide depuis sept ans ; les neuf autres sont ouverts</text>
+</svg>

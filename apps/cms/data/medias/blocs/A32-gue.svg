@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <text x="120" y="118" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Le gue du ruisseau de la Fauge, profil en travers</text>
+  <path d="M 200 420 L 520 420 L 660 620 L 940 620 L 1080 420 L 1400 420" fill="none" stroke="#1A1A1A" stroke-width="6" opacity="0.7"/>
+  <rect x="641" y="590" width="318" height="30" fill="#0E6F87" opacity="0.2"/>
+  <line x1="1090" y1="590" x2="1150" y2="590" stroke="#0E6F87" stroke-width="3"/>
+  <text x="1164" y="599" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.8">4 cm — 214 jours</text>
+  <rect x="657.8" y="566" width="284.4" height="54" fill="#0E6F87" opacity="0.3"/>
+  <line x1="1090" y1="566" x2="1150" y2="566" stroke="#0E6F87" stroke-width="3"/>
+  <text x="1164" y="575" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.8">12 cm — 110 jours</text>
+  <rect x="676" y="540" width="248" height="80" fill="#0E6F87" opacity="0.45"/>
+  <line x1="1090" y1="540" x2="1150" y2="540" stroke="#0E6F87" stroke-width="3"/>
+  <text x="1164" y="549" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.8">22 cm — 41 jours</text>
+  <rect x="704" y="500" width="192" height="120" fill="#0E6F87" opacity="0.62"/>
+  <line x1="1090" y1="500" x2="1150" y2="500" stroke="#0E6F87" stroke-width="3"/>
+  <text x="1164" y="509" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.8">crue du 3 novembre 2023</text>
+  <rect x="470" y="360" width="46" height="62" fill="#1A1A1A" opacity="0.3"/>
+  <rect x="1084" y="360" width="46" height="62" fill="#1A1A1A" opacity="0.3"/>
+  <text x="200" y="340" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.6">culees de la passerelle emportee, portee 12 m</text>
+  <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#0E6F87">Hauteurs relevees a la station de jaugeage, serie 2016-2025</text>
+</svg>

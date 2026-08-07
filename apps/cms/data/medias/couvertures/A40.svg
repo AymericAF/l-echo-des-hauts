@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#EFEBE3"/>
+  <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
+  <rect x="220" y="170" width="420" height="18" fill="#8C2F39"/>
+  <text x="240" y="240" font-family="Georgia, serif" font-size="40" fill="#1A1A1A">Questionnaire aux quatorze maires : la grille</text>
+  <text x="346" y="276" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.6">Q1</text>
+  <text x="468" y="276" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.6">Q2</text>
+  <text x="590" y="276" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.6">Q3</text>
+  <text x="712" y="276" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.6">Q4</text>
+  <text x="834" y="276" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.6">Q5</text>
+  <text x="956" y="276" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.6">Q6</text>
+  <text x="1078" y="276" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.6">Q7</text>
+  <text x="1200" y="276" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.6">Q8</text>
+  <text x="270" y="312" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 1</text>
+  <rect x="300" y="288" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="422" y="288" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="544" y="288" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="666" y="288" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="288" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="288" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="1032" y="288" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1154" y="288" width="92" height="26" fill="#8C2F39" opacity="0.9"/>
+  <text x="270" y="348" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 2</text>
+  <rect x="300" y="324" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="422" y="324" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="544" y="324" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="666" y="324" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="324" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="324" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1032" y="324" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="1154" y="324" width="92" height="26" fill="#8C2F39" opacity="0.9"/>
+  <text x="270" y="384" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 3</text>
+  <rect x="300" y="360" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="422" y="360" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="544" y="360" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="666" y="360" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="360" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="360" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1032" y="360" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1154" y="360" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <text x="270" y="420" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 4</text>
+  <rect x="300" y="396" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="422" y="396" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="544" y="396" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="666" y="396" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="788" y="396" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="910" y="396" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="1032" y="396" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="1154" y="396" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <text x="270" y="456" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 5</text>
+  <rect x="300" y="432" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="422" y="432" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="544" y="432" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="666" y="432" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="432" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="910" y="432" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1032" y="432" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1154" y="432" width="92" height="26" fill="#8C2F39" opacity="0.9"/>
+  <text x="270" y="492" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 6</text>
+  <rect x="300" y="468" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="422" y="468" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="544" y="468" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="666" y="468" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="468" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="468" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="1032" y="468" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1154" y="468" width="92" height="26" fill="#8C2F39" opacity="0.9"/>
+  <text x="270" y="528" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 7</text>
+  <rect x="300" y="504" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="422" y="504" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="544" y="504" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="666" y="504" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="504" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="504" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1032" y="504" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="1154" y="504" width="92" height="26" fill="#8C2F39" opacity="0.9"/>
+  <text x="270" y="564" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 8</text>
+  <rect x="300" y="540" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="422" y="540" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="544" y="540" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="666" y="540" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="540" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="540" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1032" y="540" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1154" y="540" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <text x="270" y="600" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 9</text>
+  <rect x="300" y="576" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="422" y="576" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="544" y="576" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="666" y="576" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="788" y="576" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="576" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1032" y="576" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1154" y="576" width="92" height="26" fill="#8C2F39" opacity="0.9"/>
+  <text x="270" y="636" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 10</text>
+  <rect x="300" y="612" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="422" y="612" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="544" y="612" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="666" y="612" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="788" y="612" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="910" y="612" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="1032" y="612" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="1154" y="612" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <text x="270" y="672" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 11</text>
+  <rect x="300" y="648" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="422" y="648" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="544" y="648" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="666" y="648" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="648" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="648" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="1032" y="648" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1154" y="648" width="92" height="26" fill="#8C2F39" opacity="0.9"/>
+  <text x="270" y="708" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 12</text>
+  <rect x="300" y="684" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="422" y="684" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="544" y="684" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="666" y="684" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="684" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="684" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1032" y="684" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="1154" y="684" width="92" height="26" fill="#8C2F39" opacity="0.9"/>
+  <text x="270" y="744" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 13</text>
+  <rect x="300" y="720" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="422" y="720" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="544" y="720" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <rect x="666" y="720" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="788" y="720" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="910" y="720" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1032" y="720" width="92" height="26" fill="#8C2F39" opacity="0.42"/>
+  <rect x="1154" y="720" width="92" height="26" fill="#8C2F39" opacity="0.14"/>
+  <text x="270" y="780" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">commune 14</text>
+  <rect x="300" y="756" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="422" y="756" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="544" y="756" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="666" y="756" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="788" y="756" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="910" y="756" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="1032" y="756" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <rect x="1154" y="756" width="92" height="26" fill="none" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="2" stroke-dasharray="6 6"/>
+  <text x="240" y="796" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.55">Trois lignes en pointille : les trois maires qui n ont pas repondu</text>
+</svg>

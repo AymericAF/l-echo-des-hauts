@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <text x="120" y="118" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Tourne-a-gauche du pont vers la rue Basse, un mardi de mars</text>
+  <rect x="134" y="693" width="47" height="27" fill="#1F5C4A" opacity="0.45"/>
+  <text x="157.42222222222222" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">6 h</text>
+  <rect x="210" y="680" width="47" height="40" fill="#1F5C4A" opacity="0.48"/>
+  <rect x="285" y="607" width="47" height="113" fill="#1F5C4A" opacity="0.51"/>
+  <rect x="361" y="402" width="47" height="318" fill="#1F5C4A" opacity="0.54"/>
+  <text x="384.4222222222222" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">9 h</text>
+  <rect x="437" y="250" width="47" height="470" fill="#1F5C4A" opacity="0.57"/>
+  <rect x="512" y="329" width="47" height="391" fill="#1F5C4A" opacity="0.60"/>
+  <rect x="588" y="475" width="47" height="245" fill="#1F5C4A" opacity="0.63"/>
+  <text x="611.4222222222222" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">12 h</text>
+  <rect x="663" y="518" width="47" height="202" fill="#1F5C4A" opacity="0.66"/>
+  <rect x="739" y="528" width="47" height="192" fill="#1F5C4A" opacity="0.69"/>
+  <rect x="814" y="501" width="47" height="219" fill="#1F5C4A" opacity="0.71"/>
+  <text x="837.4222222222222" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">15 h</text>
+  <rect x="890" y="458" width="47" height="262" fill="#1F5C4A" opacity="0.74"/>
+  <rect x="965" y="375" width="47" height="345" fill="#1F5C4A" opacity="0.77"/>
+  <rect x="1041" y="286" width="47" height="434" fill="#1F5C4A" opacity="0.80"/>
+  <text x="1064.4222222222222" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">18 h</text>
+  <rect x="1117" y="402" width="47" height="318" fill="#1F5C4A" opacity="0.83"/>
+  <rect x="1192" y="511" width="47" height="209" fill="#1F5C4A" opacity="0.86"/>
+  <rect x="1268" y="574" width="47" height="146" fill="#1F5C4A" opacity="0.89"/>
+  <text x="1291.4222222222222" y="758" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.65">21 h</text>
+  <rect x="1343" y="627" width="47" height="93" fill="#1F5C4A" opacity="0.92"/>
+  <rect x="1419" y="674" width="47" height="46" fill="#1F5C4A" opacity="0.95"/>
+  <line x1="100" y1="720" x2="1500" y2="720" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1F5C4A">1 260 vehicules dans la journee, 30 % du trafic du pont</text>
+</svg>

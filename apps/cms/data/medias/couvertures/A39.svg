@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#EFEBE3"/>
+  <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
+  <rect x="220" y="170" width="420" height="18" fill="#8C2F39"/>
+  <text x="240" y="300" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">Batiment (marche de travaux, 3 lots)</text>
+  <text x="1360" y="300" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">512 000</text>
+  <line x1="240" y1="316" x2="1360" y2="316" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="240" y="362" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">Equipement medical et mobilier</text>
+  <text x="1360" y="362" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">74 000</text>
+  <line x1="240" y1="378" x2="1360" y2="378" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="240" y="424" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">Etudes, maitrise d oeuvre, SPS</text>
+  <text x="1360" y="424" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">34 000</text>
+  <line x1="240" y1="440" x2="1360" y2="440" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="240" y="486" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#1A1A1A" opacity="1">TOTAL INVESTISSEMENT</text>
+  <text x="1360" y="486" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#8C2F39" opacity="1">620 000</text>
+  <line x1="240" y1="502" x2="1360" y2="502" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="240" y="548" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">Subventions notifiees (Etat, region, departement)</text>
+  <text x="1360" y="548" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">- 390 600</text>
+  <line x1="240" y1="564" x2="1360" y2="564" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="240" y="610" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#1A1A1A" opacity="1">RESTE A CHARGE COMMUNAUTE</text>
+  <text x="1360" y="610" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#8C2F39" opacity="1">229 400</text>
+  <line x1="240" y1="626" x2="1360" y2="626" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="240" y="672" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">Emprunt 20 ans, annuite</text>
+  <text x="1360" y="672" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">14 100</text>
+  <line x1="240" y1="688" x2="1360" y2="688" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="240" y="734" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">Fonctionnement 2025-2026</text>
+  <text x="1360" y="734" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A" opacity="0.8">38 600</text>
+  <line x1="240" y1="750" x2="1360" y2="750" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="240" y="248" font-family="Georgia, serif" font-size="40" fill="#1A1A1A">Centre de sante — compte administratif, en euros</text>
+  <text x="240" y="790" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.55">Document entierement reconstitue</text>
+</svg>

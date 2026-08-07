@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <text x="120" y="118" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Treize semaines d exploitation, du 6 octobre au 4 janvier (euros)</text>
+  <rect x="200" y="269" width="200" height="451" fill="#8A5A12" opacity="0.62"/>
+  <text x="300" y="251" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A">66 300</text>
+  <text x="300" y="760" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.65">Chiffre d affaires HT</text>
+  <rect x="460" y="388" width="200" height="332" fill="#1A1A1A" opacity="0.28"/>
+  <text x="560" y="370" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A">48 800</text>
+  <text x="560" y="760" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.65">Achats de marchandises</text>
+  <rect x="720" y="601" width="200" height="119" fill="#8A5A12" opacity="0.62"/>
+  <text x="820" y="583" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A">17 500</text>
+  <text x="820" y="760" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.65">Marge brute</text>
+  <rect x="980" y="686" width="200" height="34" fill="#1A1A1A" opacity="0.28"/>
+  <text x="1080" y="668" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A">5 050</text>
+  <text x="1080" y="760" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.65">Charges</text>
+  <rect x="1240" y="635" width="200" height="85" fill="#B4472A" opacity="0.62"/>
+  <text x="1340" y="617" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A">12 450</text>
+  <text x="1340" y="760" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.65">Reste pour deux personnes</text>
+  <line x1="160" y1="720" x2="1480" y2="720" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#B4472A">1 170 heures a deux : dix euros soixante-quatre de l heure</text>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <rect x="60" y="140" width="14" height="420" fill="#B4472A"/>
+  <text x="140" y="300" font-family="Georgia, serif" font-size="92" fill="#1A1A1A">Dix euros</text>
+  <text x="140" y="418" font-family="Georgia, serif" font-size="92" fill="#1A1A1A">soixante-quatre</text>
+  <text x="140" y="536" font-family="Georgia, serif" font-size="92" fill="#1A1A1A">de l heure.</text>
+  <text x="140" y="700" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#B4472A">Treize semaines d epicerie a Pierrefeuille, compte ouvert a la redaction</text>
+</svg>

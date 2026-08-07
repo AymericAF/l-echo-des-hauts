@@ -1,0 +1,22 @@
+[
+  { "fr": { "nom": "Eau", "slug": "eau" }, "en": { "nom": "Water", "slug": "water" } },
+  { "fr": { "nom": "Logement", "slug": "logement" }, "en": { "nom": "Housing", "slug": "housing" } },
+  { "fr": { "nom": "École", "slug": "ecole" }, "en": { "nom": "Schools", "slug": "schools" } },
+  { "fr": { "nom": "Santé", "slug": "sante" }, "en": { "nom": "Healthcare", "slug": "healthcare" } },
+  { "fr": { "nom": "Mobilité", "slug": "mobilite" }, "en": { "nom": "Transport", "slug": "transport" } },
+  { "fr": { "nom": "Énergie", "slug": "energie" }, "en": { "nom": "Energy", "slug": "energy" } },
+  { "fr": { "nom": "Forêt", "slug": "foret" }, "en": { "nom": "Forestry", "slug": "forestry" } },
+  { "fr": { "nom": "Agriculture", "slug": "agriculture" }, "en": { "nom": "Farming", "slug": "farming" } },
+  { "fr": { "nom": "Élevage", "slug": "elevage" }, "en": { "nom": "Livestock", "slug": "livestock" } },
+  { "fr": { "nom": "Commerce", "slug": "commerce" }, "en": { "nom": "Retail", "slug": "retail" } },
+  { "fr": { "nom": "Tourisme", "slug": "tourisme" }, "en": { "nom": "Tourism", "slug": "tourism" } },
+  { "fr": { "nom": "Emploi", "slug": "emploi" }, "en": { "nom": "Employment", "slug": "employment" } },
+  { "fr": { "nom": "Patrimoine bâti", "slug": "patrimoine-bati" }, "en": { "nom": "Built heritage", "slug": "built-heritage" } },
+  { "fr": { "nom": "Mémoire ouvrière", "slug": "memoire-ouvriere" }, "en": { "nom": "Industrial memory", "slug": "industrial-memory" } },
+  { "fr": { "nom": "Festival", "slug": "festival" }, "en": { "nom": "Festivals", "slug": "festivals" } },
+  { "fr": { "nom": "Climat", "slug": "climat" }, "en": { "nom": "Climate", "slug": "climate" } },
+  { "fr": { "nom": "Biodiversité", "slug": "biodiversite" }, "en": { "nom": "Wildlife", "slug": "wildlife" } },
+  { "fr": { "nom": "Urbanisme", "slug": "urbanisme" }, "en": { "nom": "Planning", "slug": "planning" } },
+  { "fr": { "nom": "Budget communal", "slug": "budget-communal" }, "en": { "nom": "Local budgets", "slug": "local-budgets" } },
+  { "fr": { "nom": "Jeunesse", "slug": "jeunesse" }, "en": { "nom": "Young people", "slug": "young-people" } }
+]

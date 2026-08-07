@@ -1,0 +1,166 @@
+{
+  "identite/logo.svg": {
+    "alternativeText": "L'Echo des Hauts, magazine du plateau",
+    "caption": "Logotype du magazine, sur fond clair",
+    "licence": "oeuvre du projet"
+  },
+  "identite/logo-sombre.svg": {
+    "alternativeText": "L'Echo des Hauts, magazine du plateau",
+    "caption": "Logotype du magazine, sur fond sombre",
+    "licence": "oeuvre du projet"
+  },
+  "identite/favicon.svg": {
+    "alternativeText": "Monogramme E de L'Echo des Hauts",
+    "caption": "Favicon du site",
+    "licence": "oeuvre du projet"
+  },
+  "identite/partage-defaut.svg": {
+    "alternativeText": "Carte de partage par defaut de L'Echo des Hauts",
+    "caption": "Image de partage servie aux pages sans article",
+    "licence": "oeuvre du projet"
+  },
+
+  "auteurs/camille-fournier-braud.svg": {
+    "alternativeText": "Monogramme CF, portrait graphique de Camille Fournier-Braud",
+    "caption": "Portrait graphique genere ; aucune personne reelle n'est representee",
+    "licence": "oeuvre du projet"
+  },
+  "auteurs/hakim-zerrouki.svg": {
+    "alternativeText": "Monogramme HZ, portrait graphique de Hakim Zerrouki",
+    "caption": "Portrait graphique genere ; aucune personne reelle n'est representee",
+    "licence": "oeuvre du projet"
+  },
+  "auteurs/noelle-vasseur.svg": {
+    "alternativeText": "Monogramme NV, portrait graphique de Noelle Vasseur",
+    "caption": "Portrait graphique genere ; aucune personne reelle n'est representee",
+    "licence": "oeuvre du projet"
+  },
+  "auteurs/theo-brissac.svg": {
+    "alternativeText": "Monogramme TB, portrait graphique de Theo Brissac",
+    "caption": "Portrait graphique genere ; aucune personne reelle n'est representee",
+    "licence": "oeuvre du projet"
+  },
+  "auteurs/ana-lucia-ferreiro.svg": {
+    "alternativeText": "Monogramme AF, portrait graphique de Ana-Lucia Ferreiro",
+    "caption": "Portrait graphique genere ; aucune personne reelle n'est representee",
+    "licence": "oeuvre du projet"
+  },
+
+  "couvertures/A01.svg": {
+    "alternativeText": "Courbes de niveau du col des Trois-Vents et implantation des six mats du projet eolien",
+    "caption": "Trace genere a graine fixe ; le releve est invente",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A05.svg": {
+    "alternativeText": "Bassin versant de l'Ambre, perimetres des cinq echelons de competence superposes",
+    "caption": "Trace genere a graine fixe ; le bassin est invente",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A09.svg": {
+    "alternativeText": "Verbatim en grand corps : ni ferme dans la famille, ni terre, ni troupeau",
+    "caption": "Composition typographique, filet d'accent de la rubrique Vies d'ici",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A16.svg": {
+    "alternativeText": "Diagramme en barres opposant le cout du cahier des charges AOP a la prime au kilo",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A18.svg": {
+    "alternativeText": "Diagramme en barres des deux niveaux de salaire, filature 1983 et scierie 2026, en euros constants",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A23.svg": {
+    "alternativeText": "L'heure 17 h 40 en tres grand corps, sur fond creme",
+    "caption": "Composition typographique, filet d'accent de la rubrique Culture et patrimoine",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A29.svg": {
+    "alternativeText": "Diagramme du remplissage estival du lac de la Fauge de 1976 a 2026",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A35.svg": {
+    "alternativeText": "Diagramme de repartition des depenses du budget 2027 de la communaute des Hauts",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+
+  "blocs/A01-poste-source.svg": {
+    "alternativeText": "Fac-simile d'un extrait de dossier de raccordement, capacite residuelle du poste source",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A09-etable.svg": {
+    "alternativeText": "Fac-simile d'un plan d'etable, ferme des Sagnes",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A23-registre.svg": {
+    "alternativeText": "Fac-simile d'une page de registre d'atelier de juin 1983",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A29-regle-exploitation.svg": {
+    "alternativeText": "Fac-simile d'un extrait de la regle d'exploitation du barrage de la Fauge",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A29-cote-retenue.svg": {
+    "alternativeText": "Courbe de la cote de la retenue de la Fauge au cours de l'ete 2025",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A35-dette.svg": {
+    "alternativeText": "Courbe de la dette par habitant de la communaute des Hauts, 2019 a 2027",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+
+  "galeries/A09-1.svg": {
+    "alternativeText": "Composition graphique evoquant un seau de traite",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A09-2.svg": {
+    "alternativeText": "Composition graphique evoquant une main posee sur un flanc",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A09-3.svg": {
+    "alternativeText": "Composition graphique evoquant un portail d'etable",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A09-4.svg": {
+    "alternativeText": "Composition graphique evoquant une reserve de foin",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A23-1.svg": {
+    "alternativeText": "Composition graphique evoquant une piece de metal d'atelier",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A23-2.svg": {
+    "alternativeText": "Composition graphique evoquant un escalier d'usine",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A23-3.svg": {
+    "alternativeText": "Composition graphique evoquant un sol d'atelier",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A23-4.svg": {
+    "alternativeText": "Composition graphique evoquant une verriere d'atelier",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A23-5.svg": {
+    "alternativeText": "Composition graphique evoquant un cahier de production",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  }
+}

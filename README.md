@@ -69,6 +69,44 @@ npm run develop     # démarre sur http://localhost:1337, admin sur /admin
 
 Au premier lancement, Strapi demande la création du compte administrateur.
 
+### Charger le contenu de démonstration (`npm run seed`)
+
+Le contenu de démonstration est **versionné** dans `apps/cms/data/` : rubriques, signatures, tags,
+dossiers, articles (en Markdown, un fichier par article et par locale), `Configuration`, et les
+images avec leur manifeste. Le script `seed` le charge dans Strapi par l'API REST.
+
+```bash
+cd apps/cms
+export SEED_STRAPI_URL=http://localhost:1337      # défaut si non renseignée
+export SEED_STRAPI_TOKEN=<jeton API full-access>  # PAS le jeton du build
+npm run seed
+```
+
+Le jeton se crée dans l'admin Strapi : **Settings → API Tokens → Create new API Token**, avec
+*Token type* = **Full access**. Ce n'est **pas** le jeton du site public, qui est en **lecture
+seule** — le seed écrit, le build ne fait que lire.
+
+Le script est **rejouable** : le rapprochement se fait sur le **slug**, par locale, et sur le
+**nom de fichier** pour les médias. Deux exécutions consécutives donnent le même comptage en base.
+Il sert donc deux fois : au montage du démonstrateur, et pour **reconstruire l'environnement
+depuis le dépôt** en cas de perte.
+
+Une instance Strapi fraîchement installée se repeuple par cette seule commande : les locales
+`fr` (par défaut) et `en` sont posées au démarrage par `src/locales.ts`, la création d'une locale
+n'étant pas exposée sur l'API de contenu.
+
+Deux sous-commandes n'écrivent rien :
+
+```bash
+npm run seed:comptage    # le comptage en base, famille par famille et locale par locale
+npm run seed:verifier    # vérifie que chaque localisation EN porte son slug
+                         # et que ses relations ne pointent que des entrées EN
+```
+
+`seed:verifier` sort en **1** si un écart est trouvé. C'est le seul contrôle dont l'échec ne se
+signale nulle part ailleurs : une localisation anglaise dont les relations pointent encore les
+entrées françaises ne lève aucune erreur — elle produit un site anglais aux rubriques françaises.
+
 ### Variables d'environnement de `apps/cms`
 
 Aucune n'a de valeur par défaut utilisable en production : toutes sont injectées par

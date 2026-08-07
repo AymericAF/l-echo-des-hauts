@@ -1,3 +1,28 @@
+# Back-office Strapi — L'Écho des Hauts
+
+## Contenu de démonstration
+
+```bash
+export SEED_STRAPI_TOKEN=<jeton API full-access>   # PAS le jeton du build, qui est en lecture seule
+npm run seed              # charge le contenu versionné de ./data dans Strapi (rejouable)
+npm run seed:comptage     # n'écrit rien : le comptage en base
+npm run seed:verifier     # n'écrit rien : slugs EN + relations EN des articles traduits
+```
+
+Le corpus vit dans `data/` : `categories.json`, `tags.json`, `auteurs.json`, `dossiers.json`,
+`configuration.json`, `articles/<code>.<fr|en>.md` et `medias/` avec son `manifeste.json`.
+Le rapprochement se fait sur le **slug** (par locale) et sur le **nom de fichier** pour les
+médias : deux exécutions consécutives donnent le même comptage. Détail et prérequis dans le
+`README.md` à la racine du dépôt.
+
+## Tests
+
+```bash
+npm test
+```
+
+---
+
 # 🚀 Getting started with Strapi
 
 Strapi comes with a full featured [Command Line Interface](https://docs.strapi.io/dev-docs/cli) (CLI) which lets you scaffold and manage your project in seconds.

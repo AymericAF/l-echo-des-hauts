@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#EFEBE3"/>
+  <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
+  <rect x="220" y="170" width="420" height="18" fill="#B4472A"/>
+  <rect x="220" y="250" width="651" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="282" width="1027" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="314" width="1016" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="346" width="530" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="378" width="593" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="410" width="710" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="442" width="898" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="474" width="861" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="506" width="682" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="538" width="491" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="570" width="457" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="602" width="988" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="634" width="744" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="666" width="1044" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="698" width="897" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="730" width="863" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="762" width="1008" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="794" width="579" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Portail d'etable — composition</text>
+</svg>

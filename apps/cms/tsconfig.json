@@ -40,6 +40,10 @@
     "**/*.test.*",
     // Do not include the test harness (spec + helpers)
     "tests/",
+    // Le seed n est pas du code serveur : il tourne hors de Strapi, sous Node,
+    // en type-stripping natif — d ou ses imports en `.ts`, que la compilation
+    // CommonJS de Strapi refuserait.
+    "scripts/",
     // Do not include plugins in the server compilation
     "src/plugins/**"
   ]

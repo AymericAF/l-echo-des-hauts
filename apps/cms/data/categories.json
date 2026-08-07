@@ -1,0 +1,86 @@
+[
+  {
+    "ordreAffichage": 10,
+    "couleurAccent": "#1F5C4A",
+    "fr": {
+      "nom": "Territoire",
+      "slug": "territoire",
+      "description": "Aménagement, urbanisme, eau, mobilité, énergie : ce qui se décide sur la carte avant de se voir sur le terrain. Les documents que personne ne lit, lus."
+    },
+    "en": {
+      "nom": "Territory",
+      "slug": "territory",
+      "description": "Planning, water, transport, energy: what gets decided on the map before it shows up on the ground. The documents nobody reads, read."
+    }
+  },
+  {
+    "ordreAffichage": 20,
+    "couleurAccent": "#B4472A",
+    "fr": {
+      "nom": "Vies d'ici",
+      "slug": "vies-d-ici",
+      "description": "Des gens du plateau, longuement. Ni portrait de complaisance ni fait divers : une vie, un métier, une décision, racontés là où ils se tiennent."
+    },
+    "en": {
+      "nom": "Lives Here",
+      "slug": "lives-here",
+      "description": "People of the plateau, at length. Neither puff piece nor news brief: a life, a trade, a decision, told where they stand."
+    }
+  },
+  {
+    "ordreAffichage": 30,
+    "couleurAccent": "#8A5A12",
+    "fr": {
+      "nom": "Économie locale",
+      "slug": "economie-locale",
+      "description": "Les comptes du plateau : ce que produisent 14 communes, ce que ça rapporte, ce que ça coûte, et à qui. Chiffres d'abord."
+    },
+    "en": {
+      "nom": "Local Economy",
+      "slug": "local-economy",
+      "description": "The plateau's books: what fourteen villages produce, what it earns, what it costs, and to whom. Figures first."
+    }
+  },
+  {
+    "ordreAffichage": 40,
+    "couleurAccent": "#5B3E7A",
+    "fr": {
+      "nom": "Culture & patrimoine",
+      "slug": "culture-patrimoine",
+      "description": "Ce que le plateau garde et ce qu'il laisse tomber. Mémoire ouvrière, pierres, archives, saisons culturelles."
+    },
+    "en": {
+      "nom": "Culture & Heritage",
+      "slug": "culture-heritage",
+      "description": "What the plateau keeps and what it lets go. Industrial memory, stone, archives, cultural seasons."
+    }
+  },
+  {
+    "ordreAffichage": 50,
+    "couleurAccent": "#0E6F87",
+    "fr": {
+      "nom": "Grand air",
+      "slug": "grand-air",
+      "description": "La montagne comme milieu, pas comme décor : forêt, eau, neige, faune, et les gens qui les mesurent."
+    },
+    "en": {
+      "nom": "Outdoors",
+      "slug": "outdoors",
+      "description": "The mountain as a habitat, not a backdrop: forest, water, snow, wildlife, and the people who measure them."
+    }
+  },
+  {
+    "ordreAffichage": 60,
+    "couleurAccent": "#8C2F39",
+    "fr": {
+      "nom": "La vie publique",
+      "slug": "la-vie-publique",
+      "description": "Conseils, délibérations, budgets, carte scolaire, santé. Ce qui est voté et ce que ça change, sans le vocabulaire des délibérations."
+    },
+    "en": {
+      "nom": "Public Life",
+      "slug": "public-life",
+      "description": "Councils, votes, budgets, school maps, healthcare. What gets passed and what it changes, without the language of the minutes."
+    }
+  }
+]

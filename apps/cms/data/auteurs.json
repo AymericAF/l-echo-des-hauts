@@ -1,0 +1,77 @@
+[
+  {
+    "nom": "Camille Fournier-Braud",
+    "photo": "auteurs/camille-fournier-braud.svg",
+    "reseaux": [{ "plateforme": "site", "url": "https://echo.ayfiweb.fr/auteur/camille-fournier-braud" }],
+    "fr": {
+      "slug": "camille-fournier-braud",
+      "fonction": "Rédactrice en chef",
+      "bio": "Née au Bourg-Neuf, douze ans en presse quotidienne régionale ailleurs, revenue fonder le titre en 2019.\n\nUne seule règle est affichée en salle de rédaction : aucun compte rendu d'inauguration. Elle signe les portraits qu'elle ne veut pas déléguer et les opérations de rédaction — questionnaires, inventaires.\n\nElle enseigne l'écriture d'enquête au lycée de Val-d'Ambre deux heures par mois."
+    },
+    "en": {
+      "slug": "camille-fournier-braud",
+      "fonction": "Editor-in-chief",
+      "bio": "Born in Le Bourg-Neuf, twelve years on regional dailies elsewhere, back in 2019 to found this title.\n\nOne rule is pinned to the newsroom wall: no ribbon-cutting reports. She writes the profiles she will not delegate, and runs the newsroom operations — surveys, inventories.\n\nShe teaches investigative writing at the Val-d'Ambre secondary school, two hours a month."
+    }
+  },
+  {
+    "nom": "Hakim Zerrouki",
+    "photo": "auteurs/hakim-zerrouki.svg",
+    "reseaux": [{ "plateforme": "site", "url": "https://echo.ayfiweb.fr/auteur/hakim-zerrouki" }],
+    "fr": {
+      "slug": "hakim-zerrouki",
+      "fonction": "Reporter territoire et vie publique",
+      "bio": "Sept ans secrétaire de mairie à Sainte-Cyre-en-Hauts avant de passer de l'autre côté du guichet.\n\nIl sait donc où se cachent les annexes budgétaires, et combien de temps un PLUi met à devenir irréversible. Il demande systématiquement les délibérations en amont du vote.\n\nIl refuse le off."
+    },
+    "en": {
+      "slug": "hakim-zerrouki",
+      "fonction": "Territory & public affairs reporter",
+      "bio": "Seven years as a town clerk in Sainte-Cyre-en-Hauts before moving to the other side of the counter.\n\nHe knows where budget annexes hide, and how long a local plan takes to become irreversible. He asks for the motions before the vote, every time.\n\nHe does not take anything off the record."
+    }
+  },
+  {
+    "nom": "Noëlle Vasseur",
+    "photo": "auteurs/noelle-vasseur.svg",
+    "reseaux": [{ "plateforme": "site", "url": "https://echo.ayfiweb.fr/auteur/noelle-vasseur" }],
+    "fr": {
+      "slug": "noelle-vasseur",
+      "fonction": "Chroniqueuse — récits et patrimoine",
+      "bio": "Trente ans sur le plateau, photographe avant d'être autrice.\n\nElle pratique l'immersion longue — plusieurs jours, parfois plusieurs saisons, sur un même sujet — et tient la mémoire ouvrière du plateau ainsi que le fonds d'archives de la rédaction.\n\nElle ne travaille pas au téléphone."
+    },
+    "en": {
+      "slug": "noelle-vasseur",
+      "fonction": "Features & heritage writer",
+      "bio": "Thirty years on the plateau, a photographer before she was a writer.\n\nShe works by long immersion — several days, sometimes several seasons, on the same subject — and keeps both the plateau's industrial memory and the newsroom's archive.\n\nShe does not work over the phone."
+    }
+  },
+  {
+    "nom": "Théo Brissac",
+    "photo": "auteurs/theo-brissac.svg",
+    "reseaux": [{ "plateforme": "site", "url": "https://echo.ayfiweb.fr/auteur/theo-brissac" }],
+    "fr": {
+      "slug": "theo-brissac",
+      "fonction": "Journaliste économie et données",
+      "bio": "Vingt-huit ans, le plus jeune de la rédaction, arrivé par un stage et resté pour la scierie.\n\nIl reconstitue des comptes d'exploitation à partir de pièces publiques, puis va vérifier sur place ce que le tableur annonce.\n\nIl produit tous les jeux de données que le magazine publie."
+    },
+    "en": {
+      "slug": "theo-brissac",
+      "fonction": "Business & data reporter",
+      "bio": "Twenty-eight, the youngest in the newsroom, arrived on an internship and stayed for the sawmill.\n\nHe rebuilds operating accounts from public filings, then goes and checks on site what the spreadsheet claims.\n\nHe produces every dataset the magazine publishes."
+    }
+  },
+  {
+    "nom": "Ana-Lucia Ferreiro",
+    "photo": "auteurs/ana-lucia-ferreiro.svg",
+    "reseaux": [{ "plateforme": "site", "url": "https://echo.ayfiweb.fr/auteur/ana-lucia-ferreiro" }],
+    "fr": {
+      "slug": "ana-lucia-ferreiro",
+      "fonction": "Journaliste environnement et montagne",
+      "bio": "Hydrologue de formation, six ans en bureau d'études sur les bassins versants.\n\nElle est passée au journalisme quand elle a compris que ses rapports n'étaient lus par personne. Elle marche ses reportages : le débit d'un ruisseau, elle va le voir.\n\nElle tient la série de relevés du col des Trois-Vents."
+    },
+    "en": {
+      "slug": "ana-lucia-ferreiro",
+      "fonction": "Environment & mountain reporter",
+      "bio": "A hydrologist by training, six years in a consultancy working on catchment areas.\n\nShe moved to journalism when she realised nobody was reading her reports. She walks her stories: if a stream's flow is the subject, she goes and looks at it.\n\nShe keeps the Trois-Vents pass measurement series."
+    }
+  }
+]

@@ -1,4 +1,4 @@
-// import type { Core } from '@strapi/strapi';
+import { assurerLocales, LOCALES_ATTENDUES } from './locales';
 
 export default {
   /**
@@ -10,11 +10,22 @@ export default {
   register(/* { strapi }: { strapi: Core.Strapi } */) {},
 
   /**
-   * An asynchronous bootstrap function that runs before
-   * your application gets started.
+   * Pose les locales du projet : `fr` par defaut, `en` en miroir.
    *
-   * This gives you an opportunity to set up your data model,
-   * run jobs, or perform some special logic.
+   * Une instance Strapi fraiche ne connait que `en`, et `en` est la locale par
+   * defaut. Comme la creation d'une locale n'est pas exposee sur l'API de
+   * contenu (routes `admin` du plugin i18n), le seed ne peut pas s'en charger :
+   * c'est ici, ou nulle part. Voir `src/locales.ts` pour le detail.
    */
-  bootstrap(/* { strapi }: { strapi: Core.Strapi } */) {},
+  async bootstrap({ strapi }: { strapi: any }) {
+    const service = strapi.plugin('i18n').service('locales');
+    const rapport = await assurerLocales(service);
+
+    if (rapport.creees.length > 0) {
+      strapi.log.info(`[locales] creees : ${rapport.creees.join(', ')}`);
+    }
+    if (rapport.defautPose) {
+      strapi.log.info(`[locales] locale par defaut posee sur "${LOCALES_ATTENDUES[0].code}"`);
+    }
+  },
 };

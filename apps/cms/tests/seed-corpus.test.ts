@@ -1,0 +1,252 @@
+/**
+ * Le corpus versionne est valide ENTIEREMENT avant la premiere ecriture.
+ *
+ * Pourquoi avant : le seed sert aussi a reconstruire l'environnement depuis le
+ * depot apres une perte. Un corpus qui casse a mi-parcours laisserait une base
+ * a moitie remplie, et la seconde execution rapprocherait sur un etat partiel.
+ * D'ou la regle : on lit tout, on valide tout, puis seulement on ecrit.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { chargerCorpus } from '../scripts/seed/corpus.ts';
+import { ErreurCorpus, MediaIntrouvable } from '../scripts/seed/erreurs.ts';
+
+const ICI = path.dirname(fileURLToPath(import.meta.url));
+const DATA_REEL = path.join(ICI, '..', 'data');
+
+/* ------------------------------------------------------------------ */
+/* Un corpus minimal, ecrit sur disque, que chaque test peut abimer.    */
+/* ------------------------------------------------------------------ */
+
+function ecrireCorpusMinimal(): string {
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-'));
+  const ecrire = (rel: string, contenu: string) => {
+    const cible = path.join(racine, rel);
+    fs.mkdirSync(path.dirname(cible), { recursive: true });
+    fs.writeFileSync(cible, contenu, 'utf8');
+  };
+
+  ecrire('medias/couvertures/A05.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  ecrire('medias/identite/logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  ecrire('medias/identite/partage.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  ecrire(
+    'medias/manifeste.json',
+    JSON.stringify({
+      'couvertures/A05.svg': { alternativeText: 'Bassin versant', caption: 'Oeuvre du projet' },
+      'identite/logo.svg': { alternativeText: 'Logo', caption: 'Oeuvre du projet' },
+      'identite/partage.svg': { alternativeText: 'Partage', caption: 'Oeuvre du projet' },
+    })
+  );
+
+  ecrire(
+    'categories.json',
+    JSON.stringify([
+      {
+        ordreAffichage: 10,
+        couleurAccent: '#1F5C4A',
+        fr: { nom: 'Territoire', slug: 'territoire', description: 'Ce qui se decide.' },
+        en: { nom: 'Territory', slug: 'territory', description: 'What gets decided.' },
+      },
+    ])
+  );
+  ecrire(
+    'tags.json',
+    JSON.stringify([
+      { fr: { nom: 'Eau', slug: 'eau' }, en: { nom: 'Water', slug: 'water' } },
+    ])
+  );
+  ecrire(
+    'auteurs.json',
+    JSON.stringify([
+      {
+        nom: 'Hakim Zerrouki',
+        reseaux: [{ plateforme: 'site', url: 'https://exemple.test/auteur/hakim-zerrouki' }],
+        fr: { slug: 'hakim-zerrouki', fonction: 'Reporter', bio: 'Sept ans en mairie.' },
+        en: { slug: 'hakim-zerrouki', fonction: 'Reporter', bio: 'Seven years at the town hall.' },
+      },
+    ])
+  );
+  ecrire('dossiers.json', JSON.stringify([]));
+  ecrire(
+    'configuration.json',
+    JSON.stringify({
+      logo: 'identite/logo.svg',
+      imagePartageDefaut: 'identite/partage.svg',
+      reseaux: [],
+      fr: {
+        nomSite: "L'Echo des Hauts",
+        descriptionDefaut: 'Magazine de demonstration.',
+        mentionsLegales: 'Media fictif.',
+      },
+      en: {
+        nomSite: 'The Highland Echo',
+        descriptionDefaut: 'Demo magazine.',
+        mentionsLegales: 'Fictional outlet.',
+      },
+    })
+  );
+
+  const article = (locale: string, slug: string, titre: string) =>
+    [
+      '---',
+      JSON.stringify(
+        {
+          code: 'A05',
+          locale,
+          slug,
+          titre,
+          chapo: 'Cinq echelons, une seule facture.',
+          auteur: 'hakim-zerrouki',
+          categorie: 'territoire',
+          tags: ['eau'],
+          datePublication: '2026-03-16T08:00:00.000Z',
+          aLaUne: false,
+          imageCouverture: 'couvertures/A05.svg',
+          legendeCouverture: 'Le bassin versant.',
+        },
+        null,
+        2
+      ),
+      '---',
+      '',
+      '::: texte',
+      'Cinq echelons decident de l eau du plateau.',
+      ':::',
+      '',
+    ].join('\n');
+
+  ecrire('articles/A05.fr.md', article('fr', 'qui-decide-de-l-eau', 'Qui decide de l eau ?'));
+  ecrire('articles/A05.en.md', article('en', 'who-decides-the-water', 'Who decides the water?'));
+
+  return racine;
+}
+
+/* ------------------------------------------------------------------ */
+
+test('chargerCorpus lit le corpus minimal et rend ses entrees', () => {
+  const racine = ecrireCorpusMinimal();
+  const corpus = chargerCorpus(racine);
+
+  assert.equal(corpus.categories.length, 1);
+  assert.equal(corpus.tags.length, 1);
+  assert.equal(corpus.auteurs.length, 1);
+  assert.equal(corpus.articles.length, 1);
+  assert.equal(corpus.articles[0].fr.slug, 'qui-decide-de-l-eau');
+  assert.equal(corpus.articles[0].en?.slug, 'who-decides-the-water');
+  assert.equal(corpus.medias.length, 3);
+});
+
+test('chargerCorpus echoue PROPREMENT quand un fichier media reference manque sur le disque', () => {
+  const racine = ecrireCorpusMinimal();
+  fs.rmSync(path.join(racine, 'medias', 'couvertures', 'A05.svg'));
+
+  assert.throws(
+    () => chargerCorpus(racine),
+    (e: unknown) => {
+      assert.ok(e instanceof MediaIntrouvable, 'doit etre une MediaIntrouvable');
+      assert.match((e as Error).message, /couvertures\/A05\.svg/);
+      return true;
+    }
+  );
+});
+
+test('chargerCorpus echoue quand un media utilise n est pas au manifeste', () => {
+  const racine = ecrireCorpusMinimal();
+  const manifeste = JSON.parse(fs.readFileSync(path.join(racine, 'medias/manifeste.json'), 'utf8'));
+  delete manifeste['couvertures/A05.svg'];
+  fs.writeFileSync(path.join(racine, 'medias/manifeste.json'), JSON.stringify(manifeste));
+
+  assert.throws(() => chargerCorpus(racine), ErreurCorpus);
+});
+
+test('chargerCorpus echoue quand un media n a pas d alternativeText (controle 5 du plan)', () => {
+  const racine = ecrireCorpusMinimal();
+  const chemin = path.join(racine, 'medias/manifeste.json');
+  const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+  manifeste['couvertures/A05.svg'].alternativeText = '   ';
+  fs.writeFileSync(chemin, JSON.stringify(manifeste));
+
+  assert.throws(() => chargerCorpus(racine), ErreurCorpus);
+});
+
+test('chargerCorpus echoue quand un article pointe une categorie inconnue', () => {
+  const racine = ecrireCorpusMinimal();
+  const chemin = path.join(racine, 'articles/A05.fr.md');
+  fs.writeFileSync(
+    chemin,
+    fs.readFileSync(chemin, 'utf8').replace('"categorie": "territoire"', '"categorie": "inconnue"')
+  );
+
+  assert.throws(() => chargerCorpus(racine), ErreurCorpus);
+});
+
+test('chargerCorpus echoue quand une localisation EN n a pas de slug (A-09)', () => {
+  const racine = ecrireCorpusMinimal();
+  const chemin = path.join(racine, 'tags.json');
+  const tags = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+  tags[0].en.slug = '';
+  fs.writeFileSync(chemin, JSON.stringify(tags));
+
+  assert.throws(() => chargerCorpus(racine), ErreurCorpus);
+});
+
+test('chargerCorpus echoue sur deux medias de meme nom de fichier', () => {
+  const racine = ecrireCorpusMinimal();
+  fs.writeFileSync(path.join(racine, 'medias/identite/A05.svg'), '<svg/>');
+  const chemin = path.join(racine, 'medias/manifeste.json');
+  const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+  manifeste['identite/A05.svg'] = { alternativeText: 'Doublon', caption: 'Doublon' };
+  fs.writeFileSync(chemin, JSON.stringify(manifeste));
+
+  assert.throws(() => chargerCorpus(racine), ErreurCorpus);
+});
+
+/* ------------------------------------------------------------------ */
+/* Le corpus REELLEMENT versionne du depot doit satisfaire le controle  */
+/* 12 du plan editorial : 41 localisations EN portant un uid.           */
+/* ------------------------------------------------------------------ */
+
+test('le corpus versionne du depot se charge sans erreur', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  assert.ok(corpus.articles.length > 0);
+});
+
+test('le corpus versionne porte un slug EN non vide pour chaque entite localisable', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const manquants: string[] = [];
+  const controler = (famille: string, entrees: { en?: { slug?: string } }[]) => {
+    for (const [i, e] of entrees.entries()) {
+      if (!e.en || !String(e.en.slug ?? '').trim()) manquants.push(`${famille}[${i}]`);
+    }
+  };
+  controler('Categorie', corpus.categories);
+  controler('Tag', corpus.tags);
+  controler('Dossier', corpus.dossiers);
+  controler('Auteur', corpus.auteurs);
+  controler('Article', corpus.articles);
+  assert.deepEqual(manquants, []);
+});
+
+test('le corpus versionne porte les effectifs EN annonces par le controle 12', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const compteEn = (entrees: { en?: unknown }[]) => entrees.filter((e) => e.en).length;
+  assert.equal(compteEn(corpus.categories), 6, 'Categorie EN');
+  assert.equal(compteEn(corpus.tags), 20, 'Tag EN');
+  assert.equal(compteEn(corpus.dossiers), 2, 'Dossier EN');
+  assert.equal(compteEn(corpus.auteurs), 5, 'Auteur EN');
+  assert.equal(compteEn(corpus.articles), 8, 'Article EN');
+  assert.equal(
+    compteEn(corpus.categories) +
+      compteEn(corpus.tags) +
+      compteEn(corpus.dossiers) +
+      compteEn(corpus.auteurs) +
+      compteEn(corpus.articles),
+    41,
+    'total des localisations EN portant un uid'
+  );
+});

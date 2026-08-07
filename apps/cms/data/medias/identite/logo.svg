@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" width="720" height="200" role="img">
+  <rect width="720" height="200" fill="none"/>
+  <rect x="0" y="40" width="12" height="120" fill="#1F5C4A"/>
+  <text x="36" y="118" font-family="Georgia, serif" font-size="72" fill="#1A1A1A">L'Echo des Hauts</text>
+  <text x="38" y="160" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1F5C4A">demonstrateur — media fictif</text>
+</svg>

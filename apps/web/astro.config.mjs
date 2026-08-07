@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import { loadEnv } from 'vite';
 
 import gardeImages from './integrations/garde-images.mjs';
+import gardeLiens from './integrations/garde-liens.mjs';
 import gardeT09 from './integrations/garde-t09.mjs';
 
 /**
@@ -24,7 +25,7 @@ for (const [cle, valeur] of Object.entries(env)) {
 }
 
 export default defineConfig({
-  integrations: [gardeT09(), gardeImages()],
+  integrations: [gardeT09(), gardeImages(), gardeLiens()],
   output: 'static',
   site: process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr',
   build: {

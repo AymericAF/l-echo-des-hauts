@@ -1,0 +1,13 @@
+---
+/** `/en/404` — la 404 editorialisee anglaise (§4.2). */
+import Base from '../../layouts/Base.astro';
+import Page404 from '../../components/pages/Page404.astro';
+import { libelles } from '../../lib/i18n/libelles.ts';
+import { registreDuSite } from '../../lib/routes/registre-site.ts';
+
+const registre = await registreDuSite();
+---
+
+<Base titre={libelles('en').titre404} page={{ genre: 'statique', locale: 'en', nom: '404' }} noindex>
+  <Page404 locale="en" registre={registre} />
+</Base>

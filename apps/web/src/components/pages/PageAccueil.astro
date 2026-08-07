@@ -1,0 +1,173 @@
+---
+/**
+ * Accueil (§4.2) : l article a la une, les derniers articles, une selection par
+ * rubrique, les dossiers en cours.
+ *
+ * Quatre decisions de rendu, chacune prise pour un mode d echec precis :
+ *
+ *   - **L article a la une** est le plus recent portant `aLaUne`. Le §3.1 ne borne pas
+ *     ce booleen a une seule entree : sans regle de departage, la une changerait d un
+ *     build a l autre. A defaut d article marque, c est simplement le plus recent — un
+ *     accueil sans tete de page se lirait comme une panne.
+ *   - **Les dernieres publications** excluent la une : la voir deux fois de suite donne
+ *     l impression que la page s est repetee.
+ *   - **La selection par rubrique** ne cite que des rubriques EMISES dans la locale
+ *     courante (§10.3) ; sur `/en/`, cela ecarte d office les rubriques sans traduction.
+ *   - **Les dossiers en cours** sont les dossiers emis de la locale, dans l ordre de
+ *     `dateOuverture` decroissante deja pose par la requete.
+ *
+ * Zero lien fabrique : chaque `href` sort de `lib/routes/chemins.ts` et ne cite que ce
+ * que le registre contient.
+ */
+import type { Categorie, Locale } from '../../lib/domaine.ts';
+import { libelles } from '../../lib/i18n/libelles.ts';
+import { cheminIndex } from '../../lib/routes/chemins.ts';
+import type { Registre } from '../../lib/routes/registre.ts';
+import CarteArticle from '../CarteArticle.astro';
+import ListeArticles from '../ListeArticles.astro';
+
+/** Combien d articles la section « dernieres publications » montre. */
+const DERNIERS = 6;
+/** Combien d articles chaque rubrique montre dans la selection. */
+const PAR_RUBRIQUE = 3;
+
+interface Props {
+  locale: Locale;
+  registre: Registre;
+}
+
+const { locale, registre } = Astro.props;
+const mots = libelles(locale);
+
+const articles = registre.articles(locale); // deja tries par date decroissante
+const une = articles.find((article) => article.aLaUne) ?? articles[0] ?? null;
+const derniers = articles.filter((article) => article !== une).slice(0, DERNIERS);
+
+const rubriques = registre.indexes
+  .filter((index) => index.famille === 'categorie' && index.locale === locale)
+  .sort((a, b) => {
+    const ordreA = (a.entite as Categorie).ordreAffichage;
+    const ordreB = (b.entite as Categorie).ordreAffichage;
+    return ordreA - ordreB || a.titre.localeCompare(b.titre);
+  });
+
+const dossiers = registre.indexes.filter(
+  (index) => index.famille === 'dossier' && index.locale === locale,
+);
+---
+
+{
+  une === null ? (
+    <p class="accueil__vide">
+      {locale === 'fr'
+        ? 'Aucun article n est encore publie. Le site se construit a partir de la base : tant qu elle est vide, cette page l est aussi.'
+        : 'No article has been published yet. This site is built from the database: while it is empty, so is this page.'}
+    </p>
+  ) : (
+    <>
+      {/* Le `<h1>` de l accueil est le TITRE DE LA UNE, pas un intitule de section : c est
+          le contenu principal de la page, et c est ce qu un lecteur d ecran doit annoncer
+          en premier. Le nom du journal, lui, vit dans l en-tete. */}
+      <section class="accueil__une" aria-label={mots.aLaUne}>
+        <p class="accueil__surtitre">{mots.aLaUne}</p>
+        <CarteArticle article={une} locale={locale} registre={registre} niveau={1} prioritaire />
+      </section>
+
+      {derniers.length > 0 && (
+        <section class="accueil__section" aria-labelledby="titre-derniers">
+          <h2 id="titre-derniers" class="accueil__titre-section">
+            {mots.dernieresPublications}
+          </h2>
+          <ListeArticles articles={derniers} locale={locale} registre={registre} niveau={3} />
+        </section>
+      )}
+
+      {rubriques.length > 0 && (
+        <section class="accueil__section" aria-labelledby="titre-rubriques">
+          <h2 id="titre-rubriques" class="accueil__titre-section">
+            {mots.rubriques}
+          </h2>
+          {rubriques.map((rubrique) => (
+            <div class="accueil__rubrique">
+              <h3 class="accueil__rubrique-titre">
+                <a href={cheminIndex(locale, 'categorie', rubrique.slug)}>{rubrique.titre}</a>
+              </h3>
+              <ListeArticles
+                articles={rubrique.pages[0].items.slice(0, PAR_RUBRIQUE)}
+                locale={locale}
+                registre={registre}
+                niveau={4}
+              />
+            </div>
+          ))}
+        </section>
+      )}
+
+      {dossiers.length > 0 && (
+        <section class="accueil__section" aria-labelledby="titre-dossiers">
+          <h2 id="titre-dossiers" class="accueil__titre-section">
+            {mots.dossiersEnCours}
+          </h2>
+          <ul class="accueil__dossiers">
+            {dossiers.map((dossier) => (
+              <li>
+                <h3>
+                  <a href={cheminIndex(locale, 'dossier', dossier.slug)}>{dossier.titre}</a>
+                </h3>
+                <p>{mots.nombreArticles(dossier.pages[0].items.length)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  )
+}
+
+<style>
+  .accueil__surtitre {
+    margin: 0 0 var(--espace-2);
+    color: var(--couleur-accent);
+    font-size: var(--taille-s);
+    font-weight: var(--graisse-forte);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .accueil__titre-section {
+    margin-bottom: var(--espace-6);
+    padding-bottom: var(--espace-2);
+    border-bottom: 2px solid var(--couleur-accent);
+  }
+
+  .accueil__section {
+    margin-top: var(--espace-16);
+  }
+
+  .accueil__rubrique {
+    margin-top: var(--espace-8);
+  }
+
+  .accueil__rubrique-titre a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .accueil__rubrique-titre a:hover,
+  .accueil__rubrique-titre a:focus-visible {
+    text-decoration: underline;
+  }
+
+  .accueil__dossiers {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: var(--espace-6);
+  }
+
+  .accueil__vide {
+    max-width: var(--largeur-lecture);
+  }
+</style>

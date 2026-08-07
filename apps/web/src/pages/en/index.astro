@@ -1,0 +1,19 @@
+---
+/**
+ * `/en/` — le miroir anglais de l accueil (§4.2).
+ *
+ * Il est TOUJOURS emis, meme si aucun article anglais n existe : c est le dernier repli
+ * de la bascule FR/EN (T-06), et un repli qui peut ne pas exister n est pas un repli.
+ * `PageAccueil` sait rendre une locale vide sans avoir l air d une page cassee.
+ */
+import Base from '../../layouts/Base.astro';
+import PageAccueil from '../../components/pages/PageAccueil.astro';
+import { libelles } from '../../lib/i18n/libelles.ts';
+import { registreDuSite } from '../../lib/routes/registre-site.ts';
+
+const registre = await registreDuSite();
+---
+
+<Base titre={libelles('en').accueil} page={{ genre: 'accueil', locale: 'en' }}>
+  <PageAccueil locale="en" registre={registre} />
+</Base>

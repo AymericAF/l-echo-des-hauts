@@ -1,0 +1,18 @@
+---
+/**
+ * `/404` — la 404 editorialisee francaise (§4.2).
+ *
+ * Astro traite ce nom a part : la sortie est `dist/404.html`, pas `dist/404/index.html`.
+ * C est ce que servent les hebergeurs statiques sur une URL inconnue.
+ */
+import Base from '../layouts/Base.astro';
+import Page404 from '../components/pages/Page404.astro';
+import { libelles } from '../lib/i18n/libelles.ts';
+import { registreDuSite } from '../lib/routes/registre-site.ts';
+
+const registre = await registreDuSite();
+---
+
+<Base titre={libelles('fr').titre404} page={{ genre: 'statique', locale: 'fr', nom: '404' }} noindex>
+  <Page404 locale="fr" registre={registre} />
+</Base>

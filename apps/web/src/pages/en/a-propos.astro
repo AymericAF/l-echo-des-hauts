@@ -1,0 +1,9 @@
+---
+/** `/en/a-propos` (§4.2). Meme page, en anglais : le miroir est complet. */
+import Base from '../../layouts/Base.astro';
+import PageAPropos from '../../components/pages/PageAPropos.astro';
+---
+
+<Base titre="About" page={{ genre: 'statique', locale: 'en', nom: 'a-propos' }}>
+  <PageAPropos locale="en" />
+</Base>

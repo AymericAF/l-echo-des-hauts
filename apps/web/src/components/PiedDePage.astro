@@ -3,20 +3,29 @@
  * Pied de page global, alimente par le Single Type `Configuration` (§3.8) :
  * `texteFooter` (Blocks) et `reseaux` (component repetable `partage.lien-social`).
  *
- * Le lien vers les mentions legales est en dur, pas tire de `Configuration` : c est une
- * ROUTE du §4.2, pas un reglage. `mentionsLegales` porte le contenu de cette page, la
- * mention de nature fictive du media comprise (A-33), et n a rien a faire ici.
+ * Les liens de bas de page sont construits depuis `lib/routes/chemins.ts`, pas tires de
+ * `Configuration` : ce sont des ROUTES du §4.2, pas des reglages. Le champ
+ * `Configuration.mentionsLegales` porte le CONTENU de la page mentions legales et n a
+ * rien a faire ici.
+ *
+ * La mention « media fictif » est rappelee ici, donc sur chaque page : rien ne garantit
+ * qu un lecteur — ni un moteur — arrive par l accueil ou par les mentions legales.
  */
-import type { Configuration } from '../lib/domaine.ts';
+import type { Configuration, Locale } from '../lib/domaine.ts';
+import { libelles } from '../lib/i18n/libelles.ts';
+import { cheminStatique } from '../lib/routes/chemins.ts';
+import type { Registre } from '../lib/routes/registre.ts';
 import RichTexte from './RichTexte.astro';
 import LiensSociaux from './LiensSociaux.astro';
 
 interface Props {
   configuration: Configuration | null;
-  mentionsLegales: string;
+  locale: Locale;
+  registre: Registre;
 }
 
-const { configuration, mentionsLegales } = Astro.props;
+const { configuration, locale } = Astro.props;
+const mots = libelles(locale);
 ---
 
 <footer class="pied">
@@ -31,9 +40,12 @@ const { configuration, mentionsLegales } = Astro.props;
 
     {configuration && <LiensSociaux liens={configuration.reseaux} intitule="Reseaux du journal" />}
 
-    <nav class="pied__navigation" aria-label="Liens de bas de page">
+    <p class="pied__fiction"><strong>{mots.mediaFictifTitre}</strong> — {mots.mediaFictifTexte}</p>
+
+    <nav class="pied__navigation" aria-label={mots.mentionsLegales}>
       <ul>
-        <li><a href={mentionsLegales}>Mentions legales</a></li>
+        <li><a href={cheminStatique(locale, 'a-propos')}>{mots.aPropos}</a></li>
+        <li><a href={cheminStatique(locale, 'mentions-legales')}>{mots.mentionsLegales}</a></li>
       </ul>
     </nav>
   </div>
@@ -53,6 +65,14 @@ const { configuration, mentionsLegales } = Astro.props;
     padding-block: var(--espace-8);
     display: grid;
     gap: var(--espace-4);
+  }
+
+  /* La nature fictive du media est rappelee sur CHAQUE page, pas seulement dans les
+     mentions legales : le §4.2 ne garantit pas qu un lecteur (ni un moteur) arrive par
+     l accueil. Cf. A-33. */
+  .pied__fiction {
+    margin: 0;
+    max-width: var(--largeur-lecture);
   }
 
   .pied__navigation ul {

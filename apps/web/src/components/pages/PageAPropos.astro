@@ -1,0 +1,106 @@
+---
+/**
+ * `/a-propos` et `/en/a-propos` (§4.2).
+ *
+ * Cette page porte, avec les mentions legales, le CARACTERE FICTIF du media. C est une
+ * exigence de la tache, pas un ornement : « L'Écho des Hauts » n'existe pas, aucun
+ * lecteur ni moteur ne doit le prendre pour un media local reel. La mention est donc :
+ *
+ *   - **en premier**, avant la ligne editoriale — un avertissement place apres ce qu il
+ *     qualifie est lu apres, ou pas du tout ;
+ *   - **en clair**, pas en note de bas de page ;
+ *   - **repetee dans le pied de page** de chaque page du site, parce que rien ne
+ *     garantit qu un lecteur arrive par ici.
+ *
+ * Le texte est en dur plutot qu en base : ce n est pas du contenu editorial que
+ * quelqu un pourrait vouloir modifier ou vider depuis Strapi. Le vider ferait passer un
+ * demonstrateur pour un journal local.
+ */
+import type { Locale } from '../../lib/domaine.ts';
+import { libelles } from '../../lib/i18n/libelles.ts';
+import { cheminStatique } from '../../lib/routes/chemins.ts';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const mots = libelles(locale);
+
+const TEXTES = {
+  fr: {
+    titre: 'À propos',
+    ligneTitre: 'Ce que ce site démontre',
+    ligne:
+      "Ce site est un démonstrateur technique : un magazine éditorial local, construit sur un back-office Strapi 5 et un front Astro entièrement statique. Il sert à montrer une chaîne de publication complète — modélisation de contenu, rendu au build, internationalisation, performance et accessibilité — sur un corpus qui ressemble à un vrai média plutôt que sur des pages de démonstration vides.",
+    corpusTitre: 'Ce que contient le corpus',
+    corpus:
+      "Quarante articles répartis en six rubriques, cinq signatures, vingt étiquettes et deux dossiers au long cours, dont huit articles traduits en anglais. Territoire, chiffres, personnages et événements sont inventés de bout en bout : ils sont cohérents entre eux, mais ne renvoient à aucune commune, aucune entreprise et aucune personne réelles.",
+    techniqueTitre: 'Comment il est construit',
+    technique:
+      "Les pages sont générées au build : aucun serveur ne s'exécute à la lecture, et aucune page n'envoie de JavaScript au navigateur, hors la recherche. La bascule entre le français et l'anglais est faite de liens calculés à la construction du site, jamais de script.",
+    legalTitre: 'Éditeur et mentions légales',
+    legal: 'Les informations d’éditeur et d’hébergement figurent sur la page',
+  },
+  en: {
+    titre: 'About',
+    ligneTitre: 'What this site demonstrates',
+    ligne:
+      'This site is a technical demonstrator: a local editorial magazine built on a Strapi 5 back office and a fully static Astro front end. It shows a complete publishing chain — content modelling, build-time rendering, internationalisation, performance and accessibility — on a corpus that looks like a real news outlet rather than on empty demo pages.',
+    corpusTitre: 'What the corpus contains',
+    corpus:
+      'Forty articles across six sections, five bylines, twenty tags and two long-running series, eight of which are translated into English. The territory, the figures, the characters and the events are invented from end to end: they are consistent with one another, but refer to no real town, company or person.',
+    techniqueTitre: 'How it is built',
+    technique:
+      'Pages are generated at build time: no server runs when a page is read, and no page ships JavaScript to the browser, except for search. Switching between French and English is done with links computed at build time, never with a script.',
+    legalTitre: 'Publisher and legal notice',
+    legal: 'Publisher and hosting information can be found on the',
+  },
+}[locale];
+---
+
+<div class="a-propos">
+  <h1>{TEXTES.titre}</h1>
+
+  <section class="a-propos__avertissement" aria-labelledby="media-fictif">
+    <h2 id="media-fictif">{mots.mediaFictifTitre}</h2>
+    <p><strong>{mots.mediaFictifTexte}</strong></p>
+  </section>
+
+  <section>
+    <h2>{TEXTES.ligneTitre}</h2>
+    <p>{TEXTES.ligne}</p>
+  </section>
+
+  <section>
+    <h2>{TEXTES.corpusTitre}</h2>
+    <p>{TEXTES.corpus}</p>
+  </section>
+
+  <section>
+    <h2>{TEXTES.techniqueTitre}</h2>
+    <p>{TEXTES.technique}</p>
+  </section>
+
+  <section>
+    <h2>{TEXTES.legalTitre}</h2>
+    <p>
+      {TEXTES.legal}{' '}
+      <a href={cheminStatique(locale, 'mentions-legales')}>{mots.mentionsLegales}</a>.
+    </p>
+  </section>
+</div>
+
+<style>
+  .a-propos {
+    max-width: var(--largeur-lecture);
+  }
+
+  .a-propos__avertissement {
+    padding: var(--espace-4) var(--espace-6);
+    margin-block: var(--espace-6);
+    background: var(--couleur-fond-doux);
+    border-left: 4px solid var(--couleur-accent);
+    border-radius: var(--rayon-s);
+  }
+</style>

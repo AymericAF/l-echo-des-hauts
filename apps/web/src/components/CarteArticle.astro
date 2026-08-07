@@ -1,0 +1,146 @@
+---
+/**
+ * Carte d article : l unite de toutes les listes du site (accueil, categorie, tag,
+ * auteur, dossier).
+ *
+ * §5.3 — l image porte ses dimensions et son intention de chargement. Par defaut
+ * `loading="lazy"` : une carte de liste est presque toujours hors de la zone visible
+ * immediate. `prioritaire` la bascule en `eager` + `fetchpriority="high"` pour l unique
+ * image de tete d une page — la garde refuse deux hautes priorites sur une meme page,
+ * parce que prioriser deux images n en priorise aucune.
+ *
+ * La CSS pose `width: 100%` : un axe DEFINI, sans quoi les attributs `width`/`height` ne
+ * reservent aucune boite et le CLS revient (mesure du 2026-08-07, cf. `EnTete.astro`).
+ */
+import type { Article, Locale } from '../lib/domaine.ts';
+import { libelles } from '../lib/i18n/libelles.ts';
+import { urlMedia } from '../lib/media.ts';
+import { cheminArticle, cheminIndex } from '../lib/routes/chemins.ts';
+import type { Registre } from '../lib/routes/registre.ts';
+
+interface Props {
+  article: Article;
+  locale: Locale;
+  registre: Registre;
+  prioritaire?: boolean;
+  /** Niveau de titre : une carte sous un `<h2>` de section porte un `<h3>`. */
+  niveau?: 1 | 2 | 3 | 4;
+}
+
+const { article, locale, registre, prioritaire = false, niveau = 3 } = Astro.props;
+const mots = libelles(locale);
+
+const Titre = `h${niveau}` as 'h1' | 'h2' | 'h3' | 'h4';
+
+/* La rubrique n est citee en LIEN que si sa page est emise dans cette locale (§10.3).
+   Sinon elle reste en texte : un lien mort vaut moins qu un lien absent. */
+const rubrique = registre.index(locale, 'categorie', article.categorie.documentId);
+
+const dateLisible = new Intl.DateTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB', {
+  dateStyle: 'long',
+  // Fige au build : sans fuseau explicite, deux builds du meme contenu differeraient.
+  timeZone: 'Europe/Paris',
+}).format(new Date(article.datePublication));
+---
+
+<article class="carte">
+  <div class="carte__image">
+    <img
+      src={urlMedia(article.imageCouverture)}
+      alt=""
+      width={article.imageCouverture.largeur ?? undefined}
+      height={article.imageCouverture.hauteur ?? undefined}
+      loading={prioritaire ? 'eager' : 'lazy'}
+      fetchpriority={prioritaire ? 'high' : undefined}
+      decoding="async"
+    />
+  </div>
+
+  <p class="carte__rubrique">
+    {
+      rubrique ? (
+        <a href={cheminIndex(locale, 'categorie', rubrique.slug)}>{article.categorie.nom}</a>
+      ) : (
+        article.categorie.nom
+      )
+    }
+  </p>
+
+  <Titre class="carte__titre">
+    <a href={cheminArticle(locale, article.slug)}>{article.titre}</a>
+  </Titre>
+
+  <p class="carte__chapo">{article.chapo}</p>
+
+  <p class="carte__signature">
+    <span>{mots.signePar} {article.auteur.nom}</span>
+    <time datetime={article.datePublication}>{dateLisible}</time>
+  </p>
+</article>
+
+<style>
+  .carte {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-2);
+  }
+
+  .carte__image {
+    display: block;
+  }
+
+  /* `width: 100%` : UN axe defini. Sans lui, les attributs width/height ne reservent rien. */
+  .carte__image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--rayon-s);
+    background: var(--couleur-fond-doux);
+  }
+
+  .carte__rubrique {
+    margin: 0;
+    color: var(--couleur-accent);
+    font-size: var(--taille-xs);
+    font-weight: var(--graisse-forte);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .carte__rubrique a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .carte__rubrique a:hover {
+    text-decoration: underline;
+  }
+
+  .carte__titre {
+    margin: 0;
+  }
+
+  .carte__titre a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .carte__titre a:hover,
+  .carte__titre a:focus-visible {
+    text-decoration: underline;
+  }
+
+  .carte__chapo {
+    margin: 0;
+    color: var(--couleur-texte-doux);
+  }
+
+  .carte__signature {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-1) var(--espace-3);
+    margin: 0;
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-xs);
+  }
+</style>

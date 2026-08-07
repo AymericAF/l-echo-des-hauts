@@ -1,0 +1,71 @@
+---
+/**
+ * Navigation principale : accueil, les rubriques, « a propos ».
+ *
+ * Les rubriques viennent du REGISTRE, pas de la collection : une rubrique sans article
+ * dans la locale courante n a pas de page (§10.3 du plan editorial), et un menu qui la
+ * citerait produirait un lien mort — exactement ce que la garde `garde-liens` refuse.
+ * C est le meme principe partout dans ce lot : on ne cite que ce qui est emis.
+ *
+ * Ordre : `ordreAffichage` puis `nom` (A-16). Sans cle de departage, le menu bougerait
+ * d un build a l autre sans qu aucun contenu n ait change.
+ */
+import type { Categorie, Locale } from '../lib/domaine.ts';
+import { libelles } from '../lib/i18n/libelles.ts';
+import { cheminAccueil, cheminIndex, cheminStatique } from '../lib/routes/chemins.ts';
+import type { Registre } from '../lib/routes/registre.ts';
+
+interface Props {
+  locale: Locale;
+  registre: Registre;
+}
+
+const { locale, registre } = Astro.props;
+const mots = libelles(locale);
+
+const rubriques = registre.indexes
+  .filter((index) => index.famille === 'categorie' && index.locale === locale)
+  .sort((a, b) => {
+    const ordreA = (a.entite as Categorie).ordreAffichage;
+    const ordreB = (b.entite as Categorie).ordreAffichage;
+    return ordreA - ordreB || a.titre.localeCompare(b.titre);
+  });
+---
+
+<nav class="navigation" aria-label={mots.menuPrincipal}>
+  <ul class="navigation__liste">
+    <li><a href={cheminAccueil(locale)}>{mots.accueil}</a></li>
+    {
+      rubriques.map((rubrique) => (
+        <li>
+          <a href={cheminIndex(locale, 'categorie', rubrique.slug)}>{rubrique.titre}</a>
+        </li>
+      ))
+    }
+    <li><a href={cheminStatique(locale, 'a-propos')}>{mots.aPropos}</a></li>
+  </ul>
+</nav>
+
+<style>
+  .navigation__liste {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2) var(--espace-4);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: var(--taille-s);
+  }
+
+  .navigation__liste a {
+    color: var(--couleur-texte);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    padding-block-end: 2px;
+  }
+
+  .navigation__liste a:hover,
+  .navigation__liste a:focus-visible {
+    border-bottom-color: var(--couleur-accent);
+  }
+</style>

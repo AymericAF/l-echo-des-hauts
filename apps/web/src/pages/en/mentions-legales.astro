@@ -1,0 +1,13 @@
+---
+/** `/en/mentions-legales` (§4.2). Meme portee, meme `noindex` que la version francaise. */
+import Base from '../../layouts/Base.astro';
+import PageMentions from '../../components/pages/PageMentions.astro';
+---
+
+<Base
+  titre="Legal notice"
+  page={{ genre: 'statique', locale: 'en', nom: 'mentions-legales' }}
+  noindex
+>
+  <PageMentions locale="en" />
+</Base>

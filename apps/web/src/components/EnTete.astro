@@ -23,15 +23,24 @@
  * sienne — l image sombre arriverait dans une boite qui n est pas la sienne, et le CLS
  * reviendrait par le seul chemin que le §5.3 ne nomme pas.
  */
-import type { Configuration } from '../lib/domaine.ts';
+import type { Configuration, Locale } from '../lib/domaine.ts';
 import { urlMedia } from '../lib/media.ts';
+import { cheminAccueil } from '../lib/routes/chemins.ts';
+import type { Contrepartie } from '../lib/routes/contrepartie.ts';
+import type { Registre } from '../lib/routes/registre.ts';
+import BasculeLangue from './BasculeLangue.astro';
+import Navigation from './Navigation.astro';
 
 interface Props {
   configuration: Configuration | null;
-  accueil: string;
+  locale: Locale;
+  registre: Registre;
+  /** Deja resolue par le layout : l en-tete ne calcule aucune URL de contrepartie (T-04). */
+  bascule: Contrepartie;
 }
 
-const { configuration, accueil } = Astro.props;
+const { configuration, locale, registre, bascule } = Astro.props;
+const accueil = cheminAccueil(locale);
 ---
 
 <header class="en-tete">
@@ -75,9 +84,17 @@ const { configuration, accueil } = Astro.props;
         </a>
 
         {configuration.baseline && <p class="en-tete__baseline">{configuration.baseline}</p>}
+
+        <div class="en-tete__bascule">
+          <BasculeLangue locale={locale} cible={bascule} />
+        </div>
       </div>
     )
   }
+
+  <div class="en-tete__navigation">
+    <Navigation locale={locale} registre={registre} />
+  </div>
 </header>
 
 <style>
@@ -123,5 +140,17 @@ const { configuration, accueil } = Astro.props;
     margin: 0;
     color: var(--couleur-texte-doux);
     font-size: var(--taille-s);
+  }
+
+  /* La bascule est poussee a droite : elle est la meme sur toutes les pages, et sa
+     position stable est ce qui l empeche de se lire comme un element qui apparait. */
+  .en-tete__bascule {
+    margin-inline-start: auto;
+  }
+
+  .en-tete__navigation {
+    width: min(100% - 2 * var(--espace-4), var(--largeur-page));
+    margin-inline: auto;
+    padding-block: var(--espace-2) var(--espace-3);
   }
 </style>

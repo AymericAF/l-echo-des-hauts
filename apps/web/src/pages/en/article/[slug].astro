@@ -1,0 +1,45 @@
+---
+/**
+ * `/en/article/[slug]` — le miroir anglais de la page article (§4.2).
+ *
+ * Le slug vient de la localisation ANGLAISE de l entree, pas du francais : un `uid` est
+ * localise d office par Strapi 5 (A-06), et `/en/article/` + un slug francais est une
+ * 404 — c est le piege numero un de T-05, invisible en developpement tant que les deux
+ * slugs se ressemblent. Ici, aucune traduction : le registre ne connait que les articles
+ * de la locale `en`, chacun avec son propre slug.
+ *
+ * §6 du cahier ne prevoit que 8 traductions sur 40 : cette route emet donc 8 pages, pas
+ * 40, et c est le comportement voulu — la contrepartie manquante est traitee par la
+ * bascule (T-06), pas en fabriquant une page anglaise a partir du texte francais.
+ */
+import type { Article } from '../../../lib/domaine.ts';
+import Base from '../../../layouts/Base.astro';
+import PageArticle from '../../../components/pages/PageArticle.astro';
+import { registreDuSite } from '../../../lib/routes/registre-site.ts';
+import { tronquerSurUnMot } from '../../../lib/texte.ts';
+
+const LONGUEUR_META_DESCRIPTION = 160;
+
+export async function getStaticPaths() {
+  const registre = await registreDuSite();
+  return registre.articles('en').map((article) => ({
+    params: { slug: article.slug },
+    props: { article },
+  }));
+}
+
+const { article } = Astro.props as { article: Article };
+const registre = await registreDuSite();
+
+const description =
+  article.seo?.metaDescription ?? tronquerSurUnMot(article.chapo, LONGUEUR_META_DESCRIPTION);
+---
+
+<Base
+  titre={article.seo?.metaTitre ?? article.titre}
+  description={description}
+  page={{ genre: 'article', locale: 'en', article }}
+  noindex={article.seo?.noindex ?? false}
+>
+  <PageArticle article={article} locale="en" registre={registre} />
+</Base>

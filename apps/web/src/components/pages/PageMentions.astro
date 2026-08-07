@@ -1,0 +1,117 @@
+---
+/**
+ * `/mentions-legales` et `/en/mentions-legales` (§4.2).
+ *
+ * La page portait deja, en francais, la mention de media fictif, l editeur et
+ * l hebergeur. Trois choses changent ici, et une seule est de fond :
+ *
+ *   1. **Elle passe par le layout** — elle etait un document HTML autonome, sans
+ *      en-tete ni pied de page. Elle n avait donc ni navigation, ni bascule FR/EN, ce
+ *      qui la sortait du miroir anglais « complet » exige par le §4.2.
+ *   2. **Elle existe en anglais.** Meme contenu, meme portee.
+ *   3. **Le `noindex` est CONSERVE** — decision du commit `d369449`, non renversee ici :
+ *      ce lot livre des routes, il n arbitre pas la politique d indexation d une page
+ *      legale. Note pour le rapport : la table de volumetrie de `docs/protocole-mesure.md`
+ *      compte `/mentions-legales` parmi les pages du sitemap, ce qui suppose l inverse.
+ *      L ecart est signale, pas tranche ici.
+ *
+ * Le bloc « A VERIFIER SUR LA FACTURE » sur l entite juridique Hostinger est repris tel
+ * quel : il n a pas ete leve.
+ */
+import type { Locale } from '../../lib/domaine.ts';
+import { libelles } from '../../lib/i18n/libelles.ts';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const mots = libelles(locale);
+
+/** Date de derniere mise a jour du texte legal lui-meme, pas du build. */
+const derniereMiseAJour = '2026-08-07';
+
+const TEXTES = {
+  fr: {
+    titre: 'Mentions légales',
+    editeurTitre: 'Éditeur',
+    directeur: 'Directeur de la publication',
+    contact: 'Contact',
+    hebergementTitre: 'Hébergement',
+    hebergeur: 'Site hébergé par',
+    majTitre: 'Dernière mise à jour',
+  },
+  en: {
+    titre: 'Legal notice',
+    editeurTitre: 'Publisher',
+    directeur: 'Publication director',
+    contact: 'Contact',
+    hebergementTitre: 'Hosting',
+    hebergeur: 'Site hosted by',
+    majTitre: 'Last updated',
+  },
+}[locale];
+---
+
+<div class="mentions">
+  <h1>{TEXTES.titre}</h1>
+
+  <section class="mentions__avertissement" aria-labelledby="media-fictif">
+    <h2 id="media-fictif">{mots.mediaFictifTitre}</h2>
+    <p><strong>{mots.mediaFictifTexte}</strong></p>
+  </section>
+
+  <section>
+    <h2>{TEXTES.editeurTitre}</h2>
+    <p>
+      Monsieur Aymeric Filliot EI, 230 rue Eloi Morel, 80000 Amiens.<br />
+      {TEXTES.directeur} : Aymeric Filliot.<br />
+      {TEXTES.contact} :{' '}
+      <a href="mailto:contact@echo.ayfiweb.fr">contact@echo.ayfiweb.fr</a>
+    </p>
+  </section>
+
+  <section>
+    <h2>{TEXTES.hebergementTitre}</h2>
+    <p>
+      {/* NE PAS recopier o2switch depuis aymeric-filliot.fr : ce site n'est pas
+          heberge au meme endroit. L'Echo des Hauts tourne sur le VPS Hostinger
+          (Coolify), cf. runbook de provisionnement.
+
+          A VERIFIER SUR LA FACTURE : Hostinger a DEUX entites juridiques.
+            - HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023 Larnaca,
+              Chypre — c'est celle que recopient la plupart des mentions legales
+              francaises, valeur retenue ici par defaut.
+            - HOSTINGER operations, UAB, Svitrigailos g. 34, LT-03230 Vilnius,
+              Lituanie — creee le 28/04/2023, son objet social couvre l'hebergement
+              et l'infrastructure de calcul.
+          Laquelle facture le VPS n'a pas pu etre etabli depuis des sources
+          publiques. Confronter a la facture ou au contrat, et corriger si besoin. */}
+      {TEXTES.hebergeur} HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023
+      Larnaca, Chypre.
+    </p>
+  </section>
+
+  <p class="mentions__maj">
+    <small>{TEXTES.majTitre} : {derniereMiseAJour}</small>
+  </p>
+</div>
+
+<style>
+  .mentions {
+    max-width: var(--largeur-lecture);
+  }
+
+  .mentions__avertissement {
+    padding: var(--espace-4) var(--espace-6);
+    margin-block: var(--espace-6);
+    background: var(--couleur-fond-doux);
+    border-left: 4px solid var(--couleur-accent);
+    border-radius: var(--rayon-s);
+  }
+
+  .mentions__maj {
+    margin-top: var(--espace-8);
+    color: var(--couleur-texte-doux);
+  }
+</style>

@@ -7,13 +7,20 @@
  *     le Content Layer) et le passe a l en-tete et au pied de page ;
  *   - il calcule les valeurs SEO par defaut AU BUILD, jamais en base (A-07) : titre
  *     tronque a 60 sur une frontiere de mot (A-26), description repliee sur
- *     `descriptionDefaut`, canonique = URL absolue de la page.
+ *     `descriptionDefaut`, canonique = URL absolue de la page ;
+ *   - il resout la BASCULE FR/EN et les `hreflang`.
  *
- * Ce qu il ne fait PAS, volontairement : la bascule FR/EN. T-04 interdit de fabriquer
- * l URL de contrepartie par manipulation de chaine ; elle doit venir du registre des
- * routes reellement emises, qui n existe pas encore. Un lien fabrique ici serait faux
- * pour toute page dont le slug differe d une locale a l autre — c est-a-dire toutes,
- * les `uid` etant localises d office (A-06).
+ * La bascule vit ici parce qu elle doit etre sur TOUTES les pages et parce qu elle
+ * n admet qu une seule source : le registre des routes reellement emises (T-04). Chaque
+ * page lui remet un DESCRIPTEUR (« je suis la page 2 de la categorie cat-1 en francais »),
+ * jamais une URL — c est ce qui rend impossible la fabrication d une contrepartie par
+ * prefixage, laquelle serait fausse pour toute page dont le slug differe d une locale a
+ * l autre, c est-a-dire toutes (les `uid` sont localises d office, A-06).
+ *
+ * `hreflang` et lien de bascule ne se calculent PAS sur la meme liste (T-06) : le lien
+ * est toujours rendu et peut remonter d un cran ; les alternates ne sortent que si la
+ * contrepartie est EXACTE. Un `hreflang="en"` pointant une page de rubrique est une
+ * erreur SEO franche.
  *
  * ZERO JavaScript : aucune balise <script>, aucun composant hydrate.
  */
@@ -21,6 +28,10 @@ import { getEntry } from 'astro:content';
 import type { Locale } from '../lib/domaine.ts';
 import { urlMedia } from '../lib/media.ts';
 import { tronquerSurUnMot } from '../lib/texte.ts';
+import { libelles } from '../lib/i18n/libelles.ts';
+import { normaliserChemin } from '../lib/routes/chemins.ts';
+import { contrepartie, type DescripteurPage } from '../lib/routes/contrepartie.ts';
+import { registreDuSite } from '../lib/routes/registre-site.ts';
 import EnTete from '../components/EnTete.astro';
 import PiedDePage from '../components/PiedDePage.astro';
 import '../styles/tokens.css';
@@ -29,15 +40,21 @@ import '../styles/base.css';
 interface Props {
   titre: string;
   description?: string;
-  locale?: Locale;
+  /** Le descripteur de la page courante : la bascule s en deduit, jamais de l URL. */
+  page: DescripteurPage;
   /** Passe a `true` sur une page que le sitemap et l index ne doivent pas voir (A-29). */
   noindex?: boolean;
 }
 
-const { titre, description, locale = 'fr', noindex = false } = Astro.props;
+const { titre, description, page, noindex = false } = Astro.props;
+const locale: Locale = page.locale;
+const mots = libelles(locale);
 
 const entree = await getEntry('configurations', locale);
 const configuration = entree?.data ?? null;
+
+const registre = await registreDuSite();
+const cible = contrepartie(registre, page);
 
 /* A-26 : le titre d article peut faire 120 caracteres, la balise <title> vise 60. La
    troncature vit dans `src/lib/texte.ts` depuis qu un second appelant l utilise — la
@@ -46,8 +63,23 @@ const configuration = entree?.data ?? null;
 const nomSite = configuration?.nomSite ?? null;
 const titreComplet = nomSite ? `${tronquerSurUnMot(titre, 60)} — ${nomSite}` : tronquerSurUnMot(titre, 60);
 const descriptionFinale = description ?? configuration?.descriptionDefaut ?? null;
-const canonique = new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).href;
-const prefixe = locale === 'fr' ? '' : `/${locale}`;
+
+const origine = Astro.site ?? new URL(Astro.url.origin);
+/* Normalise : le registre et `dist/` portent la forme sans slash final. Deux formes de
+   la meme URL feraient diverger le canonique, les alternates et la garde de liens. */
+const cheminCourant = normaliserChemin(Astro.url.pathname);
+const absolue = (chemin: string): string => new URL(chemin, origine).href;
+const canonique = absolue(cheminCourant);
+
+/* T-06 : les alternates ne sortent QUE sur une contrepartie exacte. `x-default` pointe
+   la version francaise, quelle que soit la langue de la page courante. */
+const alternates = cible.exact
+  ? [
+      { hreflang: locale, href: canonique },
+      { hreflang: cible.locale, href: absolue(cible.chemin) },
+      { hreflang: 'x-default', href: locale === 'fr' ? canonique : absolue(cible.chemin) },
+    ]
+  : [];
 ---
 
 <!doctype html>
@@ -58,6 +90,7 @@ const prefixe = locale === 'fr' ? '' : `/${locale}`;
     <title>{titreComplet}</title>
     {descriptionFinale && <meta name="description" content={descriptionFinale} />}
     <link rel="canonical" href={canonique} />
+    {alternates.map((autre) => <link rel="alternate" hreflang={autre.hreflang} href={autre.href} />)}
     {noindex && <meta name="robots" content="noindex" />}
     {
       configuration?.favicon && (
@@ -65,6 +98,7 @@ const prefixe = locale === 'fr' ? '' : `/${locale}`;
       )
     }
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content={locale === 'fr' ? 'fr_FR' : 'en_GB'} />
     <meta property="og:title" content={titreComplet} />
     {descriptionFinale && <meta property="og:description" content={descriptionFinale} />}
     <meta property="og:url" content={canonique} />
@@ -75,11 +109,11 @@ const prefixe = locale === 'fr' ? '' : `/${locale}`;
     }
   </head>
   <body>
-    <a class="lien-evitement" href="#contenu">Aller au contenu</a>
-    <EnTete configuration={configuration} accueil={`${prefixe}/`} />
+    <a class="lien-evitement" href="#contenu">{mots.allerAuContenu}</a>
+    <EnTete configuration={configuration} locale={locale} registre={registre} bascule={cible} />
     <main id="contenu" class="contenu-principal">
       <slot />
     </main>
-    <PiedDePage configuration={configuration} mentionsLegales={`${prefixe}/mentions-legales`} />
+    <PiedDePage configuration={configuration} locale={locale} registre={registre} />
   </body>
 </html>

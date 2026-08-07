@@ -1,0 +1,340 @@
+---
+/**
+ * Corps d une page article, partage par `/article/[slug]` et `/en/article/[slug]`.
+ *
+ * Il vivait dans le fichier de route tant qu il n y avait qu une locale. Le miroir
+ * anglais du §4.2 en fait deux routes : dupliquer le gabarit aurait cree deux copies
+ * d un meme rendu, qui divergent toujours — et c est exactement sur une page article
+ * que la divergence coute le plus cher (§4.5 : sommaire, temps de lecture, articles
+ * lies, valeurs SEO par defaut).
+ *
+ * Tout ce qu il affiche au-dela du contenu saisi est CALCULE AU BUILD (§4.5), jamais
+ * stocke en base et jamais recalcule dans le navigateur :
+ *
+ *   - le **sommaire**, extrait des titres de niveau 2 et 3 des blocs texte ;
+ *   - le **temps de lecture**, derive du nombre de mots de la Dynamic Zone ;
+ *   - les **articles lies**, champ manuel complete par un repli par categorie commune ;
+ *   - les **valeurs SEO par defaut** (A-07).
+ *
+ * **§10.4 du plan editorial** : sur une page anglaise, un article lie sans localisation
+ * EN n est pas affiche en anglais avec un titre francais. La question ne se pose plus au
+ * rendu — `articlesLies` est une relation, donc localisee d office (A-06), et le repli de
+ * `lib/article/articles-lies.ts` filtre deja sur `article.locale`. Ce qui reste a tenir
+ * ici, c est de ne lier que ce qui est EMIS : d ou le passage par le registre.
+ *
+ * Les rubriques, auteurs, tags et dossiers sont des LIENS quand leur page existe dans la
+ * locale courante, et du TEXTE sinon. Un index vide n est pas emis (§10.3) : le citer en
+ * lien produirait un lien mort, que `garde-liens` refuserait — et qui, sans elle, ne se
+ * decouvrirait qu en cliquant.
+ */
+import type { Article, Locale } from '../../lib/domaine.ts';
+import BlocContenu from '../blocs/BlocContenu.astro';
+import { articlesLies } from '../../lib/article/articles-lies.ts';
+import { construireSommaire } from '../../lib/article/sommaire.ts';
+import { tempsDeLecture } from '../../lib/article/temps-lecture.ts';
+import { libelles } from '../../lib/i18n/libelles.ts';
+import { urlMedia } from '../../lib/media.ts';
+import { cheminArticle, cheminIndex } from '../../lib/routes/chemins.ts';
+import type { Registre } from '../../lib/routes/registre.ts';
+
+/** Au-dessous de deux entrees, un sommaire est du bruit : une seule ancre ne guide rien. */
+const ENTREES_MINIMALES_SOMMAIRE = 2;
+
+interface Props {
+  article: Article;
+  locale: Locale;
+  registre: Registre;
+}
+
+const { article, locale, registre } = Astro.props;
+const mots = libelles(locale);
+
+const corpus = registre.articles(locale);
+const sommaire = construireSommaire(article.contenu);
+const lecture = tempsDeLecture(article.contenu);
+const lies = articlesLies(article, corpus);
+
+/* Les routes REELLEMENT emises : un article lie dont la page n existe pas (corpus
+   partiel, article depublie entre deux builds) est rendu sans lien plutot qu avec un
+   lien mort. */
+const slugsEmis = new Set(corpus.map((entree) => entree.slug));
+
+const rubrique = registre.index(locale, 'categorie', article.categorie.documentId);
+const signature = registre.index(locale, 'auteur', article.auteur.documentId);
+const serie = article.dossier
+  ? registre.index(locale, 'dossier', article.dossier.documentId)
+  : null;
+
+const dateLisible = new Intl.DateTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB', {
+  dateStyle: 'long',
+  // Fige au build : sans fuseau explicite, la date affichee dependrait de la machine
+  // qui construit, et deux builds du meme contenu differeraient.
+  timeZone: 'Europe/Paris',
+}).format(new Date(article.datePublication));
+---
+
+<article class="article">
+  <header class="article__entete">
+    <p class="article__categorie">
+      {
+        rubrique ? (
+          <a href={cheminIndex(locale, 'categorie', rubrique.slug)}>{article.categorie.nom}</a>
+        ) : (
+          article.categorie.nom
+        )
+      }
+    </p>
+    <h1>{article.titre}</h1>
+    <p class="article__chapo">{article.chapo}</p>
+
+    <p class="article__signature">
+      <span class="article__auteur">
+        {
+          signature ? (
+            <a href={cheminIndex(locale, 'auteur', signature.slug)}>{article.auteur.nom}</a>
+          ) : (
+            article.auteur.nom
+          )
+        }
+      </span>
+      <time datetime={article.datePublication}>{dateLisible}</time>
+      <span class="article__lecture">{mots.tempsLecture(lecture.minutes)}</span>
+    </p>
+
+    <figure class="article__couverture">
+      <img
+        src={urlMedia(article.imageCouverture)}
+        alt={article.imageCouverture.alternative ?? ''}
+        width={article.imageCouverture.largeur ?? undefined}
+        height={article.imageCouverture.hauteur ?? undefined}
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+      />
+      {article.legendeCouverture && <figcaption>{article.legendeCouverture}</figcaption>}
+    </figure>
+  </header>
+
+  {
+    sommaire.entrees.length >= ENTREES_MINIMALES_SOMMAIRE && (
+      <nav class="sommaire" aria-labelledby="sommaire-de-l-article">
+        <h2 id="sommaire-de-l-article" class="sommaire__titre">
+          {mots.sommaire}
+        </h2>
+        <ol class="sommaire__liste">
+          {sommaire.entrees.map((entree) => (
+            <li class:list={['sommaire__entree', `sommaire__entree--n${entree.niveau}`]}>
+              <a href={`#${entree.ancre}`}>{entree.texte}</a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )
+  }
+
+  <div class="article__corps">
+    {
+      article.contenu.map((bloc, index) => (
+        <BlocContenu bloc={bloc} ancres={sommaire.ancres.get(index)} />
+      ))
+    }
+  </div>
+
+  <footer class="article__pied">
+    {
+      article.dossier && (
+        <p class="article__dossier">
+          {mots.dossier} :{' '}
+          {serie ? (
+            <a href={cheminIndex(locale, 'dossier', serie.slug)}>
+              <strong>{article.dossier.titre}</strong>
+            </a>
+          ) : (
+            <strong>{article.dossier.titre}</strong>
+          )}
+        </p>
+      )
+    }
+
+    {
+      article.tags.length > 0 && (
+        <ul class="article__tags" aria-label={mots.etiquettes}>
+          {article.tags.map((tag) => {
+            const page = registre.index(locale, 'tag', tag.documentId);
+            return <li>{page ? <a href={cheminIndex(locale, 'tag', page.slug)}>{tag.nom}</a> : tag.nom}</li>;
+          })}
+        </ul>
+      )
+    }
+  </footer>
+</article>
+
+{
+  lies.length > 0 && (
+    <aside class="lies" aria-labelledby="titre-articles-lies">
+      <h2 id="titre-articles-lies">{mots.aLireAussi}</h2>
+      <ul class="lies__liste">
+        {lies.map((lie) => (
+          <li class="lies__carte">
+            <img
+              src={urlMedia(lie.imageCouverture)}
+              alt={lie.imageCouverture.alternative ?? ''}
+              width={lie.imageCouverture.largeur ?? undefined}
+              height={lie.imageCouverture.hauteur ?? undefined}
+              loading="lazy"
+              decoding="async"
+            />
+            <h3>
+              {slugsEmis.has(lie.slug) ? (
+                <a href={cheminArticle(locale, lie.slug)}>{lie.titre}</a>
+              ) : (
+                lie.titre
+              )}
+            </h3>
+            <p>{lie.chapo}</p>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  )
+}
+
+<style>
+  .article__entete {
+    max-width: var(--largeur-lecture);
+  }
+
+  .article__categorie {
+    margin: 0 0 var(--espace-2);
+    color: var(--couleur-accent);
+    font-size: var(--taille-s);
+    font-weight: var(--graisse-forte);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .article__categorie a {
+    color: inherit;
+  }
+
+  .article__chapo {
+    font-size: var(--taille-l);
+    color: var(--couleur-texte-doux);
+  }
+
+  .article__signature {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2) var(--espace-4);
+    padding-block: var(--espace-3);
+    border-block: var(--bordure-fine);
+    font-size: var(--taille-s);
+    color: var(--couleur-texte-doux);
+  }
+
+  .article__auteur {
+    font-weight: var(--graisse-forte);
+    color: var(--couleur-texte);
+  }
+
+  .article__couverture {
+    max-width: none;
+    margin: var(--espace-6) 0 var(--espace-8);
+  }
+
+  .article__couverture img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--rayon-m);
+  }
+
+  .article__couverture figcaption {
+    margin-top: var(--espace-2);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+
+  .sommaire {
+    max-width: var(--largeur-lecture);
+    margin-bottom: var(--espace-8);
+    padding: var(--espace-4) var(--espace-6);
+    background: var(--couleur-fond-doux);
+    border-radius: var(--rayon-m);
+  }
+
+  .sommaire__titre {
+    margin: 0 0 var(--espace-2);
+    font-size: var(--taille-m);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .sommaire__liste {
+    margin: 0;
+    padding-left: var(--espace-4);
+  }
+
+  .sommaire__entree--n3 {
+    margin-left: var(--espace-4);
+    font-size: var(--taille-s);
+  }
+
+  .article__pied {
+    max-width: var(--largeur-lecture);
+    margin-top: var(--espace-8);
+    padding-top: var(--espace-4);
+    border-top: var(--bordure-fine);
+    font-size: var(--taille-s);
+    color: var(--couleur-texte-doux);
+  }
+
+  .article__tags {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+  }
+
+  .article__tags li {
+    padding: var(--espace-1) var(--espace-3);
+    background: var(--couleur-fond-doux);
+    border: var(--bordure-fine);
+    border-radius: 999px;
+  }
+
+  .lies {
+    margin-top: var(--espace-16);
+    padding-top: var(--espace-8);
+    border-top: var(--bordure-fine);
+  }
+
+  .lies__liste {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--espace-6);
+  }
+
+  .lies__carte img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--rayon-s);
+  }
+
+  .lies__carte h3 {
+    margin: var(--espace-3) 0 var(--espace-2);
+    font-size: var(--taille-l);
+  }
+
+  .lies__carte p {
+    margin: 0;
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+</style>

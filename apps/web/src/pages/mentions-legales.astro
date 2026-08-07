@@ -1,61 +1,18 @@
 ---
-const derniereMiseAJour = '2026-08-03';
+/**
+ * `/mentions-legales` (§4.2).
+ *
+ * `noindex` conserve depuis le commit `d369449` : ce lot livre des routes, il n arbitre
+ * pas la politique d indexation d une page legale.
+ */
+import Base from '../layouts/Base.astro';
+import PageMentions from '../components/pages/PageMentions.astro';
 ---
 
-<html lang="fr">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex, nofollow" />
-    <title>Mentions légales — L'Écho des Hauts</title>
-  </head>
-  <body>
-    <main>
-      <h1>Mentions légales</h1>
-
-      <section>
-        <h2>Un média fictif</h2>
-        <p>
-          <strong>L'Écho des Hauts est un média fictif.</strong> Ce site est un
-          démonstrateur technique : sa ligne éditoriale, ses articles, ses
-          auteurs et les événements qu'il relate sont inventés. Aucun contenu
-          publié ici ne rapporte de faits réels, et ce site ne constitue en
-          aucun cas un service de presse en ligne.
-        </p>
-      </section>
-
-      <section>
-        <h2>Éditeur</h2>
-        <p>
-          Site édité par Monsieur Aymeric Filliot EI,
-          230 rue Eloi Morel, 80000 Amiens.<br />
-          Directeur de la publication : Aymeric Filliot.<br />
-          Contact : <a href="mailto:contact@echo.ayfiweb.fr">contact@echo.ayfiweb.fr</a>
-        </p>
-      </section>
-
-      <section>
-        <h2>Hébergement</h2>
-        <p>
-          {/* NE PAS recopier o2switch depuis aymeric-filliot.fr : ce site n'est pas
-              heberge au meme endroit. L'Echo des Hauts tourne sur le VPS Hostinger
-              (Coolify), cf. runbook de provisionnement.
-
-              A VERIFIER SUR LA FACTURE : Hostinger a DEUX entites juridiques.
-                - HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023 Larnaca,
-                  Chypre — c'est celle que recopient la plupart des mentions legales
-                  francaises, valeur retenue ici par defaut.
-                - HOSTINGER operations, UAB, Svitrigailos g. 34, LT-03230 Vilnius,
-                  Lituanie — creee le 28/04/2023, son objet social couvre l'hebergement
-                  et l'infrastructure de calcul.
-              Laquelle facture le VPS n'a pas pu etre etabli depuis des sources
-              publiques. Confronter a la facture ou au contrat, et corriger si besoin. */}
-          Site hébergé par HOSTINGER INTERNATIONAL LTD,
-          61 Lordou Vironos Street, 6023 Larnaca, Chypre.
-        </p>
-      </section>
-
-      <p><small>Dernière mise à jour : {derniereMiseAJour}</small></p>
-    </main>
-  </body>
-</html>
+<Base
+  titre="Mentions legales"
+  page={{ genre: 'statique', locale: 'fr', nom: 'mentions-legales' }}
+  noindex
+>
+  <PageMentions locale="fr" />
+</Base>

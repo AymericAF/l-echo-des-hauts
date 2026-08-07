@@ -1,0 +1,9 @@
+---
+/** `/a-propos` (§4.2). Porte le caractere fictif du media, en tete de page. */
+import Base from '../layouts/Base.astro';
+import PageAPropos from '../components/pages/PageAPropos.astro';
+---
+
+<Base titre="A propos" page={{ genre: 'statique', locale: 'fr', nom: 'a-propos' }}>
+  <PageAPropos locale="fr" />
+</Base>

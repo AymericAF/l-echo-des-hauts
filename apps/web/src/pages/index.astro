@@ -1,42 +1,20 @@
 ---
 /**
- * Accueil — etat provisoire.
+ * `/` — accueil francais (§4.2 : article a la une, derniers articles, selection par
+ * rubrique, dossiers en cours).
  *
- * La vraie page d accueil (une a la une, dernieres publications, dossiers en cours,
- * §2.1) appartient au lot des PAGES, qui n est pas encore ecrit. Cette version-ci
- * existe pour deux raisons : conserver la route, et EXERCER au build la chaine
- * complete loader → mapping → layout → en-tete/pied de page.
- *
- * Les titres sont cliquables depuis que `/article/[slug]` existe. Categorie et auteur
- * restent en TEXTE : `/categorie/[slug]` et `/auteur/[slug]` n existent pas encore, et
- * un lien mort vaut moins qu un lien absent.
+ * Fichier de ROUTE : il ne fait qu emettre le chemin et remettre le rendu a
+ * `PageAccueil`, que `/en/` partage. Le titre de la balise `<title>` vient du nom du
+ * site, ajoute par le layout.
  */
-import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import PageAccueil from '../components/pages/PageAccueil.astro';
+import { libelles } from '../lib/i18n/libelles.ts';
+import { registreDuSite } from '../lib/routes/registre-site.ts';
 
-const articles = (await getCollection('articles'))
-  .filter((entree) => entree.data.locale === 'fr')
-  .sort((a, b) => b.data.datePublication.localeCompare(a.data.datePublication));
+const registre = await registreDuSite();
 ---
 
-<Base titre="Accueil">
-  <h1>L Echo des Hauts</h1>
-
-  {
-    articles.length === 0 ? (
-      <p>
-        Aucun article n est encore publie dans Strapi. Le site se construit a partir de
-        la base : tant qu elle est vide, cette page l est aussi.
-      </p>
-    ) : (
-      <ul>
-        {articles.slice(0, 10).map((entree) => (
-          <li>
-            <a href={`/article/${entree.data.slug}`}>{entree.data.titre}</a> —{' '}
-            {entree.data.categorie.nom}, {entree.data.auteur.nom}
-          </li>
-        ))}
-      </ul>
-    )
-  }
+<Base titre={libelles('fr').accueil} page={{ genre: 'accueil', locale: 'fr' }}>
+  <PageAccueil locale="fr" registre={registre} />
 </Base>

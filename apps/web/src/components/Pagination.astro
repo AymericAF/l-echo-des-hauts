@@ -1,0 +1,110 @@
+---
+/**
+ * Pagination d une liste — §4.2, « 12 par page ».
+ *
+ * Les bornes ne sont PAS recalculees ici : elles viennent de la tranche produite par
+ * `lib/routes/pagination.ts`, ou `precedente` et `suivante` valent `null` aux extremites.
+ * C est la seule facon d etre certain qu aucun « suivant » ne pointe une page
+ * inexistante : le composant ne sait pas combien il y a de pages, il rend ce qu on lui
+ * donne, et ce qu on lui donne a ete construit avec les items.
+ *
+ * `rel="prev"` / `rel="next"` ne sont poses QUE sur des liens rendus, donc jamais vers
+ * une page absente. Le repere « Page 2 sur 3 » est un `<p>` et non un titre : c est un
+ * etat, pas une section.
+ */
+import type { Locale } from '../lib/domaine.ts';
+import { libelles } from '../lib/i18n/libelles.ts';
+import { cheminIndex, type Famille } from '../lib/routes/chemins.ts';
+import type { Tranche } from '../lib/routes/pagination.ts';
+
+interface Props {
+  locale: Locale;
+  famille: Famille;
+  slug: string;
+  tranche: Tranche<unknown>;
+}
+
+const { locale, famille, slug, tranche } = Astro.props;
+const mots = libelles(locale);
+
+const numeros = Array.from({ length: tranche.nombreDePages }, (_, index) => index + 1);
+---
+
+{
+  tranche.nombreDePages > 1 && (
+    <nav class="pagination" aria-label={mots.navigationPages}>
+      <p class="pagination__etat">{mots.pageXsurY(tranche.numero, tranche.nombreDePages)}</p>
+
+      <ul class="pagination__liste">
+        <li>
+          {tranche.precedente === null ? (
+            <span class="pagination__inactif">{mots.pagePrecedente}</span>
+          ) : (
+            <a rel="prev" href={cheminIndex(locale, famille, slug, tranche.precedente)}>
+              {mots.pagePrecedente}
+            </a>
+          )}
+        </li>
+
+        {numeros.map((numero) => (
+          <li>
+            {numero === tranche.numero ? (
+              <span class="pagination__courante" aria-current="page">
+                {numero}
+              </span>
+            ) : (
+              <a href={cheminIndex(locale, famille, slug, numero)}>
+                <span class="hors-ecran">{mots.pageXsurY(numero, tranche.nombreDePages)}</span>
+                <span aria-hidden="true">{numero}</span>
+              </a>
+            )}
+          </li>
+        ))}
+
+        <li>
+          {tranche.suivante === null ? (
+            <span class="pagination__inactif">{mots.pageSuivante}</span>
+          ) : (
+            <a rel="next" href={cheminIndex(locale, famille, slug, tranche.suivante)}>
+              {mots.pageSuivante}
+            </a>
+          )}
+        </li>
+      </ul>
+    </nav>
+  )
+}
+
+<style>
+  .pagination {
+    margin-top: var(--espace-12);
+    padding-top: var(--espace-4);
+    border-top: var(--bordure-fine);
+  }
+
+  .pagination__etat {
+    margin: 0 0 var(--espace-2);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+
+  .pagination__liste {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-2) var(--espace-3);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: var(--taille-s);
+  }
+
+  .pagination__courante {
+    font-weight: var(--graisse-forte);
+    color: var(--couleur-accent);
+  }
+
+  .pagination__inactif {
+    color: var(--couleur-texte-doux);
+  }
+</style>

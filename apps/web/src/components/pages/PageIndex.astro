@@ -1,0 +1,164 @@
+---
+/**
+ * Corps d une page d index : categorie, etiquette, auteur, dossier — les quatre familles
+ * du §4.2, dans les deux locales.
+ *
+ * Un seul gabarit pour quatre familles, parce qu elles ne different que par leur en-tete
+ * et par le sens de leur ordre. Le fond est identique : une liste d articles, paginee ou
+ * non. Quatre gabarits auraient produit quatre paginations, dont trois n auraient jamais
+ * ete exercees aux bornes.
+ *
+ * Ce composant ne DECIDE rien : ni le tri, ni la troncature, ni le nombre de pages. Tout
+ * cela est tranche par le registre, seul endroit d ou l on voit le corpus entier — et
+ * donc seul endroit d ou l on peut appliquer la regle « un index vide n est pas emis »
+ * (§10.3 du plan editorial).
+ */
+import type { Article, Auteur, Categorie, Dossier, Locale } from '../../lib/domaine.ts';
+import { libelles } from '../../lib/i18n/libelles.ts';
+import { urlMedia } from '../../lib/media.ts';
+import type { IndexEmis, Registre } from '../../lib/routes/registre.ts';
+import type { Tranche } from '../../lib/routes/pagination.ts';
+import LiensSociaux from '../LiensSociaux.astro';
+import ListeArticles from '../ListeArticles.astro';
+import Pagination from '../Pagination.astro';
+import RichTexte from '../RichTexte.astro';
+
+interface Props {
+  index: IndexEmis;
+  tranche: Tranche<Article>;
+  locale: Locale;
+  registre: Registre;
+}
+
+const { index, tranche, locale, registre } = Astro.props;
+const mots = libelles(locale);
+
+const intituleListe = {
+  categorie: mots.articlesDeLaRubrique,
+  tag: mots.articlesDeLEtiquette,
+  auteur: mots.articlesDeLAuteur,
+  dossier: mots.articlesDuDossier,
+}[index.famille];
+
+const total = index.pages.reduce((somme, page) => somme + page.items.length, 0);
+
+const auteur = index.famille === 'auteur' ? (index.entite as Auteur) : null;
+const dossier = index.famille === 'dossier' ? (index.entite as Dossier) : null;
+/* `Categorie` et `Dossier` portent tous deux un `imageHero` ; `Tag` n en a pas, et
+   `Auteur` porte un portrait, qui n est pas une image de tete. */
+const hero =
+  index.famille === 'categorie' || index.famille === 'dossier'
+    ? (index.entite as Categorie | Dossier).imageHero
+    : null;
+
+/* §5.3 — une seule image prioritaire par page. Quand la page porte un hero, c est lui ;
+   sinon c est la premiere carte de la premiere page. Deux `fetchpriority="high"` sur une
+   meme page n en priorisent aucune, et la garde d images refuse le cas. */
+const carteProritaire = hero === null && tranche.numero === 1 ? 0 : null;
+---
+
+<header class="index__entete">
+  <p class="index__famille">{index.famille === 'auteur' ? mots.signePar : intituleListe}</p>
+  <h1>{index.titre}</h1>
+
+  {
+    hero && (
+      <img
+        class="index__hero"
+        src={urlMedia(hero)}
+        alt={hero.alternative ?? ''}
+        width={hero.largeur ?? undefined}
+        height={hero.hauteur ?? undefined}
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+      />
+    )
+  }
+
+  {index.description && <p class="index__description">{index.description}</p>}
+
+  {
+    auteur?.photo && (
+      <img
+        class="index__portrait"
+        src={urlMedia(auteur.photo)}
+        alt={auteur.photo.alternative ?? auteur.nom}
+        width={auteur.photo.largeur ?? undefined}
+        height={auteur.photo.hauteur ?? undefined}
+        loading="lazy"
+        decoding="async"
+      />
+    )
+  }
+
+  {auteur?.bio && <div class="index__bio"><RichTexte noeuds={auteur.bio} /></div>}
+  {auteur && auteur.reseaux.length > 0 && <LiensSociaux liens={auteur.reseaux} intitule={auteur.nom} />}
+
+  {
+    dossier?.introduction && (
+      <div class="index__introduction">
+        <RichTexte noeuds={dossier.introduction} />
+      </div>
+    )
+  }
+
+  <p class="index__compte">{mots.nombreArticles(total)}</p>
+</header>
+
+<section aria-label={intituleListe}>
+  <ListeArticles
+    articles={tranche.items}
+    locale={locale}
+    registre={registre}
+    niveau={2}
+    prioritaire={carteProritaire}
+  />
+</section>
+
+<Pagination locale={locale} famille={index.famille} slug={index.slug} tranche={tranche} />
+
+<style>
+  .index__entete {
+    max-width: var(--largeur-lecture);
+    margin-bottom: var(--espace-12);
+  }
+
+  .index__famille {
+    margin: 0 0 var(--espace-2);
+    color: var(--couleur-accent);
+    font-size: var(--taille-s);
+    font-weight: var(--graisse-forte);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* `width: 100%` : UN axe defini, sans quoi les attributs de dimension ne reservent rien. */
+  .index__hero {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--rayon-m);
+    margin-block: var(--espace-4);
+  }
+
+  .index__portrait {
+    display: block;
+    width: 6rem;
+    height: auto;
+    border-radius: 50%;
+    margin-block: var(--espace-4);
+  }
+
+  .index__description,
+  .index__bio,
+  .index__introduction {
+    color: var(--couleur-texte-doux);
+  }
+
+  .index__compte {
+    margin: var(--espace-4) 0 0;
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+</style>

@@ -1,0 +1,52 @@
+---
+/**
+ * Une grille de cartes d article. Elle ne decide de rien — ni du tri, ni de la
+ * troncature, ni de la pagination : tout cela est deja tranche par le registre, qui est
+ * la seule piece capable de le faire a l echelle du corpus.
+ *
+ * `prioritaire` porte l unique image de tete d une page (§5.3) : la garde d images refuse
+ * deux `fetchpriority="high"` sur une meme page.
+ */
+import type { Article, Locale } from '../lib/domaine.ts';
+import type { Registre } from '../lib/routes/registre.ts';
+import CarteArticle from './CarteArticle.astro';
+
+interface Props {
+  articles: readonly Article[];
+  locale: Locale;
+  registre: Registre;
+  /** Titre de section deja rendu par l appelant : les cartes portent alors des `<h3>`. */
+  niveau?: 1 | 2 | 3 | 4;
+  /** Index de la carte dont l image est prioritaire, ou `null` si aucune ne l est. */
+  prioritaire?: number | null;
+}
+
+const { articles, locale, registre, niveau = 3, prioritaire = null } = Astro.props;
+---
+
+<ul class="liste-articles">
+  {
+    articles.map((article, index) => (
+      <li>
+        <CarteArticle
+          article={article}
+          locale={locale}
+          registre={registre}
+          niveau={niveau}
+          prioritaire={index === prioritaire}
+        />
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .liste-articles {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    gap: var(--espace-8) var(--espace-6);
+  }
+</style>

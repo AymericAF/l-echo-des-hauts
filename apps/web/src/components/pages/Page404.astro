@@ -1,0 +1,110 @@
+---
+/**
+ * 404 editorialisee — `/404` et `/en/404` (§4.2).
+ *
+ * « Editorialisee » veut dire : elle ne se contente pas d annoncer l erreur, elle rend
+ * au lecteur de quoi continuer. Un site statique n a pas de moteur de reprise cote
+ * serveur ; ce qu on peut lui offrir, ce sont les rubriques et les derniers articles,
+ * tous deux lus dans le REGISTRE — donc tous emis, donc aucun lien mort sur la page
+ * meme ou l on vient d en rencontrer un.
+ *
+ * T-05, piege 3 : « La 404 statique ne sait pas quelle URL a ete demandee — sans
+ * JavaScript, elle ne peut pas proposer sa propre traduction. Sa bascule pointe l accueil
+ * de l autre langue. Assume, et sans alternative. » C est `contrepartie()` qui l applique,
+ * et qui refuse par consequent d emettre un `hreflang` ici.
+ *
+ * `noindex` : une page d erreur n a rien a faire dans un index. Le protocole de mesure la
+ * range d ailleurs explicitement « hors sitemap ».
+ */
+import type { Locale } from '../../lib/domaine.ts';
+import { libelles } from '../../lib/i18n/libelles.ts';
+import { cheminAccueil, cheminIndex } from '../../lib/routes/chemins.ts';
+import type { Categorie } from '../../lib/domaine.ts';
+import type { Registre } from '../../lib/routes/registre.ts';
+import ListeArticles from '../ListeArticles.astro';
+
+/** Assez pour relancer une lecture, pas assez pour faire une page d accueil bis. */
+const DERNIERS = 3;
+
+interface Props {
+  locale: Locale;
+  registre: Registre;
+}
+
+const { locale, registre } = Astro.props;
+const mots = libelles(locale);
+
+const derniers = registre.articles(locale).slice(0, DERNIERS);
+const rubriques = registre.indexes
+  .filter((index) => index.famille === 'categorie' && index.locale === locale)
+  .sort((a, b) => {
+    const ordreA = (a.entite as Categorie).ordreAffichage;
+    const ordreB = (b.entite as Categorie).ordreAffichage;
+    return ordreA - ordreB || a.titre.localeCompare(b.titre);
+  });
+---
+
+<div class="erreur">
+  <p class="erreur__code">404</p>
+  <h1>{mots.titre404}</h1>
+  <p class="erreur__texte">{mots.texte404}</p>
+  <p><a href={cheminAccueil(locale)}>{mots.retourAccueil}</a></p>
+
+  {
+    rubriques.length > 0 && (
+      <nav class="erreur__rubriques" aria-label={mots.rubriques}>
+        <h2>{mots.rubriques}</h2>
+        <ul>
+          {rubriques.map((rubrique) => (
+            <li>
+              <a href={cheminIndex(locale, 'categorie', rubrique.slug)}>{rubrique.titre}</a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )
+  }
+</div>
+
+{
+  derniers.length > 0 && (
+    <section class="erreur__derniers" aria-labelledby="titre-derniers-404">
+      <h2 id="titre-derniers-404">{mots.dernieresPublications}</h2>
+      <ListeArticles articles={derniers} locale={locale} registre={registre} niveau={3} />
+    </section>
+  )
+}
+
+<style>
+  .erreur {
+    max-width: var(--largeur-lecture);
+  }
+
+  .erreur__code {
+    margin: 0;
+    color: var(--couleur-accent);
+    font-family: var(--police-titre);
+    font-size: var(--taille-xxl);
+    font-weight: var(--graisse-forte);
+  }
+
+  .erreur__texte {
+    font-size: var(--taille-l);
+    color: var(--couleur-texte-doux);
+  }
+
+  .erreur__rubriques ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2) var(--espace-4);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .erreur__derniers {
+    margin-top: var(--espace-16);
+    padding-top: var(--espace-8);
+    border-top: var(--bordure-fine);
+  }
+</style>

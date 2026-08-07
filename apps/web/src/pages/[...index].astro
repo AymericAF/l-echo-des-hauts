@@ -1,0 +1,71 @@
+---
+/**
+ * Toutes les pages d INDEX du §4.2, dans les deux locales, depuis une seule route :
+ *
+ *   /categorie/[slug]           /en/categorie/[slug-en]
+ *   /categorie/[slug]/page/[n]  /en/categorie/[slug-en]/page/[n]
+ *   /tag/[slug]  (+ /page/[n], A-42)      idem en anglais
+ *   /auteur/[slug]              /en/auteur/[slug-en]
+ *   /dossier/[slug]             /en/dossier/[slug-en]
+ *
+ * POURQUOI UNE SEULE ROUTE, et pas huit fichiers. Le §4.2 decrit huit familles d URL ;
+ * les ecrire en huit `getStaticPaths` aurait produit huit copies de la meme decision —
+ * quelles pages emettre, avec quelle profondeur de pagination — et c est exactement la
+ * decision qu il ne faut pas dupliquer : elle porte la regle « un index vide n est pas
+ * emis » (§10.3 du plan editorial) et la borne de pagination. Une copie qui derive rend
+ * une page anglaise vide ou une page 2 fantome, et rien ne le signale.
+ *
+ * La liste des chemins EST le registre : `getStaticPaths` ne calcule rien, il transcrit.
+ * C est ce qui donne son sens a `integrations/garde-liens.mjs` — si un jour cette route
+ * cessait d emettre ce que le registre annonce, la garde le verrait dans `dist/`, et
+ * seule elle le verrait.
+ *
+ * Les routes plus specifiques (`/article/[slug]`, `/mentions-legales`, `/en/...`) sont
+ * prioritaires sur ce parametre reste : Astro les resout avant lui.
+ */
+import type { Article } from '../lib/domaine.ts';
+import Base from '../layouts/Base.astro';
+import PageIndex from '../components/pages/PageIndex.astro';
+import { libelles } from '../lib/i18n/libelles.ts';
+import { cheminIndex } from '../lib/routes/chemins.ts';
+import type { Tranche } from '../lib/routes/pagination.ts';
+import type { IndexEmis } from '../lib/routes/registre.ts';
+import { registreDuSite } from '../lib/routes/registre-site.ts';
+
+export async function getStaticPaths() {
+  const registre = await registreDuSite();
+
+  return registre.indexes.flatMap((index) =>
+    index.pages.map((tranche) => ({
+      // Astro attend le chemin SANS son slash initial pour un parametre reste.
+      params: { index: cheminIndex(index.locale, index.famille, index.slug, tranche.numero).slice(1) },
+      props: { index, tranche },
+    })),
+  );
+}
+
+const { index, tranche } = Astro.props as { index: IndexEmis; tranche: Tranche<Article> };
+const registre = await registreDuSite();
+
+/* Le titre de la page 2 dit qu il s agit de la page 2 : deux `<title>` identiques sur
+   deux URL differentes se lisent comme du contenu duplique. */
+const mots = libelles(index.locale);
+const titre =
+  tranche.numero === 1
+    ? index.titre
+    : `${index.titre} — ${mots.pageXsurY(tranche.numero, tranche.nombreDePages)}`;
+---
+
+<Base
+  titre={titre}
+  description={index.description ?? undefined}
+  page={{
+    genre: 'index',
+    locale: index.locale,
+    famille: index.famille,
+    documentId: index.documentId,
+    numero: tranche.numero,
+  }}
+>
+  <PageIndex index={index} tranche={tranche} locale={index.locale} registre={registre} />
+</Base>

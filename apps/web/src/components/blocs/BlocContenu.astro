@@ -6,11 +6,18 @@
  *
  * La table ci-dessous est ECRITE, pas deduite d une convention de nommage. Deux raisons :
  *
- *   - `satisfies Record<Bloc['type'], …>` en fait une garde de COMPLETUDE au type-check :
- *     ajouter un neuvieme bloc au domaine sans son rendu ne compile pas. La convention de
- *     nommage, elle, aurait echoue silencieusement a l execution.
+ *   - une table explicite se CONFRONTE au domaine ; une convention de nommage, elle,
+ *     aurait echoue silencieusement a l execution ;
  *   - un `import()` dynamique fabrique un chargement cote client ; ici tout est statique,
  *     resolu au build, et la garde T-09 verifie ensuite la sortie.
+ *
+ * Ce qui rend la completude OPPOSABLE : `tests/repartiteur-blocs.test.ts`, qui confronte
+ * cette table a l union `Bloc` du domaine et au `switch` de `mapping.ts`. Le
+ * `satisfies Record<Bloc['type'], unknown>` ci-dessous est conserve — il previent a la
+ * frappe, dans l editeur — mais il ne garde RIEN dans la chaine : Astro strip les types
+ * du frontmatter sans les verifier, et `astro check` n est pas installe. Mesure du
+ * 2026-08-07, domaine casse par un neuvieme type sans rendu : `npm test` 229/229 verts
+ * et `astro build` au bout. Une garde qui ne s execute pas est un commentaire.
  *
  * `mapping.ts` a deja refuse tout `__component` etranger aux huit blocs du §3.6 : ce
  * repartiteur ne recoit donc jamais un type inconnu. Le `throw` final n est pas une

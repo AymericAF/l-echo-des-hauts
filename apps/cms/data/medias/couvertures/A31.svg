@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <polyline points="40,160 135,142 230,136 325,179 420,178 515,164 610,189 705,123 800,122 895,138 990,104 1085,138 1180,139 1275,115 1370,170 1465,144 1560,155" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.22"/>
+  <polyline points="40,240 135,235 230,266 325,269 420,242 515,260 610,238 705,210 800,195 895,213 990,223 1085,241 1180,242 1275,200 1370,232 1465,278 1560,280" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.28"/>
+  <polyline points="40,307 135,300 230,317 325,280 420,316 515,302 610,307 705,307 800,270 895,284 990,300 1085,303 1180,319 1275,335 1370,348 1465,323 1560,346" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.33"/>
+  <polyline points="40,389 135,353 230,359 325,359 420,335 515,322 610,334 705,371 800,375 895,422 990,397 1085,428 1180,404 1275,399 1370,368 1465,360 1560,352" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.39"/>
+  <polyline points="40,414 135,396 230,405 325,452 420,450 515,459 610,481 705,442 800,478 895,513 990,492 1085,506 1180,454 1275,446 1370,463 1465,402 1560,448" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.44"/>
+  <polyline points="40,486 135,509 230,536 325,551 420,509 515,552 610,541 705,528 800,551 895,534 990,528 1085,502 1180,507 1275,487 1370,505 1465,536 1560,525" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.49"/>
+  <polyline points="40,615 135,591 230,612 325,652 420,604 515,645 610,617 705,591 800,606 895,616 990,576 1085,593 1180,562 1275,563 1370,601 1465,615 1560,631" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.55"/>
+  <polyline points="40,706 135,720 230,737 325,698 420,712 515,681 610,703 705,649 800,693 895,672 990,689 1085,634 1180,683 1275,681 1370,659 1465,675 1560,679" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.60"/>
+  <polyline points="40,758 135,774 230,787 325,777 420,761 515,725 610,762 705,725 800,728 895,755 990,740 1085,748 1180,766 1275,808 1370,799 1465,814 1560,792" fill="none" stroke="#0E6F87" stroke-width="2.5" opacity="0.66"/>
+  <polygon points="250,470 520,430 580,620 300,668" fill="#0E6F87" fill-opacity="0.12" stroke="#0E6F87" stroke-width="4"/>
+  <polygon points="960,380 1250,352 1310,556 1010,588" fill="#0E6F87" fill-opacity="0.12" stroke="#0E6F87" stroke-width="4"/>
+  <text x="250" y="712" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#1A1A1A">Lot de 120 brebis — 22 ha</text>
+  <text x="960" y="632" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#1A1A1A">Lot de 95 brebis</text>
+  <path d="M 380 640 C 520 600 640 520 760 470 C 880 420 960 440 1060 470" fill="none" stroke="#1A1A1A" stroke-width="3" stroke-dasharray="16 12" opacity="0.7"/>
+  <circle cx="352" cy="512" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="398" cy="556" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="446" cy="498" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="472" cy="574" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="318" cy="596" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="508" cy="536" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="1042" cy="452" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="1108" cy="486" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="1176" cy="442" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="1232" cy="502" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <circle cx="1084" cy="540" r="11" fill="#1A1A1A" opacity="0.78"/>
+  <text x="60" y="836" font-family="Georgia, serif" font-size="44" fill="#1A1A1A">Nuit du 12 avril 2026 — onze points de decouverte, deux constats</text>
+  <text x="60" y="876" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.7">Geometrie inventee, generee a graine fixe ; aucun lieu reel</text>
+</svg>

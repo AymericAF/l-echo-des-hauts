@@ -19,7 +19,6 @@
     "caption": "Image de partage servie aux pages sans article",
     "licence": "oeuvre du projet"
   },
-
   "auteurs/camille-fournier-braud.svg": {
     "alternativeText": "Monogramme CF, portrait graphique de Camille Fournier-Braud",
     "caption": "Portrait graphique genere ; aucune personne reelle n'est representee",
@@ -45,7 +44,6 @@
     "caption": "Portrait graphique genere ; aucune personne reelle n'est representee",
     "licence": "oeuvre du projet"
   },
-
   "couvertures/A01.svg": {
     "alternativeText": "Courbes de niveau du col des Trois-Vents et implantation des six mats du projet eolien",
     "caption": "Trace genere a graine fixe ; le releve est invente",
@@ -146,7 +144,6 @@
     "caption": "Document entierement reconstitue pour la demonstration",
     "licence": "oeuvre du projet"
   },
-
   "blocs/A01-poste-source.svg": {
     "alternativeText": "Fac-simile d'un extrait de dossier de raccordement, capacite residuelle du poste source",
     "caption": "Document entierement reconstitue pour la demonstration",
@@ -212,7 +209,6 @@
     "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
     "licence": "oeuvre du projet"
   },
-
   "galeries/A09-1.svg": {
     "alternativeText": "Composition graphique evoquant un seau de traite",
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
@@ -258,7 +254,6 @@
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
     "licence": "oeuvre du projet"
   },
-
   "galeries/A11-1.svg": {
     "alternativeText": "Composition graphique evoquant des mains posees a plat",
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
@@ -289,7 +284,6 @@
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
     "licence": "oeuvre du projet"
   },
-
   "galeries/A24-1.svg": {
     "alternativeText": "Composition graphique evoquant une pierre taillee",
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
@@ -310,7 +304,6 @@
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
     "licence": "oeuvre du projet"
   },
-
   "galeries/A30-1.svg": {
     "alternativeText": "Composition graphique evoquant une ecorce decollee",
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
@@ -324,6 +317,56 @@
   "galeries/A30-3.svg": {
     "alternativeText": "Composition graphique evoquant une coupe sanitaire en bord de piste",
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A13.svg": {
+    "alternativeText": "Verbatim en grand corps : le plateau n'a pas de banlieue",
+    "caption": "Composition typographique, filet d'accent de la rubrique Vies d'ici",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A22.svg": {
+    "alternativeText": "Diagramme en barres croissantes du nombre d exposants du marche du jeudi, de 2021 a 2026",
+    "caption": "Serie relevee le premier jeudi de juillet ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A34.svg": {
+    "alternativeText": "Verbatim en grand corps : qui ramasserait, et avec quelles mains",
+    "caption": "Composition typographique, filet d'accent de la rubrique Grand air",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A25.svg": {
+    "alternativeText": "Elevation dessinee des sept arches du viaduc de l'Ambre, la limite communale coupant la quatrieme pile",
+    "caption": "Dessin original ; ouvrage et geometrie inventes",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A28.svg": {
+    "alternativeText": "Fac-simile d'un registre d'embauche de la mine d'antimoine de Combe-Roussel, cinq colonnes",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A31.svg": {
+    "alternativeText": "Carte de la nuit du 12 avril : courbes de niveau, deux parcelles, onze points de decouverte",
+    "caption": "Geometrie inventee, generee a graine fixe ; aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A38.svg": {
+    "alternativeText": "Fac-simile d'un tableau d'effectifs scolaires sur quatre rentrees, quatre colonnes",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A22-emplacements.svg": {
+    "alternativeText": "Plan en L des quarante et un emplacements du marche et des quatre places encore libres",
+    "caption": "Plan invente, dessine pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A25-inspection.svg": {
+    "alternativeText": "Fac-simile d'un proces-verbal d'inspection detaillee d'ouvrage d'art, cotation des six piles",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A28-fonds.svg": {
+    "alternativeText": "Diagramme en barres horizontales de la composition des soixante-deux cartons par nature de pieces",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
     "licence": "oeuvre du projet"
   }
 }

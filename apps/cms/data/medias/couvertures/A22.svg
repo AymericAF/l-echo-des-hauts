@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <rect x="140" y="480" width="145" height="260" fill="#8A5A12" opacity="0.45"/>
+  <rect x="360" y="412" width="145" height="328" fill="#8A5A12" opacity="0.55"/>
+  <rect x="580" y="344" width="145" height="396" fill="#8A5A12" opacity="0.65"/>
+  <rect x="800" y="289" width="145" height="451" fill="#8A5A12" opacity="0.76"/>
+  <rect x="1020" y="235" width="145" height="505" fill="#8A5A12" opacity="0.86"/>
+  <rect x="1240" y="180" width="145" height="560" fill="#8A5A12" opacity="0.96"/>
+  <line x1="120" y1="740" x2="1480" y2="740" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="160" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Exposants du marche du jeudi, premier jeudi de juillet, 2021-2026</text>
+</svg>

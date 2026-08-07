@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <rect x="520" y="230" width="940" height="52" fill="#5B3E7A" opacity="0.45"/>
+  <text x="496" y="268" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Comptabilite, exploitation</text>
+  <text x="1480" y="268" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">19</text>
+  <rect x="520" y="316" width="693" height="52" fill="#5B3E7A" opacity="0.55"/>
+  <text x="496" y="354" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Personnel, listes nominatives</text>
+  <text x="1233" y="354" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">14</text>
+  <rect x="520" y="402" width="445" height="52" fill="#5B3E7A" opacity="0.65"/>
+  <text x="496" y="440" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Medical, dont 41 dossiers</text>
+  <text x="985" y="440" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">9</text>
+  <rect x="520" y="488" width="346" height="52" fill="#5B3E7A" opacity="0.76"/>
+  <text x="496" y="526" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Technique, plans de galeries</text>
+  <text x="886" y="526" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">7</text>
+  <rect x="520" y="574" width="346" height="52" fill="#5B3E7A" opacity="0.86"/>
+  <text x="496" y="612" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Vrac, dont 2 cartons humides</text>
+  <text x="886" y="612" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">7</text>
+  <rect x="520" y="660" width="297" height="52" fill="#5B3E7A" opacity="0.96"/>
+  <text x="496" y="698" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Correspondance generale</text>
+  <text x="837" y="698" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">6</text>
+  <line x1="520" y1="196" x2="520" y2="726" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="150" font-family="Georgia, serif" font-size="44" fill="#1A1A1A">Les 62 cartons par nature de pieces, sur sondage de six cartons</text>
+</svg>

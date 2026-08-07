@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#EFEBE3"/>
+  <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
+  <rect x="220" y="170" width="420" height="18" fill="#5B3E7A"/>
+  <rect x="220" y="250" width="692" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="282" width="1043" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="314" width="927" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="346" width="1040" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="378" width="753" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="410" width="806" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="442" width="610" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="474" width="1067" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="506" width="724" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="538" width="841" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="570" width="523" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="602" width="889" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="634" width="708" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="666" width="1023" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="698" width="960" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="730" width="889" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="762" width="815" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="794" width="647" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Joint de mortier — composition</text>
+</svg>

@@ -86,6 +86,31 @@
     "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
     "licence": "oeuvre du projet"
   },
+  "couvertures/A11.svg": {
+    "alternativeText": "Verbatim en grand corps : cinq dossiers sur six n'ont jamais abouti",
+    "caption": "Composition typographique, filet d'accent de la rubrique Vies d'ici",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A17.svg": {
+    "alternativeText": "Diagramme en barres decroissantes des jours d'ouverture de Monteclair 1450, saison 1990-1991 a saison 2025-2026",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A24.svg": {
+    "alternativeText": "Fac-simile de la chronologie contentieuse du chantier de l'eglise de Chastel-Ambre",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A30.svg": {
+    "alternativeText": "Trace des peuplements d'epicea de la Sylve-Noire, courbes superposees des parcelles scolytees",
+    "caption": "Trace genere a graine fixe ; la geometrie est inventee",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A36.svg": {
+    "alternativeText": "Fac-simile d'un extrait de la deliberation du 24 avril 2026 sur la coupure nocturne",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
 
   "blocs/A01-poste-source.svg": {
     "alternativeText": "Fac-simile d'un extrait de dossier de raccordement, capacite residuelle du poste source",
@@ -114,6 +139,21 @@
   },
   "blocs/A35-dette.svg": {
     "alternativeText": "Courbe de la dette par habitant de la communaute des Hauts, 2019 a 2027",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A11-dossier.svg": {
+    "alternativeText": "Fac-simile d'un dossier de reconnaissance de maladie professionnelle, formulaire et pieces jointes",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A17-compte.svg": {
+    "alternativeText": "Fac-simile du compte d'exploitation 2025-2026 de la station de Monteclair 1450",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A24-surcout.svg": {
+    "alternativeText": "Diagramme en barres croissantes du surcout impute a chaque annee de retard du chantier",
     "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
     "licence": "oeuvre du projet"
   },
@@ -160,6 +200,74 @@
   },
   "galeries/A23-5.svg": {
     "alternativeText": "Composition graphique evoquant un cahier de production",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+
+  "galeries/A11-1.svg": {
+    "alternativeText": "Composition graphique evoquant des mains posees a plat",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A11-2.svg": {
+    "alternativeText": "Composition graphique evoquant une bobine de filature",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A11-3.svg": {
+    "alternativeText": "Composition graphique evoquant un gant de travail use",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A11-4.svg": {
+    "alternativeText": "Composition graphique evoquant un etabli d'atelier",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A11-5.svg": {
+    "alternativeText": "Composition graphique evoquant un escalier de fer",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A11-6.svg": {
+    "alternativeText": "Composition graphique evoquant une fenetre d'atelier",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+
+  "galeries/A24-1.svg": {
+    "alternativeText": "Composition graphique evoquant une pierre taillee",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A24-2.svg": {
+    "alternativeText": "Composition graphique evoquant un joint de mortier",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A24-3.svg": {
+    "alternativeText": "Composition graphique evoquant un depart de voute",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A24-4.svg": {
+    "alternativeText": "Composition graphique evoquant un echafaudage de chantier",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+
+  "galeries/A30-1.svg": {
+    "alternativeText": "Composition graphique evoquant une ecorce decollee",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A30-2.svg": {
+    "alternativeText": "Composition graphique evoquant des galeries de scolytes sous l'ecorce",
+    "caption": "Composition du projet ; aucun visage, aucun lieu reel",
+    "licence": "oeuvre du projet"
+  },
+  "galeries/A30-3.svg": {
+    "alternativeText": "Composition graphique evoquant une coupe sanitaire en bord de piste",
     "caption": "Composition du projet ; aucun visage, aucun lieu reel",
     "licence": "oeuvre du projet"
   }

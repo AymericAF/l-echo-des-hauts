@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#EFEBE3"/>
+  <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
+  <rect x="220" y="170" width="420" height="18" fill="#5B3E7A"/>
+  <rect x="220" y="250" width="950" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="282" width="607" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="314" width="548" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="346" width="733" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="378" width="857" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="410" width="704" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="442" width="1081" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="474" width="1057" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="506" width="680" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="538" width="970" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="570" width="1083" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="602" width="880" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="634" width="715" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="666" width="825" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="698" width="888" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="730" width="705" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="762" width="770" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <rect x="220" y="794" width="574" height="10" fill="#1A1A1A" opacity="0.16"/>
+  <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Pierre taillee — composition</text>
+</svg>

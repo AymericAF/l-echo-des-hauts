@@ -216,19 +216,40 @@ test('le corpus versionne du depot se charge sans erreur', () => {
   assert.ok(corpus.articles.length > 0);
 });
 
-test('le corpus versionne porte un slug EN non vide pour chaque entite localisable', () => {
+test('le corpus versionne porte un slug EN non vide sur chaque localisation EN existante', () => {
   const corpus = chargerCorpus(DATA_REEL);
   const manquants: string[] = [];
-  const controler = (famille: string, entrees: { en?: { slug?: string } }[]) => {
+
+  /**
+   * `exigeeSurToutes` distingue les deux regimes du plan editorial, qui ne sont
+   * PAS le meme (§10.5 contre §10.1) :
+   *   - Categorie, Tag, Dossier, Auteur : la localisation EN est due sur TOUTES
+   *     les entrees, meme celles dont aucune page EN ne sera emise ;
+   *   - Article : seuls 8 des 40 sont traduits. Exiger un `en` sur chaque
+   *     article ferait echouer ce test des le 9e article francais ecrit, et
+   *     pousserait a fabriquer des traductions que le plan ne demande pas.
+   * Dans les deux cas, une localisation EN qui EXISTE doit porter son slug : il
+   * est requis (A-09) et rien ne le genere par l'API ni par le seed.
+   */
+  const controler = (
+    famille: string,
+    entrees: { en?: { slug?: string } }[],
+    exigeeSurToutes: boolean
+  ) => {
     for (const [i, e] of entrees.entries()) {
-      if (!e.en || !String(e.en.slug ?? '').trim()) manquants.push(`${famille}[${i}]`);
+      if (!e.en) {
+        if (exigeeSurToutes) manquants.push(`${famille}[${i}] : localisation EN absente`);
+        continue;
+      }
+      if (!String(e.en.slug ?? '').trim()) manquants.push(`${famille}[${i}] : slug EN vide`);
     }
   };
-  controler('Categorie', corpus.categories);
-  controler('Tag', corpus.tags);
-  controler('Dossier', corpus.dossiers);
-  controler('Auteur', corpus.auteurs);
-  controler('Article', corpus.articles);
+
+  controler('Categorie', corpus.categories, true);
+  controler('Tag', corpus.tags, true);
+  controler('Dossier', corpus.dossiers, true);
+  controler('Auteur', corpus.auteurs, true);
+  controler('Article', corpus.articles, false);
   assert.deepEqual(manquants, []);
 });
 

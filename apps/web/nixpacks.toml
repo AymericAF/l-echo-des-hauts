@@ -1,0 +1,31 @@
+# Plan de construction Nixpacks du site public — lu par l application Coolify `echo-site`,
+# dont la `Base Directory` est `/apps/web` : c est ICI que Nixpacks cherche ce fichier,
+# pas a la racine du depot.
+#
+# POURQUOI IL EXISTE : le gabarit des images Open Graph (§4.5) est un SVG rasterise par
+# `sharp`. `sharp` embarque fontconfig, PAS de fontes. Et l image de base de Nixpacks
+# n en porte AUCUNE — mesure le 2026-08-07 sur `ghcr.io/railwayapp/nixpacks:ubuntu-1745885067` :
+#
+#     fc-list | wc -l   ->  0
+#     ls /usr/share/fonts -> le repertoire n existe pas
+#
+# Consequence exacte, et c est le mode d echec ou succes et echec rendent la meme sortie :
+# le PNG est PRODUIT, au bon format, au bon poids — et vide de tout glyphe. Mesure de
+# l encre de la bande de titre sur `og/fr/le-budget-2027-de-la-communaute-des-hauts.png` :
+# **7,53** au build, **69,55** sur un poste pourvu de fontes.
+#
+# Les familles reelles nommees par la pile de `src/lib/seo/gabarit-og.ts` sont DejaVu et
+# Liberation : les autres (Georgia, Times New Roman, Segoe UI, Roboto, Helvetica, Arial)
+# sont des fontes de systemes de bureau, elles ne se declarent pas dans une image de
+# construction. `tests/nixpacks-fontes.test.ts` verifie que chacune des deux piles se
+# termine bien sur une famille couverte par un paquet declare ci-dessous.
+#
+# `fontconfig` n est pas redondant avec les paquets de fontes : il construit le cache que
+# `sharp` interroge pour resoudre `font-family`. Poser les fichiers sans lui ne les rend
+# pas trouvables.
+#
+# NE PAS declarer `nixPkgs` ici sans le spread `'...'` : sans lui, la liste ecraserait les
+# paquets detectes par le fournisseur Node, et le build perdrait node et npm.
+
+[phases.setup]
+aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']

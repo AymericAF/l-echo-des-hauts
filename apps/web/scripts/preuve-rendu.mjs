@@ -95,9 +95,55 @@ for (const page of pages) {
   if (absents.length === 0) complete = true;
 }
 
+/**
+ * Les liens de reseaux, lus DANS LA SORTIE et pas dans le composant.
+ *
+ * A-04 exige zero avertissement axe-core, et le mode d echec d une icone est toujours le
+ * meme : un lien dont le seul contenu est un dessin n a aucun nom accessible, et un lecteur
+ * d ecran annonce son URL. La regle est donc « glyphe decoratif + intitule textuel »,
+ * jamais l inverse. Ce controle constate les deux sur le HTML emis :
+ *   - chaque glyphe porte `aria-hidden="true"` (sinon il entre dans le nom du lien) ;
+ *   - chaque lien garde du texte dans le flux (masque a l oeil, pas retire du document).
+ * Ce n est PAS une campagne axe-core — elle demande un navigateur, que ce depot n a pas.
+ * C est la classe d ecart que l icone introduit, et la seule qu on puisse voir d ici.
+ */
+function ecartsLiensSociaux(dist) {
+  const ecarts = [];
+  for (const fichier of fs.readdirSync(dist, { recursive: true })) {
+    if (!String(fichier).endsWith('.html')) continue;
+    const html = fs.readFileSync(path.join(dist, String(fichier)), 'utf8');
+    const liens = [...html.matchAll(/<a\b[^>]*class="[^"]*liens-sociaux__lien[^"]*"[^>]*>([\s\S]*?)<\/a>/g)];
+    for (const [, contenu] of liens) {
+      const glyphe = (contenu.match(/<svg[\s\S]*?<\/svg>/) ?? [''])[0];
+      if (glyphe && !/aria-hidden="true"/.test(glyphe)) {
+        ecarts.push(`${fichier} : un glyphe sans aria-hidden entre dans le nom du lien`);
+      }
+      const texte = contenu.replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<[^>]+>/g, '').trim();
+      if (texte.length === 0) ecarts.push(`${fichier} : un lien social sans texte accessible`);
+    }
+    if (liens.length > 0 && !/<nav[^>]*class="liens-sociaux"[^>]*aria-label="[^"]+"/.test(html)) {
+      ecarts.push(`${fichier} : la liste de reseaux n est pas nommee (aria-label)`);
+    }
+  }
+  return ecarts;
+}
+
+const ecartsSociaux = ecartsLiensSociaux(dist);
+console.log(
+  ecartsSociaux.length === 0
+    ? 'Liens de reseaux : glyphes en aria-hidden, texte accessible present sur chaque lien.'
+    : `Liens de reseaux : ${ecartsSociaux.length} ecart(s).`,
+);
+
 if (rapport.manquements.length > 0) {
   console.error('\n✖ Manquements dans la sortie :');
   for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+  process.exit(1);
+}
+
+if (ecartsSociaux.length > 0) {
+  console.error('\n✖ Accessibilite des liens de reseaux :');
+  for (const ecart of ecartsSociaux) console.error(`  - ${ecart}`);
   process.exit(1);
 }
 

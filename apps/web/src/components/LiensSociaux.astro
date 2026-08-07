@@ -2,17 +2,29 @@
 /**
  * Liste des reseaux, alimentee par `Configuration.reseaux` (ou `Auteur.reseaux`).
  *
- * A-30 ferme l enum des plateformes parce que « chaque valeur correspond a une icone
- * SVG inline (zero JS, pas d icon font) ; ajouter une valeur sans son icone casse le
- * rendu ». LES HUIT GLYPHES NE SONT PAS ENCORE DESSINES : ce composant rend donc le
- * NOM de la plateforme, en toutes lettres. C est deliberement provisoire — poser ici
- * des formes approximatives passerait pour des marques et serait faux a l ecran comme
- * en droit. Quand les glyphes existeront, ils remplaceront le libelle visible, qui
- * deviendra le texte accessible.
+ * A-30 ferme l enum des plateformes parce que « le rendu est une icone SVG inline (zero
+ * JS, pas de police d icones, pas de requete reseau) : chaque valeur suppose une icone ».
+ * LES GLYPHES SONT POSES DEPUIS LE 2026-08-07, mais pas dessines : chaque chemin est
+ * copie de la ressource de marque publiee par la plateforme, et `src/lib/glyphes-sociaux.ts`
+ * dit laquelle. Poser ici des formes approximatives passerait pour des marques, et serait
+ * faux a l ecran comme en droit — c est la seule chose que ce composant ne doit pas faire.
  *
- * Zero JavaScript : ce ne sont que des <a>.
+ * SEPT plateformes sur huit ont leur glyphe. `facebook` reste en toutes lettres : Meta ne
+ * publie son logo qu en PNG et en .ai, et interdit de le recolorer, de n en garder que le
+ * « f » ou de le detourer. Le nom n est pas un provisoire honteux, c est la bonne reponse
+ * quand il n existe aucune ressource utilisable.
+ *
+ * Accessibilite (A-04, transpose du champ `alternativeText` a l icone). Le glyphe est
+ * DECORATIF : `aria-hidden`, `focusable="false"`, aucun `<title>` dedans. Le nom
+ * accessible du lien vient du texte, qui reste dans le document et n est que masque a
+ * l oeil. L inverse — un `aria-label` sur le lien et rien dans le flux — donnerait un lien
+ * vide des que le CSS ne s applique pas, et priverait la traduction automatique de prise.
+ *
+ * Zero JavaScript : ce ne sont que des `<a>` et des `<svg>` inline. Aucune requete reseau
+ * n en sort — c est ce que « inline » achete, et ce qu une police d icones aurait coute.
  */
 import type { LienSocial } from '../lib/domaine.ts';
+import { LIBELLES, glypheDe } from '../lib/glyphes-sociaux.ts';
 
 interface Props {
   liens: readonly LienSocial[];
@@ -21,26 +33,38 @@ interface Props {
 
 const { liens, intitule } = Astro.props;
 
-const LIBELLES: Record<LienSocial['plateforme'], string> = {
-  linkedin: 'LinkedIn',
-  x: 'X',
-  bluesky: 'Bluesky',
-  mastodon: 'Mastodon',
-  instagram: 'Instagram',
-  facebook: 'Facebook',
-  youtube: 'YouTube',
-  site: 'Site web',
-};
+const rendus = liens.map((lien) => ({
+  lien,
+  libelle: LIBELLES[lien.plateforme],
+  glyphe: glypheDe(lien.plateforme),
+}));
 ---
 
 {
-  liens.length > 0 && (
+  rendus.length > 0 && (
     <nav class="liens-sociaux" aria-label={intitule}>
       <ul>
-        {liens.map((lien) => (
+        {rendus.map(({ lien, libelle, glyphe }) => (
           <li>
-            <a href={lien.url} rel="me noopener">
-              {LIBELLES[lien.plateforme]}
+            <a
+              href={lien.url}
+              rel="me noopener"
+              class:list={['liens-sociaux__lien', { 'liens-sociaux__lien--glyphe': glyphe !== null }]}
+              style={glyphe ? `--encre:${glyphe.encre};--encre-sombre:${glyphe.encreSombre}` : undefined}
+            >
+              {glyphe && (
+                <svg
+                  class="liens-sociaux__glyphe"
+                  viewBox={glyphe.viewBox}
+                  width="20"
+                  height="20"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d={glyphe.d} transform={glyphe.transform} />
+                </svg>
+              )}
+              <span class={glyphe ? 'liens-sociaux__nom--masque' : 'liens-sociaux__nom'}>{libelle}</span>
             </a>
           </li>
         ))}
@@ -53,13 +77,61 @@ const LIBELLES: Record<LienSocial['plateforme'], string> = {
   .liens-sociaux ul {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
+    /*
+     * L espacement fait office d espace de respiration autour des marques : plusieurs
+     * chartes (LinkedIn, X, Mastodon, YouTube) exigent une zone libre autour du logo.
+     * La donner ici plutot que dans chaque viewBox garde les signes a la meme taille.
+     */
     gap: var(--espace-2) var(--espace-4);
     list-style: none;
     margin: 0;
     padding: 0;
   }
 
-  .liens-sociaux a {
+  .liens-sociaux__lien {
+    display: inline-flex;
+    align-items: center;
     font-size: var(--taille-s);
+  }
+
+  .liens-sociaux__lien--glyphe {
+    /* La cible tactile reste de 44 px meme quand le signe n en fait que 20 (A-04, WCAG). */
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .liens-sociaux__glyphe {
+    /*
+     * `--encre` vient du registre, pas d ici : ce sont les variantes de couleur PUBLIEES
+     * par chaque plateforme. Aucune ne prend `currentColor`, qui reviendrait a recolorer
+     * une marque avec la couleur du site — ce que plusieurs chartes interdisent nommement.
+     */
+    fill: var(--encre);
+    display: block;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .liens-sociaux__glyphe {
+      fill: var(--encre-sombre);
+    }
+  }
+
+  /*
+   * Masque a l oeil, pas au lecteur d ecran ni au moteur : le texte reste dans le flux et
+   * dans le nom accessible du lien. `clip-path` plutot que `display:none`, qui le retirerait
+   * de l arbre d accessibilite, et plutot que `text-indent`, qui casse la mise en page en RTL.
+   */
+  .liens-sociaux__nom--masque {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

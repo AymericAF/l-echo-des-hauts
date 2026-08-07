@@ -392,9 +392,11 @@ test('mapperConfiguration traduit le Single Type', () => {
   assert.equal(configuration.logo.url, '/uploads/logo_clair_3344.svg');
   assert.equal(configuration.logoSombre?.url, '/uploads/logo_sombre_5566.svg');
   assert.equal(configuration.imagePartageDefaut.url, '/uploads/partage_defaut_99aa.jpg');
+  // La fixture porte les HUIT valeurs de l enum A-30 depuis le 2026-08-07 : c est ce qui
+  // fait passer les sept glyphes et le repli textuel de Facebook dans la preuve de rendu.
   assert.deepEqual(
     configuration.reseaux.map((r) => r.plateforme),
-    ['mastodon', 'bluesky'],
+    ['mastodon', 'bluesky', 'linkedin', 'x', 'instagram', 'youtube', 'facebook', 'site'],
   );
   assert.ok(Array.isArray(configuration.mentionsLegales));
 });

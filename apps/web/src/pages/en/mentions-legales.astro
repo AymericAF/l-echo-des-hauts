@@ -1,13 +1,12 @@
 ---
-/** `/en/mentions-legales` (§4.2). Meme portee, meme `noindex` que la version francaise. */
+/**
+ * `/en/mentions-legales` (§4.2). Meme portee que la version francaise, et meme
+ * `noindex` — desormais derive de `src/lib/seo/indexation.ts` plutot qu ecrit ici.
+ */
 import Base from '../../layouts/Base.astro';
 import PageMentions from '../../components/pages/PageMentions.astro';
 ---
 
-<Base
-  titre="Legal notice"
-  page={{ genre: 'statique', locale: 'en', nom: 'mentions-legales' }}
-  noindex
->
+<Base titre="Legal notice" page={{ genre: 'statique', locale: 'en', nom: 'mentions-legales' }}>
   <PageMentions locale="en" />
 </Base>

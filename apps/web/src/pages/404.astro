@@ -13,6 +13,6 @@ import { registreDuSite } from '../lib/routes/registre-site.ts';
 const registre = await registreDuSite();
 ---
 
-<Base titre={libelles('fr').titre404} page={{ genre: 'statique', locale: 'fr', nom: '404' }} noindex>
+<Base titre={libelles('fr').titre404} page={{ genre: 'statique', locale: 'fr', nom: '404' }}>
   <Page404 locale="fr" registre={registre} />
 </Base>

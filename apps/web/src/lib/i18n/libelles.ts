@@ -47,6 +47,7 @@ export interface Libelles {
   readonly titre404: string;
   readonly texte404: string;
   readonly retourAccueil: string;
+  readonly fluxRss: string;
   readonly mediaFictifTitre: string;
   readonly mediaFictifTexte: string;
 }
@@ -86,6 +87,7 @@ const FR: Libelles = {
   texte404:
     "L’adresse demandée ne correspond à aucune page de L’Écho des Hauts. Le lien qui vous a mené ici est peut-être ancien, ou l’article a changé d’adresse.",
   retourAccueil: "Revenir à l’accueil",
+  fluxRss: 'Flux RSS de L’Écho des Hauts',
   mediaFictifTitre: 'Un média fictif',
   mediaFictifTexte:
     "L’Écho des Hauts est un média fictif. Ce site est un démonstrateur technique : sa ligne éditoriale, ses articles, ses auteurs et les événements qu’il relate sont inventés. Aucun contenu publié ici ne rapporte de faits réels, et ce site ne constitue en aucun cas un service de presse en ligne.",
@@ -126,6 +128,7 @@ const EN: Libelles = {
   texte404:
     'The address you requested does not match any page of L’Écho des Hauts. The link that brought you here may be outdated, or the article may have moved.',
   retourAccueil: 'Back to the home page',
+  fluxRss: 'RSS feed of L’Écho des Hauts',
   mediaFictifTitre: 'A fictional publication',
   mediaFictifTexte:
     'L’Écho des Hauts is a fictional news outlet. This site is a technical demonstrator: its editorial line, its articles, its journalists and the events it reports are invented. Nothing published here reports real facts, and this site is in no way an online press service.',

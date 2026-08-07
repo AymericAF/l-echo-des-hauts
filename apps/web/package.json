@@ -10,14 +10,16 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "node --test tests/mapping.test.ts tests/requete.test.ts tests/garde-sortie.test.ts tests/garde-images.test.ts tests/garde-liens.test.ts tests/repartiteur-blocs.test.ts tests/texte.test.ts tests/article.test.ts tests/glyphes-sociaux.test.ts tests/chemins.test.ts tests/pagination.test.ts tests/registre.test.ts tests/contrepartie.test.ts tests/libelles.test.ts",
+    "test": "node --test tests/mapping.test.ts tests/requete.test.ts tests/garde-sortie.test.ts tests/garde-images.test.ts tests/garde-liens.test.ts tests/repartiteur-blocs.test.ts tests/texte.test.ts tests/article.test.ts tests/glyphes-sociaux.test.ts tests/chemins.test.ts tests/pagination.test.ts tests/registre.test.ts tests/contrepartie.test.ts tests/libelles.test.ts tests/seo-indexation.test.ts tests/seo-metadonnees.test.ts tests/seo-sitemap.test.ts tests/seo-flux.test.ts tests/seo-gabarit-og.test.ts tests/garde-seo.test.ts",
     "verifier:sortie": "node scripts/verifier-sortie.mjs",
     "verifier:images": "node scripts/verifier-images.mjs",
     "preuve:rendu": "node scripts/preuve-rendu.mjs",
     "verifier:liens": "node scripts/verifier-liens.mjs",
-    "preuve:pagination": "node scripts/preuve-pagination.mjs"
+    "preuve:pagination": "node scripts/preuve-pagination.mjs",
+    "verifier:seo": "node scripts/verifier-seo.mjs"
   },
   "dependencies": {
-    "astro": "^7.1.6"
+    "astro": "^7.1.6",
+    "sharp": "^0.35.3"
   }
 }

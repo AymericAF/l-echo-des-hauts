@@ -9,15 +9,17 @@
  * Le slug est celui de la locale francaise. Sa contrepartie anglaise se lit dans les
  * `localizations` de l entree, jamais par prefixage (T-05, piege 1) — c est le layout
  * qui s en charge, a partir du descripteur passe ci-dessous.
+ *
+ * LE LAYOUT NE RECOIT QUE DU BRUT. La troncature du titre a 60 et du chapo a 160, la
+ * surcharge par `partage.seo` et le `noindex` sont CALCULES AU BUILD par
+ * `src/lib/seo/metadonnees.ts`. Les appliquer ici les dupliquerait dans les deux routes
+ * d article, et la copie qui derive rendrait des balises differentes d une locale a
+ * l autre pour un meme contenu.
  */
 import type { Article } from '../../lib/domaine.ts';
 import Base from '../../layouts/Base.astro';
 import PageArticle from '../../components/pages/PageArticle.astro';
 import { registreDuSite } from '../../lib/routes/registre-site.ts';
-import { tronquerSurUnMot } from '../../lib/texte.ts';
-
-/** Longueur visee par une `<meta name="description">` (A-07, chaine de repli du chapo). */
-const LONGUEUR_META_DESCRIPTION = 160;
 
 export async function getStaticPaths() {
   const registre = await registreDuSite();
@@ -29,16 +31,13 @@ export async function getStaticPaths() {
 
 const { article } = Astro.props as { article: Article };
 const registre = await registreDuSite();
-
-const description =
-  article.seo?.metaDescription ?? tronquerSurUnMot(article.chapo, LONGUEUR_META_DESCRIPTION);
 ---
 
 <Base
-  titre={article.seo?.metaTitre ?? article.titre}
-  description={description}
+  titre={article.titre}
+  description={article.chapo}
   page={{ genre: 'article', locale: 'fr', article }}
-  noindex={article.seo?.noindex ?? false}
+  seo={article.seo}
 >
   <PageArticle article={article} locale="fr" registre={registre} />
 </Base>

@@ -30,6 +30,7 @@ import { libelles } from '../lib/i18n/libelles.ts';
 import { cheminIndex } from '../lib/routes/chemins.ts';
 import type { Tranche } from '../lib/routes/pagination.ts';
 import type { IndexEmis } from '../lib/routes/registre.ts';
+import { seoDeFamille } from '../lib/seo/indexation.ts';
 import { registreDuSite } from '../lib/routes/registre-site.ts';
 
 export async function getStaticPaths() {
@@ -58,7 +59,8 @@ const titre =
 
 <Base
   titre={titre}
-  description={index.description ?? undefined}
+  description={index.description}
+  seo={seoDeFamille(index.famille, index.entite)}
   page={{
     genre: 'index',
     locale: index.locale,

@@ -5,10 +5,16 @@
  * Ce qu il fait, et pourquoi c est ici plutot que dans chaque page :
  *   - il lit le Single Type `Configuration` de la locale demandee (une seule fois, via
  *     le Content Layer) et le passe a l en-tete et au pied de page ;
- *   - il calcule les valeurs SEO par defaut AU BUILD, jamais en base (A-07) : titre
- *     tronque a 60 sur une frontiere de mot (A-26), description repliee sur
- *     `descriptionDefaut`, canonique = URL absolue de la page ;
- *   - il resout la BASCULE FR/EN et les `hreflang`.
+ *   - il resout la BASCULE FR/EN a partir du registre des routes emises ;
+ *   - il remet le calcul de TOUTES les valeurs SEO a `src/lib/seo/metadonnees.ts`, et
+ *     n en ecrit aucune lui-meme.
+ *
+ * LES VALEURS SEO SONT CALCULEES AU BUILD, JAMAIS STOCKEES (A-07). C est le point de
+ * vigilance du lot : une valeur pre-remplie en base par un lifecycle se fige au premier
+ * enregistrement, et la surcharge du component partage `partage.seo` devient un piege —
+ * on ne sait plus, en lisant une entree, si ce qu on voit est un choix editorial ou le
+ * fossile d un titre qui a change depuis. La chaine de repli vit donc dans le code, et
+ * le harnais `tests/seo-metadonnees.test.ts` l exerce dans les deux sens.
  *
  * La bascule vit ici parce qu elle doit etre sur TOUTES les pages et parce qu elle
  * n admet qu une seule source : le registre des routes reellement emises (T-04). Chaque
@@ -25,28 +31,40 @@
  * ZERO JavaScript : aucune balise <script>, aucun composant hydrate.
  */
 import { getEntry } from 'astro:content';
-import type { Locale } from '../lib/domaine.ts';
+import type { Locale, Seo } from '../lib/domaine.ts';
 import { urlMedia } from '../lib/media.ts';
-import { tronquerSurUnMot } from '../lib/texte.ts';
 import { libelles } from '../lib/i18n/libelles.ts';
 import { normaliserChemin } from '../lib/routes/chemins.ts';
 import { contrepartie, type DescripteurPage } from '../lib/routes/contrepartie.ts';
 import { registreDuSite } from '../lib/routes/registre-site.ts';
+import { origineDuSite } from '../lib/seo/contexte-site.ts';
+import { CHEMIN_FLUX } from '../lib/seo/flux.ts';
+import { cheminImageOg, texteAlternatifOg } from '../lib/seo/gabarit-og.ts';
+import { noindexDe } from '../lib/seo/indexation.ts';
+import {
+  DIMENSION_OG,
+  metadonneesSeo,
+  type DetailArticle,
+  type ImagePartage,
+} from '../lib/seo/metadonnees.ts';
+import { CHEMIN_SITEMAP_INDEX } from '../lib/seo/sitemap.ts';
 import EnTete from '../components/EnTete.astro';
 import PiedDePage from '../components/PiedDePage.astro';
 import '../styles/tokens.css';
 import '../styles/base.css';
 
 interface Props {
+  /** Le titre BRUT de la page : la troncature et le suffixe sont calcules au build. */
   titre: string;
-  description?: string;
+  /** La description BRUTE (chapo, description de rubrique…), avant troncature. */
+  description?: string | null;
   /** Le descripteur de la page courante : la bascule s en deduit, jamais de l URL. */
   page: DescripteurPage;
-  /** Passe a `true` sur une page que le sitemap et l index ne doivent pas voir (A-29). */
-  noindex?: boolean;
+  /** La surcharge editoriale `partage.seo` de l entite rendue, quand elle en porte une. */
+  seo?: Seo | null;
 }
 
-const { titre, description, page, noindex = false } = Astro.props;
+const { titre, description = null, page, seo = null } = Astro.props;
 const locale: Locale = page.locale;
 const mots = libelles(locale);
 
@@ -56,30 +74,89 @@ const configuration = entree?.data ?? null;
 const registre = await registreDuSite();
 const cible = contrepartie(registre, page);
 
-/* A-26 : le titre d article peut faire 120 caracteres, la balise <title> vise 60. La
-   troncature vit dans `src/lib/texte.ts` depuis qu un second appelant l utilise — la
-   meta description d un article, tronquee a 160 depuis son chapo (A-07). */
-
-const nomSite = configuration?.nomSite ?? null;
-const titreComplet = nomSite ? `${tronquerSurUnMot(titre, 60)} — ${nomSite}` : tronquerSurUnMot(titre, 60);
-const descriptionFinale = description ?? configuration?.descriptionDefaut ?? null;
-
-const origine = Astro.site ?? new URL(Astro.url.origin);
+const origine = origineDuSite(Astro.site);
 /* Normalise : le registre et `dist/` portent la forme sans slash final. Deux formes de
    la meme URL feraient diverger le canonique, les alternates et la garde de liens. */
-const cheminCourant = normaliserChemin(Astro.url.pathname);
-const absolue = (chemin: string): string => new URL(chemin, origine).href;
-const canonique = absolue(cheminCourant);
+const chemin = normaliserChemin(Astro.url.pathname);
 
-/* T-06 : les alternates ne sortent QUE sur une contrepartie exacte. `x-default` pointe
-   la version francaise, quelle que soit la langue de la page courante. */
-const alternates = cible.exact
-  ? [
-      { hreflang: locale, href: canonique },
-      { hreflang: cible.locale, href: absolue(cible.chemin) },
-      { hreflang: 'x-default', href: locale === 'fr' ? canonique : absolue(cible.chemin) },
-    ]
-  : [];
+/* L IMAGE DE PARTAGE, dans l ordre de priorite d A-28 :
+     1. la surcharge editoriale `partage.seo.imagePartage` ;
+     2. pour un ARTICLE, l image generee au build par le gabarit du §4.5 ;
+     3. l `imagePartageDefaut` de la Configuration.
+   Le §4.5 ne fait generer une image que « par article » : les autres pages retombent
+   donc sur l image par defaut du site. */
+const article = page.genre === 'article' ? page.article : null;
+
+const imageSurchargee: ImagePartage | null = seo?.imagePartage
+  ? {
+      url: urlMedia(seo.imagePartage),
+      largeur: seo.imagePartage.largeur,
+      hauteur: seo.imagePartage.hauteur,
+      alternative: seo.imagePartage.alternative,
+      mime: seo.imagePartage.mime,
+    }
+  : null;
+
+const imageGeneree: ImagePartage | null =
+  article === null
+    ? null
+    : {
+        url: cheminImageOg(locale, article.slug),
+        largeur: DIMENSION_OG.largeur,
+        hauteur: DIMENSION_OG.hauteur,
+        alternative: texteAlternatifOg({
+          titre: article.titre,
+          rubrique: article.categorie.nom,
+          auteur: article.auteur.nom,
+          nomSite: configuration?.nomSite ?? '',
+          couleurAccent: article.categorie.couleurAccent,
+        }),
+        mime: 'image/png',
+      };
+
+const imageDefaut: ImagePartage | null = configuration?.imagePartageDefaut
+  ? {
+      url: urlMedia(configuration.imagePartageDefaut),
+      largeur: configuration.imagePartageDefaut.largeur,
+      hauteur: configuration.imagePartageDefaut.hauteur,
+      alternative: configuration.imagePartageDefaut.alternative,
+      mime: configuration.imagePartageDefaut.mime,
+    }
+  : null;
+
+const detailArticle: DetailArticle | null =
+  article === null
+    ? null
+    : {
+        datePublication: article.datePublication,
+        dateModification: article.updatedAt,
+        auteur: article.auteur.nom,
+        rubrique: article.categorie.nom,
+        etiquettes: article.tags.map((etiquette) => etiquette.nom),
+      };
+
+const meta = metadonneesSeo({
+  locale,
+  titre,
+  description,
+  nomSite: configuration?.nomSite ?? null,
+  descriptionDefaut: configuration?.descriptionDefaut ?? null,
+  seo,
+  origine,
+  chemin,
+  contrepartie: cible,
+  imagePartage: imageSurchargee ?? imageGeneree ?? imageDefaut,
+  article: detailArticle,
+  noindex: noindexDe(page, seo),
+});
+
+/* A-27 exige que la perte de reciprocite `hreflang` due a une canonique manuelle soit
+   SIGNALEE, pas silencieuse. Un avertissement de build est le seul endroit ou quelqu un
+   le verra : la page, elle, aura l air normale. */
+for (const avertissement of meta.avertissements) console.warn(`[seo] ${avertissement}`);
+
+const fluxDeLaLocale = new URL(CHEMIN_FLUX[locale], origine).href;
+const sitemap = new URL(CHEMIN_SITEMAP_INDEX, origine).href;
 ---
 
 <!doctype html>
@@ -87,26 +164,20 @@ const alternates = cible.exact
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{titreComplet}</title>
-    {descriptionFinale && <meta name="description" content={descriptionFinale} />}
-    <link rel="canonical" href={canonique} />
-    {alternates.map((autre) => <link rel="alternate" hreflang={autre.hreflang} href={autre.href} />)}
-    {noindex && <meta name="robots" content="noindex" />}
+    <title>{meta.titre}</title>
+    {meta.description && <meta name="description" content={meta.description} />}
+    <link rel="canonical" href={meta.canonique} />
+    {meta.alternates.map((autre) => <link rel="alternate" hreflang={autre.hreflang} href={autre.href} />)}
+    {meta.noindex && <meta name="robots" content="noindex" />}
     {
       configuration?.favicon && (
         <link rel="icon" href={urlMedia(configuration.favicon)} type={configuration.favicon.mime ?? undefined} />
       )
     }
-    <meta property="og:type" content="website" />
-    <meta property="og:locale" content={locale === 'fr' ? 'fr_FR' : 'en_GB'} />
-    <meta property="og:title" content={titreComplet} />
-    {descriptionFinale && <meta property="og:description" content={descriptionFinale} />}
-    <meta property="og:url" content={canonique} />
-    {
-      configuration?.imagePartageDefaut && (
-        <meta property="og:image" content={urlMedia(configuration.imagePartageDefaut)} />
-      )
-    }
+    <link rel="alternate" type="application/rss+xml" title={mots.fluxRss} href={fluxDeLaLocale} />
+    <link rel="sitemap" type="application/xml" href={sitemap} />
+    {meta.og.map((balise) => <meta property={balise.property} content={balise.content} />)}
+    {meta.twitter.map((balise) => <meta name={balise.name} content={balise.content} />)}
   </head>
   <body>
     <a class="lien-evitement" href="#contenu">{mots.allerAuContenu}</a>

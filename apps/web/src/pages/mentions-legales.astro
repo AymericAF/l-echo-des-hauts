@@ -2,17 +2,15 @@
 /**
  * `/mentions-legales` (§4.2).
  *
- * `noindex` conserve depuis le commit `d369449` : ce lot livre des routes, il n arbitre
- * pas la politique d indexation d une page legale.
+ * `noindex` conserve depuis le commit `d369449`, mais il n est plus ecrit ici : la
+ * politique d indexation vit dans `src/lib/seo/indexation.ts`, d ou le `<head>` ET le
+ * sitemap la lisent (A-29 : une seule decision, deux points de lecture). L ecart avec la
+ * table de volumetrie du protocole de mesure reste ouvert — decision `463b2551`.
  */
 import Base from '../layouts/Base.astro';
 import PageMentions from '../components/pages/PageMentions.astro';
 ---
 
-<Base
-  titre="Mentions legales"
-  page={{ genre: 'statique', locale: 'fr', nom: 'mentions-legales' }}
-  noindex
->
+<Base titre="Mentions legales" page={{ genre: 'statique', locale: 'fr', nom: 'mentions-legales' }}>
   <PageMentions locale="fr" />
 </Base>

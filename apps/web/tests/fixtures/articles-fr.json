@@ -118,7 +118,11 @@
           "id": 101,
           "contenu": [
             { "type": "heading", "level": 2, "children": [{ "type": "text", "text": "Dix-huit mois de detours" }] },
-            { "type": "paragraph", "children": [{ "type": "text", "text": "Le premier vehicule a franchi l ouvrage a 6 h 12." }] }
+            { "type": "paragraph", "children": [{ "type": "text", "text": "Le premier vehicule a franchi l ouvrage a 6 h 12, sous les applaudissements d une trentaine d habitants venus malgre le froid." }] },
+            { "type": "heading", "level": 3, "children": [{ "type": "text", "text": "Ce que le chantier a change" }] },
+            { "type": "paragraph", "children": [{ "type": "text", "text": "Les acces ont ete elargis, et le trottoir cote amont permet desormais de traverser a pied." }] },
+            { "type": "heading", "level": 2, "children": [{ "type": "text", "text": "Ce qui reste a faire" }] },
+            { "type": "paragraph", "children": [{ "type": "text", "text": "La passerelle cyclable, ecartee du marche initial, attend un financement du departement." }] }
           ]
         },
         {

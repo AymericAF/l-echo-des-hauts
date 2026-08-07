@@ -1,0 +1,65 @@
+---
+/**
+ * `bloc.citation` (§3.6). `auteurCitation` est un TEXTE LIBRE, pas une relation vers
+ * `Auteur` : une citation cite quelqu un d exterieur a la redaction (modele §3.2).
+ *
+ * `<blockquote>` porte la citation, `<figcaption>` l attribution — jamais l inverse :
+ * mettre l attribution dans le blockquote la ferait lire comme une partie de la citation.
+ */
+import type { BlocCitation } from '../../lib/domaine.ts';
+
+interface Props {
+  bloc: BlocCitation;
+}
+
+const { bloc } = Astro.props;
+const attribue = bloc.auteurCitation !== null || bloc.source !== null;
+---
+
+<figure class="bloc bloc-citation">
+  <blockquote>
+    <p>{bloc.texte}</p>
+  </blockquote>
+  {
+    attribue && (
+      <figcaption>
+        {bloc.auteurCitation && <span class="bloc-citation__auteur">{bloc.auteurCitation}</span>}
+        {bloc.source && <span class="bloc-citation__source">{bloc.source}</span>}
+      </figcaption>
+    )
+  }
+</figure>
+
+<style>
+  .bloc-citation {
+    max-width: var(--largeur-lecture);
+    margin-block: var(--espace-8);
+    padding-left: var(--espace-6);
+    border-left: 4px solid var(--couleur-accent);
+  }
+
+  .bloc-citation blockquote {
+    margin: 0;
+  }
+
+  .bloc-citation blockquote p {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-l);
+    line-height: 1.4;
+  }
+
+  .bloc-citation figcaption {
+    margin-top: var(--espace-3);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+
+  .bloc-citation__auteur {
+    font-weight: var(--graisse-forte);
+  }
+
+  .bloc-citation__auteur + .bloc-citation__source::before {
+    content: ' — ';
+  }
+</style>

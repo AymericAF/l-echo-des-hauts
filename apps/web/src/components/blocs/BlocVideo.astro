@@ -1,0 +1,109 @@
+---
+/**
+ * `bloc.video` (§3.6) — rendu impose par l ARBITRAGE T-01 de
+ * `docs/arbitrages-techniques.md`, lui-meme adosse a l objection O1 du brief RATIFIEE
+ * (`ecbeca8c`) : « le zero JS gagne. `bloc.video` est rendu SANS lecteur embarque
+ * (vignette + lien sortant, aucun ecouteur d evenement). »
+ *
+ * La « facade cliquable » du §4.4 du cahier est donc ecartee ; elle ne se renverse pas
+ * ici mais par un avenant. Rien dans ce fichier ne doit charger un lecteur tiers, ni au
+ * chargement ni au clic.
+ *
+ * Les trois exigences que T-01 attache a ce rendu, et qu il ne faut pas perdre :
+ *
+ *   1. **Le libelle est du TEXTE, pas seulement une image.** §9 exige que le site reste
+ *      consultable avec les images bloquees : un lien dont le seul contenu est une
+ *      vignette disparait purement et simplement dans ce mode.
+ *   2. **Aucune requete vers un tiers au chargement.** La vignette est servie depuis
+ *      notre propre domaine (mediathèque Strapi), jamais depuis la chaine. La CSP stricte
+ *      du §5.5 reste fermee : ni `frame-src`, ni `script-src`, ni `img-src` vers YouTube.
+ *   3. **Ouverture dans un onglet de premier niveau**, avec la mention « nouvel onglet »
+ *      en texte accessible : le lecteur ne perd pas sa place dans l article.
+ *
+ * Ordre de precedence de la vignette (A-03 amende par T-03) : champ `vignette` →
+ * derivation depuis l `url` au build → lien textuel. **Le maillon du milieu n est pas
+ * implemente ici** : T-02 en fait un mecanisme de build a dependance reseau (extraction
+ * de l identifiant, echelle de repli des miniatures, controle de dimension, avertissement
+ * de build obligatoire), qui n a pas sa place dans un composant de rendu. Vignette
+ * absente, ce composant degrade donc directement vers le lien textuel — le comportement
+ * final prevu par T-02, sans son maillon intermediaire.
+ */
+import type { BlocVideo } from '../../lib/domaine.ts';
+import { urlMedia } from '../../lib/media.ts';
+import { nomFournisseurVideo } from '../../lib/article/video.ts';
+
+interface Props {
+  bloc: BlocVideo;
+}
+
+const { bloc } = Astro.props;
+const fournisseur = nomFournisseurVideo(bloc.url);
+const libelle = fournisseur ? `Voir la video sur ${fournisseur}` : 'Voir la video';
+---
+
+<figure class="bloc bloc-video">
+  <a class="bloc-video__lien" href={bloc.url} target="_blank" rel="noopener noreferrer">
+    {
+      bloc.vignette && (
+        <img
+          class="bloc-video__vignette"
+          src={urlMedia(bloc.vignette)}
+          alt={bloc.vignette.alternative ?? ''}
+          width={bloc.vignette.largeur ?? undefined}
+          height={bloc.vignette.hauteur ?? undefined}
+          loading="lazy"
+          decoding="async"
+        />
+      )
+    }
+    <span class="bloc-video__libelle">
+      {libelle}<span class="hors-ecran"> (s ouvre dans un nouvel onglet)</span>
+    </span>
+  </a>
+  {bloc.legende && <figcaption>{bloc.legende}</figcaption>}
+</figure>
+
+<style>
+  .bloc-video {
+    margin-block: var(--espace-8);
+    max-width: var(--largeur-lecture);
+  }
+
+  .bloc-video__lien {
+    display: block;
+    position: relative;
+    border: var(--bordure-fine);
+    border-radius: var(--rayon-m);
+    overflow: hidden;
+    text-decoration: none;
+    background: var(--couleur-fond-doux);
+  }
+
+  .bloc-video__vignette {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Le libelle reste lisible sans la vignette : c est l exigence 1 de T-01. */
+  .bloc-video__libelle {
+    display: block;
+    padding: var(--espace-3) var(--espace-4);
+    color: var(--couleur-texte);
+    font-weight: var(--graisse-forte);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  .bloc-video__libelle::before {
+    content: '▶';
+    margin-right: var(--espace-2);
+    color: var(--couleur-accent);
+  }
+
+  .bloc-video figcaption {
+    margin-top: var(--espace-3);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+</style>

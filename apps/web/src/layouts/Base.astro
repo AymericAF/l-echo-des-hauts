@@ -20,6 +20,7 @@
 import { getEntry } from 'astro:content';
 import type { Locale } from '../lib/domaine.ts';
 import { urlMedia } from '../lib/media.ts';
+import { tronquerSurUnMot } from '../lib/texte.ts';
 import EnTete from '../components/EnTete.astro';
 import PiedDePage from '../components/PiedDePage.astro';
 import '../styles/tokens.css';
@@ -38,13 +39,9 @@ const { titre, description, locale = 'fr', noindex = false } = Astro.props;
 const entree = await getEntry('configurations', locale);
 const configuration = entree?.data ?? null;
 
-/** A-26 : le titre d article peut faire 120 caracteres, la balise <title> vise 60. */
-function tronquerSurUnMot(texte: string, longueur: number): string {
-  if (texte.length <= longueur) return texte;
-  const coupe = texte.slice(0, longueur - 1);
-  const espace = coupe.lastIndexOf(' ');
-  return `${(espace > longueur / 2 ? coupe.slice(0, espace) : coupe).trimEnd()}…`;
-}
+/* A-26 : le titre d article peut faire 120 caracteres, la balise <title> vise 60. La
+   troncature vit dans `src/lib/texte.ts` depuis qu un second appelant l utilise — la
+   meta description d un article, tronquee a 160 depuis son chapo (A-07). */
 
 const nomSite = configuration?.nomSite ?? null;
 const titreComplet = nomSite ? `${tronquerSurUnMot(titre, 60)} — ${nomSite}` : tronquerSurUnMot(titre, 60);

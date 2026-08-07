@@ -1,0 +1,66 @@
+---
+/**
+ * `bloc.encadre` (§3.6), trois variantes : `info`, `alerte`, `complement`.
+ *
+ * A-21 : les titres d un encadre sont rendus en h4 AU PLUS HAUT et n alimentent PAS le
+ * sommaire — un encadre est un aparte, pas une etape de lecture. `RichTexte` recoit donc
+ * `niveauMin={4}` et aucune ancre.
+ *
+ * La variante ne se distingue pas QUE par la couleur : chaque encadre porte un intitule
+ * de nature en texte, reserve aux lecteurs d ecran. §9 exige zero avertissement
+ * axe-core, et « ne pas vehiculer une information par la seule couleur » en fait partie.
+ */
+import type { BlocEncadre } from '../../lib/domaine.ts';
+import RichTexte from '../RichTexte.astro';
+
+interface Props {
+  bloc: BlocEncadre;
+}
+
+const NATURE = {
+  info: 'Information',
+  alerte: 'Avertissement',
+  complement: 'Pour aller plus loin',
+} as const;
+
+const { bloc } = Astro.props;
+---
+
+<aside class:list={['bloc', 'bloc-encadre', `bloc-encadre--${bloc.variante}`]}>
+  <p class="hors-ecran">{NATURE[bloc.variante]}</p>
+  {bloc.titre && <h4 class="bloc-encadre__titre">{bloc.titre}</h4>}
+  <RichTexte noeuds={bloc.contenu} niveauMin={4} />
+</aside>
+
+<style>
+  .bloc-encadre {
+    max-width: var(--largeur-lecture);
+    margin-block: var(--espace-8);
+    padding: var(--espace-4) var(--espace-6);
+    background: var(--couleur-fond-doux);
+    border-left: 4px solid var(--couleur-bordure);
+    border-radius: var(--rayon-s);
+    font-size: var(--taille-s);
+  }
+
+  .bloc-encadre :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .bloc-encadre__titre {
+    margin-top: 0;
+    font-size: var(--taille-m);
+  }
+
+  .bloc-encadre--info {
+    border-left-color: var(--couleur-accent);
+  }
+
+  .bloc-encadre--alerte {
+    border-left-color: var(--couleur-focus);
+  }
+
+  .bloc-encadre--complement {
+    border-left-style: dashed;
+  }
+</style>

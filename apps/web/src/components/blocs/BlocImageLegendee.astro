@@ -1,0 +1,67 @@
+---
+/**
+ * `bloc.image-legendee` (§3.6).
+ *
+ * A-04, et c est la seule regle qui compte ici : `legende` et `credit` sont du CONTENU
+ * VISIBLE (`<figcaption>`) ; l alternative textuelle vient de l `alternativeText` natif
+ * de la mediatheque, JAMAIS de la legende. Recopier la legende dans l `alt` produit soit
+ * un doublon lu deux fois par un lecteur d ecran, soit une image « decrite » par un
+ * commentaire.
+ *
+ * `credit` est operationnellement obligatoire meme s il ne l est pas dans le schema :
+ * risque R5 du brief (site et depot publics, licence des images).
+ */
+import type { BlocImageLegendee } from '../../lib/domaine.ts';
+import { urlMedia } from '../../lib/media.ts';
+
+interface Props {
+  bloc: BlocImageLegendee;
+}
+
+const { bloc } = Astro.props;
+const legende = bloc.legende !== null || bloc.credit !== null;
+---
+
+<figure class="bloc bloc-image">
+  <img
+    src={urlMedia(bloc.image)}
+    alt={bloc.image.alternative ?? ''}
+    width={bloc.image.largeur ?? undefined}
+    height={bloc.image.hauteur ?? undefined}
+    loading="lazy"
+    decoding="async"
+  />
+  {
+    legende && (
+      <figcaption>
+        {bloc.legende}
+        {bloc.credit && <span class="bloc-image__credit">{bloc.credit}</span>}
+      </figcaption>
+    )
+  }
+</figure>
+
+<style>
+  .bloc-image {
+    margin-block: var(--espace-8);
+  }
+
+  .bloc-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--rayon-s);
+  }
+
+  .bloc-image figcaption {
+    margin-top: var(--espace-3);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+
+  .bloc-image__credit {
+    display: block;
+    font-size: var(--taille-xs);
+    font-style: italic;
+  }
+</style>

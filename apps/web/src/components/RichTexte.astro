@@ -7,6 +7,12 @@
  *     qu un seul <h1>, celui de l article. Deux <h1> = avertissement axe-core = porte P2
  *     ratee. `niveauMin` permet aussi de descendre les titres d un encadre en h4.
  *   - zero JavaScript : aucun noeud ne produit d attribut interprete cote client.
+ *
+ * `ancres` pose l identifiant des titres visés par le sommaire (§4.5). Elle est FOURNIE,
+ * jamais recalculee ici : le dedoublonnage des ancres est global a l article, un bloc ne
+ * peut pas savoir qu un titre du meme intitule existe ailleurs. La liste porte un
+ * emplacement par titre RENCONTRE dans l ordre de lecture — `null` pour un titre hors
+ * sommaire —, faute de quoi toutes les ancres suivantes glisseraient d un cran.
  */
 import type { NoeudRichTexte } from '../lib/domaine.ts';
 import { urlMedia } from '../lib/media.ts';
@@ -15,9 +21,16 @@ interface Props {
   noeuds: readonly NoeudRichTexte[];
   /** Niveau de titre le plus haut autorise dans ce champ (2 par defaut, 4 dans un encadre). */
   niveauMin?: number;
+  /** Ancres du sommaire, une par titre rencontre. Absente = aucun titre n est ancre. */
+  ancres?: readonly (string | null)[];
 }
 
-const { noeuds, niveauMin = 2 } = Astro.props;
+const { noeuds, niveauMin = 2, ancres } = Astro.props;
+
+/* Les titres d un champ Blocks sont toujours des noeuds de PREMIER niveau : ce compteur
+   suit donc exactement l ordre de la boucle ci-dessous. La recursion par `Astro.self` ne
+   recoit pas `ancres` et ne peut pas le desynchroniser. */
+let titreRencontre = 0;
 
 type Feuille = {
   type?: string;
@@ -45,8 +58,10 @@ const niveauTitre = (niveau: unknown): string => {
     switch (n.type) {
       case 'heading': {
         const Balise = niveauTitre(n.level) as 'h2';
+        const ancre = ancres?.[titreRencontre] ?? undefined;
+        titreRencontre += 1;
         return (
-          <Balise>
+          <Balise id={ancre}>
             <Astro.self noeuds={enfants as NoeudRichTexte[]} niveauMin={niveauMin} />
           </Balise>
         );

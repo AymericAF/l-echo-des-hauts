@@ -1,0 +1,317 @@
+---
+/**
+ * Page article — `/article/[slug]` (§4.2).
+ *
+ * Tout ce qu elle affiche au-dela du contenu saisi est CALCULE AU BUILD (§4.5), jamais
+ * stocke en base et jamais recalcule dans le navigateur :
+ *
+ *   - le **sommaire**, extrait des titres de niveau 2 et 3 des blocs texte
+ *     (`lib/article/sommaire.ts`) ;
+ *   - le **temps de lecture**, derive du nombre de mots de la Dynamic Zone
+ *     (`lib/article/temps-lecture.ts`) ;
+ *   - les **articles lies**, champ manuel complete par un repli par categorie commune
+ *     (`lib/article/articles-lies.ts`) ;
+ *   - les **valeurs SEO par defaut** (A-07) : titre tronque a 60 par le layout,
+ *     description repliee sur le chapo tronque a 160.
+ *
+ * **Miroir anglais** : cette route ne produit que le francais. `/en/article/[slug-en]`
+ * appartient au lot des pages et suppose la bascule T-04, qui exige le registre des
+ * routes reellement emises — il n existe pas encore. Emettre `/en/` sans lui reviendrait
+ * a fabriquer des URL de contrepartie par manipulation de chaine, ce que T-04 interdit.
+ *
+ * **Liens absents plutot que morts** : categorie, auteur, tags et dossier sont rendus en
+ * TEXTE tant que `/categorie/[slug]`, `/auteur/[slug]`, `/tag/[slug]` et
+ * `/dossier/[slug]` n existent pas. Meme regle que sur l accueil : un lien mort vaut
+ * moins qu un lien absent, et il se decouvre en cliquant, c est-a-dire jamais en test.
+ */
+import { getCollection } from 'astro:content';
+import type { Article } from '../../lib/domaine.ts';
+import Base from '../../layouts/Base.astro';
+import BlocContenu from '../../components/blocs/BlocContenu.astro';
+import { articlesLies } from '../../lib/article/articles-lies.ts';
+import { construireSommaire } from '../../lib/article/sommaire.ts';
+import { tempsDeLecture } from '../../lib/article/temps-lecture.ts';
+import { urlMedia } from '../../lib/media.ts';
+import { tronquerSurUnMot } from '../../lib/texte.ts';
+
+/** Longueur visee par une `<meta name="description">` (A-07, chaine de repli du chapo). */
+const LONGUEUR_META_DESCRIPTION = 160;
+
+/** Au-dessous de deux entrees, un sommaire est du bruit : une seule ancre ne guide rien. */
+const ENTREES_MINIMALES_SOMMAIRE = 2;
+
+export async function getStaticPaths() {
+  const entrees = await getCollection('articles');
+  return entrees
+    .filter((entree) => entree.data.locale === 'fr')
+    .map((entree) => ({ params: { slug: entree.data.slug }, props: { article: entree.data } }));
+}
+
+const { article } = Astro.props as { article: Article };
+
+const corpus = (await getCollection('articles')).map((entree) => entree.data);
+/* Les routes REELLEMENT emises par cette page : un article lie manuellement dont la page
+   n existe pas (article depublie entre deux builds, corpus partiel) est rendu sans lien
+   plutot qu avec un lien mort. */
+const slugsEmis = new Set(
+  corpus.filter((entree) => entree.locale === article.locale).map((entree) => entree.slug),
+);
+
+const sommaire = construireSommaire(article.contenu);
+const lecture = tempsDeLecture(article.contenu);
+const lies = articlesLies(article, corpus);
+
+const dateLisible = new Intl.DateTimeFormat('fr-FR', {
+  dateStyle: 'long',
+  // Fige au build : sans fuseau explicite, la date affichee dependrait de la machine
+  // qui construit, et deux builds du meme contenu differeraient.
+  timeZone: 'Europe/Paris',
+}).format(new Date(article.datePublication));
+
+const description =
+  article.seo?.metaDescription ?? tronquerSurUnMot(article.chapo, LONGUEUR_META_DESCRIPTION);
+---
+
+<Base
+  titre={article.seo?.metaTitre ?? article.titre}
+  description={description}
+  locale={article.locale}
+  noindex={article.seo?.noindex ?? false}
+>
+  <article class="article">
+    <header class="article__entete">
+      <p class="article__categorie">{article.categorie.nom}</p>
+      <h1>{article.titre}</h1>
+      <p class="article__chapo">{article.chapo}</p>
+
+      <p class="article__signature">
+        <span class="article__auteur">{article.auteur.nom}</span>
+        <time datetime={article.datePublication}>{dateLisible}</time>
+        <span class="article__lecture">Lecture : {lecture.minutes}&nbsp;min</span>
+      </p>
+
+      <figure class="article__couverture">
+        <img
+          src={urlMedia(article.imageCouverture)}
+          alt={article.imageCouverture.alternative ?? ''}
+          width={article.imageCouverture.largeur ?? undefined}
+          height={article.imageCouverture.hauteur ?? undefined}
+          fetchpriority="high"
+          decoding="async"
+        />
+        {article.legendeCouverture && <figcaption>{article.legendeCouverture}</figcaption>}
+      </figure>
+    </header>
+
+    {
+      sommaire.entrees.length >= ENTREES_MINIMALES_SOMMAIRE && (
+        <nav class="sommaire" aria-labelledby="sommaire-de-l-article">
+          <h2 id="sommaire-de-l-article" class="sommaire__titre">
+            Sommaire
+          </h2>
+          <ol class="sommaire__liste">
+            {sommaire.entrees.map((entree) => (
+              <li class:list={['sommaire__entree', `sommaire__entree--n${entree.niveau}`]}>
+                <a href={`#${entree.ancre}`}>{entree.texte}</a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )
+    }
+
+    <div class="article__corps">
+      {
+        article.contenu.map((bloc, index) => (
+          <BlocContenu bloc={bloc} ancres={sommaire.ancres.get(index)} />
+        ))
+      }
+    </div>
+
+    <footer class="article__pied">
+      {
+        article.dossier && (
+          <p class="article__dossier">
+            Dossier : <strong>{article.dossier.titre}</strong>
+          </p>
+        )
+      }
+
+      {
+        article.tags.length > 0 && (
+          <ul class="article__tags" aria-label="Etiquettes de l article">
+            {article.tags.map((tag) => (
+              <li>{tag.nom}</li>
+            ))}
+          </ul>
+        )
+      }
+    </footer>
+  </article>
+
+  {
+    lies.length > 0 && (
+      <aside class="lies" aria-labelledby="titre-articles-lies">
+        <h2 id="titre-articles-lies">A lire aussi</h2>
+        <ul class="lies__liste">
+          {lies.map((lie) => (
+            <li class="lies__carte">
+              <img
+                src={urlMedia(lie.imageCouverture)}
+                alt={lie.imageCouverture.alternative ?? ''}
+                width={lie.imageCouverture.largeur ?? undefined}
+                height={lie.imageCouverture.hauteur ?? undefined}
+                loading="lazy"
+                decoding="async"
+              />
+              <h3>
+                {slugsEmis.has(lie.slug) ? (
+                  <a href={`/article/${lie.slug}`}>{lie.titre}</a>
+                ) : (
+                  lie.titre
+                )}
+              </h3>
+              <p>{lie.chapo}</p>
+            </li>
+          ))}
+        </ul>
+      </aside>
+    )
+  }
+</Base>
+
+<style>
+  .article__entete {
+    max-width: var(--largeur-lecture);
+  }
+
+  .article__categorie {
+    margin: 0 0 var(--espace-2);
+    color: var(--couleur-accent);
+    font-size: var(--taille-s);
+    font-weight: var(--graisse-forte);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .article__chapo {
+    font-size: var(--taille-l);
+    color: var(--couleur-texte-doux);
+  }
+
+  .article__signature {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2) var(--espace-4);
+    padding-block: var(--espace-3);
+    border-block: var(--bordure-fine);
+    font-size: var(--taille-s);
+    color: var(--couleur-texte-doux);
+  }
+
+  .article__auteur {
+    font-weight: var(--graisse-forte);
+    color: var(--couleur-texte);
+  }
+
+  .article__couverture {
+    max-width: none;
+    margin: var(--espace-6) 0 var(--espace-8);
+  }
+
+  .article__couverture img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--rayon-m);
+  }
+
+  .article__couverture figcaption {
+    margin-top: var(--espace-2);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+
+  .sommaire {
+    max-width: var(--largeur-lecture);
+    margin-bottom: var(--espace-8);
+    padding: var(--espace-4) var(--espace-6);
+    background: var(--couleur-fond-doux);
+    border-radius: var(--rayon-m);
+  }
+
+  .sommaire__titre {
+    margin: 0 0 var(--espace-2);
+    font-size: var(--taille-m);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .sommaire__liste {
+    margin: 0;
+    padding-left: var(--espace-4);
+  }
+
+  .sommaire__entree--n3 {
+    margin-left: var(--espace-4);
+    font-size: var(--taille-s);
+  }
+
+  .article__pied {
+    max-width: var(--largeur-lecture);
+    margin-top: var(--espace-8);
+    padding-top: var(--espace-4);
+    border-top: var(--bordure-fine);
+    font-size: var(--taille-s);
+    color: var(--couleur-texte-doux);
+  }
+
+  .article__tags {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+  }
+
+  .article__tags li {
+    padding: var(--espace-1) var(--espace-3);
+    background: var(--couleur-fond-doux);
+    border: var(--bordure-fine);
+    border-radius: 999px;
+  }
+
+  .lies {
+    margin-top: var(--espace-16);
+    padding-top: var(--espace-8);
+    border-top: var(--bordure-fine);
+  }
+
+  .lies__liste {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--espace-6);
+  }
+
+  .lies__carte img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--rayon-s);
+  }
+
+  .lies__carte h3 {
+    margin: var(--espace-3) 0 var(--espace-2);
+    font-size: var(--taille-l);
+  }
+
+  .lies__carte p {
+    margin: 0;
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+</style>

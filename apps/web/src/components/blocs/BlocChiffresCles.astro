@@ -1,0 +1,73 @@
+---
+/**
+ * `bloc.chiffres-cles` (§3.6) et son component imbrique `bloc.chiffre-entree` (A-24).
+ *
+ * A-25 : `valeur` est un TEXTE, pas un nombre — un chiffre-cle editorial s ecrit
+ * « 3,5 M », « +12 % », « 1 sur 4 ». Rien n est donc formate ici : la valeur est rendue
+ * telle que la redaction l a saisie, `unite` a cote quand elle est fournie.
+ *
+ * La liste est un `<ul>` : c est une enumeration, et un lecteur d ecran doit pouvoir en
+ * annoncer le nombre d elements. Le couple valeur/libelle est rendu dans cet ordre
+ * visuel, mais le libelle porte le sens — d ou son association explicite par `<p>`
+ * adjacents dans le meme `<li>`, plutot qu un `<dl>` dont l ordre terme/definition
+ * serait inverse a l affichage.
+ */
+import type { BlocChiffresCles } from '../../lib/domaine.ts';
+
+interface Props {
+  bloc: BlocChiffresCles;
+}
+
+const { bloc } = Astro.props;
+---
+
+<ul class="bloc bloc-chiffres">
+  {
+    bloc.entrees.map((entree) => (
+      <li class="bloc-chiffres__entree">
+        <p class="bloc-chiffres__valeur">
+          {entree.valeur}
+          {entree.unite && <span class="bloc-chiffres__unite">{entree.unite}</span>}
+        </p>
+        <p class="bloc-chiffres__libelle">{entree.libelle}</p>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .bloc-chiffres {
+    list-style: none;
+    margin: var(--espace-8) 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: var(--espace-4);
+  }
+
+  .bloc-chiffres__entree {
+    padding: var(--espace-4);
+    background: var(--couleur-fond-doux);
+    border-radius: var(--rayon-m);
+    border-top: 3px solid var(--couleur-accent);
+  }
+
+  .bloc-chiffres__valeur {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-xl);
+    line-height: var(--interligne-titre);
+  }
+
+  .bloc-chiffres__unite {
+    margin-left: var(--espace-1);
+    font-size: var(--taille-m);
+    color: var(--couleur-texte-doux);
+  }
+
+  .bloc-chiffres__libelle {
+    margin: var(--espace-1) 0 0;
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+</style>

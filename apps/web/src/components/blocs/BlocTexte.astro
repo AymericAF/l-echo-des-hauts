@@ -1,0 +1,45 @@
+---
+/**
+ * `bloc.texte` (§3.6) — le seul bloc dont les titres alimentent le sommaire (§4.5).
+ *
+ * Il ne rend rien lui-meme : tout le travail est dans `RichTexte.astro`, qui applique
+ * A-21 (retrogradation d un h1 saisi, un seul <h1> par page). Ce composant existe pour
+ * que le repartiteur ait une entree par `__component`, et pour porter la largeur de
+ * lecture — un corps de texte a une mesure, une galerie n en a pas.
+ */
+import type { BlocTexte } from '../../lib/domaine.ts';
+import RichTexte from '../RichTexte.astro';
+
+interface Props {
+  bloc: BlocTexte;
+  ancres?: readonly (string | null)[];
+}
+
+const { bloc, ancres } = Astro.props;
+---
+
+<div class="bloc bloc-texte">
+  <RichTexte noeuds={bloc.contenu} ancres={ancres} />
+</div>
+
+<style>
+  .bloc-texte {
+    max-width: var(--largeur-lecture);
+  }
+
+  .bloc-texte :global(h2),
+  .bloc-texte :global(h3) {
+    margin-top: var(--espace-8);
+  }
+
+  .bloc-texte :global(blockquote) {
+    border-left: 3px solid var(--couleur-accent);
+    padding-left: var(--espace-4);
+    color: var(--couleur-texte-doux);
+  }
+
+  .bloc-texte :global(img) {
+    display: block;
+    margin-block: var(--espace-6);
+  }
+</style>

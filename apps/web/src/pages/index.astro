@@ -7,8 +7,9 @@
  * existe pour deux raisons : conserver la route, et EXERCER au build la chaine
  * complete loader → mapping → layout → en-tete/pied de page.
  *
- * Les titres ne sont volontairement pas cliquables : la route `/article/[slug]` n existe
- * pas encore, et un lien mort vaut moins qu un lien absent.
+ * Les titres sont cliquables depuis que `/article/[slug]` existe. Categorie et auteur
+ * restent en TEXTE : `/categorie/[slug]` et `/auteur/[slug]` n existent pas encore, et
+ * un lien mort vaut moins qu un lien absent.
  */
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
@@ -31,8 +32,8 @@ const articles = (await getCollection('articles'))
       <ul>
         {articles.slice(0, 10).map((entree) => (
           <li>
-            <strong>{entree.data.titre}</strong> — {entree.data.categorie.nom},{' '}
-            {entree.data.auteur.nom}
+            <a href={`/article/${entree.data.slug}`}>{entree.data.titre}</a> —{' '}
+            {entree.data.categorie.nom}, {entree.data.auteur.nom}
           </li>
         ))}
       </ul>

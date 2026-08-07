@@ -1,0 +1,59 @@
+---
+/**
+ * Repartiteur de la Dynamic Zone : un bloc entre, le composant `.astro` correspondant a
+ * son `__component` sort (§4.4 du cahier : « chaque bloc est un composant `.astro` sans
+ * JavaScript client »).
+ *
+ * La table ci-dessous est ECRITE, pas deduite d une convention de nommage. Deux raisons :
+ *
+ *   - `satisfies Record<Bloc['type'], …>` en fait une garde de COMPLETUDE au type-check :
+ *     ajouter un neuvieme bloc au domaine sans son rendu ne compile pas. La convention de
+ *     nommage, elle, aurait echoue silencieusement a l execution.
+ *   - un `import()` dynamique fabrique un chargement cote client ; ici tout est statique,
+ *     resolu au build, et la garde T-09 verifie ensuite la sortie.
+ *
+ * `mapping.ts` a deja refuse tout `__component` etranger aux huit blocs du §3.6 : ce
+ * repartiteur ne recoit donc jamais un type inconnu. Le `throw` final n est pas une
+ * branche morte pour autant — c est ce qui empeche un `undefined` de traverser
+ * silencieusement jusqu a un trou dans la page.
+ */
+import type { Bloc } from '../../lib/domaine.ts';
+import BlocTexte from './BlocTexte.astro';
+import BlocCitation from './BlocCitation.astro';
+import BlocGalerie from './BlocGalerie.astro';
+import BlocEncadre from './BlocEncadre.astro';
+import BlocVideo from './BlocVideo.astro';
+import BlocImageLegendee from './BlocImageLegendee.astro';
+import BlocSeparateur from './BlocSeparateur.astro';
+import BlocChiffresCles from './BlocChiffresCles.astro';
+
+interface Props {
+  bloc: Bloc;
+  /** Ancres du sommaire du bloc (§4.5) — n a de sens que pour `bloc.texte`. */
+  ancres?: readonly (string | null)[];
+}
+
+const RENDUS = {
+  'bloc.texte': BlocTexte,
+  'bloc.citation': BlocCitation,
+  'bloc.galerie': BlocGalerie,
+  'bloc.encadre': BlocEncadre,
+  'bloc.video': BlocVideo,
+  'bloc.image-legendee': BlocImageLegendee,
+  'bloc.separateur': BlocSeparateur,
+  'bloc.chiffres-cles': BlocChiffresCles,
+} satisfies Record<Bloc['type'], unknown>;
+
+const { bloc, ancres } = Astro.props;
+const Rendu = RENDUS[bloc.type] as typeof BlocTexte | undefined;
+
+if (Rendu === undefined) {
+  throw new Error(
+    `Aucun rendu pour le bloc « ${bloc.type} ». Les huit composants du §3.6 sont ` +
+      'declares dans BlocContenu.astro ; un bloc sans rendu laisserait un trou muet ' +
+      'dans la page.',
+  );
+}
+---
+
+<Rendu bloc={bloc as never} ancres={ancres} />

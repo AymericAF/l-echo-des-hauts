@@ -10,8 +10,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "node --test tests/mapping.test.ts tests/requete.test.ts tests/garde-sortie.test.ts",
-    "verifier:sortie": "node scripts/verifier-sortie.mjs"
+    "test": "node --test tests/mapping.test.ts tests/requete.test.ts tests/garde-sortie.test.ts tests/texte.test.ts tests/article.test.ts",
+    "verifier:sortie": "node scripts/verifier-sortie.mjs",
+    "preuve:rendu": "node scripts/preuve-rendu.mjs"
   },
   "dependencies": {
     "astro": "^7.1.6"

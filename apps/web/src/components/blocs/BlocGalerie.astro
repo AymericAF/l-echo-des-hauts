@@ -1,0 +1,100 @@
+---
+/**
+ * `bloc.galerie` (§3.6), trois dispositions : `grille`, `carrousel`, `pleine-largeur`.
+ *
+ * A-05, confirme par le §4 des arbitrages techniques : `carrousel` est rendu SANS
+ * JavaScript, en bande a defilement horizontal CSS (`overflow-x` + `scroll-snap`). Ce
+ * n est pas un carrousel « a fleches » — si la demonstration commerciale en attend un,
+ * c est le zero JavaScript qu il faut amender, pas ce rendu.
+ *
+ * Deux complements de recette du meme §4, appliques ici : la bande doit etre
+ * ATTEIGNABLE ET PARCOURABLE AU CLAVIER (d ou `tabindex="0"` sur le conteneur
+ * defilant, qui n est rien d autre qu un attribut — aucun script) et ne pas piéger le
+ * focus.
+ *
+ * A-22 : UNE legende pour toute la galerie, jamais une par image. A-04 : l alternative
+ * textuelle vient de l `alternativeText` natif de la mediatheque, jamais de la legende —
+ * une legende commente pour tous, une alternative decrit pour qui ne voit pas.
+ */
+import type { BlocGalerie } from '../../lib/domaine.ts';
+import { urlMedia } from '../../lib/media.ts';
+
+interface Props {
+  bloc: BlocGalerie;
+}
+
+const { bloc } = Astro.props;
+const defilante = bloc.disposition === 'carrousel';
+---
+
+<figure class:list={['bloc', 'bloc-galerie', `bloc-galerie--${bloc.disposition}`]}>
+  <ul
+    class="bloc-galerie__bande"
+    tabindex={defilante ? 0 : undefined}
+    aria-label={defilante ? 'Galerie d images, defilement horizontal' : undefined}
+  >
+    {
+      bloc.images.map((image) => (
+        <li>
+          <img
+            src={urlMedia(image)}
+            alt={image.alternative ?? ''}
+            width={image.largeur ?? undefined}
+            height={image.hauteur ?? undefined}
+            loading="lazy"
+            decoding="async"
+          />
+        </li>
+      ))
+    }
+  </ul>
+  {bloc.legende && <figcaption>{bloc.legende}</figcaption>}
+</figure>
+
+<style>
+  .bloc-galerie {
+    margin-block: var(--espace-8);
+  }
+
+  .bloc-galerie__bande {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--espace-3);
+  }
+
+  .bloc-galerie img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--rayon-s);
+  }
+
+  .bloc-galerie--grille .bloc-galerie__bande {
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  }
+
+  .bloc-galerie--pleine-largeur .bloc-galerie__bande {
+    grid-template-columns: 1fr;
+  }
+
+  /* Carrousel a zero JavaScript : defilement natif + accroche CSS. */
+  .bloc-galerie--carrousel .bloc-galerie__bande {
+    grid-auto-flow: column;
+    grid-auto-columns: min(80%, 32rem);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: var(--espace-2);
+  }
+
+  .bloc-galerie--carrousel .bloc-galerie__bande > li {
+    scroll-snap-align: start;
+  }
+
+  .bloc-galerie figcaption {
+    margin-top: var(--espace-3);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-s);
+  }
+</style>

@@ -1,0 +1,52 @@
+---
+/**
+ * `bloc.separateur` (§3.6), trois styles : `ligne`, `points`, `espace`.
+ *
+ * Modele §3.7 : « rendu en <hr> decore en CSS ; la variante `espace` est PUREMENT
+ * PRESENTATIONNELLE et sort du flux de lecture assistee (`aria-hidden`) ». La variante
+ * `espace` n est donc pas un `<hr>` masque — c est une respiration typographique, et
+ * annoncer « separateur » a un lecteur d ecran pour un blanc serait du bruit.
+ */
+import type { BlocSeparateur } from '../../lib/domaine.ts';
+
+interface Props {
+  bloc: BlocSeparateur;
+}
+
+const { bloc } = Astro.props;
+---
+
+{
+  bloc.style === 'espace' ? (
+    <div class="bloc bloc-separateur bloc-separateur--espace" aria-hidden="true" />
+  ) : (
+    <hr class:list={['bloc', 'bloc-separateur', `bloc-separateur--${bloc.style}`]} />
+  )
+}
+
+<style>
+  .bloc-separateur {
+    border: 0;
+    margin-block: var(--espace-8);
+    max-width: var(--largeur-lecture);
+  }
+
+  .bloc-separateur--ligne {
+    border-top: var(--bordure-fine);
+  }
+
+  .bloc-separateur--points {
+    height: 1lh;
+    text-align: center;
+    color: var(--couleur-texte-doux);
+  }
+
+  .bloc-separateur--points::before {
+    content: '• • •';
+    letter-spacing: 0.4em;
+  }
+
+  .bloc-separateur--espace {
+    height: var(--espace-12);
+  }
+</style>

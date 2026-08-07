@@ -17,11 +17,12 @@
  * visible sur toutes les vignettes.
  *
  * CE QUE CE MODULE NE PROUVE PAS : que le rasteriseur trouve une police et dessine
- * vraiment les glyphes. `sharp` embarque fontconfig, pas de fontes ; sur une image de
- * construction sans fonte installee, le SVG rendrait un fond correct et un texte
- * INVISIBLE — le cas exact ou succes et echec produisent la meme sortie. C est
- * `scripts/verifier-seo.mjs` qui ferme ce trou, en refusant une image dont la bande de
- * titre est uniforme.
+ * vraiment les glyphes au corps demande. `sharp` embarque fontconfig, pas de fontes ; sur
+ * une image de construction sans fonte installee, le SVG rend un fond correct et un titre
+ * remplace par une file de rectangles d une douzaine de pixels — le cas exact ou succes et
+ * echec produisent la meme sortie. C est `scripts/verifier-seo.mjs` qui ferme ce trou, en
+ * refusant une image dont les glyphes de titre sont plus bas que la moitie du plus petit
+ * palier de `TAILLES_TITRE`.
  */
 import type { Locale } from '../domaine.ts';
 import { texteXml } from './xml.ts';
@@ -32,8 +33,14 @@ export const CADRE_OG = { largeur: 1200, hauteur: 630 } as const;
 /** Au-dela, le titre est tronque : cinq lignes de 60 px ne tiennent pas sous la rubrique. */
 export const MAX_LIGNES_TITRE = 4;
 
-/** Les paliers de corps essayes, du plus grand au plus petit. */
-const TAILLES_TITRE = [66, 58, 50, 44] as const;
+/**
+ * Les paliers de corps essayes, du plus grand au plus petit.
+ *
+ * Exporte parce que le plus PETIT palier borne par le bas la hauteur d encre qu une ligne
+ * de titre reellement dessinee peut avoir : c est de lui que `scripts/verifier-seo.mjs`
+ * derive son seuil (`HAUTEUR_MINIMALE_GLYPHES`), et un test relie les deux valeurs.
+ */
+export const TAILLES_TITRE = [66, 58, 50, 44] as const;
 
 /** Chasse moyenne d un serif, en em. Pessimiste a dessein (cf. l en-tete). */
 const FACTEUR_CHASSE = 0.54;

@@ -16,7 +16,8 @@
     "preuve:rendu": "node scripts/preuve-rendu.mjs",
     "verifier:liens": "node scripts/verifier-liens.mjs",
     "preuve:pagination": "node scripts/preuve-pagination.mjs",
-    "verifier:seo": "node scripts/verifier-seo.mjs"
+    "verifier:seo": "node scripts/verifier-seo.mjs",
+    "preuve:encre-og": "node scripts/preuve-encre-og.mjs"
   },
   "dependencies": {
     "astro": "^7.1.6",

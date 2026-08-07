@@ -11,9 +11,10 @@
  * plateformes de partage acceptent reellement — un `og:image` en SVG est ignore par
  * Facebook, LinkedIn et X. Mais sharp embarque fontconfig, PAS de fontes : sur une image
  * de construction depourvue de police, la rasterisation REUSSIT et produit un PNG au
- * fond correct et au texte invisible. Le build serait vert, les vignettes vides. C est
- * `scripts/verifier-seo.mjs` qui refuse ce cas, en mesurant l encre de la bande de
- * titre — la garde est le seul endroit ou ce defaut peut etre vu.
+ * fond correct, dont le titre est remplace par une file de rectangles d une douzaine de
+ * pixels. Le build serait vert, les vignettes illisibles. C est `scripts/verifier-seo.mjs`
+ * qui refuse ce cas, en mesurant la HAUTEUR des glyphes de la bande de titre — la garde
+ * est le seul endroit ou ce defaut peut etre vu.
  *
  * Sharp est declare en dependance DIRECTE dans `package.json` alors qu Astro l a deja en
  * dependance optionnelle : une dependance optionnelle peut etre absente d une

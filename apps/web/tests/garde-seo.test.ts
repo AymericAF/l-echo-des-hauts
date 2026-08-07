@@ -18,8 +18,16 @@ import { test } from 'node:test';
 
 import sharp from 'sharp';
 
-import { inspecterSeo, estNoindex, liensDuFlux, locsDe, metasDe } from '../scripts/verifier-seo.mjs';
-import { CADRE_OG, svgOg } from '../src/lib/seo/gabarit-og.ts';
+import {
+  HAUTEUR_MINIMALE_GLYPHES,
+  inspecterSeo,
+  estNoindex,
+  liensDuFlux,
+  locsDe,
+  mesurerBandeTitre,
+  metasDe,
+} from '../scripts/verifier-seo.mjs';
+import { CADRE_OG, dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
 
 const ORIGINE = 'https://echo.test';
 
@@ -99,13 +107,72 @@ async function pngAvecTexte(): Promise<Buffer> {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-/** Le MEME gabarit, mais sans aucun glyphe : ce que rend un build sans fonte installee. */
+/** Le MEME gabarit, mais sans aucun glyphe : le cas ou le rasteriseur ne dessine RIEN. */
 async function pngSansTexte(): Promise<Buffer> {
   const svg = svgOg({ titre: 'x', rubrique: 'x', auteur: 'x', nomSite: 'x', couleurAccent: null })
     .replace(/<text[\s\S]*?<\/text>/g, '')
     .replace(/<rect x="72"[^>]*\/>/g, '');
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
+
+const GABARIT = {
+  rubrique: 'Territoire',
+  auteur: 'Noelle Vasseur',
+  nomSite: 'L Echo des Hauts',
+  couleurAccent: null,
+} as const;
+
+/** Le gabarit reel, rasterise tel quel. */
+function pngDuTitre(titre: string): Promise<Buffer> {
+  return sharp(Buffer.from(svgOg({ ...GABARIT, titre }))).png().toBuffer();
+}
+
+/**
+ * Le gabarit reel dont les glyphes du TITRE sont remplaces par des « tofu » : les petits
+ * rectangles de 12 px de haut que le rasteriseur dessine A LA PLACE des caracteres quand
+ * aucune fonte n est installee.
+ *
+ * C est le cas fondateur, et il n est PAS « l image est vide » : un build sans fonte
+ * produit une image ou le texte est bien dessine, a la mauvaise TAILLE. Mesure le
+ * 2026-08-08 sur les 21 images du site rendues sans fonte : 12 a 13 px de haut, contre
+ * 65 px avec les fontes de `nixpacks.toml`.
+ *
+ * Fabrique en dur plutot qu en vidant fontconfig : le rendu sans fonte n est pas
+ * deterministe (le meme titre rend 0 ou 12 px d une execution a l autre), et un banc doit
+ * rendre le meme verdict sur toutes les machines.
+ */
+function pngTofu(titre: string): Promise<Buffer> {
+  const disposition = dispositionOg({ ...GABARIT, titre });
+  const boites = disposition.lignes
+    .flatMap((ligne) =>
+      [...ligne.texte].map(
+        (_, index) =>
+          `  <rect x="${ligne.x + index * 10}" y="${ligne.y - 12}" width="8" height="12" ` +
+          'fill="none" stroke="#1b1a17" stroke-width="1" />',
+      ),
+    )
+    .join('\n');
+  const svg = svgOg({ ...GABARIT, titre })
+    .replace(/^ {2}<text[^>]*font-family="Georgia[^>]*>.*?<\/text>$/gm, '')
+    .replace('</svg>', `${boites}\n</svg>`);
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+/** Le titre le plus long que le gabarit accepte sans ellipse : 4 lignes au palier 44 px. */
+const TITRE_LE_PLUS_LONG =
+  'Une enquete publique de six mois, quatre recours au tribunal administratif et un million ' +
+  'quatre cent vingt mille euros plus tard, le chantier de restauration du clocher reprend enfin';
+
+/**
+ * Le pire cas TYPOGRAPHIQUE concevable : 4 lignes au plus petit palier, sans capitale,
+ * sans accent et sans le moindre jambage — donc reduit a la hauteur d x. Aucun titre reel
+ * ne ressemble a cela ; c est la borne basse absolue de la population « avec fontes ».
+ */
+const TITRE_SANS_JAMBAGE = Array.from(
+  { length: 30 },
+  (_, index) =>
+    ['anse', 'ourse', 'somme', 'venue', 'course', 'rose', 'zone', 'ecran', 'nommer', 'annonce'][index % 10],
+).join(' ');
 
 /** Le site minimal et SAIN dont chaque test suivant abime une seule chose. */
 async function siteSain(): Promise<Record<string, string | Buffer>> {
@@ -261,28 +328,87 @@ test("un og:image herberge ailleurs (mediatheque Strapi) n est pas un manquement
   assert.deepEqual(rapport.manquements, []);
 });
 
-// --- 7. l encre des images OG — le controle que rien d autre ne fait ----------------
+// --- 7. la hauteur des glyphes des images OG — le controle que rien d autre ne fait ---
+
+/** Mesure une image en memoire, comme la garde la mesurerait dans `dist/`. */
+async function mesurer(png: Buffer) {
+  const dist = distFactice({ 'og/fr/a.png': png });
+  const mesure = await mesurerBandeTitre(path.join(dist, 'og/fr/a.png'));
+  fs.rmSync(dist, { recursive: true, force: true });
+  return mesure;
+}
 
 test('une image OG dont le texte n a PAS ete dessine est un manquement', async () => {
   const rapport = await inspecter({ 'og/fr/a.png': await pngSansTexte() });
   assert.equal(rapport.manquements.length, 1);
-  assert.match(rapport.manquements[0], /bande de titre uniforme/);
-  assert.match(rapport.manquements[0], /fonte/, "le message doit nommer la cause probable");
+  assert.match(rapport.manquements[0], /glyphes/);
+  assert.match(rapport.manquements[0], /fonte/, 'le message doit nommer la cause probable');
 });
 
-test('une image OG illisible est signalee comme telle, pas comme sans encre', async () => {
+test('une image OG rendue en « tofu » — texte a la BONNE place, a la mauvaise taille — est un manquement', async () => {
+  for (const titre of ['Le lac de la Fauge a 41 %', TITRE_LE_PLUS_LONG]) {
+    const rapport = await inspecter({ 'og/fr/a.png': await pngTofu(titre) });
+    assert.equal(rapport.manquements.length, 1, `titre : ${titre}`);
+    assert.match(rapport.manquements[0], /glyphes/);
+  }
+});
+
+test("l ecart-type ne separe PAS les deux populations — c est pourquoi la garde ne decide plus dessus", async () => {
+  /* Le defaut d origine : la garde comparait l ECART-TYPE des pixels de la bande a un
+     seuil. Cette mesure croit avec la QUANTITE de texte, pas avec sa taille. Un titre
+     court reellement dessine porte donc MOINS d encre qu un titre long rendu en tofu :
+     les deux populations se croisent, et aucun seuil sur l ecart-type ne les separe.
+     C est ce test qui interdit d y revenir. */
+  const courtEtDessine = await mesurer(await pngDuTitre('Eau'));
+  const longEtVide = await mesurer(await pngTofu(TITRE_LE_PLUS_LONG));
+
+  assert.ok(
+    longEtVide!.ecartType > courtEtDessine!.ecartType,
+    `ecart-type : vide=${longEtVide!.ecartType} dessine=${courtEtDessine!.ecartType}`,
+  );
+  // La hauteur des glyphes, elle, les separe — dans le bon sens et largement.
+  assert.ok(
+    courtEtDessine!.hauteurGlyphes >= HAUTEUR_MINIMALE_GLYPHES &&
+      longEtVide!.hauteurGlyphes < HAUTEUR_MINIMALE_GLYPHES,
+    `hauteur : vide=${longEtVide!.hauteurGlyphes} dessine=${courtEtDessine!.hauteurGlyphes}`,
+  );
+});
+
+test('le seuil laisse passer le pire titre que le gabarit puisse produire', async () => {
+  /* La borne basse de la population « avec fontes » n est pas le titre du site : c est le
+     titre qui occupe le plus petit palier de corps avec les glyphes les plus courts. Si
+     ce cas-la passe, tout titre reel passe. */
+  for (const titre of [TITRE_LE_PLUS_LONG, TITRE_SANS_JAMBAGE, 'Eau', 'Le lac']) {
+    const mesure = await mesurer(await pngDuTitre(titre));
+    assert.ok(
+      mesure !== null && mesure.hauteurGlyphes >= HAUTEUR_MINIMALE_GLYPHES,
+      `« ${titre.slice(0, 40)} » : ${mesure?.hauteurGlyphes} px < ${HAUTEUR_MINIMALE_GLYPHES}`,
+    );
+  }
+});
+
+test('le seuil reste sous la moitie du plus petit palier de corps du gabarit', () => {
+  /* Le calcul qui fixe le seuil (cf. `verifier-seo.mjs`) s appuie sur le fait qu une ligne
+     de titre est dessinee a 44 px au minimum. Si un palier plus petit apparaissait, le
+     seuil ne serait plus derriere aucune mesure — ce test le dirait. */
+  assert.ok(
+    HAUTEUR_MINIMALE_GLYPHES <= Math.min(...TAILLES_TITRE) / 2,
+    `seuil ${HAUTEUR_MINIMALE_GLYPHES} px pour un plus petit palier de ${Math.min(...TAILLES_TITRE)} px`,
+  );
+});
+
+test('une image OG illisible est signalee comme telle, pas comme sans glyphes', async () => {
   const rapport = await inspecter({ 'og/fr/a.png': Buffer.from('ceci n est pas un PNG') });
   assert.equal(rapport.manquements.length, 1);
   assert.match(rapport.manquements[0], /image illisible/);
 });
 
-test('le gabarit reel du site passe le seuil d encre avec une marge confortable', async () => {
-  const png = await pngAvecTexte();
-  const dist = distFactice({ 'og/fr/a.png': png });
-  const { encreDuTitre } = await import('../scripts/verifier-seo.mjs');
-  const encre = await encreDuTitre(path.join(dist, 'og/fr/a.png'));
-  fs.rmSync(dist, { recursive: true, force: true });
-  assert.ok(encre !== null && encre > 20, `encre mesuree : ${encre} (seuil de la garde : 8)`);
+test('le gabarit reel du site passe le seuil avec une marge confortable', async () => {
+  const mesure = await mesurer(await pngAvecTexte());
+  assert.ok(
+    mesure !== null && mesure.hauteurGlyphes >= 3 * HAUTEUR_MINIMALE_GLYPHES,
+    `hauteur mesuree : ${mesure?.hauteurGlyphes} px (seuil : ${HAUTEUR_MINIMALE_GLYPHES})`,
+  );
 });
 
 test('les images OG generees sont au format Open Graph attendu', async () => {

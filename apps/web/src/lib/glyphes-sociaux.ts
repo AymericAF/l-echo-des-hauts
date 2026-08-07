@@ -94,7 +94,7 @@ export const GLYPHES: Partial<Record<Plateforme, GlypheSocial>> = {
     encreSombre: '#ffffff',
     source: 'https://joinmastodon.org/logos/logo-black.svg',
     autorisation:
-      'Mastodon Brand Toolkit : « download our logos and icons […] for your projects » ; variante « Mark only » prevue quand « space is limited », et « one color black or white version » explicitement offerte. Trademark Policy : « Do not change or modify the Mastodon marks » — forme inchangee, seule l encre bascule entre les deux variantes publiees.',
+      'Mastodon Brand Toolkit : « download our logos and icons […] for your projects » ; variante « Mark only » prevue quand « space is limited », et « one color black or white version » explicitement offerte. Trademark Policy : « Do not change or modify the Mastodon marks » — le trace vient du fichier NOIR et seule sa couleur bascule. Precision, parce qu elle est verifiable : le fichier blanc officiel (logo-white.svg) porte le meme signe decale de +0,53 unite en y dans la meme boite de 74x79 ; c est un calage, pas une forme differente.',
     releve: '2026-08-07',
   },
   instagram: {

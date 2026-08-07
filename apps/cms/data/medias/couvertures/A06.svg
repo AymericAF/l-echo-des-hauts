@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <polyline points="80,142 200,132 320,126 440,121 560,113 680,98 800,78 920,68 1040,50 1160,69 1280,49 1400,42 1520,55" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,272 200,262 320,244 440,255 560,240 680,226 800,223 920,234 1040,236 1160,241 1280,255 1400,244 1520,225" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,370 200,355 320,336 440,320 560,334 680,353 800,336 920,335 1040,322 1160,303 1280,283 1400,284 1520,284" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,497 200,492 320,497 440,490 560,494 680,511 800,520 920,539 1040,558 1160,546 1280,561 1400,563 1520,562" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,585 200,575 320,592 440,589 560,602 680,612 800,592 920,575 1040,573 1160,588 1280,594 1400,591 1520,576" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,717 200,719 320,738 440,720 560,718 680,710 800,700 920,686 1040,680 1160,679 1280,697 1400,689 1520,695" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polygon points="200,180 1360,210 1330,700 240,660" fill="none" stroke="#1A1A1A" stroke-width="4" stroke-opacity="0.55"/>
+  <rect x="280" y="250" width="520" height="330" fill="#1F5C4A" opacity="0.18" stroke="#1F5C4A" stroke-width="3"/>
+  <rect x="640" y="300" width="430" height="300" fill="#1F5C4A" opacity="0.34" stroke="#1F5C4A" stroke-width="3"/>
+  <rect x="860" y="380" width="400" height="250" fill="#1F5C4A" opacity="0.50" stroke="#1F5C4A" stroke-width="3"/>
+  <text x="80" y="830" font-family="Georgia, serif" font-size="44" fill="#1A1A1A">Parcelle AB 214, 1,8 ha — emprises des trois permis</text>
+</svg>

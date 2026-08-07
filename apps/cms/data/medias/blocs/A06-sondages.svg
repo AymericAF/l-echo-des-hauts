@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <polyline points="80,131 200,131 320,127 440,108 560,101 680,111 800,103 920,91 1040,92 1160,112 1280,105 1400,106 1520,91" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,243 200,252 320,268 440,264 560,278 680,267 800,255 920,272 1040,262 1160,278 1280,271 1400,285 1520,300" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,351 200,358 320,356 440,348 560,362 680,368 800,375 920,380 1040,372 1160,370 1280,368 1400,371 1520,389" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,497 200,510 320,503 440,516 560,534 680,529 800,524 920,530 1040,510 1160,519 1280,534 1400,534 1520,536" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,579 200,590 320,596 440,600 560,598 680,604 800,616 920,619 1040,639 1160,630 1280,620 1400,622 1520,626" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polyline points="80,708 200,697 320,697 440,683 560,694 680,685 800,691 920,677 1040,694 1160,679 1280,667 1400,672 1520,668" fill="none" stroke="#1F5C4A" stroke-width="2" opacity="0.16"/>
+  <polygon points="200,180 1360,210 1330,700 240,660" fill="none" stroke="#1A1A1A" stroke-width="4" stroke-opacity="0.55"/>
+  <rect x="520" y="300" width="560" height="290" fill="#1F5C4A" opacity="0.18" stroke="#1F5C4A" stroke-width="3"/>
+  <circle cx="600" cy="360" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <circle cx="700" cy="350" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <circle cx="800" cy="380" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <circle cx="900" cy="420" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <circle cx="1000" cy="400" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <circle cx="660" cy="500" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <circle cx="330" cy="240" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <circle cx="1230" cy="300" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <circle cx="1250" cy="630" r="11" fill="#1A1A1A" opacity="0.7"/>
+  <text x="80" y="830" font-family="Georgia, serif" font-size="44" fill="#1A1A1A">Les six sondages de 2009 et les trois zones restees hors perimetre</text>
+</svg>

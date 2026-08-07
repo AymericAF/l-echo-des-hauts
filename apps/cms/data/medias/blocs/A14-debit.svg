@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <rect x="140" y="341" width="66" height="399" fill="#B4472A" opacity="0.45"/>
+  <rect x="248" y="303" width="66" height="437" fill="#B4472A" opacity="0.50"/>
+  <rect x="356" y="226" width="66" height="514" fill="#B4472A" opacity="0.54"/>
+  <rect x="464" y="200" width="66" height="540" fill="#B4472A" opacity="0.59"/>
+  <rect x="572" y="251" width="66" height="489" fill="#B4472A" opacity="0.64"/>
+  <rect x="680" y="367" width="66" height="373" fill="#B4472A" opacity="0.68"/>
+  <rect x="788" y="509" width="66" height="231" fill="#B4472A" opacity="0.73"/>
+  <rect x="896" y="624" width="66" height="116" fill="#B4472A" opacity="0.77"/>
+  <rect x="1004" y="586" width="66" height="154" fill="#B4472A" opacity="0.82"/>
+  <rect x="1112" y="483" width="66" height="257" fill="#B4472A" opacity="0.87"/>
+  <rect x="1220" y="406" width="66" height="334" fill="#B4472A" opacity="0.91"/>
+  <rect x="1328" y="354" width="66" height="386" fill="#B4472A" opacity="0.96"/>
+  <line x1="120" y1="740" x2="1480" y2="740" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="160" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Debit de la source, mois par mois, 2025 (l/s)</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <rect x="140" y="220" width="110" height="280" fill="#8A5A12" opacity="0.45"/>
+  <rect x="324" y="500" width="110" height="145" fill="#8A5A12" opacity="0.54"/>
+  <rect x="508" y="475" width="110" height="25" fill="#8A5A12" opacity="0.62"/>
+  <rect x="692" y="497" width="110" height="3" fill="#8A5A12" opacity="0.71"/>
+  <rect x="876" y="500" width="110" height="44" fill="#8A5A12" opacity="0.79"/>
+  <rect x="1060" y="500" width="110" height="76" fill="#8A5A12" opacity="0.88"/>
+  <rect x="1244" y="500" width="110" height="129" fill="#8A5A12" opacity="0.96"/>
+  <line x1="120" y1="500" x2="1480" y2="500" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="160" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Marge nette de l'irrigation, exploitation par exploitation</text>
+</svg>

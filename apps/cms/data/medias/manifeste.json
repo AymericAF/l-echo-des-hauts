@@ -111,6 +111,41 @@
     "caption": "Document entierement reconstitue pour la demonstration",
     "licence": "oeuvre du projet"
   },
+  "couvertures/A02.svg": {
+    "alternativeText": "Fac-simile de l'annexe 4 du reglement de zonage du PLUi, repartition commune par commune",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A06.svg": {
+    "alternativeText": "Plan parcellaire de la friche de la filature, avec les emprises superposees des trois permis",
+    "caption": "Trace genere a graine fixe ; le parcellaire est invente",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A14.svg": {
+    "alternativeText": "Coupe du versant de Pierrefeuille, de l'emergence captee jusqu'a la maison desservie",
+    "caption": "Trace genere a graine fixe ; le versant est invente",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A19.svg": {
+    "alternativeText": "Diagramme en barres signees de la marge nette de l'irrigation pour les sept exploitations",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A21.svg": {
+    "alternativeText": "Diagramme en barres des candidatures recues mois par mois pendant quatorze mois",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A33.svg": {
+    "alternativeText": "Diagramme en barres signees de l'ecart annuel a la moyenne 1996-2005 au col des Trois-Vents",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "couvertures/A37.svg": {
+    "alternativeText": "Fac-simile de l'ordre du jour du conseil du 24 septembre 2026, point 9",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
 
   "blocs/A01-poste-source.svg": {
     "alternativeText": "Fac-simile d'un extrait de dossier de raccordement, capacite residuelle du poste source",
@@ -154,6 +189,26 @@
   },
   "blocs/A24-surcout.svg": {
     "alternativeText": "Diagramme en barres croissantes du surcout impute a chaque annee de retard du chantier",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A06-sondages.svg": {
+    "alternativeText": "Plan de la parcelle AB 214 situant les six sondages de 2009 et les trois zones a risque non sondees",
+    "caption": "Trace genere a graine fixe ; le parcellaire est invente",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A14-debit.svg": {
+    "alternativeText": "Diagramme en barres du debit de la source de Pierrefeuille, mois par mois en 2025",
+    "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A33-carnet.svg": {
+    "alternativeText": "Fac-simile d'une double page du carnet de releves du col des Trois-Vents",
+    "caption": "Document entierement reconstitue pour la demonstration",
+    "licence": "oeuvre du projet"
+  },
+  "blocs/A37-couts.svg": {
+    "alternativeText": "Trois courbes de cout cumule sur huit ans, une par option soumise au vote",
     "caption": "Serie generee a graine fixe ; les valeurs sont inventees",
     "licence": "oeuvre du projet"
   },

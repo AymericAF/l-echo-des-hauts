@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#FBFAF7"/>
+  <polyline points="140,596 323,596 506,596 689,596 871,596 1054,596 1237,596 1420,596" fill="none" stroke="#8C2F39" stroke-width="6" opacity="0.40"/>
+  <polyline points="140,667 323,651 506,636 689,621 871,606 1054,591 1237,576 1420,546" fill="none" stroke="#8C2F39" stroke-width="6" opacity="0.68"/>
+  <polyline points="140,571 323,486 506,383 689,339 871,295 1054,268 1237,244 1420,230" fill="none" stroke="#8C2F39" stroke-width="6" opacity="0.96"/>
+  <line x1="120" y1="740" x2="1480" y2="740" stroke="#1A1A1A" stroke-width="3"/>
+  <text x="120" y="160" font-family="Georgia, serif" font-size="46" fill="#1A1A1A">Cout cumule des trois options sur huit ans, en milliers d'euros</text>
+</svg>

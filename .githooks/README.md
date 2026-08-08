@@ -89,7 +89,7 @@ Trois propriétés en découlent, et ce sont elles qui rendent le choix défenda
   que ce qui sera cloné ensuite.
 - **L'amorceur n'a aucune raison de changer.** Toute la logique reste dans le
   dépôt, donc se met à jour avec lui. Le modèle n'entre pas dans le lot des
-  6 fichiers à garder alignés sur 30 copies.
+  6 fichiers à garder alignés sur 31 copies.
 
 Effet de bord favorable : l'amorceur appelle sa cible par `sh <chemin>`, donc le
 bit d'exécution de `.githooks/pre-commit` **cesse de compter** dans un dépôt armé
@@ -588,8 +588,8 @@ sur un dépôt **public**.
 
 ## Source de vérité et alignement des copies
 
-Le détecteur n'existe pas en un exemplaire : il vit dans **30 copies** — la source
-et les 29 dépôts du parc — et chacune porte **6 fichiers**, soit **180 fichiers
+Le détecteur n'existe pas en un exemplaire : il vit dans **31 copies** — la source
+et les 30 dépôts du parc — et chacune porte **6 fichiers**, soit **186 fichiers
 copiés** à garder identiques. La copie est volontaire : la garde voyage avec le
 code plutôt que de dépendre d'une configuration locale. Ce qui ne l'est pas, c'est
 qu'elles puissent diverger sans que rien ne le dise.
@@ -649,7 +649,7 @@ de marquage, que son contenu versionné correspond au disque, et que
 le cassant : le dispositif rougit, puis redevient vert une fois réparé.
 
 Chaque anomalie **nomme le dépôt et le fichier**. Une garde qui dit « ça ne
-correspond pas » envoie chercher dans 180 fichiers.
+correspond pas » envoie chercher dans 186 fichiers.
 
 `EMPREINTES.txt` est **généré**, pas édité. Le vérificateur contrôle d'abord la
 **source contre son propre manifeste** : si la source a bougé sans que les

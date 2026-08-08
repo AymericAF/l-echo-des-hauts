@@ -699,3 +699,133 @@ le push emporte une modification de `.githooks/`**.
   (rotation et réécriture d'historique).
 - Il ne remplace pas le `.gitignore` : ne pas versionner un fichier reste plus
   sûr que de compter sur la détection de son contenu.
+
+## Le second filet : la protection de push GitHub
+
+Mesuré le 2026-08-08 (tâche `d262c622`). Le constat de départ est un **accident** :
+en poussant la recette du détecteur (run `6437c6d3`), GitHub a refusé le push sur
+`l-echo-des-hauts` — sa protection lisait les valeurs **fabriquées** du banc de
+test comme de vraies clés Stripe restreintes de production. Une valeur inventée
+pour un test est indistinguable d'une vraie : c'est la **forme** qui est lue, pas
+la validité.
+
+Ce refus dit surtout autre chose. Cette protection est un **second filet, côté
+serveur** : elle ne dépend ni de `core.hooksPath`, ni de ce qu'un clone a bien
+voulu armer, ni de la bonne volonté de celui qui pousse. C'est exactement le
+périmètre des trois limites assumées plus haut.
+
+| Trou du hook local | Couvert par la protection de push |
+| --- | --- |
+| `git commit --no-verify` / `git push --no-verify` | **Oui** — le refus est prononcé par le serveur |
+| Clone frais sans `core.hooksPath` | **Oui** — rien à armer côté client |
+| Autre machine, autre poste | **Oui** — le contrôle ne vit pas sur le poste |
+| Secret déjà dans HEAD | **Oui**, si le commit fautif fait partie du push |
+
+### Ce qui est réellement disponible — mesuré, pas supposé
+
+Le run d'origine avait **inféré** que la protection était éteinte sur les autres
+dépôts, parce qu'un contenu identique y était passé. L'inférence était juste,
+mais ce n'était pas une mesure. Relevé dépôt par dépôt via l'API :
+
+| Visibilité | Dépôts | Analyse de secrets | Protection de push |
+| --- | ---: | --- | --- |
+| Publics | 5 | active sur les 5 | **active sur les 5** |
+| Privés | 67 | **indisponible** | **indisponible** |
+
+Sur un dépôt privé, l'API refuse en clair, en `HTTP 422` : *Secret scanning is
+not available for this repository*.
+
+**Ce n'est pas un réglage oublié, c'est structurel.** La protection est offerte
+d'office sur les dépôts publics ; sur les dépôts privés elle exige le produit
+**GitHub Secret Protection**, qui ne se vend qu'aux plans **Team** et
+**Enterprise**. Un **compte personnel ne peut pas l'acheter** — il n'y a donc
+rien à activer, et rien à payer non plus : il faudrait déplacer les dépôts dans
+une organisation.
+
+### Le piège : un 200 qui n'écrit rien
+
+À ne pas refaire, parce que la sortie ment. Sur un dépôt privé :
+
+- demander l'analyse de secrets rend un **422** franc, qui se voit ;
+- demander la **protection de push** seule rend un **200**, avec l'objet du dépôt
+  en réponse — mais le champ y vaut toujours `disabled`, et une relecture
+  indépendante le confirme resté indisponible. **L'écriture n'a pas eu lieu.**
+
+Un run qui se serait fié au code HTTP aurait conclu « activée sur les 67 dépôts
+privés » et rangé le sujet. La règle vaut au-delà de ce cas : **une écriture se
+prouve par la ligne renvoyée, puis par une relecture séparée**, jamais par le
+fait que l'appel n'a pas échoué.
+
+### Ce que ça implique, et qu'il vaut mieux savoir
+
+Sur les **67 dépôts privés — c'est-à-dire la quasi-totalité du travail client —
+ce hook est le seul filet**, avec ses trois trous intacts. Le second filet ne
+couvre que les 5 dépôts publics. C'est une raison de plus de ne pas prendre
+`--no-verify` en réflexe : sur un dépôt privé, personne derrière ne rattrapera.
+
+### La preuve qu'elle mord
+
+Un réglage activé qui ne refuse rien est **pire qu'aucun réglage**, parce qu'on
+cesse de regarder. Vérifié le 2026-08-08 sur `nuxtjs_course` — un dépôt public
+dormant **dont la protection venait d'être activée** : le test prouve donc à la
+fois le mécanisme et l'activation.
+
+Sur une branche jetable, un commit portant une chaîne **fabriquée à l'exécution**
+ayant la forme d'une clé restreinte de production Stripe (jamais une vraie
+valeur, jamais un littéral écrit dans un fichier de la garde) :
+
+```
+remote: - GITHUB PUSH PROTECTION
+remote:     - Push cannot contain secrets
+remote:       —— Stripe Live API Restricted Key ——
+ ! [remote rejected] (push declined due to repository rule violations)
+```
+
+Code de sortie **1**. Contrôlé ensuite : la branche distante **n'existe pas**
+(404 sur la référence), le dépôt ne porte **aucune** alerte. Un push refusé ne
+laisse rien derrière lui — c'est ce qui rend le test rejouable sans salir le
+dépôt.
+
+### Débloquer un faux positif légitime
+
+À lire **avant** d'en avoir besoin. Le premier blocage légitime découvert dans
+l'urgence se résout par une désactivation — et une protection éteinte un mardi
+soir ne se rallume jamais.
+
+**1. Retirer la valeur du commit (à préférer, de loin).** Le refus porte sur le
+contenu des commits poussés, pas sur l'état final des fichiers : effacer la ligne
+dans un nouveau commit **ne suffit pas**, la valeur reste dans l'historique
+poussé. Il faut réécrire le commit fautif.
+
+```sh
+git commit --amend --all      # si la valeur est dans le dernier commit
+git rebase -i <sha-fautif>~1  # plus ancienne : « edit », corriger, --continue
+```
+
+Pour une fixture de test, la bonne correction n'est pas de faire passer la
+valeur : c'est de **l'assembler à l'exécution** pour qu'aucun littéral ne soit
+jamais commité. C'est ce que fait le banc de recette.
+
+**2. L'autoriser, en connaissance de cause.** Le message de refus contient une
+adresse `/security/secret-scanning/unblock-secret/` propre au blocage. Elle est
+**nominative** : seul celui qui a poussé peut l'ouvrir, tout autre compte reçoit
+un 404. On y choisit un motif, et **le motif décide de la suite** :
+
+| Motif | Ce qu'il laisse derrière |
+| --- | --- |
+| C'est un faux positif | alerte créée puis **fermée** en faux positif |
+| C'est utilisé dans des tests | alerte créée puis **fermée** en usage de test |
+| Je corrigerai plus tard | alerte **laissée ouverte** |
+
+Puis **repousser dans les trois heures** ; au-delà il faut refaire la démarche.
+
+**Ce contournement n'est pas silencieux, et c'est voulu** : il crée une alerte
+dans l'onglet sécurité, il est inscrit au journal d'audit, et il déclenche une
+notification aux administrateurs du dépôt. C'est la différence de fond avec
+`--no-verify`, qui ne laisse **aucune trace** — ici, passer outre reste un geste
+que quelqu'un peut relire après coup.
+
+**3. Ce qu'il ne faut pas faire : éteindre la protection.** Elle est offerte,
+côté serveur, et couvre les trois trous que ce hook ne bouchera jamais. L'éteindre
+pour débloquer un push, c'est échanger un incident de dix minutes contre un angle
+mort permanent.

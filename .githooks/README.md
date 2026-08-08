@@ -79,17 +79,16 @@ construction, git n'exécute jamais rien qui vienne du dépôt cloné.
 Trois propriétés en découlent, et ce sont elles qui rendent le choix défendable :
 
 - **Aucun dépôt qui n'a rien demandé ne change de comportement.** Un dépôt client,
-  un dépôt tiers, un clone jetable, et les 2 dépôts du parc délibérément laissés
-  nus (`ChosenPath`, `le-rucher-seo` — voir « Les dépôts laissés nus » plus bas)
-  ne portent pas `.githooks/` :
-  l'amorceur sort immédiatement. Coût réel : un `test -f` par commit.
+  un dépôt tiers, un clone jetable, et tout dépôt délibérément laissé nu (voir
+  `DEPOTS-DU-PARC.txt`, qui les nomme avec leur motif) ne portent pas
+  `.githooks/` : l'amorceur sort immédiatement. Coût réel : un `test -f` par commit.
 - **Rien à défaire sur les 27 dépôts déjà armés.** Dès que `core.hooksPath` est
   défini, git **ignore entièrement** `.git/hooks/` — les deux voies ne tournent
   jamais ensemble, il n'y a ni double exécution ni conflit. Le modèle ne concerne
   que ce qui sera cloné ensuite.
 - **L'amorceur n'a aucune raison de changer.** Toute la logique reste dans le
   dépôt, donc se met à jour avec lui. Le modèle n'entre pas dans le lot des
-  6 fichiers à garder alignés sur 31 copies.
+  6 fichiers à garder alignés sur 38 copies (31 au 2026-08-08 au matin ; voir « Le parc n'est pas un répertoire »).
 
 Effet de bord favorable : l'amorceur appelle sa cible par `sh <chemin>`, donc le
 bit d'exécution de `.githooks/pre-commit` **cesse de compter** dans un dépôt armé
@@ -115,7 +114,7 @@ recopiant le modèle.
   `core.hooksPath` ; c'est délibéré (ne rien casser sur ce qui marche), mais cela
   laisse deux voies d'armement coexister. Le vérificateur accepte les deux.
 - **Un dépôt qui porterait le lot sans vouloir la garde s'armerait à chaque
-  clone.** Le cas n'existe pas aujourd'hui (les 2 dépôts nus n'ont pas `.githooks/`),
+  clone.** Le cas n'existe pas aujourd'hui (les dépôts nus n'ont pas `.githooks/`),
   et l'échappatoire est locale et explicite :
 
   ```sh
@@ -560,19 +559,47 @@ la première passe — sinon on croit avoir fini avec une détection encore debo
 
 ### Laissés nus, et pourquoi
 
-- **`ChosenPath`** — 62 détections dans 23 fichiers. Une quarantaine sont des
-  fixtures d'authentification canoniques (`password:`, `token:` dans les tests
-  tRPC/mobile/schemas) et des `postgresql://user:pass@localhost` de `.env.example`,
-  `docker-compose.prod.yml` et `ci.yml`. Les marquer désarmerait la détection là où
-  elle sert le plus, et un monorepo qui refuse **chaque nouveau test
-  d'authentification** est le cas d'école du dispositif qu'on désinstalle. 15
-  détections supplémentaires viennent de 5 fichiers `apps/mobile/assets/fonts/*.ttf`
-  qui sont en réalité des **pages HTML d'erreur de 300 Ko** — des assets corrompus,
-  à re-télécharger, pas à marquer. Décision : **nu**, en connaissance de cause.
-- **`le-rucher-seo`** — hors de ce périmètre : un secret vit dans HEAD, ce qui se
-  traite par **rotation** d'abord (tâche `e0df662d`). Brancher la garde ne
-  changerait rien à un secret déjà écrit — le hook ne regarde que ce qui est mis en
-  scène.
+- **`ChosenPath` et `le-rucher-seo` ne le sont plus** — décision inversée le
+  2026-08-08 (tâche `31eb92d7`), sur une mesure que la première n'avait pas faite.
+  Voir la sous-section suivante : elle nomme ce qui a changé, et pourquoi la
+  première mesure comptait la mauvaise chose.
+
+### Compter les commits refusés, pas les signalements
+
+Le coût d'une garde ne se lit pas en signalements. Il se lit en **commits qui
+auraient été refusés**, parce que c'est le refus qui use, pas le total. 62
+signalements concentrés dans un import initial coûtent **une** gêne, une fois ;
+6 signalements répartis sur 6 commits coûtent six refus, et c'est ce profil-là
+qui fait taper `--no-verify`.
+
+Rejoué commit par commit, en n'analysant que les lignes **ajoutées** par chacun —
+c'est-à-dire exactement ce que le hook voit :
+
+| Dépôt | Commits examinés | Refusés | Où |
+| --- | --- | --- | --- |
+| `ChosenPath` | 23 | **1** (4,3 %) | l'import initial du 2026-04-03, à lui seul les 62 |
+| `le-rucher-seo` | 15 | **2** (13,3 %) | `ba9fff18` — le commit qui a **introduit la clé Stripe live**, et `7dc72035`, la fausse clé d'illustration du dossier de rotation |
+| `CockpitV2` | 60 | **1** (1,7 %) | `f316ff5b`, deux constantes de réinitialisation Laravel, sans aucune valeur |
+
+Ce que ce tableau corrige, dans les deux cas :
+
+- **`ChosenPath`** avait été laissé nu sur la crainte qu'un monorepo « refuse
+  chaque nouveau test d'authentification ». Les 22 commits qui ont suivi l'import
+  — tests tRPC, mobile et schemas compris — n'auraient produit **aucun** refus.
+  La crainte portait sur un profil que ce dépôt n'a pas.
+- **`le-rucher-seo`** avait été écarté au motif que « brancher la garde ne
+  changerait rien à un secret déjà écrit ». C'est vrai, et hors sujet : la garde
+  ne protège pas le secret d'hier, elle protège celui de demain — et ici, elle
+  aurait arrêté **celui-là même**. Un dépôt où un secret réel est déjà entré est
+  le dernier qu'il faut laisser nu.
+
+**Le résidu de `le-rucher-seo`, écrit plutôt que caché.** Deux fichiers versionnés
+déclenchent la garde s'ils sont remis en scène :
+`lot2/stripe-settings-rollback-20260718.json` (la clé `sk_live_` et le
+`whsec_` réels — refus **légitime**, à traiter par la rotation, tâche `e0df662d`,
+pas par un marqueur) et `securite/rotation-stripe-preparation.md` ligne 323 (une
+fausse clé d'illustration dans un script de recette — `secret-ok` la lève, si
+quelqu'un rouvre ce fichier). Aucun des deux n'est touché par le travail courant.
 
 ### Les 4 dépôts publics : examinés, rien à corriger
 
@@ -586,11 +613,75 @@ démonstration) et un `APP_SECRET` vide ou placeholder. Aucune rotation nécessa
 La pratique, elle, reste mauvaise : le jour où quelqu'un remplit ce `.env`, il part
 sur un dépôt **public**.
 
+## Le parc n'est pas un répertoire
+
+Écrit le 2026-08-08 (tâche `31eb92d7`), après qu'une campagne d'armement entière
+a manqué **`CockpitV2`** — le dépôt du Cockpit, développé activement, privé, donc
+sans aucun filet côté serveur. Ce n'était pas un oubli : c'était la **définition**.
+Tous les balayages prenaient `~/projects` pour le parc, et `CockpitV2` est cloné
+dans `C:\Entreprise\Projets personnels\`. `clubwpress-agent`, dans le même cas,
+n'avait été rattrapé que par hasard.
+
+> **Le parc est l'ensemble des clones ACTIFS, où qu'ils soient.** Un dépôt en fait
+> partie si (1) il peut encore recevoir un commit et (2) ce commit partirait de ce
+> poste. **Son emplacement n'entre pas dans le critère** — ni pour l'y faire
+> entrer, ni pour l'en exclure.
+
+Tant qu'on inventorie par le disque **à un endroit convenu**, on trouve ce qu'on y
+a rangé. Le recensement se fait donc en cherchant les répertoires `.git` sur les
+volumes, pas en listant un dossier :
+
+```sh
+cmd //c "dir /s /b /ad C:\\.git"      # puis les autres volumes montés
+```
+
+Mesure du 2026-08-08 : **2 084** répertoires `.git` sur `C:`, dont **42 dépôts
+réels** une fois écartés `node_modules/`, `vendor/`, la corbeille, les modules git
+et les dossiers temporaires — dont **11 chemins hors de `~/projects`** (10 clones
+distincts, l'un des chemins étant un lien symbolique). Deux dépôts **à l'intérieur**
+de `~/projects` étaient également désarmés : l'emplacement convenu ne garantissait
+même pas sa propre couverture.
+
+### Le critère est tenu par un fichier, pas par une intention
+
+`verifier-alignement.mjs` découvrait ses copies en listant quatre racines à plat
+(le home, son `projects/`, le voisinage de la source et son `projects/`). Il ne
+pouvait structurellement pas voir un clone rangé ailleurs — et une consigne écrite
+ici n'y aurait rien changé au prochain balayage.
+
+**`.githooks/DEPOTS-DU-PARC.txt`** nomme donc, un par un, les clones hors des
+emplacements convenus. Ils sont vérifiés comme les autres. Le fichier porte aussi
+les dépôts **délibérément laissés nus** avec leur motif, en commentaire.
+
+Ce que le registre garantit, prouvé en le cassant :
+
+| Mutation | Effet observé |
+| --- | --- |
+| Retirer une ligne | le dépôt **sort du compte** (37 → 36 copies) — c'est bien le registre qui l'amène |
+| Inscrire un chemin qui n'est plus un dépôt | **code 2**, « vérification impossible », en nommant le chemin |
+| Déclarer `NON-SUIVI` un dépôt dont le lot est versionné | **6 dérives `DECLARATION`** — une déclaration périmée ne peut plus sauter les contrôles d'index en silence |
+| Désarmer un dépôt inscrit (le lot disparaît) | **6 dérives `ABSENT`**, code 1 |
+
+### Les copies `NON-SUIVI`
+
+Trois dépôts portent le lot dans `.githooks/` **sans le versionner**, masqué par
+`.git/info/exclude` (fichier local). Le montage est réservé aux cas où déposer six
+fichiers en commit serait déplacé : **distant appartenant à un tiers**
+(`af-scroll-counter-create-file`, cloné d'`elegantthemes`), **copie de travail
+dépassée** dont le clone vivant porte déjà le lot (`ldveh-premium`, ancêtre strict
+de `ChosenPath`), **dépôt sans aucun commit** (`eden-terrasse`).
+
+Contrepartie à connaître : le lot n'y suit pas les mises à jour du dépôt, et les
+trois contrôles d'index (présence, mode, blob) n'ont **rien à comparer**. Le
+vérificateur ne les maquille pas en vert : il les remplace par le bit d'exécution
+du disque — et sous Windows, où NTFS n'en porte pas, il l'écrit sous
+**`NON VERIFIABLE DEPUIS CE POSTE`** plutôt que de le compter comme conforme.
+
 ## Source de vérité et alignement des copies
 
-Le détecteur n'existe pas en un exemplaire : il vit dans **31 copies** — la source
-et les 30 dépôts du parc — et chacune porte **6 fichiers**, soit **186 fichiers
-copiés** à garder identiques. La copie est volontaire : la garde voyage avec le
+Le détecteur n'existe pas en un exemplaire : il vit dans **38 copies** — la source
+et les 37 dépôts du parc, tel que le recense  — et chacune porte
+**6 fichiers**, soit **228 fichiers copiés** à garder identiques. La copie est volontaire : la garde voyage avec le
 code plutôt que de dépendre d'une configuration locale. Ce qui ne l'est pas, c'est
 qu'elles puissent diverger sans que rien ne le dise.
 
@@ -649,7 +740,7 @@ de marquage, que son contenu versionné correspond au disque, et que
 le cassant : le dispositif rougit, puis redevient vert une fois réparé.
 
 Chaque anomalie **nomme le dépôt et le fichier**. Une garde qui dit « ça ne
-correspond pas » envoie chercher dans 186 fichiers.
+correspond pas » envoie chercher dans 228 fichiers.
 
 `EMPREINTES.txt` est **généré**, pas édité. Le vérificateur contrôle d'abord la
 **source contre son propre manifeste** : si la source a bougé sans que les
@@ -699,6 +790,33 @@ le push emporte une modification de `.githooks/`**.
   (rotation et réécriture d'historique).
 - Il ne remplace pas le `.gitignore` : ne pas versionner un fichier reste plus
   sûr que de compter sur la détection de son contenu.
+
+### Trois angles morts mesurés, non encore corrigés
+
+Reproduits avec des valeurs **fictives** de même gabarit. Ils ne sont pas
+théoriques : chacun a été trouvé sur un secret réel, ou sur la forme exacte d'un
+secret réel présent sur ce poste.
+
+1. **Toute valeur contenant une espace.** `valeurPlausible()` la rejette. Or
+   Google **affiche** ses mots de passe d'application en 4 groupes de 4 séparés
+   par des espaces, et c'est sous cette forme qu'ils sont collés. C'est par ce
+   trou qu'un accès à la boîte Gmail principale est resté 15 mois exposé
+   (`Test-Greenfit-Paiement`, cf. `INVENTAIRE-PARC.md` §1).
+2. **Toute valeur de 7 à 40 caractères hexadécimaux minuscules**, quelle que soit
+   la clé — `valeurPlausible()` la lit comme un **sha git** et l'écarte
+   (`/^[0-9a-f]{7,40}$/i`). Trouvé le 2026-08-08 : le `_authToken` du registre npm
+   privé Divi, dans `.npmrc`, fait exactement **40 caractères hexadécimaux
+   minuscules**. Vérifié : `password=<40 hex>` n'est **pas vu**, `password=<40
+   alphanumériques mixtes>` l'est.
+3. **La forme de clé d'un `.npmrc`.** `//npm.exemple.com/:_authToken=<valeur>`
+   n'est pas reconnue, alors que `authToken=<même valeur>` l'est. Le préfixe
+   d'URL empêche `RE_ASSIGNATION` de retenir `_authToken` comme nom de clé.
+
+Chacune des trois causes suffit **à elle seule** à rendre le jeton npm invisible :
+armer le dépôt qui le porte ne le protège pas. C'est écrit ici parce qu'un angle
+mort tu se confond avec une absence de risque. La correction se recette à part —
+toucher `valeurPlausible()` change le comportement des 37 copies, et la règle du
+sha git existe pour une raison (les sha sont omniprésents dans ces dépôts).
 
 ## Le second filet : la protection de push GitHub
 

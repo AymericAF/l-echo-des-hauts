@@ -1,0 +1,14 @@
+# Les hooks git tournent dans le sh embarque de Git for Windows. Avec
+# core.autocrlf=true (le reglage global de ce poste), un checkout rendrait ces
+# fichiers en CRLF : le shebang deviendrait "#!/bin/sh\r", introuvable, et la
+# garde serait SILENCIEUSEMENT morte apres un nouveau clone.
+#
+# Constate le 2026-08-08 : ~/.claude portait deja cette protection a sa racine,
+# mais elle n avait jamais ete propagee. Les 27 copies du parc n etaient
+# identiques a la source que parce qu elles avaient ete DEPOSEES par copie et
+# jamais ressorties de git. Un `git checkout` d un seul de ces fichiers suffisait
+# a le convertir en CRLF.
+#
+# Ce fichier vit DANS .githooks/ pour voyager avec le lot, plutot qu a la racine
+# des 27 depots ou il entrerait en concurrence avec leurs propres regles.
+* text eol=lf

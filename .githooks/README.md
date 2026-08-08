@@ -452,6 +452,100 @@ journalise `ECHEC - commit refuse` et sort en `exit 1` **sans envoyer le
 heartbeat** — la surveillance n8n reste donc au rouge, au lieu d'afficher un vert
 mensonger sur des modifications jamais sauvegardées.
 
+## Source de vérité et alignement des copies
+
+Le détecteur n'existe pas en un exemplaire : il vit dans **28 copies** — la source
+et les 27 dépôts du parc — et chacune porte **5 fichiers**, soit **135 fichiers
+copiés** à garder identiques. La copie est volontaire : la garde voyage avec le
+code plutôt que de dépendre d'une configuration locale. Ce qui ne l'est pas, c'est
+qu'elles puissent diverger sans que rien ne le dise.
+
+### La règle, écrite une fois pour toutes
+
+> **`~/.claude/.githooks/` fait foi.** En cas de divergence, c'est la copie du
+> dépôt qui est réécrite depuis la source. **Jamais l'inverse**, même si la
+> correction est manifestement meilleure dans le dépôt : dans ce cas on la
+> reporte d'abord à la source, on régénère les empreintes, puis on propage.
+
+Sans réponse écrite, une divergence se résout un jour dans le mauvais sens — et
+26 dépôts repartent avec l'ancienne version en donnant la même impression de
+protection.
+
+### Le lot déployé
+
+| Fichier | Mode attendu dans l'index |
+| --- | --- |
+| `README.md` | `100644` |
+| `detect-secrets.js` | `100644` |
+| `detect-secrets.recette.mjs` | `100644` |
+| `package.json` | `100644` |
+| `pre-commit` | **`100755`** |
+
+Trois fichiers vivent à la source **sans être copiés** : `verifier-alignement.mjs`,
+`EMPREINTES.txt` et `pre-push`. Le lot est **explicite** dans le vérificateur,
+précisément pour qu'une propagation ne se fasse plus par « je copie tout le
+dossier ».
+
+### Vérifier
+
+```sh
+node ~/.claude/.githooks/verifier-alignement.mjs            # le parc entier
+node ~/.claude/.githooks/verifier-alignement.mjs --depot ~/projects/echo-code
+node ~/.claude/.githooks/verifier-alignement.mjs --corriger # recopie la source
+node ~/.claude/.githooks/verifier-alignement.mjs --generer  # après avoir touché la source
+```
+
+Il compare le **contenu** (sha-256), jamais la taille ni la date : deux fichiers
+différents de même taille sont exactement le cas où une garde de taille ment. Il
+compare aussi le **mode de l'index git** — un `pre-commit` en `100644` est sauté
+**en silence** hors Windows, donc un bon contenu au mauvais mode est une dérive.
+Il signale enfin les dépôts où les fichiers sont présents mais `core.hooksPath`
+n'est pas armé : présents et inertes.
+
+Chaque anomalie **nomme le dépôt et le fichier**. Une garde qui dit « ça ne
+correspond pas » envoie chercher dans 135 fichiers.
+
+`EMPREINTES.txt` est **généré**, pas édité. Le vérificateur contrôle d'abord la
+**source contre son propre manifeste** : si la source a bougé sans que les
+empreintes suivent, il rougit là plutôt que de juger 27 dépôts contre une
+référence périmée — un vert obtenu contre une mauvaise référence est un mensonge.
+
+### Où la vérification se déclenche, et pourquoi pas ailleurs
+
+Elle est accrochée au **`pre-push` de `~/.claude` uniquement**, et **seulement si
+le push emporte une modification de `.githooks/`**.
+
+- **Pas dans `pre-commit`.** Une garde d'alignement au pre-commit refuserait les
+  commits des 27 dépôts dès que la source bouge — **y compris pendant la
+  propagation elle-même**. Une garde qui se déclenche pendant qu'on la met à jour
+  est un piège circulaire ; elle se fait désinstaller le jour même.
+- **Pas dans les copies.** La dérive n'est jamais créée dans un dépôt : elle est
+  créée à la source, puis oubliée. Bloquer 27 dépôts pour une faute commise dans
+  le 28e punit ceux qui n'ont rien fait, et arrête les boucles autonomes qui y
+  poussent.
+- **Pas en tâche périodique seule.** Elle détecterait la dérive des heures après,
+  quand celui qui l'a créée n'a plus le contexte. (Elle reste un bon *complément*,
+  pas un substitut.)
+- **Au `pre-push` de la source** : le seul push retenu est celui qui vient de
+  créer la divergence, au moment où l'on a encore en main la correction qu'on
+  vient d'écrire. Tout autre push de `~/.claude` passe sans rien vérifier.
+
+Échappatoire assumée et documentée : `git push --no-verify`.
+
+### Propager une correction
+
+1. Corriger dans `~/.claude/.githooks/`.
+2. `node ~/.claude/.githooks/verifier-alignement.mjs --generer`.
+3. `node ~/.claude/.githooks/verifier-alignement.mjs --corriger` — recopie le
+   contenu dans les copies qui ont dérivé, et **affiche** les commandes
+   `git update-index` pour les modes (elles ne sont pas jouées d'office).
+4. Commiter dépôt par dépôt, **chemin par chemin** (l'arbre de travail est partagé
+   avec d'autres boucles : jamais `git add -A`).
+5. Pour un fichier qui doit rester exécutable, commiter **par l'index** : sous
+   Windows `core.fileMode=false` fait que `git commit -- <chemin>` reconstruit
+   l'entrée depuis le disque et **annule** le `--chmod=+x`. Vérifier avec
+   `git ls-files -s`.
+
 ## Ce que ce hook ne fait pas
 
 - Il ne regarde **que ce qui est mis en scène**. Un secret déjà dans HEAD ou dans

@@ -34,19 +34,100 @@ l'objet commit. Cf. `[[garantie-par-mecanisme-pas-convention]]`.
 > ces `.js` en CommonJS quel que soit le dépôt hôte, sans toucher au détecteur.
 > Le `.mjs` de la recette n'est pas concerné : son extension prime.
 
-Activation (locale au dépôt, **à refaire après un nouveau clone**) :
+Activation — voir **« Armer un clone frais »** ci-dessous. En une ligne : sur le
+poste d'Aymeric, un `git clone` s'arme tout seul ; ailleurs, il faut la poser à
+la main :
 
 ```sh
 git config core.hooksPath .githooks
 ```
 
-Vérifier qu'elle est en place : `git config core.hooksPath` doit rendre
-`.githooks`. Sans cela, les fichiers sont là mais **ne protègent rien**.
+Sans l'une ou l'autre, les fichiers sont là mais **ne protègent rien**.
 
 > `gitleaks` n'est pas installé sur ce poste. Le détecteur est maison (Node, zéro
 > dépendance) pour ne pas introduire un binaire tiers sans arbitrage. Si
 > `gitleaks` est adopté un jour, remplacer l'appel dans `.githooks/pre-commit`
 > suffit — le reste du dispositif ne bouge pas.
+
+## Armer un clone frais
+
+Les 6 fichiers de la garde sont **versionnés** : ils voyagent avec le dépôt. Mais
+`core.hooksPath` est une **configuration locale**, et git ne versionne pas la
+configuration. Un dépôt fraîchement cloné repart donc **désarmé** : la garde est
+là, elle ne tourne pas, et rien ne le dit au moment où l'on commite.
+
+Mesuré le 2026-08-08 sur un clone réel : sans mécanisme, un commit contenant
+`api_key = "<48 caractères hexadécimaux>"` **passe**. Un `git clone` sur une autre
+machine, ou un reclonage après incident, suffisait à faire disparaître la
+protection en silence.
+
+### Le mécanisme retenu : un modèle de dépôt (`init.templateDir`)
+
+```sh
+git config --global init.templateDir ~/.claude/.git-template
+```
+
+`~/.claude/.git-template/hooks/` contient deux fichiers **identiques**,
+`pre-commit` et `pre-push`. Git les recopie dans `.git/hooks/` de **tout** nouveau
+clone ou `git init`. Ils ne détectent rien : ils **délèguent** au hook de même nom
+porté par le dépôt (`.githooks/<nom>`), et **sortent en 0 s'il n'existe pas**.
+
+C'est le seul endroit où git accepte de déposer quelque chose d'exécutable au
+moment du clone, sans geste humain. Aucune autre voie ne le fait : par
+construction, git n'exécute jamais rien qui vienne du dépôt cloné.
+
+Trois propriétés en découlent, et ce sont elles qui rendent le choix défendable :
+
+- **Aucun dépôt qui n'a rien demandé ne change de comportement.** Un dépôt client,
+  un dépôt tiers, un clone jetable, et les 5 dépôts du parc délibérément laissés
+  nus (`ChosenPath`, `maj-divi5-zeller`, `automatisation-maintenance-wordpress`,
+  `strategie-marketing-freelance`, `le-rucher-seo`) ne portent pas `.githooks/` :
+  l'amorceur sort immédiatement. Coût réel : un `test -f` par commit.
+- **Rien à défaire sur les 27 dépôts déjà armés.** Dès que `core.hooksPath` est
+  défini, git **ignore entièrement** `.git/hooks/` — les deux voies ne tournent
+  jamais ensemble, il n'y a ni double exécution ni conflit. Le modèle ne concerne
+  que ce qui sera cloné ensuite.
+- **L'amorceur n'a aucune raison de changer.** Toute la logique reste dans le
+  dépôt, donc se met à jour avec lui. Le modèle n'entre pas dans le lot des
+  6 fichiers à garder alignés sur 28 copies.
+
+Effet de bord favorable : l'amorceur appelle sa cible par `sh <chemin>`, donc le
+bit d'exécution de `.githooks/pre-commit` **cesse de compter** dans un dépôt armé
+par cette voie. Seul le mode de l'amorceur importe, et c'est git qui le pose en
+recopiant le modèle.
+
+### Ce qui a été écarté, et pourquoi
+
+| Voie | Pourquoi écartée |
+| --- | --- |
+| `git config --global core.hooksPath` | Arme **tous** les dépôts du poste, sans exception possible. Pire : `pre-commit` cherche `$repo/.githooks/detect-secrets.js` — dans un dépôt qui ne le porte pas, node échoue et **tous** les commits sont refusés. Et le réglage global **désactive** `.git/hooks/` partout, donc casse silencieusement tout dépôt tiers qui s'en sert. |
+| Une entrée `prepare` dans le `package.json` du projet | Ne s'exécute qu'à `npm install`, et la majorité des 28 dépôts ne sont pas des projets npm. Il faudrait modifier 28 `package.json` de projet pour un dispositif transverse. |
+| Un script d'amorçage à lancer une fois après le clone | C'est **exactement** le geste manuel qui a créé le trou : `git config core.hooksPath .githooks` est déjà une ligne, et elle est déjà documentée. Un script ne rend pas plus probable qu'on y pense. |
+| Ne rien faire, documenter mieux | Le README documentait déjà le geste, et le vérificateur signalait déjà les dépôts désarmés. Le clone repartait quand même nu : c'est la différence entre savoir et faire. |
+
+### Ce que ce choix laisse ouvert — à dire, pas à cacher
+
+- **Il ne protège que ce poste.** `init.templateDir` est une configuration
+  globale : elle ne se versionne pas non plus. Un clone sur **une autre machine**
+  repart nu, et le seul remède y reste `git config core.hooksPath .githooks`. Le
+  trou n'est pas bouché dans l'absolu, il est bouché là où l'on travaille.
+- **Il n'arme pas rétroactivement.** Les dépôts déjà clonés gardent leur
+  `core.hooksPath` ; c'est délibéré (ne rien casser sur ce qui marche), mais cela
+  laisse deux voies d'armement coexister. Le vérificateur accepte les deux.
+- **Un dépôt qui porterait le lot sans vouloir la garde s'armerait à chaque
+  clone.** Le cas n'existe pas aujourd'hui (les 5 dépôts nus n'ont pas `.githooks/`),
+  et l'échappatoire est locale et explicite :
+
+  ```sh
+  git config hooks.secrets off
+  ```
+
+- **`git commit --no-verify` continue de tout contourner, sans laisser aucune
+  trace.** Rien ici ne change cela : un hook s'exécute côté client, il est par
+  nature contournable par celui qui commite.
+- **Le comportement d'un hook en `100644` hors Windows** (sauté **en silence**)
+  est repris de la connaissance existante ; il n'a pas été exercé sur une machine
+  POSIX. Les modes `100755` sont vérifiés dans l'index, pas éprouvés à l'exécution.
 
 ## Ce qu'il scanne
 
@@ -481,10 +562,12 @@ protection.
 | `package.json` | `100644` |
 | `pre-commit` | **`100755`** |
 
-Trois fichiers vivent à la source **sans être copiés** : `verifier-alignement.mjs`,
-`EMPREINTES.txt` et `pre-push`. Le lot est **explicite** dans le vérificateur,
-précisément pour qu'une propagation ne se fasse plus par « je copie tout le
-dossier ».
+Vivent à la source **sans être copiés** : `verifier-alignement.mjs`,
+`EMPREINTES.txt`, `pre-push`, et le modèle de dépôt `~/.claude/.git-template/`.
+Le lot est **explicite** dans le vérificateur, précisément pour qu'une propagation
+ne se fasse plus par « je copie tout le dossier ». Ces fichiers hors lot ne sont
+pas pour autant sans surveillance : ils sont couverts par l'audit de la source
+(section « Vérifier »).
 
 ### Vérifier
 
@@ -499,8 +582,18 @@ Il compare le **contenu** (sha-256), jamais la taille ni la date : deux fichiers
 différents de même taille sont exactement le cas où une garde de taille ment. Il
 compare aussi le **mode de l'index git** — un `pre-commit` en `100644` est sauté
 **en silence** hors Windows, donc un bon contenu au mauvais mode est une dérive.
-Il signale enfin les dépôts où les fichiers sont présents mais `core.hooksPath`
-n'est pas armé : présents et inertes.
+Il signale enfin les dépôts **présents et inertes** : ni `core.hooksPath`, ni
+amorceur déposé dans `.git/hooks/` — les deux voies d'armement décrites plus haut,
+dont une seule suffit.
+
+Et **il s'audite lui-même**. `~/.claude` s'exclut de son propre balayage : son
+armement, le mode `100755` de son `pre-push` et l'existence même du modèle de
+dépôt n'étaient vérifiés par **rien**. Le vérificateur contrôle désormais, à
+chaque passage : que la source est armée, que `.githooks/pre-push` est versionné
+exécutable, que `.git-template/hooks/*` est versionné exécutable et porte sa ligne
+de marquage, que son contenu versionné correspond au disque, et que
+`init.templateDir` pointe bien dessus. Chacun de ces six contrôles a été prouvé en
+le cassant : le dispositif rougit, puis redevient vert une fois réparé.
 
 Chaque anomalie **nomme le dépôt et le fichier**. Une garde qui dit « ça ne
 correspond pas » envoie chercher dans 135 fichiers.

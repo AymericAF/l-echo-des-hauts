@@ -121,30 +121,127 @@ const RE_ASSIGNATION = new RegExp(
   'g'
 );
 
-// Mots qui, ISOLES dans le nom de la cle, designent un secret. On decoupe la
-// cle en mots (sur _ - . et sur les bascules de casse) au lieu de chercher la
-// sous-chaine : "PASS" en sous-chaine attrapait les mots francais PASSAGE et
-// PASSE, qui produisaient a eux seuls la moitie des faux positifs.
-const MOTS_SECRET = new Set([
+// ---------------------------------------------------------------------------
+// LA REGLE DE COMPOSITION D UN NOM DE VARIABLE (2026-08-08, tache 249fdfd5).
+//
+// POURQUOI UNE REGLE ET PLUS UNE LISTE. En une nuit, deux runs independants ont
+// trouve, chacun par hasard, un mot manquant dans le vocabulaire : `api_key`
+// (commit e3d9a0e) puis `secretkey` (commit 02a0cee). Deux fois le meme mode
+// d echec — un vocabulaire ENUMERE grandit par accident et se troue en silence.
+// La cause commune tient en une phrase : le desamorcage demandait a la liste des
+// mots secrets si `<avant-dernier><dernier>` en faisait partie. Il fallait donc y
+// avoir ecrit D AVANCE chaque forme collee — `apikey`, `secretkey`, `servicekey`,
+// `authkey`... — et tout nom non prevu passait sans bruit. On ne demande plus
+// « ce mot est-il dans la liste ? » mais « quel ROLE joue chaque mot ? ».
+//
+// UN NOM DE VARIABLE SE LIT COMME UNE PHRASE :
+//
+//     [fournisseur]  [marqueur ...]   PORTEUR   [qualificatif]
+//       STRIPE_          SECRET_        KEY
+//      SUPABASE_      SERVICE_ROLE_     KEY
+//                        API_           KEY        _HEADER   -> reference
+//
+//   1. DECOUPAGE en mots (sur _ - . et les bascules de casse), puis DECOLLAGE :
+//      un mot inconnu qui se decompose exactement en <marqueur><porteur> est
+//      rendu a ses deux mots. C est lui qui remplace l enumeration des formes
+//      collees : `apikey`, `secretkey`, `accesskey`, `privatekey`, `authkey`,
+//      `clientsecret`, `servicekey`, `apitoken`... ne sont plus ecrits nulle
+//      part, ils se DERIVENT. Le decollage n accepte QUE des mots des
+//      vocabulaires ci-dessous : sans cette borne, `bypass` deviendrait
+//      `by` + `pass` et l on ferait revenir les faux positifs PASSE/PASSAGE que
+//      le point 1 du calibrage avait fermes.
+//
+//   2. LE PORTEUR DECIDE DE LA MATIERE. Trois classes, et non une liste plate :
+//      - PORTEURS_FORTS    : le mot seul est deja un secret (password, secret,
+//                            token, credential, passphrase...) ;
+//      - PORTEURS_COMPOSES : fort seulement ACCOMPAGNE. `pwd` en est le seul
+//                            membre et la raison est nette — `PWD` tout seul est
+//                            la variable Unix du repertoire courant, presente
+//                            dans tout script shell, quand `DB_PWD` est un mot
+//                            de passe ;
+//      - PORTEURS_ARMES    : `key` et `salt`. Le mot seul ne dit RIEN
+//                            (`cache_key`, `sort_key`, `primary_key`,
+//                            `public_key`) ; il ne devient un secret que si un
+//                            MARQUEUR le precede.
+//
+//   3. LE MARQUEUR ARME UN PORTEUR situe APRES lui, adjacent ou non. C est ce
+//      qui fait marcher `SUPABASE_SERVICE_ROLE_KEY` : `service` arme `key` a
+//      travers `role`. Exiger l adjacence aurait rate la cle qui, chez Supabase,
+//      contourne toutes les regles de securite au niveau ligne.
+//
+//   4. LE QUALIFICATIF FINAL DESAMORCE, toujours : quand le DERNIER mot est
+//      `name`, `path`, `type`, `url`, `header`, `id`... le nom DESIGNE un secret,
+//      il n en est pas un (`tokenName`, `secretPath`, `API_KEY_HEADER`).
+//
+//   5. L ORDRE, qui est le point ou l on s est trompe deux fois : le desamorcage
+//      se lit sur le dernier mot APRES decollage, et `key` N EST PLUS UN
+//      QUALIFICATIF — c est un porteur. C est sa presence parmi les qualificatifs
+//      qui exemptait `api_key`, puis `SECRET_KEY`, sans aucune condition.
+//
+// CE QUI N EST DELIBEREMENT PAS COUVERT, et pourquoi. Ces decisions ont ete
+// prises sur les 3 055 combinaisons ENGENDREES a partir de la regle et passees au
+// detecteur, pas au jugement. Elargir est facile ; ne pas devenir bavard est le
+// travail, et un depot qui refuse des commits legitimes se fait contourner au
+// --no-verify sur les 28 d un coup.
+//   - `signature` / `sig` : une signature est le PRODUIT d un secret, publiee
+//     dans la requete. La divulguer n ouvre rien, et `webhook_signature` peuple
+//     les fixtures. Le secret de signature, lui, est couvert (`whsec_`,
+//     `signing_key`).
+//   - `hash`, `digest` : concus pour etre stockes ; `hash` est deja une EXEMPTION
+//     plus bas (RE_CONTEXTE_EMPREINTE). Les detecter contredirait cette exemption.
+//   - `id` : `client_id`, `app_id`, `session_id` sont publics par construction.
+//     `id` reste un QUALIFICATIF, comme avant.
+//   - `code` : `status_code`, `country_code`, `error_code` — bruit garanti. Un
+//     code OAuth est a usage unique et expire en secondes.
+//   - `cert` / `certificate` : un certificat est public ; c est sa CLE qui est
+//     secrete, et elle a une regle nommee inconditionnelle (`cle-privee-pem`).
+//   - `seed`, `string`, `value` : trop generiques. La chaine de connexion
+//     porteuse d identifiants a deja sa regle (`url-avec-identifiants`).
+//   - LES MARQUEURS `refresh`, `admin`, `role`, `bearer`, `webhook` : la forme
+//     reelle du terrain est `REFRESH_TOKEN` et `BEARER_TOKEN` (porteurs forts,
+//     deja couverts), pas `REFRESH_KEY` ni `BEARER_KEY` ; `SERVICE_ROLE_KEY` est
+//     deja arme par `service`. Chacun elargirait la surface de `key` et de `salt`
+//     sans qu aucun nom rencontre ne le demande.
+//   - LES FORMES COLLEES SANS MARQUEUR (`dbpassword`, `stripetoken`) : les
+//     attraper demanderait de decoller contre un ensemble OUVERT de prefixes, ce
+//     qui rouvre exactement `bypass`. Et aucun `.env` du terrain ne les ecrit
+//     ainsi : la forme reelle est `DB_PASSWORD`, deja couverte.
+// ---------------------------------------------------------------------------
+
+// Le mot seul designe un secret, quel que soit son entourage.
+const PORTEURS_FORTS = new Set([
   'password', 'passwd', 'pass', 'motdepasse', 'mdp', 'passphrase',
-  'secret', 'token', 'apikey', 'accesskey', 'privatekey', 'clientsecret',
-  // `secretkey` ajoute le 2026-08-08 : meme trou que `api_key` (commit e3d9a0e),
-  // sur le nom le plus canonique qui soit. `accesskey` et `privatekey` etaient
-  // deja la, `secretkey` manquait — donc `SECRET_KEY=<valeur>` et le
-  // `STRIPE_SECRET_KEY=<valeur>` du balayage n etaient JAMAIS examines : le mot
-  // `secret` passait le premier filtre, puis le qualificatif final `key`
-  // annulait tout, faute de trouver `secretkey` dans cette liste.
-  'secretkey',
-  'credential', 'credentials', 'authkey',
+  'secret', 'token', 'credential', 'credentials',
 ]);
 
-// Qualificatifs qui transforment la cle en REFERENCE a un secret plutot qu'en
-// secret : nodeCredentialType, tokenName, secretPath, apiKeyHeader...
+// Fort seulement ACCOMPAGNE d un autre mot : `PWD` seul est le repertoire
+// courant Unix (`PWD=/c/Users/...`), `DB_PWD` est un mot de passe.
+const PORTEURS_COMPOSES = new Set(['pwd']);
+
+// Le mot seul ne dit rien ; il devient un secret quand un MARQUEUR le precede.
+const PORTEURS_ARMES = new Set(['key', 'salt']);
+
+// Arment un porteur situe APRES eux, adjacent ou non.
+const MARQUEURS = new Set([
+  'api', 'secret', 'private', 'access', 'auth', 'signing', 'encryption',
+  'master', 'service', 'client', 'app', 'application', 'session', 'consumer',
+  'shared', 'licence', 'license', 'secure', 'logged', 'nonce',
+]);
+
+// Transforment le nom en REFERENCE a un secret : nodeCredentialType, tokenName,
+// secretPath, API_KEY_HEADER. `key` n y figure plus — c est un PORTEUR (point 5).
 const QUALIFICATIFS = new Set([
   'type', 'types', 'name', 'names', 'id', 'ids', 'path', 'file', 'url', 'uri',
-  'header', 'headers', 'field', 'var', 'env', 'key', 'label', 'kind', 'format',
+  'header', 'headers', 'field', 'var', 'env', 'label', 'kind', 'format',
   'option', 'options',
   'prefix', 'suffix', 'regex', 'pattern', 'placeholder', 'hint', 'desc',
+]);
+
+// Un mot connu n est JAMAIS decolle : `secret`, `application`, `session` doivent
+// rester entiers, sinon le decollage se mettrait a inventer des decoupages.
+const MOTS_CONNUS = new Set([
+  ...PORTEURS_FORTS, ...PORTEURS_COMPOSES, ...PORTEURS_ARMES,
+  ...MARQUEURS, ...QUALIFICATIFS,
 ]);
 
 function motsDeLaCle(cle) {
@@ -155,29 +252,48 @@ function motsDeLaCle(cle) {
     .map((m) => m.toLowerCase());
 }
 
-function cleSensible(cle) {
-  const mots = motsDeLaCle(cle);
-  if (!mots.length) return false;
-  // "api key" / "access key" / "private key" ecrits en deux mots.
-  const fusionnes = mots.slice();
-  for (let i = 0; i + 1 < mots.length; i++) fusionnes.push(mots[i] + mots[i + 1]);
-  // "MOT_DE_PASSE" se decoupe en mot/de/passe : aucun des trois n'est un mot
-  // secret, et ajouter "passe" seul ferait revenir les faux positifs sur les
-  // mots francais PASSE et PASSAGE. On reconnait donc la SUITE des trois.
-  let motDePasse = false;
-  for (let i = 0; i + 2 < mots.length; i++) {
-    if (/^mots?$/.test(mots[i]) && mots[i + 1] === 'de' && mots[i + 2] === 'passe') {
-      motDePasse = true;
+// Rend `apikey` -> [api, key], `secretkey` -> [secret, key], `clientsecret` ->
+// [client, secret]. Les DEUX moities doivent appartenir aux vocabulaires : c est
+// la borne qui empeche `bypass` de devenir `by` + `pass`.
+function decoller(mot) {
+  if (MOTS_CONNUS.has(mot)) return [mot];
+  for (const m of MARQUEURS) {
+    if (mot.length <= m.length || !mot.startsWith(m)) continue;
+    const reste = mot.slice(m.length);
+    if (PORTEURS_FORTS.has(reste) || PORTEURS_ARMES.has(reste) ||
+        PORTEURS_COMPOSES.has(reste)) {
+      return [m, reste];
     }
   }
-  if (!motDePasse && !fusionnes.some((m) => MOTS_SECRET.has(m))) return false;
-  // Un qualificatif desamorce (tokenName, secretPath) SAUF quand il forme lui-meme le
-  // mot secret avec celui qui le precede : api_key, access_key, private_key. Sans cette
-  // reserve, `api_key=<valeur>` -- la forme la plus repandue -- n etait jamais examinee.
-  const dernier = mots[mots.length - 1];
-  const avantDernier = mots.length >= 2 ? mots[mots.length - 2] : '';
-  if (QUALIFICATIFS.has(dernier) && !MOTS_SECRET.has(avantDernier + dernier)) return false;
-  return true;
+  return [mot];
+}
+
+function cleSensible(cle) {
+  const bruts = motsDeLaCle(cle);
+  if (!bruts.length) return false;
+  const mots = [];
+  for (const b of bruts) mots.push(...decoller(b));
+
+  // Point 4 : le qualificatif FINAL desamorce, avant toute autre lecture.
+  if (QUALIFICATIFS.has(mots[mots.length - 1])) return false;
+
+  // "MOT_DE_PASSE" se decoupe en mot/de/passe : aucun des trois n est un porteur,
+  // et ajouter "passe" seul ferait revenir les faux positifs sur les mots
+  // francais PASSE et PASSAGE. On reconnait donc la SUITE des trois.
+  for (let i = 0; i + 2 < mots.length; i++) {
+    if (/^mots?$/.test(mots[i]) && mots[i + 1] === 'de' && mots[i + 2] === 'passe') return true;
+  }
+
+  // Points 2 et 3 : lecture de gauche a droite ; un marqueur deja rencontre arme
+  // les porteurs qui le suivent.
+  let marqueurVu = false;
+  for (const m of mots) {
+    if (PORTEURS_FORTS.has(m)) return true;
+    if (PORTEURS_COMPOSES.has(m) && mots.length > 1) return true;
+    if (PORTEURS_ARMES.has(m) && marqueurVu) return true;
+    if (MARQUEURS.has(m)) marqueurVu = true;
+  }
+  return false;
 }
 
 // Valeurs qui ne sont pas des secrets : gabarits, references a une autre
@@ -214,6 +330,21 @@ const RE_PLACEHOLDER = new RegExp(
 const RE_NOM_DE_VARIABLE = /^[A-Z][A-Z0-9_]{5,}$/;
 // Une valeur qui est du CODE : acces membre, appel, indexation.
 const RE_CODE = /[()[\]{}]|^[A-Za-z_$][\w$]*(?:\.[\w$?]+)+/;
+
+// Une valeur qui n est qu une REFORMULATION du nom de la cle est un IDENTIFIANT,
+// pas un secret. C est le SEUL faux positif qu ait coute la sortie de `key` des
+// qualificatifs, mesure sur les 28 depots :
+//     const INVALID_API_KEY_ERROR_COUNT_CACHE_KEY = 'invalid_api_key_error_count';
+// La regle est generale et ne peut pas aveugler la garde sur un vrai mot de
+// passe : `DB_PASSWORD=super_secret_pass` reste signale, ses mots n etant pas
+// ceux de sa cle. Un secret ENGENDRE n a aucune raison de reprendre les mots de
+// sa propre variable — c est ce qui distingue un nom d une valeur.
+function valeurRepeteLaCle(cle, valeur) {
+  const mots = motsDeLaCle(valeur);
+  if (mots.length < 2) return false;              // un mot unique ne prouve rien
+  const deLaCle = new Set(motsDeLaCle(cle));
+  return mots.every((m) => deLaCle.has(m));
+}
 
 function valeurPlausible(v) {
   if (v.length < 8) return false;
@@ -474,7 +605,7 @@ function analyser(diffFourni) {
     RE_ASSIGNATION.lastIndex = 0;
     let m;
     while ((m = RE_ASSIGNATION.exec(texte)) !== null) {
-      if (cleSensible(m[1]) && valeurPlausible(m[2])) {
+      if (cleSensible(m[1]) && valeurPlausible(m[2]) && !valeurRepeteLaCle(m[1], m[2])) {
         trouvailles.push({
           fichier, numero,
           r: { nom: 'assignation-sensible',

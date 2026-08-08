@@ -216,6 +216,75 @@ const CAS = [
   // Le qualificatif doit continuer de désamorcer quand il NOMME le secret sans l'être.
   { nom: 'BORNE : secretKeyName reste désamorcé', fichier: 'z2.js',
     contenu: `const secretKeyName = "nom-de-la-cle-stripe";\n`, attendu: 'passe' },
+
+  // --- RÈGLE DE COMPOSITION (2026-08-08, tâche 249fdfd5) -------------------------------
+  // Les deux trous ci-dessus (`api_key`, `SECRET_KEY`) avaient la MÊME cause : le
+  // vocabulaire était une ÉNUMÉRATION, et le désamorçage lui demandait si la forme collée
+  // `<avant-dernier><dernier>` y figurait. Chaque nom non prévu passait donc en silence.
+  // Les cas ci-dessous ne fixent plus des mots, ils fixent la RÈGLE — chacun a été prouvé
+  // par mutation : neutraliser la clause visée le fait virer au rouge, et lui seul.
+
+  // MARQUEUR NON ADJACENT. `service` arme `key` À TRAVERS `role`. Exiger l'adjacence
+  // aurait raté la clé qui, chez Supabase, contourne toutes les règles de sécurité au
+  // niveau ligne — et elle est nommée telle quelle dans tous les `.env` du terrain.
+  { nom: 'COMPOSITION : SUPABASE_SERVICE_ROLE_KEY (marqueur non adjacent)', fichier: 'c1.env',
+    contenu: `SUPABASE_SERVICE_ROLE_KEY=${FAUX}\n`, attendu: 'refuse' },
+
+  // PORTEUR ARMÉ : `key` seul ne dit RIEN. C'est la contrepartie exacte de sa sortie des
+  // qualificatifs — sans ces trois bornes, faire entrer `api_key` reviendrait à faire
+  // rougir toute clé de cache, tout index de base et toute clé PUBLIQUE.
+  { nom: 'BORNE : CACHE_KEY sans marqueur reste muet', fichier: 'c2.env',
+    contenu: `CACHE_KEY=${FAUX}\n`, attendu: 'passe' },
+  { nom: 'BORNE : PRIMARY_KEY sans marqueur reste muet', fichier: 'c3.env',
+    contenu: `PRIMARY_KEY=${FAUX}\n`, attendu: 'passe' },
+  // `public` n'est PAS un marqueur, et ne doit jamais le devenir : une clé publique est
+  // faite pour être lue. Même logique que l'exemption `pk_live_` plus haut.
+  { nom: 'BORNE : PUBLIC_KEY reste muet, PRIVATE_KEY non', fichier: 'c4.env',
+    contenu: `PUBLIC_KEY=${FAUX}\n`, attendu: 'passe' },
+  { nom: 'COMPOSITION : PRIVATE_KEY est signalé', fichier: 'c5.env',
+    contenu: `PRIVATE_KEY=${FAUX}\n`, attendu: 'refuse' },
+
+  // DÉCOLLAGE : la forme collée se DÉRIVE, elle n'est plus énumérée. `servicekey` n'a
+  // jamais été écrit nulle part — c'est `service` + `key` qui le rendent lisible. C'est
+  // ce mécanisme qui remplace la liste qui s'est trouée deux fois.
+  { nom: 'COMPOSITION : servicekey collé (dérivé, jamais énuméré)', fichier: 'c6.env',
+    contenu: `servicekey=${FAUX}\n`, attendu: 'refuse' },
+  // BORNE du décollage : les deux moitiés doivent être des mots CONNUS. Sans elle,
+  // `bypass` deviendrait `by` + `pass` et l'on ferait revenir les faux positifs
+  // PASSE/PASSAGE que le point 1 du calibrage avait fermés.
+  { nom: 'BORNE : bypass ne se décolle pas en by + pass', fichier: 'c7.env',
+    contenu: `bypass=${FAUX}\n`, attendu: 'passe' },
+
+  // PORTEUR COMPOSÉ : `PWD` seul est le répertoire courant Unix, présent dans tout script
+  // shell ; `DB_PWD` est un mot de passe. Le même mot, deux natures, tranchées par la
+  // présence d'un second mot — et non par une exception écrite à la main.
+  { nom: 'COMPOSITION : DB_PWD est un mot de passe', fichier: 'c8.env',
+    contenu: `DB_PWD=${FAUX}\n`, attendu: 'refuse' },
+  { nom: 'BORNE : PWD seul est le répertoire courant Unix', fichier: 'c9.sh',
+    contenu: `PWD=/c/Users/aymer/projects/un-chemin-assez-long-pour-passer\n`, attendu: 'passe' },
+
+  // PORTEUR ARMÉ `salt` : les sels de wp-config.php sont de vrais secrets, et cette
+  // pratique versionne des dépôts WordPress. `auth` et `nonce` les arment.
+  { nom: 'COMPOSITION : AUTH_SALT (sel wp-config) est signalé', fichier: 'ca.env',
+    contenu: `AUTH_SALT=${FAUX}\n`, attendu: 'refuse' },
+
+  // LE QUALIFICATIF FINAL DÉSAMORCE TOUJOURS, y compris par-dessus un porteur armé :
+  // `API_KEY_HEADER` nomme un en-tête, il n'est pas la clé.
+  { nom: 'BORNE : API_KEY_HEADER nomme un en-tête', fichier: 'cb.env',
+    contenu: `API_KEY_HEADER=${FAUX}\n`, attendu: 'passe' },
+
+  // VALEUR QUI REFORMULE SA CLÉ. Seul faux positif qu'ait coûté la sortie de `key` des
+  // qualificatifs, mesuré sur les 27 dépôts (fichier vendorisé WooCommerce Stripe). Un
+  // secret engendré ne reprend jamais les mots de sa propre variable.
+  { nom: 'BORNE : la valeur n est qu une reformulation du nom de la clé', fichier: 'cc.php',
+    contenu: `<?php const INVALID_API_KEY_ERROR_COUNT_CACHE_KEY = 'invalid_api_key_error_count';\n`,
+    attendu: 'passe' },
+  // L'AUTRE SENS, obligatoire : cette exemption ne doit PAS aveugler la garde sur un mot
+  // de passe choisi par un humain, qui est lui aussi fait de mots.
+  { nom: 'BORNE : un mot de passe en clair reste signalé malgré la règle ci-dessus',
+    // La sonde EST le cas qu'elle mesure : sans le marqueur de dérogation SUR SA LIGNE,
+    // elle se ferait refuser par la garde qu'elle sert à tester, sur les 27 dépôts.
+    fichier: 'cd.env', contenu: `DB_PASSWORD=super_secret_pass\n`, attendu: 'refuse' }, // secret-ok
 ];
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });

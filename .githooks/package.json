@@ -1,0 +1,4 @@
+{
+  "//": "Ramene les .js de ce dossier en CommonJS, quoi que dise le package.json du depot hote. detect-secrets.js est du CommonJS (require, module.exports, return au niveau module) : dans un depot en \"type\": \"module\", node le chargeait comme un module ES et mourait sur « Illegal return statement » — le hook refusait alors TOUS les commits, ce qui pousse au --no-verify. Constate le 2026-08-08 en armant assistant-business-ia, premier depot ESM du parc.",
+  "type": "commonjs"
+}

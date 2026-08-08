@@ -21,6 +21,18 @@ l'objet commit. Cf. `[[garantie-par-mecanisme-pas-convention]]`.
 | --- | --- |
 | `.githooks/pre-commit` | enveloppe `/bin/sh`, résout `node`, échoue bruyamment s'il manque |
 | `.githooks/detect-secrets.js` | la détection elle-même |
+| `.githooks/package.json` | `{"type": "commonjs"}` — **ne pas l'oublier en copiant le dossier** |
+
+> **Pourquoi ce `package.json` de trois lignes** (2026-08-08, en armant
+> `assistant-business-ia`). `detect-secrets.js` est du CommonJS (`require`,
+> `module.exports`, `return` au niveau module). Dans un dépôt dont le
+> `package.json` racine porte `"type": "module"`, node charge tout `.js` comme un
+> module ES et meurt sur `SyntaxError: Illegal return statement`. Le hook rend
+> alors 1 sur **tous** les commits, y compris propres — un dépôt qui refuse ses
+> propres commits légitimes se fait désinstaller dans la journée, ou se contourne
+> au `--no-verify`, ce qui revient au même. Le `package.json` du dossier ramène
+> ces `.js` en CommonJS quel que soit le dépôt hôte, sans toucher au détecteur.
+> Le `.mjs` de la recette n'est pas concerné : son extension prime.
 
 Activation (locale au dépôt, **à refaire après un nouveau clone**) :
 
@@ -95,7 +107,7 @@ se fait désinstaller.
   valeur en `pk_live_…` est l'usage **normal** côté front et doit rester muette.
   (Cette phrase a été écrite sans signe `=` exprès : avec lui, elle avait la forme
   d'une assignation sensible et **ce README refusait son propre commit** sur les
-  27 dépôts. C'est le pire cas qui l'a montré, pas la relecture.)
+  28 dépôts. C'est le pire cas qui l'a montré, pas la relecture.)
 - **`sk_test_` / `rk_test_` (Stripe)** — **arbitrage du 2026-08-08 : ni règle
   nommée, ni exemption.** Une clé de test n'ouvre ni argent ni données réelles :
   ce n'est pas une fuite, donc elle ne mérite pas un refus inconditionnel, qui
@@ -114,12 +126,64 @@ se fait désinstaller.
 
 ### Les deux règles heuristiques
 
-- **`assignation-sensible`** — une clé dont un *mot* (et non une sous-chaîne) est
-  `password`, `token`, `secret`, `apikey`, `motdepasse`… suivie d'une valeur
-  d'allure secrète ;
+- **`assignation-sensible`** — une clé dont la **composition** désigne un secret
+  (voir la règle ci-dessous), suivie d'une valeur d'allure secrète ;
 - **`litteral-haute-entropie`** — une chaîne longue et opaque à moins de
   80 caractères d'un mot parlant de jeton ou de secret. C'est elle qui attrape ce
   que l'assignation rate (une constante nommée `EXPECTED`, par exemple).
+
+#### La règle de composition d'un nom de variable
+
+**Ce n'est plus une liste de mots.** Un nom se lit comme une phrase :
+
+```
+[fournisseur]   [marqueur ...]    PORTEUR    [qualificatif]
+  STRIPE_           SECRET_         KEY
+ SUPABASE_       SERVICE_ROLE_      KEY
+                     API_           KEY         _HEADER   -> référence
+```
+
+| Rôle | Ce que le mot dit | Membres |
+| --- | --- | --- |
+| **Porteur fort** | le mot seul **est** un secret | `password` `passwd` `pass` `passphrase` `motdepasse` `mdp` `secret` `token` `credential(s)` |
+| **Porteur composé** | fort seulement **accompagné** | `pwd` (seul, c'est le répertoire courant Unix) |
+| **Porteur armé** | ne dit rien seul ; secret **si un marqueur précède** | `key` `salt` |
+| **Marqueur** | arme un porteur situé **après** lui, adjacent ou non | `api` `secret` `private` `access` `auth` `signing` `encryption` `master` `service` `client` `app` `application` `session` `consumer` `shared` `licence` `license` `secure` `logged` `nonce` |
+| **Qualificatif final** | le nom **désigne** un secret, il n'en est pas un | `name` `path` `type` `url` `header` `id` `env` `var` `label` `format` `option` `prefix` `regex` `pattern` `placeholder` `hint` `desc` `file` `field` `kind` `uri` |
+
+Deux mécanismes portent tout le reste :
+
+- **Décollage** — un mot inconnu qui se décompose exactement en
+  `<marqueur><porteur>` est rendu à ses deux mots. `apikey`, `secretkey`,
+  `accesskey`, `privatekey`, `authkey`, `clientsecret`, `servicekey`, `apitoken`
+  **ne sont plus écrits nulle part** : ils se **dérivent**. Les deux moitiés
+  doivent appartenir aux vocabulaires — sans cette borne, `bypass` deviendrait
+  `by` + `pass` et les faux positifs PASSE/PASSAGE reviendraient.
+- **Le marqueur porte à distance** — `service` arme `key` à travers `role`, ce
+  qui est la seule façon de voir `SUPABASE_SERVICE_ROLE_KEY`, la clé qui
+  contourne toutes les règles de sécurité au niveau ligne.
+
+**`key` n'est plus un qualificatif**, c'est un porteur : sa présence parmi les
+qualificatifs est **la cause unique des deux trous** `api_key` et `SECRET_KEY`.
+
+##### Ce qui n'est délibérément **pas** couvert
+
+Décidé sur les **3 055 combinaisons engendrées** depuis la règle et passées au
+détecteur — pas au jugement. Élargir est facile ; ne pas devenir bavard est le
+travail, et un dépôt qui refuse des commits légitimes se fait contourner au
+`--no-verify` sur les 28 d'un coup.
+
+| Écarté | Pourquoi |
+| --- | --- |
+| `signature`, `sig` | une signature est le **produit** d'un secret, publiée dans la requête ; `webhook_signature` peuple les fixtures. Le secret de signature est couvert (`whsec_`, `signing_key`). |
+| `hash`, `digest` | conçus pour être stockés — et `hash` est déjà une **exemption** (`RE_CONTEXTE_EMPREINTE`). Les détecter contredirait cette exemption. |
+| `id` | `client_id`, `app_id`, `session_id` sont **publics par construction**. Reste un qualificatif. |
+| `code` | `status_code`, `country_code`, `error_code` — bruit garanti. Un code OAuth expire en secondes. |
+| `cert`, `certificate` | un certificat est public ; c'est sa **clé** qui est secrète, et elle a une règle nommée (`cle-privee-pem`). |
+| `seed`, `string`, `value` | trop génériques. La chaîne de connexion à identifiants a déjà `url-avec-identifiants`. |
+| marqueurs `refresh` `admin` `role` `bearer` `webhook` | la forme réelle du terrain est `REFRESH_TOKEN` / `BEARER_TOKEN` (porteurs forts, déjà couverts), pas `REFRESH_KEY` ; `SERVICE_ROLE_KEY` est déjà armé par `service`. Chacun élargirait `key` et `salt` sans qu'aucun nom rencontré ne le demande. |
+| formes collées **sans marqueur** (`dbpassword`, `stripetoken`) | les attraper demanderait de décoller contre un ensemble **ouvert** de préfixes, ce qui rouvre `bypass`. Aucun `.env` du terrain ne les écrit ainsi. |
+| `PUBLIC_KEY` | une clé publique est faite pour être lue. `public` n'est pas un marqueur et ne doit pas le devenir — même logique que l'exemption `pk_live_`. |
 
 **Le hook n'imprime jamais une valeur de secret** — uniquement chemin, numéro de
 ligne et nom de règle. Sa sortie finit dans `backup-claude.log` quand le backup
@@ -242,6 +306,72 @@ Ce que le calibrage a corrigé, à garder en tête avant d'élargir une règle :
     propre commit** — corrigé, et signalé ici parce que c'est le mode d'échec
     typique d'un élargissement : il se paie sur la documentation avant de se payer
     sur le code.
+
+12. **Le vocabulaire devient une RÈGLE (2026-08-08, tâche `249fdfd5`)** — voir la
+    section « La règle de composition » plus haut pour le *quoi*. Ce qui suit est
+    le *pourquoi* et la **mesure**.
+
+    **Le motif, et c'est lui le sujet.** En une nuit, deux runs indépendants ont
+    trouvé, **chacun par hasard**, un mot manquant : `api_key` (point 9) puis
+    `secretkey` (point 11). Deux fois le même mode d'échec, découvert deux fois
+    par accident. Le troisième trou existait déjà ; il aurait été trouvé par un
+    accident qui n'aurait pas eu lieu, ou par une fuite. **Une liste de mots
+    grandit par accident et se troue en silence ; une règle de composition se
+    vérifie.**
+
+    La cause commune tient en une phrase : le désamorçage demandait à
+    `MOTS_SECRET` si la forme collée `<avant-dernier><dernier>` en faisait
+    partie. Il fallait donc y avoir écrit **d'avance** `apikey`, `secretkey`,
+    `servicekey`, `authkey`… et tout nom non prévu passait sans bruit. Les deux
+    trous ont été **reproduits par mutation avant d'être corrigés** — le
+    correctif est fondé sur une mesure refaite, pas sur le rapport des deux runs.
+
+    **La génération remplace l'intuition.** 3 055 combinaisons ont été engendrées
+    depuis la règle (porteurs × marqueurs × neutres × qualificatifs × 9 préfixes
+    fournisseur × 5 casses : `SNAKE_MAJ`, `snake_min`, `camelCase`, `kebab-case`,
+    collée) et passées au détecteur. **+251 détections gagnées, 0 perdue.** Ce
+    qui reste non détecté est listé dans « Ce qui n'est délibérément pas
+    couvert » : ce sont des **décisions écrites**, plus des oublis.
+
+    Sont notamment couverts, dans les 5 casses et avec les préfixes `STRIPE_`
+    `SUPABASE_` `AWS_` `GOOGLE_` `GITHUB_` `N8N_` `DB_` `WP_` : `SECRET_KEY`
+    `API_KEY` `ACCESS_TOKEN` `AUTH_TOKEN` `PRIVATE_KEY` `CLIENT_SECRET`
+    `APP_SECRET` `DB_PASSWORD` `SERVICE_ROLE_KEY` `DB_PWD` `AUTH_SALT`.
+
+    **Contre-épreuve sur les 28 dépôts branchés, avant / après :**
+
+    | | Refus / 60 derniers commits | Pire cas |
+    | --- | --- | --- |
+    | Avant | 10 | 26 |
+    | Après | **10 — les mêmes SHA** | **26 — la même liste** |
+
+    **Zéro dépôt avec écart**, comparaison ligne à ligne (chemin + numéro + nom
+    de règle). Détail par dépôt : `~/.claude` 5 refus/60, `l-echo-des-hauts` 2/60,
+    `assistant-business-ia` 1/60, `migration-divi5-anaphore` 1/41,
+    `reprise-securisation-lytho-box` 1/14, **les 23 autres 0**. Pire cas :
+    `~/.claude` 22, `assistant-business-ia` 2, `reprise-securisation-lytho-box` 2,
+    **les 25 autres 0**.
+
+    **Le seul faux positif que l'élargissement ait produit** — et comment il a été
+    fermé plutôt qu'accepté. Sortir `key` des qualificatifs a fait rougir une
+    ligne, une seule, sur les 28 dépôts :
+    `const INVALID_API_KEY_ERROR_COUNT_CACHE_KEY = 'invalid_api_key_error_count'`
+    (fichier vendorisé WooCommerce Stripe). Plutôt que de vivre avec, une règle
+    **générale** a été ajoutée : *une valeur qui n'est qu'une reformulation des
+    mots de sa propre clé est un identifiant, pas un secret*. Elle ne peut pas
+    aveugler la garde sur un mot de passe choisi par un humain — un `DB_PASSWORD`
+    valant `super_secret_pass` reste signalé, ses mots n'étant pas ceux de sa
+    clé — et les deux cas de recette fixent ce couple. (Phrase écrite sans signe
+    `=`, **exprès** : avec lui elle avait la forme d'une assignation sensible et
+    ce README refusait son propre commit sur les 28 dépôts, comme au point 11.
+    C'est le pire cas qui l'a montré, pas la relecture.)
+
+    **Preuve par mutation, 7 clauses, chacune tuée séparément** : remettre `key`
+    parmi les qualificatifs (7 cas rouges), neutraliser le décollage (1), le
+    déborner (`bypass` → `by`+`pass`, 1), faire de `pwd` un porteur fort (1),
+    retirer `salt` (1), exiger l'adjacence du marqueur (`SERVICE_ROLE_KEY`, 1),
+    neutraliser l'exemption de reformulation (1). Aucune mutation ne survit à la
+    recette — sans quoi la recette ne prouverait rien.
 
 ### Re-mesurer après avoir touché une règle
 

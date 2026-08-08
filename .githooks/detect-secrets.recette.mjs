@@ -30,6 +30,33 @@ const DETECTEUR = join(ICI, 'detect-secrets.js');
 // atterrissait ailleurs dans cette recette, il serait encore attrapé.
 const FAUX = 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f7081'; // secret-ok
 
+// --- Valeurs Stripe : la FORME du préfixe, jamais une valeur valide. ---------
+//
+// POURQUOI LES QUATRE PREMIÈRES SONT ASSEMBLÉES À L'EXÉCUTION, et pas écrites
+// d'une pièce : parce que la première version l'était, et que **GitHub a refusé
+// le push** — sa propre protection les a lues comme des clés Stripe réelles
+// (« Stripe Live API Restricted Key », `remote rejected` sur `l-echo-des-hauts`).
+// C'est une bonne nouvelle sur le fond — la FORME suffit à un détecteur sérieux,
+// ce qui est exactement la thèse de ces règles — mais un fichier de recette qui
+// ne peut pas être poussé, ou qui déclenche une alerte de sécurité sur 26 dépôts,
+// est inutilisable.
+//
+// La concaténation résout les deux : le fichier SOURCE ne contient jamais la
+// chaîne complète, donc ni GitHub ni la garde locale ne la voient ; mais à
+// l'exécution la valeur assemblée est écrite en entier dans le dépôt jetable, et
+// c'est bien la forme complète que le détecteur juge. Le test n'est pas affaibli.
+// NE PAS « simplifier » en recollant les morceaux : le push casserait.
+//
+// Les deux clés PUBLIABLES, elles, sont écrites d'une pièce EXPRÈS : si
+// l'exemption `RE_PUBLIABLE` régressait, ce fichier ne pourrait plus être
+// commité. La recette est alors sa propre épreuve, dans le vrai dépôt.
+const SK_LIVE = 'sk_live_' + 'B7k2Qm9Xt4Rw6Nz1Ha3Vd5Cy';
+const RK_LIVE = 'rk_live_' + 'D3f8Jn5Lp2Sv7Bx4Gt6Kq9Mw';
+const WHSEC   = 'whsec_'   + 'T5y8Uc2Ie4Op6As1Df3Gh7Jk9Lz';
+const SK_TEST = 'sk_test_' + 'H6g4Fd2Sa8Zx5Cv3Bn1Mk7Jl9';
+const PK_LIVE = 'pk_live_Z4x7Cv1Bn8Mq3Wr5Ty6Ui2Op0';
+const PK_TEST = 'pk_test_Q1w2E3r4T5y6U7i8O9p0A1s2D3';
+
 const CAS = [
   { nom: 'mot-clé et littéral sur la MÊME ligne', fichier: 'a.js',
     contenu: `const token = "${FAUX}";\n`, attendu: 'refuse' },
@@ -138,6 +165,57 @@ const CAS = [
     contenu: `const env = { N8N_TOKEN: 'jeton-test' };\n`, attendu: 'passe' },
   { nom: 'faux positif : « If tests pass: Continue » dans une doc', fichier: 'v.md',
     contenu: `- If tests pass: Continue\n`, attendu: 'passe' }, // secret-ok : la sonde EST le faux positif
+
+  // --- Règles à MOTIF NOMMÉ (2026-08-08, tâche 6437c6d3). ------------------------------
+  // LE CAS DÉCISIF EST LE PREMIER. La clé secrète Stripe LIVE d'un client n'avait été
+  // trouvée par le balayage que grâce à la règle d'ENTROPIE, et seulement parce qu'un mot
+  // parlant de secret traînait dans les 80 caractères voisins. Le contenu de ce cas est
+  // donc la clé SEULE, sur une ligne seule, dans un fichier qui ne dit rien d'autre : c'est
+  // exactement la situation où elle passait, et rien ne doit plus la sauver.
+  { nom: 'NOMMÉ : sk_live_ SEUL, aucun mot parlant de secret alentour', fichier: 'w1.txt',
+    contenu: `${SK_LIVE}\n`, attendu: 'refuse' },
+  { nom: 'NOMMÉ : rk_live_ (clé restreinte, secrète elle aussi) SEUL', fichier: 'w2.txt',
+    contenu: `${RK_LIVE}\n`, attendu: 'refuse' },
+  { nom: 'NOMMÉ : whsec_ SEUL (signature de webhook Stripe)', fichier: 'w3.txt',
+    contenu: `${WHSEC}\n`, attendu: 'refuse' },
+
+  // BORNE : sans cette exigence de longueur, le PRÉFIXE cité dans de la documentation
+  // suffirait à refuser le commit — y compris celui de ce README. Une règle nommée qui
+  // rougit sur sa propre notice se fait désinstaller.
+  { nom: 'BORNE : le préfixe sk_live_ cité seul en doc ne suffit pas', fichier: 'w4.md',
+    contenu: `Les clés commencant par sk_live_ sont des secrets.\n`, attendu: 'passe' },
+
+  // L'AUTRE SENS, obligatoire : une clé PUBLIABLE doit passer. Une règle nommée qui crie
+  // sur une clé destinée au navigateur se fait désarmer, et c'est toute la garde qui tombe.
+  { nom: 'PUBLIABLE : pk_live_ seul passe', fichier: 'x1.txt',
+    contenu: `${PK_LIVE}\n`, attendu: 'passe' },
+  { nom: 'PUBLIABLE : pk_test_ seul passe', fichier: 'x2.txt',
+    contenu: `${PK_TEST}\n`, attendu: 'passe' },
+  // Le cas qui compte vraiment : la clé publiable posée sous un nom PARLANT. C'est l'usage
+  // NORMAL de Stripe côté front, et c'est là que les règles génériques la signaleraient.
+  { nom: 'PUBLIABLE : pk_live_ sous un nom parlant reste muet', fichier: 'x3.js',
+    contenu: `const stripe_api_key = "${PK_LIVE}";\n`, attendu: 'passe' },
+
+  // ARBITRAGE sk_test_ (2026-08-08) : ni règle nommée, ni exemption. Une clé de test
+  // n'ouvre ni argent ni données réelles — ce n'est pas une fuite, donc pas de refus
+  // inconditionnel qui rougirait sur toutes les fixtures d'intégration. Mais elle n'est pas
+  // publiable par construction — donc pas d'exemption non plus. Elle reste soumise aux
+  // règles génériques : MUETTE isolée, SIGNALÉE sous un nom parlant. Les deux cas ci-dessous
+  // fixent cet arbitrage ; s'ils changent, c'est que quelqu'un a tranché autrement.
+  { nom: 'ARBITRAGE : sk_test_ isolé passe (pas de règle nommée)', fichier: 'y1.txt',
+    contenu: `${SK_TEST}\n`, attendu: 'passe' },
+  { nom: 'ARBITRAGE : sk_test_ sous un nom parlant est signalé (pas d exemption)',
+    fichier: 'y2.env', contenu: `STRIPE_SECRET_KEY=${SK_TEST}\n`, attendu: 'refuse' },
+
+  // Le trou frère de celui d'`api_key` (commit e3d9a0e) : `secret_key` se découpe en
+  // [secret, key], `key` est un qualificatif, et `secretkey` manquait à MOTS_SECRET alors
+  // qu'`accesskey` et `privatekey` y étaient. Le nom le plus canonique qui soit n'était
+  // donc JAMAIS examiné.
+  { nom: 'SECRET_KEY= non quoté (le trou frère de api_key)', fichier: 'z1.env',
+    contenu: `SECRET_KEY=${FAUX}\n`, attendu: 'refuse' },
+  // Le qualificatif doit continuer de désamorcer quand il NOMME le secret sans l'être.
+  { nom: 'BORNE : secretKeyName reste désamorcé', fichier: 'z2.js',
+    contenu: `const secretKeyName = "nom-de-la-cle-stripe";\n`, attendu: 'passe' },
 ];
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });

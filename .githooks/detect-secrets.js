@@ -38,8 +38,34 @@
 const { execFileSync } = require('child_process');
 
 // ---------------------------------------------------------------------------
-// Regles a motif precis. Faible taux de faux positifs : ces prefixes ne se
+// Regles a MOTIF NOMME. Faible taux de faux positifs : ces prefixes ne se
 // rencontrent pas par hasard.
+//
+// CE QUI LES DISTINGUE DU RESTE DU FICHIER : elles ne demandent AUCUN mot-cle au
+// voisinage. Un `sk_live_` n a qu une seule signification au monde, il n a pas
+// besoin qu on ecrive « secret » a cote de lui pour en etre un.
+//
+// POURQUOI C EST ECRIT ICI (2026-08-08, tache 6437c6d3). La cle secrete Stripe
+// LIVE d un client — acces API complet a son compte de paiement — a bien ete
+// trouvee par le balayage du 2026-08-07, mais par la SEULE regle d entropie, et
+// seulement parce qu un mot parlant de secret se trouvait dans les 80 caracteres
+// voisins. Deplacez la ligne, et la trouvaille la plus grave du balayage passait.
+// Aucune regle ne reconnaissait `sk_live_` pour ce qu il est.
+//
+// CE QUI N EST DELIBEREMENT PAS ICI, et pourquoi :
+//   - `pk_live_` / `pk_test_` (Stripe) : PUBLIABLES PAR CONSTRUCTION, ils sont
+//     faits pour partir dans le navigateur. Les detecter serait un faux positif
+//     garanti, et une regle nommee qui crie sur une cle publique se fait
+//     desarmer. Ils ont l exemption explicite RE_PUBLIABLE plus bas.
+//   - `sk_test_` / `rk_test_` (Stripe) : ARBITRAGE DU 2026-08-08 — ni regle
+//     nommee, ni exemption. Une cle de test ne donne acces ni a de l argent ni a
+//     des donnees reelles : ce n est pas une fuite, donc elle ne merite pas un
+//     refus inconditionnel, qui rougirait sur toutes les fixtures d integration.
+//     Mais elle n est pas non plus publiable par construction : elle ne merite
+//     pas davantage une exemption. Elle reste donc soumise aux regles generiques
+//     comme n importe quelle valeur — signalee si elle est posee sous un nom
+//     parlant, muette si elle est isolee. C est la pratique qu on veut voir, pas
+//     la valeur qu on veut bloquer.
 // ---------------------------------------------------------------------------
 const REGLES_MOTIF = [
   { nom: 'cle-privee-pem', desc: 'entete de cle privee PEM/OpenSSH',
@@ -60,7 +86,24 @@ const REGLES_MOTIF = [
     re: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/ },
   { nom: 'url-avec-identifiants', desc: 'URL portant user:motdepasse@hote',
     re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:[^\s/:@]{6,}@[^\s/]+/i },
+  // Stripe, ajoutes le 2026-08-08. `sk_` = cle secrete, `rk_` = cle restreinte
+  // (secrete elle aussi, seulement bornee en droits), `_live_` = compte reel.
+  // Le suffixe est exige a 16 caracteres au moins pour que le PREFIXE SEUL, cite
+  // dans de la documentation ou dans ce fichier, ne suffise pas a faire rougir.
+  { nom: 'cle-secrete-stripe-live', desc: 'cle secrete Stripe LIVE (sk_live_/rk_live_)',
+    re: /\b[sr]k_live_[A-Za-z0-9]{16,}\b/ },
+  { nom: 'secret-webhook-stripe', desc: 'secret de signature de webhook Stripe (whsec_)',
+    re: /\bwhsec_[A-Za-z0-9]{16,}\b/ },
 ];
+
+// ---------------------------------------------------------------------------
+// PUBLIABLE PAR CONSTRUCTION : la valeur est FAITE pour etre lue par n importe
+// qui. Aucune regle, nommee ou heuristique, ne doit la signaler — meme posee
+// sous un nom parlant (`STRIPE_API_KEY = "pk_live_..."` est l usage NORMAL).
+// C est une exemption, donc elle ne peut que RETIRER des detections : le seul
+// risque serait qu un vrai secret porte ce prefixe, ce que le prefixe interdit.
+// ---------------------------------------------------------------------------
+const RE_PUBLIABLE = /\bpk_(?:live|test)_[A-Za-z0-9]{8,}\b/;
 
 // ---------------------------------------------------------------------------
 // Regle generique : une ASSIGNATION dont la cle sent le secret.
@@ -85,6 +128,13 @@ const RE_ASSIGNATION = new RegExp(
 const MOTS_SECRET = new Set([
   'password', 'passwd', 'pass', 'motdepasse', 'mdp', 'passphrase',
   'secret', 'token', 'apikey', 'accesskey', 'privatekey', 'clientsecret',
+  // `secretkey` ajoute le 2026-08-08 : meme trou que `api_key` (commit e3d9a0e),
+  // sur le nom le plus canonique qui soit. `accesskey` et `privatekey` etaient
+  // deja la, `secretkey` manquait — donc `SECRET_KEY=<valeur>` et le
+  // `STRIPE_SECRET_KEY=<valeur>` du balayage n etaient JAMAIS examines : le mot
+  // `secret` passait le premier filtre, puis le qualificatif final `key`
+  // annulait tout, faute de trouver `secretkey` dans cette liste.
+  'secretkey',
   'credential', 'credentials', 'authkey',
 ]);
 
@@ -167,6 +217,7 @@ const RE_CODE = /[()[\]{}]|^[A-Za-z_$][\w$]*(?:\.[\w$?]+)+/;
 
 function valeurPlausible(v) {
   if (v.length < 8) return false;
+  if (RE_PUBLIABLE.test(v)) return false;
   if (RE_PLACEHOLDER.test(v)) return false;
   if (RE_NOM_DE_VARIABLE.test(v)) return false;
   if (RE_CODE.test(v)) return false;
@@ -286,6 +337,7 @@ function valeurEstSuspecte(v, texte, debut, fin, voisinage = '') {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) {
     return false;                                    // UUID (session, tache, projet)
   }
+  if (RE_PUBLIABLE.test(v)) return false;
   if (RE_PLACEHOLDER.test(v)) return false;
   // Un secret melange chiffres et lettres ; un slug, un chemin ou une phrase
   // sans espace, non.

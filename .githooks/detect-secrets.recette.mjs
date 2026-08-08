@@ -57,6 +57,19 @@ const SK_TEST = 'sk_test_' + 'H6g4Fd2Sa8Zx5Cv3Bn1Mk7Jl9';
 const PK_LIVE = 'pk_live_Z4x7Cv1Bn8Mq3Wr5Ty6Ui2Op0';
 const PK_TEST = 'pk_test_Q1w2E3r4T5y6U7i8O9p0A1s2D3';
 
+// --- Valeurs des TROIS ANGLES MORTS (2026-08-08, tâche b01265b7) --------------
+// Inventées, assemblées à l'exécution pour la même raison que les valeurs Stripe
+// ci-dessus : le fichier SOURCE ne porte jamais la chaîne complète.
+//   HEX40   : 40 caractères hexadécimaux minuscules — la forme EXACTE du jeton du
+//             registre npm privé, et celle d'un sha git. C'est toute la difficulté :
+//             la valeur ne dit rien, seule la CLÉ distingue les deux.
+//   MDP_APP : 4 groupes de 4 lettres minuscules — la forme sous laquelle Google
+//             AFFICHE ses mots de passe d'application, donc celle sous laquelle ils
+//             sont collés.
+const HEX40 = 'b3f9' + 'a12c' + '7d54' + '0e6b' + '81aa' + '2f37' + 'c9d0' + '4e15' + '6a82' + 'bb7c';
+const MDP_APP = 'wqzl' + ' ' + 'mnbv' + ' ' + 'trfe' + ' ' + 'hjkd';
+const JETON_NPM = 'Kf7Q2' + 'mZt9Rw4Nx1Hb3Vd5Cy8Ju6Le0Ap2Sg';
+
 const CAS = [
   { nom: 'mot-clé et littéral sur la MÊME ligne', fichier: 'a.js',
     contenu: `const token = "${FAUX}";\n`, attendu: 'refuse' },
@@ -285,6 +298,92 @@ const CAS = [
     // La sonde EST le cas qu'elle mesure : sans le marqueur de dérogation SUR SA LIGNE,
     // elle se ferait refuser par la garde qu'elle sert à tester, sur les 27 dépôts.
     fichier: 'cd.env', contenu: `DB_PASSWORD=super_secret_pass\n`, attendu: 'refuse' }, // secret-ok
+
+  // --- LES TROIS ANGLES MORTS (2026-08-08, tâche b01265b7) -----------------------------
+  // Ils avaient la MÊME cause : un FILTRE D'EXCLUSION appliqué sans regarder le voisinage.
+  // Le détecteur croise déjà « littéral » et « clé parlante » ; ces trois trous venaient de
+  // ce que trois filtres jugeaient la valeur SEULE, en ignorant la clé qui la porte.
+
+  // 1. VALEURS À ESPACES. `valeurPlausible()` rejetait toute valeur en contenant une, or
+  // Google AFFICHE ses mots de passe d'application en 4 groupes de 4 lettres séparés par
+  // des espaces — c'est sous cette forme qu'on les colle. C'est par ce trou qu'un accès
+  // SMTP/IMAP à la boîte Gmail principale est resté 15 mois exposé.
+  // Le correctif naïf (accepter les espaces) est MESURÉ à 10 318 signalements de prose :
+  // ce n'est donc pas l'espace qu'on accepte, c'est LE GABARIT, et seulement sous une clé
+  // qui nomme un secret.
+  { nom: 'ESPACES : mot de passe d application Google sous une clé sensible', fichier: 'e1.env',
+    contenu: `GMAIL_APP_PASSWORD=${MDP_APP}\n`, attendu: 'refuse' },
+  // Un `.env` porte des commentaires de fin de ligne. Sans cette tolérance, l'ancrage de
+  // fin de ligne se laisse défaire par un simple `# boîte pro` — et c'est le genre de
+  // détail qui rend une règle vraie en recette et fausse sur le terrain.
+  { nom: 'ESPACES : le gabarit suivi d un commentaire de fin de ligne', fichier: 'e1b.env',
+    contenu: `SMTP_PASS=${MDP_APP}  # boite pro\n`, attendu: 'refuse' },
+  // BORNE : le gabarit se rencontre en prose française. Sans cette borne, on accepte
+  // les 10 318 signalements que la mesure a écartés.
+  { nom: 'BORNE : phrase ordinaire de quatre mots de quatre lettres', fichier: 'e2.md',
+    contenu: `Il faut dire tout cela bien vite ici\n`, attendu: 'passe' },
+  { nom: 'BORNE : le gabarit en prose, à côté du mot « password »', fichier: 'e3.md',
+    contenu: `Le password sera dans cela dire tout bien note plus bas\n`, attendu: 'passe' },
+  // BORNE, l'autre sens : on n'a PAS accepté « toute valeur à espaces sous une clé
+  // sensible ». Une phrase reste une phrase, même sous `PASSWORD_POLICY`.
+  { nom: 'BORNE : une phrase sous une clé sensible n est pas un secret', fichier: 'e4.env',
+    contenu: `PASSWORD_POLICY=au moins douze caracteres dont un chiffre\n`, attendu: 'passe' },
+
+  // 2. LE FILTRE SHA, LE PLUS LARGE DES TROIS. Une valeur de 7 à 40 hexadécimaux
+  // minuscules était lue comme un sha git et écartée, SANS REGARDER LA CLÉ. Le jeton du
+  // registre npm privé Divi fait exactement 40 hexadécimaux minuscules : il était donc
+  // invisible même sous `_authToken`. La règle du sha ne disparaît pas — elle se met à
+  // regarder la clé, parce qu'un sha ne s'écrit pas sous un nom de mot de passe.
+  { nom: 'SHA : password=<40 hex> (le filtre ignorait la clé)', fichier: 'e5.env',
+    contenu: `password=${HEX40}\n`, attendu: 'refuse' },
+  { nom: 'BORNE : un vrai sha git isolé passe', fichier: 'e6.sh',
+    contenu: `SHA=${HEX40}\n`, attendu: 'passe' },
+  { nom: 'BORNE : commit=<40 hex> passe', fichier: 'e7.sh',
+    contenu: `commit=${HEX40}\n`, attendu: 'passe' },
+  { nom: 'BORNE : un sha cité dans de la prose passe', fichier: 'e8.md',
+    contenu: `Le commit ${HEX40} corrige la garde.\n`, attendu: 'passe' },
+  // LA MÊME LEÇON, APPLIQUÉE AUX FILTRES VOISINS — c'est la différence entre corriger
+  // « le cas du sha » et corriger « un filtre d'exclusion qui ignore la clé ». Les deux
+  // ci-dessous vivent dans la même fonction, à une ligne d'écart, et avaient le même
+  // défaut. Chacun est mesuré à zéro refus et zéro détection ajoutée sur les 38 dépôts.
+  { nom: 'CASSE : password=<40 hex MAJUSCULES> (l angle 2 ne dépend pas de la casse)',
+    fichier: 'e8b.env', contenu: `password=${HEX40.toUpperCase()}\n`, attendu: 'refuse' },
+  // BORNE : une valeur en majuscules qui n'est PAS de l'hexadécimal reste une référence
+  // à une autre variable. C'est la forme normale d'un fichier de configuration propre.
+  { nom: 'BORNE : token: N8N_DRIFT_HEARTBEAT_TOKEN reste une référence', fichier: 'e8c.env',
+    // secret-ok : dans le SOURCE, le `\n` littéral colle à la valeur et lui ôte sa forme
+    // de référence — la sonde se ferait refuser par la garde qu'elle sert à tester.
+    contenu: `token: N8N_DRIFT_HEARTBEAT_TOKEN\n`, attendu: 'passe' }, // secret-ok
+  { nom: 'UUID : un secret client Azure AD est un GUID', fichier: 'e8d.env',
+    // secret-ok : GUID inventé. La sonde EST le cas qu'elle mesure — sans ce marqueur,
+    // ajouter cette recette ferait refuser son propre commit sur les 37 copies.
+    contenu: `AZURE_CLIENT_SECRET=3f6a2b18-4c7d-4e91-9a02-5d8c71b3ef40\n`, attendu: 'refuse' }, // secret-ok
+  // BORNE : les UUID sont omniprésents ici (identifiants de tâche et de projet). Sans
+  // clé qui nomme un secret, rien ne change.
+  { nom: 'BORNE : un UUID sous une clé quelconque reste muet', fichier: 'e8e.env',
+    contenu: `EXECUTION=3f6a2b18-4c7d-4e91-9a02-5d8c71b3ef40\n`, attendu: 'passe' },
+  // BORNE : la règle du littéral à haute entropie n'a AUCUNE clé à regarder — son
+  // exemption UUID reste donc entière, sinon chaque identifiant cité près du mot
+  // « token » ferait rougir un commit.
+  { nom: 'BORNE : un UUID près d une ligne parlant de jeton reste muet', fichier: 'e8f.js',
+    contenu: `const token = process.env.X;\nconst EXPECTED = "3f6a2b18-4c7d-4e91-9a02-5d8c71b3ef40";\n`,
+    attendu: 'passe' },
+
+  // 3. LA CLÉ PRÉFIXÉE D'UN CHEMIN. `//npm.<hôte>/:_authToken=<valeur>` n'était pas vu
+  // alors que `authToken=<valeur>` l'était : le `:` du chemin de registre était lu comme
+  // le séparateur d'assignation, la clé capturée était VIDE, et le reste de la ligne
+  // consommé sans être réexaminé. Ce n'est pas « le cas de npm » : c'est une clé précédée
+  // d'un chemin, forme qu'on retrouve dans tout fichier de configuration adressé par URL.
+  { nom: 'CHEMIN : //hôte/:_authToken=<valeur> dans un .npmrc', fichier: 'e9.npmrc',
+    contenu: `//npm.registre-divi.net/:_authToken=${JETON_NPM}\n`, attendu: 'refuse' },
+  // LE CAS RÉEL cumule les angles 2 et 3 : chacun suffisait à lui seul à le rendre
+  // invisible. Fermer un seul des deux n'aurait rien changé, et l'aurait fait croire.
+  { nom: 'CUMUL : //hôte/:_authToken=<40 hex> (angles 2 et 3 ensemble)', fichier: 'e10.npmrc',
+    contenu: `//npm.registre-divi.net/:_authToken=${HEX40}\n`, attendu: 'refuse' },
+  { nom: 'BORNE : chemin de registre sans jeton', fichier: 'e11.npmrc',
+    contenu: `registry=https://npm.registre-divi.net/\n`, attendu: 'passe' },
+  { nom: 'BORNE : //hôte/:always-auth=true ne porte aucune valeur secrète', fichier: 'e12.npmrc',
+    contenu: `//npm.registre-divi.net/:always-auth=true\n`, attendu: 'passe' },
 ];
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });

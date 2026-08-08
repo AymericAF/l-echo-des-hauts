@@ -454,6 +454,64 @@ Ce que le calibrage a corrigé, à garder en tête avant d'élargir une règle :
     neutraliser l'exemption de reformulation (1). Aucune mutation ne survit à la
     recette — sans quoi la recette ne prouverait rien.
 
+13. **Les trois angles morts, fermés en une passe (2026-08-08, tâche `b01265b7`)** —
+    voir « Trois angles morts mesurés » plus bas pour le *quoi*. Ce qui suit est la
+    **mesure**, faite sur **38 dépôts** (le parc entier, registre compris).
+
+    **Ce qu'ils avaient en commun, et c'est le sujet.** Ce n'étaient pas trois
+    règles trop étroites : c'étaient trois **filtres d'exclusion qui jugeaient la
+    valeur sans regarder la clé qui la porte**. Le détecteur croise pourtant déjà
+    « littéral » et « mot-clé au voisinage ». Le correctif est donc un
+    **resserrement du contexte**, pas un assouplissement — et c'est ce qui permet
+    d'élargir sans devenir bavard.
+
+    | | Refus / 60 derniers commits | Pire cas |
+    | --- | --- | --- |
+    | Avant | 26 | 261 |
+    | Après | **26** (+1, −1) | **261** (+2, −2) |
+
+    **Le détail, ligne à ligne, parce que c'est lui qui engage :**
+
+    - **+1 refus** — `~/.claude`, commit `51a9094` : la ligne de
+      `INVENTAIRE-PARC.md` qui **documente l'angle mort 1**, avec une valeur
+      fictive au gabarit exact. La garde fait ce qu'on lui demande ; c'est le mode
+      d'échec déjà rencontré aux points 11 et 12 — un élargissement se paie
+      d'abord sur la documentation. La ligne vivante porte désormais `secret-ok`,
+      donc **aucun commit futur n'est bloqué** (pire cas de `~/.claude` : 22 avant,
+      22 après).
+    - **−1 refus** — `CockpitV2`, commit `f316ff5b`, celui que le tableau « Compter
+      les commits refusés » listait comme refus légitime : c'était un **faux
+      positif**, deux constantes Laravel `Password::RESET_LINK_SENT` sans aucune
+      valeur. Le filtre « une valeur qui commence par un séparateur » les retire.
+    - **+2 détections en pire cas** — le vrai jeton du registre npm privé dans
+      `af-scroll-counter-create-file/.npmrc` (**le secret que cette tâche visait**,
+      cf. plus bas) et la ligne de documentation ci-dessus.
+    - **−2 détections** — les deux constantes Laravel du même `f316ff5b`.
+
+    **Les 34 autres dépôts : écart nul, comparaison ligne à ligne** (chemin +
+    numéro + nom de règle).
+
+    **Le correctif naïf de l'angle 1, mesuré plutôt que redouté.** Accepter *toute*
+    valeur à espaces sous une clé sensible, sur ces mêmes 38 dépôts :
+
+    | | Refus | Pire cas |
+    | --- | --- | --- |
+    | Retenu (gabarit ancré) | 26 | 261 |
+    | **Naïf (toute valeur à espaces)** | **128** | **404** |
+
+    **+103 commits refusés.** Ce n'est pas un détail de confort : un dépôt qui
+    refuse un commit sur deux se fait contourner au `--no-verify` dans la semaine,
+    et l'habitude ne revient jamais. C'est exactement pourquoi on n'accepte pas
+    l'espace mais **un gabarit ancré en fin de ligne**.
+
+    **Ce qui a été essayé puis écarté, avec son chiffre** (élargir est facile ; ne
+    pas devenir bavard est le travail) :
+
+    | Élargissement essayé | Mesure | Décision |
+    | --- | --- | --- |
+    | Balayage **chevauchant** (réexaminer l'intérieur d'une valeur déjà consommée) | +23 détections, **+2 refus** | **écarté** — que des paramètres de requête (`?token=<jeton-de-test>`, `?password-protected=<valeur>`) |
+    | Accepter toute valeur à espaces | **+103 refus** | **écarté** (ci-dessus) |
+
 ### Re-mesurer après avoir touché une règle
 
 Le fichier est importable (`module.exports = { analyser }`), et il faut **deux**
@@ -579,7 +637,7 @@ c'est-à-dire exactement ce que le hook voit :
 | --- | --- | --- | --- |
 | `ChosenPath` | 23 | **1** (4,3 %) | l'import initial du 2026-04-03, à lui seul les 62 |
 | `le-rucher-seo` | 15 | **2** (13,3 %) | `ba9fff18` — le commit qui a **introduit la clé Stripe live**, et `7dc72035`, la fausse clé d'illustration du dossier de rotation |
-| `CockpitV2` | 60 | **1** (1,7 %) | `f316ff5b`, deux constantes de réinitialisation Laravel, sans aucune valeur |
+| `CockpitV2` | 60 | ~~1~~ → **0** | `f316ff5b`, deux constantes de réinitialisation Laravel, sans aucune valeur : **c'était un faux positif**, fermé le 2026-08-08 (point 13 du calibrage) |
 
 Ce que ce tableau corrige, dans les deux cas :
 
@@ -791,32 +849,106 @@ le push emporte une modification de `.githooks/`**.
 - Il ne remplace pas le `.gitignore` : ne pas versionner un fichier reste plus
   sûr que de compter sur la détection de son contenu.
 
-### Trois angles morts mesurés, non encore corrigés
+### Trois angles morts mesurés, **fermés le 2026-08-08** (tâche `b01265b7`)
 
-Reproduits avec des valeurs **fictives** de même gabarit. Ils ne sont pas
+Reproduits avec des valeurs **fictives** de même gabarit **avant** d'être corrigés,
+puis fixés par la recette (12 cas neufs, dont 7 contre-exemples). Ils n'étaient pas
 théoriques : chacun a été trouvé sur un secret réel, ou sur la forme exacte d'un
 secret réel présent sur ce poste.
 
-1. **Toute valeur contenant une espace.** `valeurPlausible()` la rejette. Or
-   Google **affiche** ses mots de passe d'application en 4 groupes de 4 séparés
-   par des espaces, et c'est sous cette forme qu'ils sont collés. C'est par ce
-   trou qu'un accès à la boîte Gmail principale est resté 15 mois exposé
-   (`Test-Greenfit-Paiement`, cf. `INVENTAIRE-PARC.md` §1).
-2. **Toute valeur de 7 à 40 caractères hexadécimaux minuscules**, quelle que soit
-   la clé — `valeurPlausible()` la lit comme un **sha git** et l'écarte
-   (`/^[0-9a-f]{7,40}$/i`). Trouvé le 2026-08-08 : le `_authToken` du registre npm
-   privé Divi, dans `.npmrc`, fait exactement **40 caractères hexadécimaux
-   minuscules**. Vérifié : `password=<40 hex>` n'est **pas vu**, `password=<40
-   alphanumériques mixtes>` l'est.
-3. **La forme de clé d'un `.npmrc`.** `//npm.exemple.com/:_authToken=<valeur>`
-   n'est pas reconnue, alors que `authToken=<même valeur>` l'est. Le préfixe
-   d'URL empêche `RE_ASSIGNATION` de retenir `_authToken` comme nom de clé.
+**Leur cause commune, et c'est elle qui compte.** Ce n'étaient pas trois règles trop
+étroites : c'étaient trois **filtres d'exclusion appliqués sans regarder le
+voisinage**. Le détecteur croise déjà « littéral » et « clé parlante » — le correctif
+consiste donc à *payer chaque élargissement par un resserrement du contexte*, jamais
+par un assouplissement. Généraliser plutôt qu'énumérer, comme pour le vocabulaire au
+point 12 : l'angle 2 n'est pas « le cas du sha », l'angle 3 n'est pas « le cas de
+npm ».
 
-Chacune des trois causes suffit **à elle seule** à rendre le jeton npm invisible :
-armer le dépôt qui le porte ne le protège pas. C'est écrit ici parce qu'un angle
-mort tu se confond avec une absence de risque. La correction se recette à part —
-toucher `valeurPlausible()` change le comportement des 37 copies, et la règle du
-sha git existe pour une raison (les sha sont omniprésents dans ces dépôts).
+1. **Les valeurs à espaces.** `valeurPlausible()` rejetait toute valeur en contenant
+   une. Or Google **affiche** ses mots de passe d'application en 4 groupes de 4
+   séparés par des espaces, et c'est sous cette forme qu'ils sont collés. C'est par
+   ce trou qu'un accès à la boîte Gmail principale est resté 15 mois exposé
+   (`Test-Greenfit-Paiement`, cf. `INVENTAIRE-PARC.md` §1).
+   → **Fermé par `RE_MDP_APPLICATION`** : le **gabarit** « 4 groupes de 4 lettres
+   minuscules », **ancré en fin de ligne** (tolérance d'un commentaire `#`), et
+   seulement sous une clé qui nomme un secret. Ce n'est pas l'espace qui est
+   accepté. Le correctif naïf est mesuré à **+103 commits refusés** (point 13).
+2. **Le filtre sha, le plus large des trois.** Une valeur de 7 à 40 caractères
+   hexadécimaux minuscules était lue comme un **sha git** et écartée, **quelle que
+   soit la clé** : `password=<40 hex>` n'était **pas vu**, quand `password=<40
+   alphanumériques mixtes>` l'était. Le `_authToken` du registre npm privé Divi fait
+   exactement 40 hexadécimaux minuscules.
+   → **Fermé en contextualisant, pas en supprimant** : la règle du sha reste (un
+   dépôt en est plein), mais elle ne s'applique plus quand la clé nomme un secret —
+   un sha ne s'écrit pas sous `password` ni sous `_authToken`.
+3. **La clé précédée d'un chemin.** `//npm.<hôte>/:_authToken=<valeur>` n'était pas
+   reconnue alors que `authToken=<même valeur>` l'était : le `:` du chemin de
+   registre se laissait lire comme le séparateur d'une assignation **à clé vide**, et
+   la valeur avalait le reste de la ligne sans qu'il soit réexaminé.
+   → **Fermé en exigeant une clé d'au moins un caractère.** Le balayage reste
+   **non chevauchant** : la variante chevauchante coûtait **+2 refus** de bruit d'URL
+   (point 13).
+
+Chacune des trois causes suffisait **à elle seule** à rendre le jeton npm invisible :
+armer le dépôt qui le porte ne le protégeait pas. Les trois ont donc été corrigées
+**en une passe**, avec une recette commune — les traiter une par une aurait fait trois
+contre-épreuves et trois propagations aux 37 copies là où une suffit.
+
+**Ce que ces correctifs ne font pas, et il faut le redire.** Le seul secret réel
+trouvé dans le parc n'était dans **aucun** signalement : il a été trouvé **en
+lisant**. Un détecteur prouve ce qu'il cherche, pas ce qu'il ignore. Fermer trois
+trous en laisse d'autres, par construction — la section suivante en nomme quelques-uns
+qui restent ouverts **en connaissance de cause**.
+
+### Ce qui reste ouvert, et pourquoi c'est écrit plutôt que corrigé
+
+Cherché en même temps que les trois ci-dessus, sur le principe « quels **autres**
+filtres jugent la valeur sans regarder la clé, et quels **autres** formats de
+configuration écrivent une clé autrement ». Aucun de ces cas n'est un oubli : chacun
+est une **décision**, et le chiffre qui la porte est dans le point 13.
+
+**Deux filtres voisins ont été corrigés en même temps**, parce qu'ils vivaient dans la
+même fonction, à une ligne d'écart, avec exactement le même défaut — corriger « le cas
+du sha » sans eux, c'était énumérer :
+
+- **L'UUID sous une clé qui nomme un secret** est désormais examiné. Un identifiant de
+  tâche ne s'écrit pas sous `client_secret`, et un secret d'application Azure AD *est*
+  un GUID. L'exemption reste **entière** pour la règle du littéral à haute entropie,
+  qui n'a aucune clé à regarder. Coût mesuré : **0 refus, 0 détection**.
+- **L'hexadécimal MAJUSCULE sous une clé qui nomme un secret** ne passe plus pour une
+  référence à une variable. Sans cela, l'angle 2 n'était fermé qu'à moitié : le même
+  jeton passait ou non selon la **casse** dans laquelle son fournisseur l'affiche, ce
+  qui n'est pas une propriété de sécurité. La règle reste étroite — *uniquement* de
+  l'hexadécimal pur, donc `token: N8N_DRIFT_HEARTBEAT_TOKEN` reste une référence. Coût
+  mesuré : **0 refus, 0 détection**.
+
+Restent ouverts, comme **décisions écrites** :
+
+- **Les valeurs purement numériques sous une clé sensible.** Lever le filtre coûte 0
+  aujourd'hui — mais le pire cas ne mesure que les fichiers **existants**, et
+  une clé `TOKEN_EXPIRES` portant un horodatage en millisecondes est la forme la plus
+  banale d'un nombre sous une clé parlante. Un secret purement numérique est rare ;
+  l'horodatage sous une clé nommée `token`, non.
+- **`.netrc` et les formats à séparateur ESPACE** (`password <valeur>`) : accepter
+  l'espace comme séparateur, c'est le correctif naïf de l'angle 1 par une autre porte.
+- **`Authorization: Bearer <jeton>`** n'est pas vu (`authorization` n'est pas dans le
+  vocabulaire, et la valeur s'arrête au premier blanc). Une règle nommée a été écrite et
+  mesurée : **0 refus, 0 détection ajoutée — mais 0 trouvaille aussi**, aucun dépôt du
+  parc ne porte cette forme. Non retenue : une règle que rien ne prouve utile est une
+  surface de plus à entretenir. Le chiffre est ici pour qu'un futur passage n'ait pas à
+  le remesurer.
+- **`_auth=` d'un `.npmrc`** (base64 de `user:pass`) n'est pas vu : `auth` est un
+  **marqueur**, pas un porteur. En faire un porteur fort a été mesuré : **+8 détections**
+  en pire cas (fixtures `auth.test.ts`, `trpc.test.ts`, documentation BMAD de
+  `ChosenPath`) pour zéro secret réel. Écarté.
+- **La flèche PHP `=>`** n'est pas un séparateur reconnu : `'password' => 'valeur'`
+  échappe à `RE_ASSIGNATION`. C'est la forme d'un tableau PHP, donc de `wp-config.php`
+  et de toute fixture WordPress.
+
+Chacun se ferme de la même façon que les trois précédents — un gabarit précis payé par
+un resserrement du contexte, mesuré sur le parc avant d'être retenu. Aucun n'a été
+tenté ici : la tâche portait sur trois angles morts, et un élargissement non mesuré
+vaut moins que pas d'élargissement.
 
 ## Le second filet : la protection de push GitHub
 

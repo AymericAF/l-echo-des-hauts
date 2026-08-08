@@ -113,12 +113,61 @@ const RE_PUBLIABLE = /\bpk_(?:live|test)_[A-Za-z0-9]{8,}\b/;
 // la garde refusait 7 commits sur 60, dont trois backups automatiques : elle
 // aurait ete desactivee en une semaine, ce qui est pire que pas de garde.
 // ---------------------------------------------------------------------------
+//
+// LA CLE NE PEUT PAS ETRE VIDE (2026-08-08, tache b01265b7). Le quantificateur
+// etait {0,40}. Consequence, sur la forme d un `.npmrc` :
+//
+//     //npm.<hote>/:_authToken=<valeur>
+//              ^ ce `:` se laissait lire comme le separateur d une assignation
+//                A CLE VIDE ; la valeur avalait alors tout le reste de la ligne,
+//                et `_authToken=` n etait JAMAIS reexamine.
+//
+// `authToken=<meme valeur>` etait detecte ; la meme ligne precedee d un chemin de
+// registre ne l etait pas. Ce n est pas « le cas de npm » : c est UNE CLE PRECEDEE
+// D UN CHEMIN, forme que prend tout fichier de configuration adresse par URL.
+//
+// Exiger UN caractere de cle suffit — et c est le resserrement le moins couteux :
+// le balayage reste NON CHEVAUCHANT. La variante chevauchante (reexaminer
+// l interieur de chaque valeur, pour attraper aussi une cle sensible enfouie dans
+// une valeur deja consommee) a ete MESUREE puis ECARTEE : +23 detections en pire
+// cas et +2 commits refuses sur le parc, toutes des parametres de requete
+// (`?token=unknown-token`, `?password-protected=login`, `&secret=…` dans une URL
+// d exemple) — du bruit d URL, pas des secrets.
+// ---------------------------------------------------------------------------
 const RE_ASSIGNATION = new RegExp(
   '(?:^|[^A-Za-z0-9_])' +
-  '([A-Za-z0-9_.\\-]{0,40})' +
+  '([A-Za-z0-9_.\\-]{1,40})' +
   '\\s*[:=]\\s*' +
   '["\']?([^\\s"\'`,;)\\]}]{8,})["\']?',
   'g'
+);
+
+// ---------------------------------------------------------------------------
+// LES VALEURS A ESPACES (2026-08-08, tache b01265b7).
+//
+// `valeurPlausible()` ne voit jamais une valeur contenant une espace : la classe
+// de caracteres de RE_ASSIGNATION s arrete au premier blanc. Or Google AFFICHE
+// ses mots de passe d application en 4 GROUPES DE 4 LETTRES separes par des
+// espaces, et c est sous cette forme qu on les colle. C est par ce trou qu un
+// acces SMTP/IMAP a la boite Gmail principale est reste 15 MOIS expose : le
+// format le plus courant du secret le plus courant.
+//
+// CE QU ON N A PAS FAIT, et pourquoi. Accepter les valeurs a espaces sous une cle
+// sensible est le correctif naif ; il est MESURE dans le README (section
+// « Calibrage », point 13) et il fabrique des milliers de signalements de prose —
+// toute phrase posee apres un `:` sous une cle parlant de mot de passe. On
+// n accepte donc pas l espace, on accepte UN GABARIT : exactement 4 groupes de 4
+// lettres minuscules, seuls sur leur fin de ligne, sous une cle qui nomme un
+// secret. Cout mesure sur le parc : UNE detection, la ligne de documentation qui
+// decrit ce meme angle mort.
+//
+// L ancrage de fin de ligne n est pas decoratif : c est lui qui separe le secret
+// de la prose. « Il faut dire tout cela bien vite ici » porte le gabarit, mais la
+// phrase CONTINUE ; un mot de passe colle, non.
+// ---------------------------------------------------------------------------
+const RE_MDP_APPLICATION = new RegExp(
+  '(?:^|[^A-Za-z0-9_])([A-Za-z0-9_.\\-]{1,40})\\s*[:=]\\s*' +
+  '["\']?([a-z]{4}(?: [a-z]{4}){3})["\']?\\s*[,;]?\\s*(?:#.*)?$'
 );
 
 // ---------------------------------------------------------------------------
@@ -346,18 +395,58 @@ function valeurRepeteLaCle(cle, valeur) {
   return mots.every((m) => deLaCle.has(m));
 }
 
-function valeurPlausible(v) {
+// `cleNommeUnSecret` : la cle qui porte cette valeur a passe `cleSensible()`.
+// Ce n est PAS un detail d appel — c est ce qui distingue un filtre d exclusion
+// qui regarde son voisinage d un filtre qui juge la valeur toute seule. Le sha
+// git en est l exemple : la meme suite de 40 hexadecimaux est une empreinte sous
+// `commit=`, et un jeton de registre npm sous `_authToken=`. Rien dans la VALEUR
+// ne les distingue ; seule la CLE le fait.
+function valeurPlausible(v, cleNommeUnSecret = false) {
   if (v.length < 8) return false;
+  // Une valeur qui COMMENCE par un separateur : on a coupe dans un OPERATEUR, pas
+  // dans une assignation — `Password::PASSWORD_RESET` (PHP), `a := b`, `x => y`.
+  // Aucun secret ne commence par `:` ni par `=`. Ce filtre est arrive avec la cle
+  // non vide ci-dessus, qui fait desormais voir ces coupes ; il retire au passage
+  // les deux faux positifs Laravel de CockpitV2 (PasswordResetLinkController,
+  // constantes sans aucune valeur) que le README listait comme refus legitime.
+  if (/^[:=]/.test(v)) return false;
   if (RE_PUBLIABLE.test(v)) return false;
   if (RE_PLACEHOLDER.test(v)) return false;
-  if (RE_NOM_DE_VARIABLE.test(v)) return false;
+  // Un nom de variable en majuscules est une REFERENCE (`token: N8N_HEARTBEAT_TOKEN`),
+  // pas un secret. L exception : une valeur qui n est QUE de l hexadecimal majuscule
+  // sous une cle qui nomme un secret. Sans elle, l angle mort du sha ci-dessous ne
+  // serait ferme qu a moitie — le meme jeton passerait ou non selon la CASSE dans
+  // laquelle le fournisseur l a rendu, ce qui n est pas une propriete de securite.
+  // Cout mesure sur le parc : zero refus, zero detection ajoutee.
+  if (RE_NOM_DE_VARIABLE.test(v) &&
+      !(cleNommeUnSecret && /^[0-9A-F]{8,}$/.test(v))) return false;
   if (RE_CODE.test(v)) return false;
+  // NON LEVE sous une cle sensible, et c est une decision, pas un oubli : `TOKEN_EXPIRES`
+  // ou `SESSION_TOKEN_TTL` portent une date en millisecondes, forme la plus banale d une
+  // valeur numerique sous une cle parlante. Un secret PUREMENT numerique est rare ; un
+  // horodatage sous une cle nommee `token`, non. Mesure : la lever coute zero AUJOURD HUI,
+  // mais le pire cas ne mesure que les fichiers existants.
   if (/^\d+$/.test(v)) return false;              // port, timestamp, identifiant
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) {
-    // UUID nu : identifiant de tache/projet, omnipresent dans ce depot.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) &&
+      !cleNommeUnSecret) {
+    // UUID nu : identifiant de tache/projet, omnipresent dans ce depot -- SAUF sous une
+    // cle qui nomme un secret. C est le meme defaut que le sha ci-dessous, une ligne plus
+    // haut : un identifiant de tache ne s ecrit pas sous `client_secret`, et un secret
+    // d application Azure AD est justement un GUID. Cout mesure : zero refus, zero
+    // detection ajoutee sur les 38 depots. L exemption reste ENTIERE pour la regle du
+    // litteral a haute entropie, qui n a pas de cle a regarder.
     return false;
   }
-  if (/^[0-9a-f]{7,40}$/i.test(v)) return false;  // sha git (commit, blob, arbre)
+  // LE SHA GIT REGARDE ENFIN LA CLE (2026-08-08, tache b01265b7). Ce filtre etait
+  // le plus large des trois angles morts : 7 a 40 hexadecimaux minuscules etaient
+  // ecartes SANS AUCUNE CONDITION DE NOM. `password=<40 hex>` n etait pas vu, quand
+  // `password=<40 alphanumeriques mixtes>` l etait — et le jeton du registre npm
+  // prive Divi fait exactement 40 hexadecimaux minuscules.
+  // La regle n est pas supprimee, elle est CONTEXTUALISEE : un depot est plein de
+  // sha, les detecter tous rendrait la garde inutilisable — mais un sha ne s ecrit
+  // pas sous une cle nommee `password` ou `_authToken`. Cout mesure sur le parc :
+  // zero detection ajoutee hors le vrai jeton npm.
+  if (/^[0-9a-f]{7,40}$/i.test(v) && !cleNommeUnSecret) return false;  // sha git
   if (/^https?:\/\//i.test(v)) return false;      // URL nue (le user:pass a sa regle)
   if (/^[A-Za-z]+$/.test(v) && v.length < 16) return false;
   const classes =
@@ -602,10 +691,21 @@ function analyser(diffFourni) {
       if (r.re.test(texte)) trouvailles.push({ fichier, numero, r });
     }
 
+    // Le gabarit « 4 groupes de 4 » se cherche a part : RE_ASSIGNATION s arrete au
+    // premier blanc, elle ne peut pas voir une valeur a espaces.
+    const mg = RE_MDP_APPLICATION.exec(texte);
+    if (mg && cleSensible(mg[1]) && !valeurRepeteLaCle(mg[1], mg[2])) {
+      trouvailles.push({
+        fichier, numero,
+        r: { nom: 'assignation-sensible',
+             desc: 'assignation "' + mg[1] + '=" avec une valeur d allure secrete' },
+      });
+    }
+
     RE_ASSIGNATION.lastIndex = 0;
     let m;
     while ((m = RE_ASSIGNATION.exec(texte)) !== null) {
-      if (cleSensible(m[1]) && valeurPlausible(m[2]) && !valeurRepeteLaCle(m[1], m[2])) {
+      if (cleSensible(m[1]) && valeurPlausible(m[2], true) && !valeurRepeteLaCle(m[1], m[2])) {
         trouvailles.push({
           fichier, numero,
           r: { nom: 'assignation-sensible',

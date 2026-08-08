@@ -79,9 +79,9 @@ construction, git n'exécute jamais rien qui vienne du dépôt cloné.
 Trois propriétés en découlent, et ce sont elles qui rendent le choix défendable :
 
 - **Aucun dépôt qui n'a rien demandé ne change de comportement.** Un dépôt client,
-  un dépôt tiers, un clone jetable, et les 5 dépôts du parc délibérément laissés
-  nus (`ChosenPath`, `maj-divi5-zeller`, `automatisation-maintenance-wordpress`,
-  `strategie-marketing-freelance`, `le-rucher-seo`) ne portent pas `.githooks/` :
+  un dépôt tiers, un clone jetable, et les 2 dépôts du parc délibérément laissés
+  nus (`ChosenPath`, `le-rucher-seo` — voir « Les dépôts laissés nus » plus bas)
+  ne portent pas `.githooks/` :
   l'amorceur sort immédiatement. Coût réel : un `test -f` par commit.
 - **Rien à défaire sur les 27 dépôts déjà armés.** Dès que `core.hooksPath` est
   défini, git **ignore entièrement** `.git/hooks/` — les deux voies ne tournent
@@ -89,7 +89,7 @@ Trois propriétés en découlent, et ce sont elles qui rendent le choix défenda
   que ce qui sera cloné ensuite.
 - **L'amorceur n'a aucune raison de changer.** Toute la logique reste dans le
   dépôt, donc se met à jour avec lui. Le modèle n'entre pas dans le lot des
-  6 fichiers à garder alignés sur 28 copies.
+  6 fichiers à garder alignés sur 30 copies.
 
 Effet de bord favorable : l'amorceur appelle sa cible par `sh <chemin>`, donc le
 bit d'exécution de `.githooks/pre-commit` **cesse de compter** dans un dépôt armé
@@ -115,7 +115,7 @@ recopiant le modèle.
   `core.hooksPath` ; c'est délibéré (ne rien casser sur ce qui marche), mais cela
   laisse deux voies d'armement coexister. Le vérificateur accepte les deux.
 - **Un dépôt qui porterait le lot sans vouloir la garde s'armerait à chaque
-  clone.** Le cas n'existe pas aujourd'hui (les 5 dépôts nus n'ont pas `.githooks/`),
+  clone.** Le cas n'existe pas aujourd'hui (les 2 dépôts nus n'ont pas `.githooks/`),
   et l'échappatoire est locale et explicite :
 
   ```sh
@@ -202,8 +202,9 @@ se fait désinstaller.
   documentation et des dumps d'analyse — les restreindre **perdrait** des
   détections, ce que la contre-épreuve interdit. Le coût est connu et **mesuré** :
   `maj-divi5-zeller` porte des dumps PageSpeed contenant une clé `AIza` publique
-  par construction, qui produiraient une centaine de détections. **Ce dépôt n'est
-  pas branché** sur la garde ; l'y brancher demandera de traiter ce cas d'abord.
+  par construction, qui produisent 92 détections. Le dépôt est **branché quand
+  même** depuis le 2026-08-08, avec son résidu écrit : voir « Les dépôts laissés
+  nus, et les résidus assumés » plus bas.
 
 ### Les deux règles heuristiques
 
@@ -533,10 +534,62 @@ journalise `ECHEC - commit refuse` et sort en `exit 1` **sans envoyer le
 heartbeat** — la surveillance n8n reste donc au rouge, au lieu d'afficher un vert
 mensonger sur des modifications jamais sauvegardées.
 
+## Les dépôts laissés nus, et les résidus assumés
+
+Mesuré et arbitré le 2026-08-08 (tâche `5f0ecb80`). Le principe qui tranche est
+toujours le même : **un dépôt qui refuserait ses propres commits légitimes ne doit
+pas être branché en l'état** — il se fait désinstaller dans la semaine, et
+l'habitude du contournement se propage ensuite aux autres. La mesure qui décide
+est le **pire cas restreint aux fichiers vivants**, pas le pire cas brut : une
+détection dans une archive figée ne coûte rien, une détection sur un fichier qu'on
+rouvre chaque semaine coûte la garde entière.
+
+### Branchés avec un résidu, écrit plutôt que caché
+
+| Dépôt | Pire cas | Vivant | Ce qui reste, et pourquoi |
+| --- | --- | --- | --- |
+| `strategie-marketing-freelance` | 5 → **2** | **0** | 3 faux jetons de recette marqués `secret-ok`. Les 2 restants sont dans `audit-sante/temoins/exec-*.json`, témoins n8n **mono-ligne** : la regex `url-avec-identifiants` traverse le JSON minifié. JSON n'a pas de commentaire — le marqueur y est syntaxiquement impossible. Ajoutés en un commit le 2026-08-01, jamais rouverts. |
+| `automatisation-maintenance-wordpress` | 18 → **0** | **0** | 19 lignes marquées (13 jetons de fixture PHPUnit, 6 identifiants de ressources Google Drive). Aucun résidu. |
+| `maj-divi5-zeller` | **102** | **0** | 92 dans `perf/**/*.json` (relevés PageSpeed, clé Google Maps **navigateur** publique par construction) et 10 dans `recette-p*/**.html`. Marqueur impossible en JSON, et ces relevés sont relus par `_parse.js` / `_compare.js` : y insérer une clé les fausserait. Familles figées depuis juin. Levier si le sujet perf reprend : un `.gitignore` sur `perf/**`, **jamais** un assouplissement de la règle. |
+
+**La leçon de mesure du 19e marqueur** (`automatisation-maintenance-wordpress`) :
+le détecteur **regroupe les détections voisines à une ligne près**. Exempter une
+ligne fait donc **surgir** sa voisine, qui portait le même motif et se trouvait
+masquée par le regroupement. Il faut mesurer **jusqu'à 0**, en boucle, pas jusqu'à
+la première passe — sinon on croit avoir fini avec une détection encore debout.
+
+### Laissés nus, et pourquoi
+
+- **`ChosenPath`** — 62 détections dans 23 fichiers. Une quarantaine sont des
+  fixtures d'authentification canoniques (`password:`, `token:` dans les tests
+  tRPC/mobile/schemas) et des `postgresql://user:pass@localhost` de `.env.example`,
+  `docker-compose.prod.yml` et `ci.yml`. Les marquer désarmerait la détection là où
+  elle sert le plus, et un monorepo qui refuse **chaque nouveau test
+  d'authentification** est le cas d'école du dispositif qu'on désinstalle. 15
+  détections supplémentaires viennent de 5 fichiers `apps/mobile/assets/fonts/*.ttf`
+  qui sont en réalité des **pages HTML d'erreur de 300 Ko** — des assets corrompus,
+  à re-télécharger, pas à marquer. Décision : **nu**, en connaissance de cause.
+- **`le-rucher-seo`** — hors de ce périmètre : un secret vit dans HEAD, ce qui se
+  traite par **rotation** d'abord (tâche `e0df662d`). Brancher la garde ne
+  changerait rien à un secret déjà écrit — le hook ne regarde que ce qui est mis en
+  scène.
+
+### Les 4 dépôts publics : examinés, rien à corriger
+
+`cockpit-api`, `my-api`, `nuxtjs_course`, `Obsidian` n'ont pas de clone sur ce
+poste et n'avaient jamais été regardés. Passés au détecteur le 2026-08-08 sur
+**l'arbre courant ET tous les blobs atteignables depuis toutes les refs** (branches
+dependabot comprises) : **aucun secret réel**. `cockpit-api` et `my-api` sont deux
+squelettes API Platform non modifiés, dont le `api/.env` est **versionné** — mais
+n'y portant que les placeholders amont (`!ChangeMe!`, le secret Mercure de
+démonstration) et un `APP_SECRET` vide ou placeholder. Aucune rotation nécessaire.
+La pratique, elle, reste mauvaise : le jour où quelqu'un remplit ce `.env`, il part
+sur un dépôt **public**.
+
 ## Source de vérité et alignement des copies
 
-Le détecteur n'existe pas en un exemplaire : il vit dans **28 copies** — la source
-et les 27 dépôts du parc — et chacune porte **5 fichiers**, soit **135 fichiers
+Le détecteur n'existe pas en un exemplaire : il vit dans **30 copies** — la source
+et les 29 dépôts du parc — et chacune porte **6 fichiers**, soit **180 fichiers
 copiés** à garder identiques. La copie est volontaire : la garde voyage avec le
 code plutôt que de dépendre d'une configuration locale. Ce qui ne l'est pas, c'est
 qu'elles puissent diverger sans que rien ne le dise.
@@ -596,7 +649,7 @@ de marquage, que son contenu versionné correspond au disque, et que
 le cassant : le dispositif rougit, puis redevient vert une fois réparé.
 
 Chaque anomalie **nomme le dépôt et le fichier**. Une garde qui dit « ça ne
-correspond pas » envoie chercher dans 135 fichiers.
+correspond pas » envoie chercher dans 180 fichiers.
 
 `EMPREINTES.txt` est **généré**, pas édité. Le vérificateur contrôle d'abord la
 **source contre son propre manifeste** : si la source a bougé sans que les

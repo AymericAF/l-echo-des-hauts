@@ -113,6 +113,31 @@ const CAS = [
   { nom: 'BORNE : mot-clé sur une ligne SUPPRIMÉE ne compte pas', fichier: 'o.js',
     base: `const token = process.env.X;\n`,
     contenu: `const EXPECTED = "${FAUX}";\n`, attendu: 'passe' },
+
+  // --- Calibrage du 2026-08-08 (balayage des dépôts de ~/projects). ---------------------
+  // `api_key` se découpe en [api, key] : `key` étant un qualificatif, la clé la plus
+  // répandue au monde était désamorcée SANS CONDITION, et sa valeur non quotée échappe
+  // aussi au littéral (qui exige des guillemets). Deux règles côte à côte, deux angles
+  // morts qui se recouvraient : `api_key=<valeur>` dans un `.env` passait entièrement.
+  { nom: 'api_key= non quoté (le trou du qualificatif « key »)', fichier: 'p.env',
+    contenu: `api_key=${FAUX}\n`, attendu: 'refuse' },
+  { nom: 'access_key / private_key suivent la même règle', fichier: 'q.sh',
+    contenu: `access_key=${FAUX}\n`, attendu: 'refuse' },
+  // Le qualificatif doit continuer de désamorcer quand il NOMME le secret sans l'être.
+  // La valeur n'est PAS un littéral à haute entropie : sinon la seconde règle refuserait la
+  // ligne pour une autre raison, et le cas ne mesurerait plus le désamorçage qu'il vise.
+  { nom: 'BORNE : tokenName reste désamorcé', fichier: 'r.js',
+    contenu: `const tokenName = "jeton-de-service-principal";\n`, attendu: 'passe' },
+
+  // Faux positifs mesurés sur les dépôts, corrigés par le vocabulaire de gabarit.
+  { nom: 'faux positif : credentials fetch « same-origin »', fichier: 's.js',
+    contenu: `fetch(u, { credentials: 'same-origin' });\n`, attendu: 'passe' },
+  { nom: 'faux positif : TOKEN_OPTION nomme un réglage', fichier: 't.php',
+    contenu: `<?php const TOKEN_OPTION = 'maint_backup_token';\n`, attendu: 'passe' },
+  { nom: 'faux positif : valeur « jeton-test » d une fixture', fichier: 'u.js',
+    contenu: `const env = { N8N_TOKEN: 'jeton-test' };\n`, attendu: 'passe' },
+  { nom: 'faux positif : « If tests pass: Continue » dans une doc', fichier: 'v.md',
+    contenu: `- If tests pass: Continue\n`, attendu: 'passe' }, // secret-ok : la sonde EST le faux positif
 ];
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });

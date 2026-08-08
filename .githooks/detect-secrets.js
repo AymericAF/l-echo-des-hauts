@@ -93,6 +93,7 @@ const MOTS_SECRET = new Set([
 const QUALIFICATIFS = new Set([
   'type', 'types', 'name', 'names', 'id', 'ids', 'path', 'file', 'url', 'uri',
   'header', 'headers', 'field', 'var', 'env', 'key', 'label', 'kind', 'format',
+  'option', 'options',
   'prefix', 'suffix', 'regex', 'pattern', 'placeholder', 'hint', 'desc',
 ]);
 
@@ -120,7 +121,12 @@ function cleSensible(cle) {
     }
   }
   if (!motDePasse && !fusionnes.some((m) => MOTS_SECRET.has(m))) return false;
-  if (QUALIFICATIFS.has(mots[mots.length - 1])) return false;
+  // Un qualificatif desamorce (tokenName, secretPath) SAUF quand il forme lui-meme le
+  // mot secret avec celui qui le precede : api_key, access_key, private_key. Sans cette
+  // reserve, `api_key=<valeur>` -- la forme la plus repandue -- n etait jamais examinee.
+  const dernier = mots[mots.length - 1];
+  const avantDernier = mots.length >= 2 ? mots[mots.length - 2] : '';
+  if (QUALIFICATIFS.has(dernier) && !MOTS_SECRET.has(avantDernier + dernier)) return false;
   return true;
 }
 
@@ -145,7 +151,11 @@ const RE_PLACEHOLDER = new RegExp(
   // Le risque pris est un faux negatif sur un secret dont la VALEUR contiendrait
   // litteralement « fixture » ou « de-test » : hors de portee d un jeton engendre.
   'tobemodified|to[_-]be[_-]modified|a[_-]modifier|factice|bidon|fixture|' +
-  'de[_-]test|de[_-]recette',
+  'de[_-]test|de[_-]recette|' +
+  '[_-]test\\b|\\btest[_-]|' +
+  '^(?:same-origin|same-site|cross-origin|no-cors|no-referrer|' +
+  'no-referrer-when-downgrade|strict-origin|strict-origin-when-cross-origin|' +
+  'origin-when-cross-origin|unsafe-url)$',
   'i'
 );
 
@@ -167,6 +177,7 @@ function valeurPlausible(v) {
   }
   if (/^[0-9a-f]{7,40}$/i.test(v)) return false;  // sha git (commit, blob, arbre)
   if (/^https?:\/\//i.test(v)) return false;      // URL nue (le user:pass a sa regle)
+  if (/^[A-Za-z]+$/.test(v) && v.length < 16) return false;
   const classes =
     (/[a-z]/.test(v) ? 1 : 0) + (/[A-Z]/.test(v) ? 1 : 0) +
     (/[0-9]/.test(v) ? 1 : 0) + (/[^A-Za-z0-9]/.test(v) ? 1 : 0);

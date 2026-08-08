@@ -848,6 +848,10 @@ le push emporte une modification de `.githooks/`**.
   (rotation et réécriture d'historique).
 - Il ne remplace pas le `.gitignore` : ne pas versionner un fichier reste plus
   sûr que de compter sur la détection de son contenu.
+- Il ne voit **que ce qui passe par un poste**. Ce qui est écrit directement chez
+  GitHub — édition dans le navigateur, suggestion de revue acceptée, fusion de PR,
+  correctif Dependabot — ne déclenche aucun hook, par construction. Cette limite
+  est mesurée et tranchée dans « Le troisième chemin », en fin de document.
 
 ### Trois angles morts mesurés, **fermés le 2026-08-08** (tâche `b01265b7`)
 
@@ -1079,3 +1083,192 @@ que quelqu'un peut relire après coup.
 côté serveur, et couvre les trois trous que ce hook ne bouchera jamais. L'éteindre
 pour débloquer un push, c'est échanger un incident de dix minutes contre un angle
 mort permanent.
+
+## Le troisième chemin : ce qui s'écrit chez GitHub sans passer par un poste
+
+Mesuré le 2026-08-08 (tâche `9dcd7db5`). Le constat de départ est là aussi un
+accident de lecture : sur `Test-Greenfit-Paiement` — le dépôt qui portait le mot
+de passe Gmail — **11 des 13 commits ont été faits depuis l'interface web**. Seul
+le commit initial venait d'un poste.
+
+**Un hook de pré-commit ne voit que ce qui passe par un poste.** Éditer un fichier
+dans le navigateur, accepter une suggestion de revue, fusionner une PR, appliquer
+un correctif Dependabot : tout cela écrit dans le dépôt **sans qu'aucun hook local
+ne s'exécute**. Armer 37 copies n'y change rien — ce n'est pas un défaut de
+l'armement, c'est une limite de l'endroit où la garde est posée.
+
+Et le second filet ne comble pas ce trou là où il compte : la protection de push
+couvre l'interface web, mais elle est **indisponible sur les 67 dépôts privés**
+(section précédente). Sur le travail client, ce chemin n'a aucun contrôle serveur.
+
+### La mesure, plutôt que la supposition
+
+Avant de construire quoi que ce soit. Critère : un commit web porte le committer
+`GitHub <noreply@github.com>` et la signature web-flow de GitHub. Relevé sur la
+branche par défaut de chaque dépôt, 100 commits au plus par dépôt (aucun n'a été
+tronqué).
+
+| | |
+| --- | ---: |
+| Dépôts analysés | **69** (sur 72 ; 3 sont vides) |
+| Commits examinés | **2 854** |
+| Commits venus du chemin web | **76** — soit **2,7 %** |
+| Dépôts portant au moins un commit web | **10** |
+
+Les dix, par proportion :
+
+| Part web | Commits web | Dépôt |
+| ---: | ---: | --- |
+| 100 % | 1/1 | `cockpit-api`, `Cockpit`, `my-api`, `webforce3-v2`, `Paorn` (commit initial seul) |
+| 85 % | 11/13 | `Test-Greenfit-Paiement` |
+| 67 % | 2/3 | `test` |
+| 52 % | 14/27 | `Creer-un-blog-pour-ecrivain` |
+| **23 %** | **43/190** | **`CockpitV2`** |
+| 2 % | 1/44 | `l-echo-des-hauts` |
+
+### Ce qui passe réellement par ce chemin — et c'est ça qui décide
+
+Le chiffre brut ne dit rien tant qu'on n'a pas regardé **la nature** des 76 :
+
+| Nature | Nombre | Ce que ça vaut |
+| --- | ---: | --- |
+| Fusion de PR (`Merge pull request`) | 41 (54 %) | contenu **déjà commité localement** |
+| Fusion écrasée (`... (#42)`) | 14 (18 %) | contenu **déjà commité localement** |
+| Commit initial (échafaudage GitHub) | 7 (9 %) | `README`/`.gitignore` générés par GitHub |
+| **Rédaction web réelle** | **14 (18 %)** | **contenu qu'aucun hook n'a jamais vu** |
+
+Seule la dernière ligne est un risque. Or ces 14 commits sont tous concentrés sur
+**deux dépôts dormants** — `Creer-un-blog-pour-ecrivain` (2018-2022) et
+`Test-Greenfit-Paiement` (2025). Le dernier date du **2025-08-27**.
+
+Sur une fenêtre de **90 jours** : 44 commits web, dont **43 fusions de PR** sur
+`CockpitV2` et **1 commit initial**. **Rédaction web réelle : zéro.**
+Sur **365 jours** : **un seul** commit, sur un dépôt dormant.
+
+Deux vérifications de plus, parce qu'une fusion pourrait transporter du contenu
+écrit dans le navigateur :
+
+- **Les 43 PR de `CockpitV2` ont été inspectées commit par commit : aucun commit
+  web sur aucune branche.** Aucune suggestion de revue n'a jamais été acceptée
+  depuis le navigateur. Le contenu fusionné a donc intégralement été commité
+  depuis un poste — et vu par le hook.
+- **Aucun commit de Dependabot ni de robot** sur l'ensemble du parc. Le chemin
+  « correctif automatique fusionné » n'existe pas ici ; il est cité dans les
+  documentations, il n'est pas dans les faits.
+
+**Conclusion de la mesure : le chemin web est réel, mais sur 90 jours il n'a
+transporté aucun octet qu'un hook local n'avait pas déjà lu.**
+
+### Une limite de la mesure elle-même, à connaître
+
+Le critère « committer `GitHub` » identifie **l'interface web**, pas l'ensemble
+des écritures côté serveur. Vérifié en écrivant par l'API :
+
+- la mutation GraphQL `createCommitOnBranch` (celle qu'emploie l'interface web)
+  produit bien un commit `GitHub <noreply@github.com>`, **signé et vérifié** ;
+- l'API REST `contents` produit un commit au nom de **l'utilisateur**, **non
+  signé** — indistinguable d'un commit local pour ce critère.
+
+Donc : une automatisation qui écrirait au jeton passerait pour un commit de poste
+et **manquerait au comptage**. Aucune n'a été trouvée sur le parc (zéro commit de
+robot), mais le jour où il en existera une, ce chiffre la sous-estimera. Le critère
+mesure le navigateur, pas « tout ce qui échappe au hook ».
+
+### La décision : un seul dépôt armé, et pourquoi pas les 37
+
+**Ce qui a été posé** : un workflow GitHub Actions sur **`CockpitV2` uniquement**
+(`.github/workflows/detection-secrets.yml`), déclenché à chaque `push` et à chaque
+`pull_request`.
+
+**Pourquoi lui.** C'est le seul dépôt où le chemin web est vivant : 23 % de ses
+commits, 43 des 44 commits web des 90 derniers jours. C'est aussi le seul dépôt du
+parc qui travaille par PR, donc le seul où ce contrôle a un sens.
+
+**Pourquoi pas les autres, et c'est une décision, pas un renoncement.** La
+rédaction web réelle sur tout le reste du parc est de **zéro commit sur 90 jours**
+et **un sur 365**, sur un dépôt dormant. Propager ce workflow à 37 dépôts, ce
+serait créer 37 fichiers à maintenir et à réaligner pour couvrir un chemin qui ne
+transporte rien — exactement le mode de dérive que ce dossier documente partout
+ailleurs. Une garde qu'on entretient sans qu'elle serve finit par mentir.
+
+**Il ne duplique pas le détecteur.** Le workflow appelle
+`.githooks/detect-secrets.js` **déjà versionné dans le dépôt**, via son export
+`analyser(diff)`. Il hérite donc des 64 cas de recette et des trois angles morts
+fermés, et il n'y a **pas de quatrième copie à aligner** — seulement un fichier
+d'appel, hors du lot déployé. C'était le compromis central : une action qui
+embarquerait son propre détecteur aurait divergé du hook au premier correctif.
+
+### Ce que ça couvre, et ce que ça ne couvre pas
+
+**Ce contrôle ALERTE APRÈS COUP. Ce n'est pas une garde.** La distinction n'est pas
+un détail de vocabulaire :
+
+| | Hook `pre-commit` | Ce workflow |
+| --- | --- | --- |
+| Quand | **avant** l'écriture du commit | **après** l'arrivée sur le distant |
+| Effet | le commit **n'existe pas** | le commit **existe et est publié** |
+| Remède si ça rougit | corriger la ligne, recommencer | **rotation de la valeur** |
+
+Quand ce workflow rougit, il est **trop tard** : si la valeur est un vrai secret,
+elle est exposée, et retirer la ligne ne la désexpose pas. Il prévient, il ne
+protège pas. Quiconque lit « le dépôt est couvert » doit comprendre **surveillé**,
+jamais **fermé**.
+
+En contrepartie, comme il tourne côté serveur, il voit ce que le hook ne peut pas
+voir : l'interface web, `--no-verify`, un clone non armé, une autre machine.
+
+**Sur les 36 autres dépôts armés, le chemin web reste sans aucun contrôle** — ni
+garde, ni alerte. C'est assumé au vu de la mesure. **Quand ne pas faire confiance
+au dispositif** : si un jour un fichier est édité dans le navigateur sur un dépôt
+privé autre que `CockpitV2`, rien ne le regardera. Le signal qui doit faire
+rouvrir cette décision est le retour d'une rédaction web réelle — la mesure se
+rejoue avec le script de la tâche, ou en filtrant sur le committer `GitHub`.
+
+### La preuve qu'il mord
+
+Un contrôle qui ne rougit jamais ne prouve rien. Vérifié le 2026-08-08 sur une
+branche jetable, avec des valeurs **assemblées à l'exécution** (jamais un littéral
+écrit dans un fichier), par les deux chemins serveur :
+
+1. **Chemin web fidèle** — commit créé par `createCommitOnBranch`, committer
+   `GitHub <noreply@github.com>`, signature **vérifiée** : donc un commit que la
+   mesure ci-dessus classe bien comme « web ».
+2. **Chemin API REST** — commit créé par l'API `contents`.
+
+Dans les deux cas le contrôle est passé au **rouge**, en nommant le fichier et la
+ligne sans afficher la valeur :
+
+```
+ ALERTE : 1 secret(s) potentiel(s) DEJA POUSSE(S)
+   verification-chemin-web.txt:2  [assignation-sensible]
+       assignation "MAILER_SECRET_KEY=" avec une valeur d allure secrete
+ CE CONTROLE N A RIEN BLOQUE : le commit est deja sur le distant.
+```
+
+Nettoyage contrôlé ensuite : branche distante supprimée (**404** sur la
+référence), exécutions de test supprimées, **aucune alerte de sécurité** laissée
+ouverte, seule l'exécution verte de `master` subsiste.
+
+**Et il ne crie pas au loup.** Le détecteur a été rejoué sur les **120 derniers
+commits réels** de `CockpitV2` : **0 passage au rouge**. Un contrôle qui rougirait
+une fois sur dix serait ignoré en trois semaines — c'est la raison pour laquelle
+ce chiffre est ici plutôt qu'une promesse.
+
+### Ce que ça coûte
+
+Une exécution dure **7 à 10 secondes**, facturée à la minute entamée.
+`CockpitV2` reçoit environ **76 commits par 30 jours**, soit de l'ordre de
+**80 minutes par mois** sur les 2 000 minutes offertes du plan gratuit pour les
+dépôts privés — moins de 5 %. Le coût n'a donc jamais été l'argument contre la
+propagation : **c'est l'entretien de 37 fichiers de plus qui l'était.**
+
+### Ce qui a été écarté, et pourquoi
+
+- **La protection de branche exigeant un contrôle vert avant fusion.** Elle
+  *bloque* vraiment, mais seulement à la fusion d'une PR : elle ne voit pas un
+  push direct sur `master`, qui est le mode de travail majoritaire sur ce dépôt
+  (147 des 190 commits). L'activer supposerait d'interdire aussi le push direct —
+  un changement de méthode de travail, qui appartient à Aymeric, pas à un run.
+- **Un outil tiers** (`gitleaks`, `trufflehog`) plutôt que le détecteur du dépôt.
+  Il aurait fallu recalibrer un second jeu de règles, et vivre avec deux verdicts
+  différents sur la même ligne selon qu'on commite ou qu'on pousse.

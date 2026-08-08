@@ -1,0 +1,30 @@
+#!/bin/sh
+# Garde de detection de secrets, executee par git AVANT d'ecrire le commit.
+#
+# Enveloppe /bin/sh volontaire : sous Git for Windows les hooks tournent dans le
+# sh embarque, et un shebang "#!/usr/bin/env node" ne resout pas toujours node
+# selon le PATH du processus appelant (Explorateur, tache planifiee, PowerShell).
+# On resout node ici, et on ECHOUE BRUYAMMENT s'il manque : une garde qui
+# s'efface quand son moteur est absent ne garde rien.
+
+# git lance ses hooks depuis la racine de la copie de travail : pwd est donc un
+# repli correct si `git` lui-meme n'est pas resolvable dans ce PATH.
+repo="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+if command -v node >/dev/null 2>&1; then
+    node "$repo/.githooks/detect-secrets.js"
+    exit $?
+fi
+
+for n in "/c/Program Files/nodejs/node.exe" "$LOCALAPPDATA/Programs/nodejs/node.exe"; do
+    if [ -x "$n" ]; then
+        "$n" "$repo/.githooks/detect-secrets.js"
+        exit $?
+    fi
+done
+
+echo "" >&2
+echo "COMMIT REFUSE : node est introuvable, la detection de secrets n a pas pu" >&2
+echo "s executer. Installe node, ou passe outre en connaissance de cause avec" >&2
+echo "git commit --no-verify (voir .githooks/README.md)." >&2
+exit 1

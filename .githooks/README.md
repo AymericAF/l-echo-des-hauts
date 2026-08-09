@@ -605,7 +605,7 @@ rouvre chaque semaine coûte la garde entière.
 
 | Dépôt | Pire cas | Vivant | Ce qui reste, et pourquoi |
 | --- | --- | --- | --- |
-| `strategie-marketing-freelance` | 5 → **2** | **0** | 3 faux jetons de recette marqués `secret-ok`. Les 2 restants sont dans `audit-sante/temoins/exec-*.json`, témoins n8n **mono-ligne** : la regex `url-avec-identifiants` traverse le JSON minifié. JSON n'a pas de commentaire — le marqueur y est syntaxiquement impossible. Ajoutés en un commit le 2026-08-01, jamais rouverts. |
+| `strategie-marketing-freelance` | 5 → 2 → **0** | **0** | 3 faux jetons de recette marqués `secret-ok`. **Les 2 derniers ont été supprimés à la source le 2026-08-09** — pas marqués, *corrigés* : voir « Le faux positif qu'on ne peut pas marquer » ci-dessous. Plus aucun résidu. |
 | `automatisation-maintenance-wordpress` | 18 → **0** | **0** | 19 lignes marquées (13 jetons de fixture PHPUnit, 6 identifiants de ressources Google Drive). Aucun résidu. |
 | `maj-divi5-zeller` | **102** | **0** | 92 dans `perf/**/*.json` (relevés PageSpeed, clé Google Maps **navigateur** publique par construction) et 10 dans `recette-p*/**.html`. Marqueur impossible en JSON, et ces relevés sont relus par `_parse.js` / `_compare.js` : y insérer une clé les fausserait. Familles figées depuis juin. Levier si le sujet perf reprend : un `.gitignore` sur `perf/**`, **jamais** un assouplissement de la règle. |
 
@@ -614,6 +614,72 @@ le détecteur **regroupe les détections voisines à une ligne près**. Exempter
 ligne fait donc **surgir** sa voisine, qui portait le même motif et se trouvait
 masquée par le regroupement. Il faut mesurer **jusqu'à 0**, en boucle, pas jusqu'à
 la première passe — sinon on croit avoir fini avec une détection encore debout.
+
+### Le faux positif qu'on ne peut pas marquer (2026-08-09, tâche `7bdeca91`)
+
+Les deux résidus de `strategie-marketing-freelance` n'ont pas été marqués : ils ne
+**pouvaient** pas l'être. Ce sont deux dumps d'exécution n8n **mono-ligne**, et JSON
+n'a pas de commentaire — il n'existe aucun endroit où poser un `secret-ok`. C'est le
+pire cas de tous : un faux positif marquable coûte une ligne, **celui-là laisse le
+dépôt nu pour toujours, ou pousse au `--no-verify`**.
+
+**Ce que la règle faisait.** Ses trois classes étaient écrites en **négatif** —
+`[^\s/:@]`, « tout sauf quatre caractères ». Le guillemet double et la virgule y
+étaient donc admis. Dans un JSON minifié, où le document entier tient sur une ligne,
+la règle lisait un **nom d'hôte** comme utilisateur, le `:` de **la clé JSON
+suivante** comme séparateur, et une **adresse e-mail** comme `motdepasse@hôte`. Elle
+voyait `user:pass@hôte` en **enjambant trois valeurs** :
+
+```
+… "lien":"https://www-abc.exemple.fr","email":"contact@exemple.fr","actif":true …
+                    └─────── userinfo ────────┘ │└─ mdp ─┘│└──────── host ───────
+                                                :         @
+```
+
+**Ce n'est pas un assouplissement, c'est une définition corrigée.** La RFC 3986
+exclut ces caractères de `userinfo` et de `host` : une URI ne peut **pas** en
+contenir. Les classes sont donc désormais écrites en **positif**, depuis la RFC —
+`unreserved` + `sub-delims` + `pct-encoded`, plus `[ ]` et `:` du côté hôte pour les
+IPv6 et le port. La règle ne perd rien ; elle cesse de voir des URI là où il ne peut
+pas y en avoir.
+
+**Classer plutôt qu'énumérer, mais mesurer l'exception.** Retirer le seul guillemet
+double aurait laissé le trou voisin ouvert (`<`, `` ` ``, `\`, `#`, `?`, `|`) — le
+mode d'échec que ce détecteur a déjà payé trois fois. À l'inverse, appliquer la RFC
+**à la lettre** faisait disparaître une détection réelle : `${DB_USER}:${DB_PASSWORD}`
+dans le `docker-compose.prod.yml` de deux dépôts, l'accolade n'étant pas admise par
+la RFC. **L'accolade est donc la seule exception, et elle est comptée, pas supposée** :
+240 détections en RFC stricte, **242** avec elle, 245 avant. Cf.
+[[classer-plutot-qu-enumerer-les-cas]].
+
+**La contre-épreuve**, sur les 38 dépôts armés, en pire cas (chaque fichier présenté
+comme entièrement ajouté) :
+
+| | Avant | RFC stricte | **Retenu (RFC + accolades)** |
+| --- | --- | --- | --- |
+| Détections, tout le parc | 245 | 240 | **242** |
+| Perdues | — | 5 | **3** |
+| Apparues | — | 0 | **0** |
+
+Les **trois** perdues sont les trois faux positifs visés : les deux témoins JSON, et
+un gabarit de documentation `postgres://<user>:<motdepasse>@<hôte>` — les chevrons
+étant eux aussi exclus par la RFC. Ce troisième a été vérifié **en le cassant** :
+valeurs d'allure réelle à la place des chevrons, la règle le revoit aussitôt. Ce
+n'est donc pas de la protection qui disparaît, c'est un gabarit.
+Cf. [[un-controle-se-prouve-en-cassant-ce-qu-il-protege]].
+
+**Neuf cas de recette ont été écrits AVANT de toucher à la règle**, et devaient être
+verts avant comme après : `postgres://`, `mysql://` sur IPv4, `mongodb://` avec
+chaîne de requête, `http://`, mot de passe encodé en pourcentage, mot de passe à
+sous-délimiteurs, hôte IPv6 entre crochets, interpolation `${VAR}`, et DSN
+légitimement **entre guillemets** dans du JSON. Sans eux, le resserrement se serait
+mesuré sur la seule chose qu'il devait supprimer.
+
+**Et la recette sait maintenant QUI a refusé.** Ses cas portent un champ facultatif
+`regle` : le code de sortie seul ne dit pas quelle règle a tiré, et un cas « refuse »
+serait resté vert si une **autre** règle avait pris le relais — la règle visée
+pouvant alors être cassée sans que rien ne rougisse. Cf.
+[[preuve-doit-exercer-critere-acceptation]].
 
 ### Laissés nus, et pourquoi
 

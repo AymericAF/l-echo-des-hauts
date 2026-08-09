@@ -84,8 +84,47 @@ const REGLES_MOTIF = [
     re: /\bAIza[0-9A-Za-z_-]{35}\b/ },
   { nom: 'jeton-slack', desc: 'jeton Slack (xox...)',
     re: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/ },
+  // LES CLASSES SONT ECRITES EN POSITIF, DEPUIS LA RFC 3986 (2026-08-09, tache
+  // 7bdeca91). Elles etaient ecrites en NEGATIF — `[^\s/:@]`, « tout sauf quatre
+  // caracteres » — donc le guillemet double, la virgule et l accolade y etaient
+  // ADMIS. Dans du JSON minifie, ou tout le document tient sur une ligne, la
+  // regle lisait alors un nom d hote comme utilisateur, le `:` de LA CLE SUIVANTE
+  // comme separateur, et une adresse e-mail comme `motdepasse@hote` : elle voyait
+  // `user:pass@hote` en ENJAMBANT TROIS VALEURS JSON. Deux temoins n8n de
+  // `strategie-marketing-freelance` rougissaient ainsi, et etaient IMPOSSIBLES a
+  // marquer — JSON n a pas de commentaire, donc pas de `secret-ok` possible. Un
+  // faux positif qu on ne peut pas marquer est le pire de tous : il laisse le
+  // depot nu pour toujours, ou pousse au `--no-verify`.
+  //
+  // CE N EST PAS UN ASSOUPLISSEMENT, C EST UNE DEFINITION CORRIGEE. Une URI ne
+  // peut PAS contenir ces caracteres : la RFC 3986 les exclut de `userinfo` et de
+  // `host`. La regle ne perd donc rien — elle cesse de voir des URI la ou il ne
+  // peut pas y en avoir. Les classes retenues :
+  //     unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+  //     sub-delims  = "!" "$" "&" "'" "(" ")" "*" "+" "," ";" "="
+  //     pct-encoded = "%" HEXDIG HEXDIG      (le `%` seul suffit ici)
+  //     userinfo    = unreserved / pct-encoded / sub-delims / ":"
+  //     host        = reg-name (memes classes) / IPv4 / IP-literal "[" IPv6 "]"
+  //                   puis ":" port
+  // Le `:` et le `@` restent hors des deux premieres classes : ce sont NOS
+  // separateurs de segments, pas une restriction supplementaire.
+  //
+  // L ACCOLADE EST LA SEULE EXCEPTION, ET ELLE EST MESUREE. La RFC ne l admet pas,
+  // mais la forme reelle d une chaine de connexion en fichier de configuration est
+  // `postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/appli` — presente dans le
+  // `docker-compose.prod.yml` de DEUX depots du parc. La RFC appliquee a la lettre
+  // faisait disparaitre cette detection : 240 detections au lieu de 245, contre 242
+  // avec l exception. On ne devine pas ce genre de chose, on le compte.
+  //
+  // CE QUI A ETE PROUVE, sur les 38 depots armes, en pire cas (chaque fichier
+  // presente comme entierement ajoute) : 245 detections avant, 242 apres, ZERO
+  // apparue, et les TROIS disparues sont les trois faux positifs vises — les deux
+  // temoins JSON, et un gabarit de documentation `postgres://<user>:<mdp>@<hote>`
+  // dont les chevrons sont eux aussi exclus par la RFC. Ce dernier a ete verifie
+  // en le CASSANT : valeurs reelles a la place des chevrons, la regle le revoit.
+  // Cf. [[un-controle-se-prouve-en-cassant-ce-qu-il-protege]].
   { nom: 'url-avec-identifiants', desc: 'URL portant user:motdepasse@hote',
-    re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:[^\s/:@]{6,}@[^\s/]+/i },
+    re: /\b[a-z][a-z0-9+.-]*:\/\/[A-Za-z0-9\-._~%!$&'()*+,;={}]+:[A-Za-z0-9\-._~%!$&'()*+,;={}]{6,}@[A-Za-z0-9\-._~%!$&'()*+,;={}:[\]]+/i },
   // Stripe, ajoutes le 2026-08-08. `sk_` = cle secrete, `rk_` = cle restreinte
   // (secrete elle aussi, seulement bornee en droits), `_live_` = compte reel.
   // Le suffixe est exige a 16 caracteres au moins pour que le PREFIXE SEUL, cite

@@ -70,6 +70,15 @@ const HEX40 = 'b3f9' + 'a12c' + '7d54' + '0e6b' + '81aa' + '2f37' + 'c9d0' + '4e
 const MDP_APP = 'wqzl' + ' ' + 'mnbv' + ' ' + 'trfe' + ' ' + 'hjkd';
 const JETON_NPM = 'Kf7Q2' + 'mZt9Rw4Nx1Hb3Vd5Cy8Ju6Le0Ap2Sg';
 
+// --- URL portant des identifiants (2026-08-09, tâche 7bdeca91) ----------------
+// Mot de passe INVENTÉ, et surtout : la chaîne complète `schéma://user:mdp@hôte`
+// est ASSEMBLÉE À L'EXÉCUTION, pour la même raison que les valeurs Stripe plus
+// haut. Écrite d'une pièce, elle ferait refuser le commit de la recette par la
+// règle que ces cas servent à éprouver — et ici aucun marqueur `secret-ok` ne
+// sauverait les cas JSON, qui n'ont pas de commentaire.
+const MDP_URL = 'Zt7Rq2' + 'Wm9Xb4';
+const dsn = (schema, user, mdp, reste) => schema + '://' + user + ':' + mdp + '@' + reste;
+
 const CAS = [
   { nom: 'mot-clé et littéral sur la MÊME ligne', fichier: 'a.js',
     contenu: `const token = "${FAUX}";\n`, attendu: 'refuse' },
@@ -384,6 +393,105 @@ const CAS = [
     contenu: `registry=https://npm.registre-divi.net/\n`, attendu: 'passe' },
   { nom: 'BORNE : //hôte/:always-auth=true ne porte aucune valeur secrète', fichier: 'e12.npmrc',
     contenu: `//npm.registre-divi.net/:always-auth=true\n`, attendu: 'passe' },
+
+  // =========================================================================
+  // `url-avec-identifiants` — LA RÈGLE TRAVERSAIT LES GUILLEMETS (2026-08-09,
+  // tâche 7bdeca91).
+  //
+  // Ses trois classes étaient écrites en NÉGATIF (`[^\s/:@]`), c'est-à-dire
+  // « tout sauf quatre caractères ». Le guillemet double, la virgule et
+  // l'accolade y étaient donc AUTORISÉS — et dans du JSON minifié, où tout le
+  // document tient sur une ligne, la règle lisait un nom d'hôte comme
+  // utilisateur, le `:` de la CLÉ SUIVANTE comme séparateur, et une adresse
+  // e-mail comme `motdepasse@hôte`. Elle voyait `user:pass@hôte` en enjambant
+  // TROIS valeurs JSON.
+  //
+  // Ce n'est pas un assouplissement, c'est une définition corrigée : la
+  // RFC 3986 exclut ces caractères de `userinfo` et de `host`. Une URI ne peut
+  // PAS en contenir. Les classes sont donc écrites en POSITIF, depuis la RFC :
+  //     unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+  //     sub-delims  = "!" "$" "&" "'" "(" ")" "*" "+" "," ";" "="
+  //     pct-encoded = "%" HEXDIG HEXDIG
+  //     host        = reg-name / IPv4 / IP-literal ("[" IPv6 "]"), puis ":" port
+  // plus UNE exception mesurée : les accolades, parce que la forme réelle d'une
+  // chaîne de connexion en fichier de configuration est `${DB_PASSWORD}` (cas
+  // `INTERPOLATION` ci-dessous, réel, `docker-compose.prod.yml` de deux dépôts).
+  // Sans elle le resserrement perdait une détection — mesuré, pas supposé.
+  //
+  // POURQUOI CES CAS PORTENT UN CHAMP `regle` : le code de sortie ne dit pas QUI
+  // a refusé. Un cas « refuse » resterait vert si une autre règle tirait à sa
+  // place, et le resserrement pourrait tout casser sans que rien ne rougisse.
+  // =========================================================================
+
+  // Détection — ces neuf cas doivent être verts AVANT comme APRÈS. C'est eux qui
+  // prouvent que le resserrement ne retire RIEN.
+  { nom: 'URL-ID : postgres:// avec mot de passe et port', fichier: 'u1.env',
+    contenu: `DATABASE_URL=${dsn('postgres', 'svc_appli', MDP_URL, 'db.exemple.fr:5432/appli')}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+  { nom: 'URL-ID : mysql:// sur une adresse IPv4', fichier: 'u2.env',
+    contenu: `WP_DB=${dsn('mysql', 'root', MDP_URL, '127.0.0.1:3306/wordpress')}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+  { nom: 'URL-ID : mongodb:// avec chaîne de requête', fichier: 'u3.env',
+    contenu: `MONGO=${dsn('mongodb', 'admin', MDP_URL, 'grappe.exemple.net:27017/base?authSource=admin')}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+  { nom: 'URL-ID : http:// avec mot de passe', fichier: 'u4.md',
+    contenu: `Acces intranet : ${dsn('http', 'admin', MDP_URL, 'intranet.exemple.fr/')}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+  // Un mot de passe correct EST encodé en pourcentage dès qu'il porte un `@` ou
+  // un `#`. Une classe RFC qui oublierait `%` laisserait passer la forme la plus
+  // propre, donc la plus probable dans une vraie chaîne de connexion.
+  { nom: 'URL-ID : mot de passe encodé en pourcentage (%40, %23)', fichier: 'u5.env',
+    contenu: `DSN=${dsn('postgres', 'svc', 'Zt7%40Rq2%23Wm9Xb4', 'db.exemple.fr/appli')}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+  // Les sub-delims sont VALIDES en `userinfo`. Un resserrement qui les couperait
+  // manquerait les mots de passe à ponctuation — les plus solides.
+  { nom: 'URL-ID : mot de passe à sous-délimiteurs RFC', fichier: 'u6.env',
+    contenu: `DSN=${dsn('postgres', 'svc', "a!$&'()*+,;=bZ", 'db.exemple.fr/appli')}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+  // `host` accepte aussi une IP-literal entre crochets. Sans `[` et `]` dans la
+  // classe d'hôte, toute base joignable en IPv6 sortirait du champ.
+  { nom: 'URL-ID : hôte IPv6 entre crochets', fichier: 'u7.env',
+    contenu: `DSN=${dsn('postgres', 'svc', MDP_URL, '[2001:db8::1]:5432/appli')}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+  // CAS RÉEL, présent dans `docker-compose.prod.yml` de deux dépôts du parc.
+  // C'est lui qui interdit d'appliquer la RFC à la lettre : les accolades n'y
+  // sont pas admises, et sans exception explicite cette ligne cessait d'être vue.
+  { nom: 'URL-ID : INTERPOLATION ${VAR} dans un docker-compose', fichier: 'u8.yml',
+    contenu: `      DATABASE_URL: ${dsn('postgresql', '${DB_USER}', '${DB_PASSWORD}', 'db:5432/appli')}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+  // Le resserrement ne doit pas rendre la règle aveugle DANS du JSON : une URL
+  // légitimement entre guillemets reste une URL. C'est la contre-épreuve directe
+  // du correctif — il retire le guillemet du DEDANS de l'URI, pas de son pourtour.
+  { nom: 'URL-ID : DSN entre guillemets dans du JSON', fichier: 'u9.json',
+    contenu: `{"dsn":"${dsn('postgres', 'svc', MDP_URL, 'db.exemple.fr:5432/appli')}"}\n`,
+    attendu: 'refuse', regle: 'url-avec-identifiants' },
+
+  // LE CAS FONDATEUR — rouge avant le correctif, vert après. Reproduit la forme
+  // exacte des témoins n8n de `strategie-marketing-freelance` : un document JSON
+  // MINIFIÉ, donc mono-ligne, où trois valeurs voisines se lisaient comme une
+  // URL à identifiants. Aucun marqueur `secret-ok` n'est possible ici : JSON n'a
+  // pas de commentaire. C'est ce qui rend ce faux positif pire que les autres —
+  // il laisse le dépôt nu pour toujours, ou pousse au `--no-verify`.
+  { nom: 'URL-ID : FONDATEUR — JSON minifié, la règle enjambait la frontière', fichier: 'u10.json',
+    contenu: '{"lien":"https://www-abc.exemple.fr","email":"contact@exemple.fr",'
+      + '"actif":true,"suite":"https://www-abc.exemple.fr/chemin/page"}\n',
+    attendu: 'passe', regle: 'url-avec-identifiants' },
+  // Même famille : un gabarit de documentation. Les chevrons sont exclus de la
+  // RFC, donc `<motdepasse>` n'est pas un mot de passe — c'est un trou à remplir.
+  { nom: 'URL-ID : gabarit de documentation à chevrons', fichier: 'u11.md',
+    contenu: 'Forme attendue : postgres://<user>:<motdepasse>@<hote>/<base>\n',
+    attendu: 'passe', regle: 'url-avec-identifiants' },
+  { nom: 'URL-ID : BORNE — URL sans identifiants', fichier: 'u12.md',
+    contenu: 'Voir https://www.exemple.fr/documentation/chapitre-3 pour la suite.\n',
+    attendu: 'passe', regle: 'url-avec-identifiants' },
+  { nom: 'URL-ID : BORNE — utilisateur sans mot de passe', fichier: 'u13.md',
+    contenu: 'Depot : https://svc-lecture@git.exemple.fr/groupe/projet.git\n',
+    attendu: 'passe', regle: 'url-avec-identifiants' },
+  // Le seuil de 6 caractères existe pour que `redis://h:1234@x` (un port, un
+  // identifiant court) ne rougisse pas. Il ne doit pas disparaitre au passage.
+  { nom: 'URL-ID : BORNE — mot de passe de moins de 6 caractères', fichier: 'u14.md',
+    contenu: 'Sonde locale : redis://u:abc@cache.exemple.fr/0\n',
+    attendu: 'passe', regle: 'url-avec-identifiants' },
 ];
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
@@ -415,15 +523,30 @@ for (const cas of CAS) {
   }
 
   let code = 0;
+  let sortie = '';
   try {
     execFileSync(process.execPath, ['detect-secrets.js'], { cwd: d, stdio: 'pipe' });
   } catch (e) {
     code = e.status ?? 1;
+    sortie = String(e.stderr ?? '');
   }
   const obtenu = code === 0 ? 'passe' : 'refuse';
-  const ok = obtenu === cas.attendu;
+
+  // `regle` (facultatif) : LE CODE DE SORTIE NE DIT PAS QUI A REFUSÉ. Un cas
+  // « refuse » resterait vert alors qu'une AUTRE règle a tiré à la place de celle
+  // qu'on éprouve — et un resserrement pourrait alors casser la règle visée sans
+  // rien faire rougir. Quand le champ est présent, on exige que ce soit bien elle
+  // (ou, pour un cas « passe », qu'elle soit absente de la sortie).
+  // Cf. [[preuve-doit-exercer-critere-acceptation]].
+  const marqueur = `[${cas.regle}]`;
+  const bonneRegle = cas.regle === undefined
+    || (cas.attendu === 'refuse' ? sortie.includes(marqueur) : !sortie.includes(marqueur));
+  const ok = obtenu === cas.attendu && bonneRegle;
   if (!ok) echecs++;
-  console.log(`  ${ok ? 'ok    ' : 'ECHEC '} ${cas.nom} — attendu ${cas.attendu}, obtenu ${obtenu}`);
+  const pourquoi = !bonneRegle
+    ? ` — regle ${cas.regle} ${cas.attendu === 'refuse' ? 'ABSENTE de' : 'PRESENTE dans'} la sortie`
+    : '';
+  console.log(`  ${ok ? 'ok    ' : 'ECHEC '} ${cas.nom} — attendu ${cas.attendu}, obtenu ${obtenu}${pourquoi}`);
 }
 
 console.log(`\n${CAS.length - echecs}/${CAS.length} cas conformes`);

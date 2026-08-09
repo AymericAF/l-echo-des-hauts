@@ -658,6 +658,8 @@ rouvre chaque semaine coûte la garde entière.
 | `strategie-marketing-freelance` | 5 → 2 → **0** | **0** | 3 faux jetons de recette marqués `secret-ok`. **Les 2 derniers ont été supprimés à la source le 2026-08-09** — pas marqués, *corrigés* : voir « Le faux positif qu'on ne peut pas marquer » ci-dessous. Plus aucun résidu. |
 | `automatisation-maintenance-wordpress` | 18 → **0** | **0** | 19 lignes marquées (13 jetons de fixture PHPUnit, 6 identifiants de ressources Google Drive). Aucun résidu. |
 | `maj-divi5-zeller` | 102 → **10** | **0** | Les **92** de `perf/**/*.json` sont traitées le 2026-08-09 par une entrée de `.secrets-connus` — **une seule valeur**, une clé Google **navigateur** publique par construction : voir « Les 92 relevés PageSpeed » ci-dessous. Restent 10 `litteral-haute-entropie` dans `recette-p*/**.html`, familles figées depuis juin, sur des pages archivées. |
+| `ChosenPath` | **47** | 47 | Instruit le 2026-08-09 (tâche `603c27fd`), **aucun vrai secret** : 38 mots de passe / jetons de **fixture** dans les tests, 9 DSN de développement `postgres:postgres@localhost`. Marquables mais **non marqués** — l'arbre est partagé avec une boucle autonome, et le coût réel est de **1 commit refusé sur 23**. Voir la section dédiée ci-dessous. |
+| `ldveh-premium` | **62** | 47 | **Le même dépôt que `ChosenPath`** (même distant), avec 3 mois et demi de retard : 47 détections **identiques clé à clé**, plus 15 sur cinq faux `.ttf` déjà réparés en amont par `eb17e9c`. Rien à y corriger — le résidu tombe à 47 au premier `pull`, ou disparaît avec le dossier. Clone non suivi, **lecture seule** tant que son sort n'est pas tranché. |
 
 **La leçon de mesure du 19e marqueur** (`automatisation-maintenance-wordpress`) :
 le détecteur **regroupe les détections voisines à une ligne près**. Exempter une
@@ -810,6 +812,89 @@ mécanisme se serait mesuré sur la seule chose qu'il devait faire disparaître.
 pages HTML archivées de `recette-p*/`. Elles sont **marquables** (HTML a des
 commentaires) et vivent dans des fichiers figés — elles ne relèvent pas de cette
 échappatoire.
+
+### `ldveh-premium` (62) et `ChosenPath` (47), instruits (2026-08-09, tâche `603c27fd`)
+
+Une fois `maj-divi5-zeller` traité, ces deux-là devenaient les deux plus gros
+résidus du parc — **62 + 47 sur 141**, soit **77 %** du total. Ils n'avaient
+jamais été comptés qu'en **commits refusés** (1 sur 23 pour `ChosenPath`, l'import
+initial). Personne n'avait regardé **ce qui est attrapé**. Un résidu élevé toléré
+depuis des semaines est indiscernable d'un résidu élevé qui cache une fuite : le
+motif exact que ce parc traque.
+
+**Le premier résultat rend le second inutile : ce n'est pas deux dépôts, c'en est
+un.** `ldveh-premium` et `ChosenPath` pointent sur le **même distant**
+(`AymericAF/ChosenPath`). Comparaison **clé à clé** (règle × fichier × ligne) des
+deux relevés de pire cas : les **47** de `ChosenPath` sont **exactement** les 47
+non-polices de `ldveh-premium` — zéro écart dans les deux sens. Les **62** ne sont
+donc pas un second gisement à instruire, mais **47 + 15**, et les 15 ont une cause
+unique, décrite plus bas.
+
+**Ce qui est réellement attrapé** — trois familles, aucune valeur secrète :
+
+| Dépôt | Règle | Nb | Où | Verdict |
+| --- | --- | --- | --- | --- |
+| les deux | `assignation-sensible` | 35 | `*.test.ts` de `apps/api`, `apps/mobile`, `packages/shared` | **forme seule** — mots de passe et jetons de fixture (`password:`, `token:`, `process.env.LLM_API_KEY`) dans des tests unitaires |
+| les deux | `assignation-sensible` | 3 | `_bmad/tea/**/*.md` | **forme seule** — prose d'un **cadriciel tiers versionné** (gabarits BMAD), même famille que la documentation `ANTHROPIC_AUTH_TOKEN` de `~/.claude` |
+| les deux | `assignation-sensible` | 1 | `packages/database/prisma/seed.ts:1348` | **règle trop large** — `h6_secret_room` est l'identifiant d'un **nœud de récit** (la pièce secrète du manoir), pas un secret. Voir ci-dessous. |
+| les deux | `url-avec-identifiants` | 8 | `.env.example` ×2, `.github/workflows/ci.yml`, `docker-compose.prod.yml`, `docs/`, `packages/database/`, `scripts/` | **forme seule** — le DSN de développement **par défaut**, `postgres:postgres@localhost`, celui que docker-compose engendre |
+| les deux | `url-avec-identifiants` | 1 | `docker-compose.prod.yml:27` | **forme seule** — l'interpolation `${POSTGRES_USER}:${POSTGRES_PASSWORD}`, exactement la détection que l'exception « accolade » de la correction RFC conserve **exprès** |
+| `ldveh-premium` seul | `litteral-haute-entropie` | 15 | `apps/mobile/assets/fonts/*.ttf` | **forme seule**, et **artefact de clone périmé** — voir ci-dessous |
+
+**Aucun vrai secret. Zéro rotation à déclencher.** C'est le résultat qu'on voulait
+pouvoir écrire, et il n'a de valeur que parce qu'il a été **établi en lisant**,
+pas déduit des noms de fichiers.
+
+**Les 15 de `ldveh-premium` : cinq polices qui n'en sont pas.** Les cinq
+`apps/mobile/assets/fonts/*.ttf` de ce clone ne sont pas des polices : ce sont
+cinq copies d'une page **`Page not found · GitHub`** en HTML, ~302 Ko chacune,
+enregistrées sous une extension `.ttf` par un téléchargement qui a échoué sans le
+dire. N'ayant aucun octet nul, elles sont lues comme du **texte** — d'où
+3 `litteral-haute-entropie` par fichier, toutes sur l'`authenticity_token` (jeton
+**anti-CSRF** Rails de 86 caractères) des formulaires de la page. Ce jeton n'ouvre
+rien seul : il n'est valable qu'avec le cookie de session qui l'accompagne, absent
+ici — la page est d'ailleurs à l'état **déconnecté** (`logged-out`, aucun marqueur
+`user-session` ni `octolytics-actor-login`).
+
+Et **il n'y a rien à corriger** : le défaut a été réparé en amont le jour même par
+`eb17e9c` (« les cinq .ttf etaient des pages d'erreur GitHub, pas des polices »),
+que ce clone, en retard de 3 mois et demi, n'a pas encore. Ces 15 détections
+**disparaissent d'elles-mêmes** au premier `git pull` — ou avec le dossier, si la
+décision en cours sur son sort tranche pour l'archivage. C'est aussi une remarque
+sur la mesure : **compter le pire cas d'un clone périmé, c'est compter deux fois
+le même dépôt**, plus la dette qu'il traîne.
+
+**Rien n'a été marqué, et c'est un choix, pas un abandon.** Les 47 sont
+marquables (`.ts`, `.md`, `.yml`, `.sh` ont tous des commentaires), sauf les deux
+lignes de `.env.example` — un `#` après une valeur **non quotée** y est avalé par
+certains lecteurs `dotenv`, et ces fichiers sont faits pour être copiés (point 8
+du calibrage). Trois raisons de ne pas poser les 45 autres dans ce run :
+
+- **L'arbre de travail est partagé avec une boucle autonome qui tourne.** Poser
+  47 marqueurs, c'est toucher 15 fichiers dont les deux tests d'authentification
+  les plus actifs. Un dépôt à moitié marqué est pire qu'un dépôt inventorié.
+- **Le coût réel est déjà connu et il est bas** : 1 commit refusé sur 23, l'import
+  initial, déjà passé. Ce n'est pas le profil qui fait taper `--no-verify`.
+- **Le registre `.secrets-connus` ne s'applique pas.** Il est borné aux règles
+  **`empreintable`** ; `assignation-sensible`, `litteral-haute-entropie` et
+  `url-avec-identifiants` en sont exclues par construction. Le mécanisme posé pour
+  les 92 relevés PageSpeed ne couvre donc **aucune** de ces 47 — vérifié avant
+  d'inventer autre chose.
+
+**Un élargissement a été envisagé puis écarté, et il vaut mieux dire pourquoi.**
+Une dizaine des 38 `assignation-sensible` portent une valeur faite de **mots
+anglais séparés par des tirets** (`valid-token`, `jwt-login-token`,
+`sk-secondary`). Le filtre existant — « valeur **uniquement alphabétique** de
+moins de 16 caractères » — les rate à cause du tiret. L'étendre aux mots
+tiretés supprimerait ces détections **et ouvrirait un trou franc** : un mot de
+passe **choisi par un humain** a exactement cette forme. On échangerait du bruit
+de fixture contre la cécité sur la fuite la plus banale qui soit. Écarté.
+
+**Ce qui reste ouvert, nommé plutôt qu'enjolivé** : `h6_secret_room` est une
+détection sur laquelle la règle de composition a raison **en syntaxe** (`secret`
+est un porteur fort) et tort **en fait** (c'est un nom de lieu dans une fiction).
+Aucun resserrement raisonnable ne distingue les deux — `room` ne peut pas devenir
+un qualificatif. Cette ligne relève du marqueur `secret-ok`, pas de la règle.
 
 ### Laissés nus, et pourquoi
 

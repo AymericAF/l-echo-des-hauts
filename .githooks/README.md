@@ -160,8 +160,85 @@ deux règles heuristiques ci-dessous, et c'est tout leur intérêt.
 | `sk_live_` / `rk_live_` | `cle-secrete-stripe-live` **(2026-08-08)** |
 | `whsec_` | `secret-webhook-stripe` **(2026-08-08)** |
 | `user:motdepasse@hôte` dans une URL | `url-avec-identifiants` |
+| `/webhook/<chemin opaque>` (n8n) | `url-webhook-a-chemin-opaque` **(2026-08-09)** |
 
-**Pourquoi les deux dernières ont été ajoutées.** La clé secrète Stripe **LIVE**
+#### `url-webhook-a-chemin-opaque` — quand l'URL **est** le mot de passe (2026-08-09, tâche `74ecea95`)
+
+**La mesure d'abord.** Un chemin de webhook n8n **vivant** a vécu du 25/03 au
+09/08 dans trois fichiers versionnés d'un dépôt privé. Le détecteur a été rejoué
+sur le contenu **exact** de ces trois fichiers, à l'état où le chemin était encore
+vivant (commit `33e4e70`) : sortie vide, `exit 0`, **zéro détection**. Ce n'est pas
+un oubli de vocabulaire — c'est que la valeur n'a **aucune** des formes que les
+règles cherchent. Une URL n'a pas de préfixe reconnaissable, ne se pose pas sous
+une clé parlante, et ne ressemble pas à un littéral à haute entropie. Elle
+traverse donc **les deux filets à la fois** : le `.gitignore` ne l'attrape pas
+(elle vit dans un fichier au nom anodin), et le détecteur non plus.
+
+**Pourquoi c'est un secret.** Un webhook n8n s'authentifie **par l'obscurité de
+son chemin** : ni compte, ni jeton, ni en-tête. Qui détient le segment peut
+déclencher le traitement. Le segment **est** le mot de passe — il se trouve juste
+qu'on l'écrit derrière un `https://`, là où personne ne cherche un secret.
+
+**La distinction qui fait tout le travail : opaque ≠ sémantique.** L'instance
+porte 277 points d'entrée de ce type ; **dix seulement** ont un chemin opaque.
+Tous les autres portent un nom lisible (`task-update`, `mail-reply-draft`,
+`audit-sante`, `coolify-backup-heartbeat`…), sont authentifiés **par en-tête**, et
+leur chemin n'a jamais eu vocation à être secret. Les signaler serait du bruit pur
+sur des dizaines de fichiers légitimes — et une garde bruyante se fait désarmer.
+Le motif devait donc attraper **l'opaque et lui seul** : c'est un exercice de
+**définition**, pas de largeur.
+
+**La définition, écrite en positif** (comme les classes RFC d'`url-avec-identifiants`).
+Un chemin est opaque quand il se lit comme un **identifiant tiré au hasard** et non
+comme un nom. Deux formes, et deux seulement :
+
+1. **UUID canonique**, 8-4-4-4-12 hexadécimaux — la valeur que n8n engendre
+   lui-même quand personne ne nomme le point d'entrée, donc la forme de
+   l'accident. Elle est écrite **à part**, et non déduite de la forme 2, parce
+   qu'un groupe hexadécimal peut tomber tout en lettres (`abcd`, `dead`) : la
+   déduire la rendrait vraie une fois sur vingt.
+2. **Jeton nu** d'au moins **16 caractères** dont **aucun morceau n'est un mot**.
+   Les morceaux se découpent sur `-` `_` `.` ; un morceau n'est pas un mot s'il
+   fait moins de 3 caractères **ou** s'il contient un chiffre. C'est la
+   formulation qui survit à l'hexadécimal : un jeton comme `…beefcafe0123` porte
+   bien des lettres consécutives, mais son morceau entier porte des chiffres, donc
+   il ne se lit pas. Exiger « aucune suite de 3 lettres » aurait raté **un jeton
+   hexadécimal sur trois**.
+
+**Ce que la définition exclut délibérément** — écrit pour être *vu*, pas découvert :
+
+| Exclu | Pourquoi |
+| --- | --- |
+| Le chemin **sémantique** | dès qu'un morceau est un mot, le chemin *nomme* quelque chose : il n'a jamais été un secret. Relevé sur les 38 dépôts : **70 segments distincts** suivent `/webhook*/`, **69 portent un mot**, **un seul** est opaque. |
+| Le sémantique **à suffixe tiré** (`mail-draft-<8 hexa>`, 4 fois dans le parc) | le suffixe est bien un secret partiel, mais le mot de tête rend la règle indécidable — il faudrait juger « ce nom est-il assez nommé ? », et c'est la porte ouverte au bruit qu'on vient de fermer. **Trou assumé**, fixé par un cas de recette. |
+| `/form/` et `/form-test/` (déclencheur Formulaire n8n) | s'authentifient par la même obscurité, mais `/form/contact` est trop courant pour qu'on ajoute ce préfixe **sans une mesure à part**. |
+| Le segment de **moins de 16 caractères** | trop court pour être un tirage ; c'est la longueur qui empêche `/webhook/v2` de rougir. |
+
+**Pourquoi elle n'est pas `empreintable`** : même raison qu'`url-avec-identifiants`.
+Le motif capture le préfixe `/webhook/` **avec** le segment ; l'empreinte porterait
+donc sur autre chose que le secret, et changerait selon qu'on écrit `/webhook/` ou
+`/webhook-test/`. Un faux positif se marque ici au `secret-ok`.
+
+**La preuve, dans les deux sens** — et c'est la seconde qui engage :
+
+| Sens | Mesure |
+| --- | --- |
+| Le témoin **mord** | contenu **réel** des trois fichiers de `33e4e70`, rejoué dans un dépôt bac à sable : **0 → 11 détections** (la configuration, son fichier d'état, et 9 lignes du journal), toutes `url-webhook-a-chemin-opaque`. |
+| Les chemins **sémantiques** restent muets | pire cas sur les **38 dépôts**, comparé **clé à clé** (dépôt, fichier, ligne, règle) : **141 → 143**. **Zéro disparue.** Les **2 apparues** sont la nouvelle règle sur le **même artefact généré** par le même pipeline, dans deux autres clones. Les **8 dépôts** qui portent des chemins sémantiques restent à **0**. |
+| La règle est **prouvée par mutation** | neutraliser le motif fait rougir les 7 cas « refuse » et eux seuls ; lever la clause « aucun morceau n'est un mot » fait rougir les bornes sémantiques ; lever la borne de 16 caractères fait rougir le cas du segment court. Chaque substitution **vérifie qu'elle s'est appliquée** et s'arrête bruyamment sinon — une mutation qui ne mute rien rend une preuve verte à vide. |
+
+**Les 2 détections apparues sont de vrais positifs, pas des faux.**
+`ChosenPath` et `ldveh-premium` portent le **même** `_bmad-output/phase4-pipeline-state.env`,
+généré par le même pipeline, avec le **même** segment que le témoin (corrélé par
+empreinte sha-256, jamais par la valeur). Ce segment a été **tourné** le 2026-08-09 :
+il est mort, donc inoffensif *aujourd'hui*. Mais le fichier est **régénéré** à chaque
+passage du pipeline, et il y réécrira alors le chemin **vivant** du moment — ce que la
+règle intercepte désormais au commit. Le traitement (les nommer au `.gitignore` puis
+`git rm --cached`, comme pour le dépôt témoin) sort du périmètre de cette tâche :
+`ldveh-premium` est en **lecture seule** tant que son sort n'est pas tranché, et
+l'arbre de `ChosenPath` est **partagé** avec la boucle autonome.
+
+**Pourquoi les deux règles Stripe ont été ajoutées.** La clé secrète Stripe **LIVE**
 d'un client — accès API complet à son compte de paiement — a bien été trouvée par
 le balayage du 2026-08-07, mais par la **seule règle d'entropie**, et seulement
 parce qu'un mot parlant de secret se trouvait dans les 80 caractères voisins.

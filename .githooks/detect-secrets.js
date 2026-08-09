@@ -141,6 +141,100 @@ const REGLES_MOTIF = [
   // Cf. [[un-controle-se-prouve-en-cassant-ce-qu-il-protege]].
   { nom: 'url-avec-identifiants', desc: 'URL portant user:motdepasse@hote',
     re: /\b[a-z][a-z0-9+.-]*:\/\/[A-Za-z0-9\-._~%!$&'()*+,;={}]+:[A-Za-z0-9\-._~%!$&'()*+,;={}]{6,}@[A-Za-z0-9\-._~%!$&'()*+,;={}:[\]]+/i },
+  // ---------------------------------------------------------------------------
+  // `url-webhook-a-chemin-opaque` — QUAND L URL EST ELLE-MEME LE MOT DE PASSE
+  // (2026-08-09, tache 74ecea95)
+  //
+  // CE QUE LA MESURE A MONTRE. Un chemin de webhook n8n VIVANT a vecu du 25/03 au
+  // 09/08 dans trois fichiers versionnes. Le detecteur a ete rejoue sur le contenu
+  // EXACT de ces trois fichiers, a l etat ou le chemin etait encore vivant :
+  // sortie vide, exit 0, ZERO detection. Aucune des regles ci-dessus ne pouvait
+  // le voir, et ce n est pas un oubli — c est que la valeur n a AUCUNE des formes
+  // qu elles cherchent. Une URL n a pas de prefixe reconnaissable, ne se pose pas
+  // sous une cle parlante, et ne ressemble pas a un litteral a haute entropie.
+  // Elle traverse donc les deux filets a la fois : le .gitignore ne l attrape pas
+  // (elle vit dans un fichier au nom anodin), et le detecteur non plus.
+  //
+  // POURQUOI C EST UN SECRET. Un webhook n8n s authentifie PAR L OBSCURITE DE SON
+  // CHEMIN : il n y a ni compte, ni jeton, ni en-tete. Qui detient le segment peut
+  // declencher le traitement. Le segment EST le mot de passe — il se trouve juste
+  // qu on l ecrit derriere un `https://`, la ou personne ne cherche un secret.
+  //
+  // LA DISTINCTION QUI FAIT TOUT LE TRAVAIL : CHEMIN OPAQUE != CHEMIN SEMANTIQUE.
+  // L instance porte 277 points d entree de ce type ; DIX seulement ont un chemin
+  // opaque. Tous les autres portent un nom lisible (`task-update`, `mail-draft`,
+  // `audit-sante`, `coolify-backup-heartbeat`...), sont authentifies par EN-TETE,
+  // et leur chemin n a jamais eu vocation a etre secret. Les signaler serait du
+  // bruit pur sur des dizaines de fichiers legitimes — et une garde bruyante se
+  // fait desarmer. Le motif doit donc attraper L OPAQUE ET LUI SEUL. C est un
+  // exercice de DEFINITION, pas de largeur.
+  //
+  // LA DEFINITION, ECRITE EN POSITIF (comme les classes RFC ci-dessus). Un chemin
+  // est opaque quand il se lit comme un IDENTIFIANT TIRE AU HASARD et non comme un
+  // nom. Deux formes, et deux seulement :
+  //
+  //   1. UUID CANONIQUE, 8-4-4-4-12 hexadecimaux. C est la valeur que n8n engendre
+  //      LUI-MEME quand personne ne nomme le point d entree — donc la forme de
+  //      l accident, celle du temoin. Elle est ecrite a part, et non deduite de la
+  //      regle 2, parce qu un groupe hexadecimal peut tomber tout en lettres
+  //      (`abcd`, `dead`) : la deduire la rendrait vraie une fois sur vingt.
+  //
+  //   2. JETON NU d au moins 16 caracteres dont AUCUN MORCEAU N EST UN MOT. Les
+  //      morceaux se decoupent sur `-` `_` `.`, et un morceau n est PAS un mot s il
+  //      fait moins de 3 caracteres ou s il contient un chiffre. C est la
+  //      formulation qui survit a l hexadecimal : `deadbeefcafe0123` contient bien
+  //      des lettres consecutives, mais le morceau entier porte des chiffres, donc
+  //      il ne se lit pas. Exiger « aucune suite de 3 lettres » aurait rate un
+  //      jeton hexadecimal sur trois.
+  //
+  // CE QUE LA DEFINITION EXCLUT DELIBEREMENT, et pourquoi :
+  //   - LE CHEMIN SEMANTIQUE, evidemment : des qu un morceau est un mot, le chemin
+  //     NOMME quelque chose, donc il n a jamais ete un secret. Mesure sur les 38
+  //     depots : 70 segments distincts suivent `/webhook*/`, 69 portent un mot,
+  //     UN SEUL est opaque — et c est celui du temoin.
+  //   - LE SEMANTIQUE A SUFFIXE TIRE (`mail-draft-<8 hexa>`, present 4 fois dans le
+  //     parc). Le suffixe est bien un secret partiel, mais le mot de tete suffit a
+  //     rendre la regle indecidable : il faudrait juger « ce nom est-il assez
+  //     nomme ? », et c est la porte ouverte au bruit qu on vient de fermer. Ces
+  //     chemins ne sont PAS couverts — c est un trou assume, pas un oubli.
+  //   - `/form/` ET `/form-test/` (declencheur Formulaire n8n), qui s authentifient
+  //     eux aussi par l obscurite. `/form/contact` est trop courant pour qu on
+  //     ajoute ce prefixe sans une mesure a part.
+  //   - LE SEGMENT DE MOINS DE 16 CARACTERES : trop court pour etre un tirage, et
+  //     c est la longueur qui empeche `/webhook/v2` ou `/webhook/a1b2` de rougir.
+  //
+  // POURQUOI PAS `empreintable` : la meme raison que `url-avec-identifiants` juste
+  // au-dessus. Le motif capture le PREFIXE `/webhook/` avec le segment ; l empreinte
+  // porterait donc sur autre chose que le secret, et changerait selon qu on ecrit
+  // `/webhook/` ou `/webhook-test/`. Un faux positif se marque ici au `secret-ok`.
+  //
+  // PREUVE DANS LES DEUX SENS (c est la seconde qui engage) : rejoue sur le contenu
+  // REEL des trois fichiers du temoin (commit 33e4e70), le detecteur passe de 0 a
+  // 11 detections — la configuration, son fichier d etat, et neuf lignes du
+  // journal. Et sur les 38 depots, le pire cas passe de 141 a 143, compare CLE A
+  // CLE (depot, fichier, ligne, regle) : ZERO detection disparue, et les 2 apparues
+  // sont toutes deux la nouvelle regle sur le MEME artefact genere par le meme
+  // pipeline, dans deux autres clones. Les 8 depots qui portent des chemins
+  // SEMANTIQUES (69 des 70 segments du parc) sont restes a ZERO.
+  // Cf. [[un-controle-se-prouve-en-cassant-ce-qu-il-protege]].
+  // ---------------------------------------------------------------------------
+  { nom: 'url-webhook-a-chemin-opaque', desc: 'URL de webhook n8n dont le chemin opaque EST le mot de passe',
+    re: new RegExp(
+      '\\/webhook(?:-test|-waiting)?\\/' +
+      '(?:' +
+        // Forme 1 : UUID canonique — la valeur engendree par defaut.
+        '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' +
+      '|' +
+        // Forme 2 : jeton nu. Le lookahead impose la LONGUEUR sur le segment entier
+        // (>= 16 caracteres) ; la suite de morceaux impose qu AUCUN ne soit un mot.
+        '(?=[A-Za-z0-9_.~-]{16,}(?![A-Za-z0-9_.~-]))' +
+        '(?:[A-Za-z0-9]{1,2}|[A-Za-z0-9]*[0-9][A-Za-z0-9]*)' +
+        '(?:[-_.](?:[A-Za-z0-9]{1,2}|[A-Za-z0-9]*[0-9][A-Za-z0-9]*))*' +
+      ')' +
+      // Le segment doit s arreter ici : sans cette borne, la suite de morceaux
+      // pourrait n avaler qu un prefixe de `/webhook/mail-draft-7f3a9c21`.
+      '(?![A-Za-z0-9_.~-])',
+      'i') },
   // Stripe, ajoutes le 2026-08-08. `sk_` = cle secrete, `rk_` = cle restreinte
   // (secrete elle aussi, seulement bornee en droits), `_live_` = compte reel.
   // Le suffixe est exige a 16 caracteres au moins pour que le PREFIXE SEUL, cite

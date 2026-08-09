@@ -80,6 +80,44 @@ const JETON_NPM = 'Kf7Q2' + 'mZt9Rw4Nx1Hb3Vd5Cy8Ju6Le0Ap2Sg';
 const MDP_URL = 'Zt7Rq2' + 'Wm9Xb4';
 const dsn = (schema, user, mdp, reste) => schema + '://' + user + ':' + mdp + '@' + reste;
 
+// --- Chemins de webhook n8n (2026-08-09, tâche 74ecea95) ---------------------
+// TOUS ENGENDRÉS ICI, aucun copié du réel — c'est la contrainte dure de la tâche :
+// une recette qui recopierait le chemin qu'elle éprouve le republierait à chaque
+// dépôt du parc, c'est-à-dire referait exactement l'incident qu'elle mesure.
+//
+// Le tirage est DÉTERMINISTE (générateur congruentiel à graine fixe) pour que la
+// recette reste reproductible : un témoin qui changerait à chaque exécution
+// rendrait un échec impossible à rejouer.
+const tirer = (n, alphabet, graine) => {
+  let s = '', x = graine >>> 0;
+  for (let i = 0; i < n; i++) { x = (Math.imul(x, 1103515245) + 12345) >>> 0; s += alphabet[x % alphabet.length]; }
+  return s;
+};
+const HEXA = '0123456789abcdef';
+const B62 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+// UUID canonique : la valeur que n8n engendre LUI-MÊME quand personne ne nomme le
+// point d'entrée — donc la forme exacte du témoin réel, sans en être la valeur.
+const UUID_WH = [tirer(8, HEXA, 7), tirer(4, HEXA, 8), tirer(4, HEXA, 9),
+                 tirer(4, HEXA, 10), tirer(12, HEXA, 11)].join('-');
+const JETON_WH = tirer(24, B62, 13);   // jeton nu, forme 2 de la définition
+const HEXA_WH = tirer(32, HEXA, 17);   // UUID sans tirets / jeton hexadécimal
+
+// LES TÉMOINS SONT VÉRIFIÉS À L'EXÉCUTION, jamais supposés — même raison que les
+// clés Google ci-dessous. Un tirage qui perdrait sa forme (un UUID mal assemblé,
+// un jeton trop court, ou — le piège — un jeton dont TOUS les caractères seraient
+// tombés lettres, donc lisible comme un mot) ne serait plus opaque : les cas
+// « refuse » vireraient au vert SANS RIEN ÉPROUVER. Le témoin doit s'effondrer
+// bruyamment, pas passer.
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(UUID_WH)) {
+  throw new Error(`recette inutilisable : UUID_WH n a pas la forme canonique 8-4-4-4-12 (${UUID_WH.length} car.).`);
+}
+for (const [nom, v] of [['JETON_WH', JETON_WH], ['HEXA_WH', HEXA_WH]]) {
+  if (v.length < 16) throw new Error(`recette inutilisable : ${nom} fait ${v.length} caracteres, il en faut 16.`);
+  // « aucun morceau n'est un mot » : sans chiffre, le segment se lit comme un mot
+  // et la règle le laisserait passer — à raison. Le témoin ne prouverait plus rien.
+  if (!/[0-9]/.test(v)) throw new Error(`recette inutilisable : ${nom} ne porte aucun chiffre, il n est pas opaque.`);
+}
+
 // --- Clés d'API Google (2026-08-09, tâche 8ce1d6b9) ---------------------------
 // INVENTÉES, assemblées à l'exécution — même raison que les valeurs Stripe : la
 // protection de push de GitHub lit `AIza`+35 comme une clé Google réelle, et un
@@ -512,6 +550,118 @@ const CAS = [
   { nom: 'URL-ID : BORNE — mot de passe de moins de 6 caractères', fichier: 'u14.md',
     contenu: 'Sonde locale : redis://u:abc@cache.exemple.fr/0\n',
     attendu: 'passe', regle: 'url-avec-identifiants' },
+
+  // =========================================================================
+  // `url-webhook-a-chemin-opaque` — QUAND L'URL EST LE MOT DE PASSE
+  // (2026-08-09, tâche 74ecea95)
+  //
+  // MESURE FONDATRICE : un chemin de webhook n8n VIVANT a vécu du 25/03 au 09/08
+  // dans trois fichiers versionnés, et le détecteur rejoué sur leur contenu EXACT
+  // rendait ZÉRO détection. Aucune règle ne pouvait le voir : une URL n'a pas de
+  // préfixe reconnaissable, ne se pose pas sous une clé parlante, et ne ressemble
+  // pas à un littéral à haute entropie. Or un webhook n8n s'authentifie PAR
+  // L'OBSCURITÉ DE SON CHEMIN — le segment EST le mot de passe.
+  //
+  // CE QUE CES CAS FIXENT, et qui est tout le travail : la frontière entre chemin
+  // OPAQUE et chemin SÉMANTIQUE. L'instance porte 277 points d'entrée, DIX
+  // seulement ont un chemin opaque ; les autres sont nommés et authentifiés par
+  // en-tête. Une règle qui crierait sur `task-update` serait du bruit pur sur des
+  // dizaines de fichiers légitimes, et une garde bruyante se fait désarmer. Les
+  // cas « passe » ci-dessous sont donc AUSSI ENGAGEANTS que les cas « refuse » —
+  // ce sont les 15 formes sémantiques réellement rencontrées dans les 38 dépôts.
+  // =========================================================================
+
+  // --- DOIT MORDRE : les deux formes de la définition ---------------------
+  { nom: 'WEBHOOK : UUID canonique (la valeur engendrée par n8n)', fichier: 'w5.yaml',
+    contenu: `webhook_url: https://n8n.exemple.fr/webhook/${UUID_WH}\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  // LE CAS DU TÉMOIN RÉEL : le chemin recopié dans un JOURNAL, sans aucune clé
+  // parlante autour. C'est la forme qui a vécu 13 fois dans un seul fichier — et
+  // celle où toutes les autres règles sont aveugles par construction.
+  { nom: 'WEBHOOK : UUID recopié dans un journal (forme du témoin réel)', fichier: 'w6.log',
+    contenu: `2026-03-25 09:14:02 POST https://n8n.exemple.fr/webhook/${UUID_WH} -> 200\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : forme -test', fichier: 'w7.env',
+    contenu: `HOOK=https://n8n.exemple.fr/webhook-test/${UUID_WH}\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : jeton nu base62 de 24', fichier: 'w8.json',
+    contenu: `{"hook":"https://n8n.exemple.fr/webhook/${JETON_WH}"}\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : UUID sans tirets (32 hexadécimaux)', fichier: 'w9.sh',
+    contenu: `curl -X POST "https://n8n.exemple.fr/webhook/${HEXA_WH}"\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  // L'HÔTE EST SOUVENT UNE VARIABLE. Exiger le schéma `https://` dans le motif
+  // aurait raté cette forme, qui est la plus fréquente en fichier de configuration.
+  { nom: 'WEBHOOK : hôte en variable, seul le chemin est écrit', fichier: 'wa.sh',
+    contenu: `URL="\${N8N_BASE}/webhook/${HEXA_WH}"\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : UUID en majuscules', fichier: 'wb.env',
+    contenu: `HOOK=https://n8n.exemple.fr/webhook/${UUID_WH.toUpperCase()}\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+
+  // --- DOIT RESTER MUET : les chemins SÉMANTIQUES du parc ------------------
+  // Ces quinze segments sont RÉELS : ils viennent du relevé des 38 dépôts, où 69
+  // des 70 segments distincts portent un mot. Ils ne sont pas des secrets — leur
+  // point d'entrée s'authentifie par en-tête, leur chemin n'a jamais eu vocation
+  // à l'être. Si l'un d'eux rougit un jour, la règle est devenue du bruit.
+  { nom: 'WEBHOOK : BORNE — task-update', fichier: 'wc1.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/task-update\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : BORNE — mail-reply-draft', fichier: 'wc2.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/mail-reply-draft\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : BORNE — audit-desinscription', fichier: 'wc3.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/audit-desinscription\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : BORNE — chat-conversation-create', fichier: 'wc4.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/chat-conversation-create\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : BORNE — echo-des-hauts-backup-heartbeat', fichier: 'wc5.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/echo-des-hauts-backup-heartbeat\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  // `n8n` porte un CHIFFRE : ce morceau-là n'est pas un mot. C'est un morceau
+  // VOISIN qui sauve le segment — sans quoi la règle mordrait sur les points
+  // d'entrée dont le nom contient une version ou un chiffre.
+  { nom: 'WEBHOOK : BORNE — n8n-backup-heartbeat (un morceau porte un chiffre)', fichier: 'wc6.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/n8n-backup-heartbeat\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : BORNE — supabase-backup-heartbeat', fichier: 'wc7.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/supabase-backup-heartbeat\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : BORNE — inspect-mainwp-sites', fichier: 'wc8.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/inspect-mainwp-sites\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : BORNE — le sémantique vaut aussi en -test', fichier: 'wc9.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook-test/task-create\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  // TROU ASSUMÉ, écrit ici pour qu'il soit VU et non découvert. Le suffixe tiré
+  // est bien un secret partiel, mais le mot de tête rend la règle indécidable :
+  // il faudrait juger « ce nom est-il assez nommé ? », et c'est la porte ouverte
+  // au bruit qu'on vient de fermer. Si quelqu'un décide un jour de le couvrir,
+  // c'est CE cas qui doit changer, délibérément.
+  { nom: 'WEBHOOK : TROU ASSUMÉ — sémantique à suffixe tiré (mail-draft-<hexa>)', fichier: 'wd1.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/mail-draft-7f3a9c21\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  // BORNE DE LONGUEUR : sous 16 caractères, un segment sans mot n'est pas un
+  // tirage. Sans elle, `/webhook/v2` ou `/webhook/a1b2` rougiraient.
+  { nom: 'WEBHOOK : BORNE — segment court sans mot', fichier: 'wd2.md',
+    contenu: 'Appel : https://n8n.exemple.fr/webhook/a1b2c3d4\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  // BORNE DE PRÉFIXE : la règle est ancrée sur `/webhook*/`, et c'est ce qui la
+  // garde précise. Un UUID vit dans des milliers d'URL qui ne sont pas des
+  // webhooks — identifiants de tâche, de projet, d'exécution.
+  { nom: 'WEBHOOK : BORNE — UUID hors d un chemin de webhook', fichier: 'wd3.md',
+    contenu: `Tache : https://cockpit.exemple.fr/api/taches/${UUID_WH}\n`,
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  // TROU ASSUMÉ, lui aussi écrit pour être vu : le déclencheur Formulaire de n8n
+  // s'authentifie par la même obscurité, mais `/form/contact` est trop courant
+  // pour qu'on ajoute ce préfixe sans une mesure à part.
+  { nom: 'WEBHOOK : TROU ASSUMÉ — /form/ n est pas couvert', fichier: 'wd4.md',
+    contenu: `Formulaire : https://n8n.exemple.fr/form/${UUID_WH}\n`,
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'WEBHOOK : BORNE — le préfixe cité en documentation', fichier: 'wd5.md',
+    contenu: 'Les points d entree vivent sous /webhook/<nom-lisible>.\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
 
   // =========================================================================
   // CLÉ D'API GOOGLE — LES TÉMOINS (2026-08-09, tâche 8ce1d6b9)

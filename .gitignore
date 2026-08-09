@@ -141,3 +141,88 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# === PORTE-SECRETS PAR CLASSE (2026-08-09, tache 710b25e2) ===
+#
+# Ce depot portait le hook `.githooks/detect-secrets.js` mais AUCUN motif de
+# porte-secrets : le second filet tenait, le premier n'existait pas. Un
+# .gitignore empeche d'AJOUTER le fichier ; le hook empeche de COMMITER son
+# contenu. Ce n'est pas la meme protection.
+#
+# LE CRITERE, repris de `~/.claude/.gitignore` : on ignore les fichiers dont
+# l'objet MEME est de porter un identifiant — une cle privee ne CONTIENT pas un
+# secret, elle EST le secret. On n'ignore PAS ce qui POURRAIT en contenir un :
+# c'est le travail du detecteur, qui lit les valeurs. Deux filets, deux criteres.
+#
+# POURQUOI PAS « le plus large possible » : un motif trop large exclut EN
+# SILENCE, et le fichier ne manque que le jour ou on le cherche. Les noms
+# generiques (`settings.php`, `config.json`) sont donc deliberement absents.
+#
+# MAINTENANCE : si un fichier legitime tombe dans un motif, on ajoute son
+# EXCEPTION juste en dessous, avec son motif. On n'affaiblit jamais le motif.
+#
+# RAPPEL : un .gitignore n'agit que sur ce qui n'est PAS ENCORE SUIVI. Il ne
+# desuit rien et ne retire rien de l'historique.
+
+# -- 1. Configurations d'application porteuses d'identifiants de base ---------
+# wp-config est le cas qui a mordu : hote, base, utilisateur, mot de passe et
+# les huit cles de salage, en clair, dans un fichier dont c'est l'unique role.
+wp-config.php
+wp-config-*.php
+local-config.php
+
+# -- 2. Registres de paquets : porteurs de `_authToken` -----------------------
+# Le schema retenu : le jeton vit dans `~/.npmrc` (config utilisateur, hors de
+# tout depot), le fichier de projet ne garde que le non-secret.
+.npmrc
+.yarnrc
+.yarnrc.yml
+.pypirc
+
+# -- 3. Cles privees et trousseaux, par extension -----------------------------
+*.pem
+*.key
+*.p12
+*.pfx
+*.ppk
+*.jks
+*.keystore
+*.kdbx
+*.asc
+*.gpg
+
+# -- 4. Cles SSH : nommees par convention, et SANS extension ------------------
+# Aucune extension ne les trahit : c'est le nom qui fait la regle.
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+# EXCEPTION indispensable : une cle PUBLIQUE n'est pas un secret, se publier est
+# son usage. Sans cette ligne, `id_rsa*` avalerait `id_rsa*.pub` en silence.
+!*.pub
+
+# -- 5. Fichiers d'identifiants et trousseaux d'outils ------------------------
+.netrc
+_netrc
+.pgpass
+.my.cnf
+.htpasswd
+credentials.json
+*-credentials.json
+service-account*.json
+serviceaccount*.json
+# Repertoires dont TOUT le contenu est un secret, y compris ce qu'on n'a pas
+# prevu : ignorer le repertoire vaut mieux qu'enumerer ses fichiers.
+.ssh/
+.gnupg/
+.aws/
+.azure/
+.kube/
+# `.docker/` porte aussi du non-secret : on ne vise que son fichier
+# d'identifiants. Le `**/` est necessaire — un motif contenant un `/` interne
+# est ancre sur la racine du depot, contrairement aux `.ssh/` ci-dessus.
+**/.docker/config.json

@@ -12,10 +12,16 @@
  * produit. Si un jour `getStaticPaths` cesse d emettre ce que le registre annonce, seule
  * cette lecture-la le voit.
  *
- * Ce qu il regarde : les `href` des `<a>` et des `<link>` (donc `canonical` et
- * `alternate hreflang`). Ce qu il ne regarde pas : les `src` d images et de medias, qui
- * pointent Strapi et vivent hors du site (`src/lib/media.ts`) — les verifier ici
- * remonterait un manquement par image sur un site parfaitement sain.
+ * Ce qu il regarde : les `href` des `<a>` et des `<link>` (donc `canonical`,
+ * `alternate hreflang` — et, depuis T-01, `rel="icon"`). Ce qu il ne regarde pas : les
+ * `src` et `srcset` d images, qui ont leur propre garde.
+ *
+ * CE COMMENTAIRE A PORTE UNE AFFIRMATION FAUSSE JUSQU AU 2026-08-09 : « les medias
+ * pointent Strapi et vivent hors du site — les verifier ici remonterait un manquement
+ * par image sur un site parfaitement sain ». C etait la description d un DEFAUT prise
+ * pour une propriete du site. Les medias sont desormais telecharges au build et servis
+ * sous `/medias/` (T-01, `src/lib/media.ts`) : un `src` interne est donc verifiable, et
+ * il l est — par `scripts/verifier-origine-medias.mjs`, qui verifie EN PLUS leur origine.
  *
  * Utilisable a la main sur un `dist/` deja construit :
  *   node scripts/verifier-liens.mjs [dist] [origine]

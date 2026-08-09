@@ -420,7 +420,11 @@ export async function inspecterSeo(dist, origine) {
           manquements.push(`${relatif} : ${cle} illisible « ${valeur} »`);
           continue;
         }
-        if (cible === null) continue; // mediatheque Strapi : hors du site, hors garde
+        /* Une image de partage HORS du site sort de la portee de ce fichier — mais plus
+           du silence : depuis T-01, `garde-origine-medias` la REFUSE, parce que la CSP
+           servie la refuse aussi. C est ici que le defaut du 2026-08-08 s est glisse,
+           quand ce `continue` couvrait un og:image vers le CMS. */
+        if (cible === null) continue;
         if (!resout(cible)) {
           manquements.push(`${relatif} : ${cle} pointe « ${cible} », absent de dist/`);
         }

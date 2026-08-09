@@ -4,8 +4,10 @@ import { loadEnv } from 'vite';
 
 import gardeImages from './integrations/garde-images.mjs';
 import gardeLiens from './integrations/garde-liens.mjs';
+import gardeOrigineMedias from './integrations/garde-origine-medias.mjs';
 import gardeSeo from './integrations/garde-seo.mjs';
 import gardeT09 from './integrations/garde-t09.mjs';
+import mediasLocaux from './integrations/medias-locaux.mjs';
 
 /**
  * `output: 'static'` INTEGRAL, et aucun adaptateur (§4.1 : « aucune route serveur »).
@@ -25,8 +27,22 @@ for (const [cle, valeur] of Object.entries(env)) {
   if (cle.startsWith('ECHO_') && process.env[cle] === undefined) process.env[cle] = valeur;
 }
 
+/**
+ * L ORDRE DES INTEGRATIONS EST UNE DEPENDANCE, pas une preference. Toutes accrochent
+ * `astro:build:done`, ou Astro les appelle dans l ordre de ce tableau. `mediasLocaux`
+ * DEPOSE les octets des medias dans la sortie (T-01) ; les trois gardes qui le suivent
+ * verifient qu une reference y aboutit. Le placer apres elles les ferait rougir sur un
+ * site sain.
+ */
 export default defineConfig({
-  integrations: [gardeT09(), gardeImages(), gardeLiens(), gardeSeo()],
+  integrations: [
+    gardeT09(),
+    mediasLocaux(),
+    gardeImages(),
+    gardeOrigineMedias(),
+    gardeLiens(),
+    gardeSeo(),
+  ],
   output: 'static',
   site: process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr',
   build: {

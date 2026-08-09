@@ -25,6 +25,20 @@ const FIXTURES = path.join(RACINE, 'tests', 'fixtures');
 
 const COLLECTIONS = ['articles', 'auteurs', 'categories', 'tags', 'dossiers'];
 
+/**
+ * Un media de substitution, servi sur `/uploads/…` comme le provider local de Strapi.
+ *
+ * IL N EST PAS DECORATIF. Depuis T-01, le build TELECHARGE les medias qu il reference et
+ * les depose dans la sortie (`integrations/medias-locaux.mjs`) : un Strapi de
+ * substitution qui ne servirait pas `/uploads/` ferait echouer tout build sur fixtures,
+ * et surtout laisserait le telechargement hors de portee des preuves hors ligne. Les
+ * octets importent peu, l aboutissement de la requete est ce qui est exerce.
+ */
+const MEDIA = Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="9" viewBox="0 0 16 9">' +
+    '<rect width="16" height="9" fill="#d9d4c8"/></svg>',
+);
+
 function fixture(nom) {
   return JSON.parse(fs.readFileSync(path.join(FIXTURES, `${nom}.json`), 'utf8'));
 }
@@ -47,6 +61,13 @@ function reponse(chemin, locale) {
 export function demarrerServeurFixtures(port = 0) {
   const serveur = http.createServer((requete, reponseHttp) => {
     const url = new URL(requete.url ?? '/', 'http://localhost');
+
+    if (url.pathname.startsWith('/uploads/')) {
+      reponseHttp.writeHead(200, { 'content-type': 'image/svg+xml' });
+      reponseHttp.end(MEDIA);
+      return;
+    }
+
     const chemin = url.pathname.replace(/^\/api\//, '');
     const locale = url.searchParams.get('locale') ?? 'fr';
     const corps = reponse(chemin, locale);

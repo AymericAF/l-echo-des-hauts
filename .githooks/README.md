@@ -865,10 +865,11 @@ sur la mesure : **compter le pire cas d'un clone périmé, c'est compter deux fo
 le même dépôt**, plus la dette qu'il traîne.
 
 **Rien n'a été marqué, et c'est un choix, pas un abandon.** Les 47 sont
-marquables (`.ts`, `.md`, `.yml`, `.sh` ont tous des commentaires), sauf les deux
-lignes de `.env.example` — un `#` après une valeur **non quotée** y est avalé par
-certains lecteurs `dotenv`, et ces fichiers sont faits pour être copiés (point 8
-du calibrage). Trois raisons de ne pas poser les 45 autres dans ce run :
+marquables (`.ts`, `.md`, `.yml`, `.sh` ont tous des commentaires) — **y compris
+les deux lignes de `.env.example`**, contrairement à ce qui était écrit ici : la
+sous-section « Le trou immarquable-et-non-empreintable » ci-dessous le mesure sur
+les lecteurs réellement employés, au lieu de le supposer. Trois raisons de ne pas
+poser les 47 dans ce run :
 
 - **L'arbre de travail est partagé avec une boucle autonome qui tourne.** Poser
   47 marqueurs, c'est toucher 15 fichiers dont les deux tests d'authentification
@@ -895,6 +896,91 @@ détection sur laquelle la règle de composition a raison **en syntaxe** (`secre
 est un porteur fort) et tort **en fait** (c'est un nom de lieu dans une fiction).
 Aucun resserrement raisonnable ne distingue les deux — `room` ne peut pas devenir
 un qualificatif. Cette ligne relève du marqueur `secret-ok`, pas de la règle.
+
+### Le trou « immarquable **et** non empreintable » — mesuré, puis refermé sans rien construire (2026-08-09, tâche `8d7ba094`)
+
+**La crainte, telle qu'elle était posée.** Les trois échappatoires ne se recouvrent
+pas : `secret-ok` exige un **commentaire**, `.secrets-connus` est borné aux règles
+**`empreintable`**, et `--no-verify` désarme tout sans laisser de trace. Une
+détection qui tombe dans les deux premiers trous à la fois n'a donc **aucune
+sortie** — sauf désarmer la garde. Les deux `.env.example` de `ChosenPath` étaient
+donnés comme les témoins de cette intersection.
+
+**La mesure d'abord, la conception seulement si elle la justifie.** Pire cas sur les
+**38 dépôts armés** (chaque fichier suivi présenté comme entièrement ajouté), soit
+**140 détections**. Croisement des deux critères :
+
+| | Marquable | Bloc / inconnu | **Immarquable** |
+| --- | --- | --- | --- |
+| Empreintable | 0 | 1 | **2** |
+| **Non empreintable** | 96 | 36 | **5** |
+
+**L'intersection brute est de 5. Après qualification, elle vaut 0.** Les cinq, une
+par une :
+
+| Dépôt | Fichier : ligne | Règle | Ce que c'est |
+| --- | --- | --- | --- |
+| `ChosenPath` | `.env.example:6` | `url-avec-identifiants` | DSN de développement par défaut |
+| `ChosenPath` | `apps/api/.env.example:2` | `url-avec-identifiants` | idem |
+| `ldveh-premium` | `.env.example:6` | `url-avec-identifiants` | **la même ligne** — clone périmé du même distant |
+| `ldveh-premium` | `apps/api/.env.example:2` | `url-avec-identifiants` | **la même ligne** |
+| `le-rucher-seo` | `lot2/stripe-settings-rollback-20260718.json:1` | `litteral-haute-entropie` | **vrai positif** — clé Stripe LIVE réelle en attente de rotation |
+
+- **Deux des cinq sont un double comptage.** `ldveh-premium` vise le même distant
+  que `ChosenPath` : compter son pire cas, c'est compter deux fois le même dépôt
+  (déjà établi plus haut).
+- **Une des cinq n'est pas un faux positif.** Le JSON du Rucher porte une clé
+  secrète Stripe **LIVE réelle**, dont la rotation est planifiée par
+  `securite/rotation-stripe-preparation.md` — dont l'étape **9** est justement de
+  retirer ce fichier du dépôt, **après** rotation. Lui inventer une échappatoire
+  reviendrait à exempter la seule vraie fuite du relevé. Elle n'a pas besoin d'une
+  sortie : elle a besoin d'être retirée.
+
+**Restent deux lignes. Et elles sont marquables** — c'est là que la prémisse tombe.
+Le point 8 du calibrage dit vrai en général (un `#` après une valeur non quotée est
+avalé par **certains** lecteurs `dotenv`), mais il n'a jamais été vérifié sur les
+lecteurs que `ChosenPath` emploie réellement. Mesure faite, sur un dépôt jetable,
+avec la valeur comparée par empreinte sha-256 avant et après :
+
+| Lecteur | Qui l'emploie ici | Valeur lue avec ` # secret-ok` en fin de ligne |
+| --- | --- | --- |
+| `node --env-file` (Node 24.14) | `apps/api` (`tsx watch --env-file=.env`) | **identique**, quotée comme non quotée |
+| `dotenv` 16.4.7 | racine, via Prisma / `c12` | **identique** |
+| Docker Compose v5.1.0 (`env_file`) | aucun ici, testé comme pire cas connu | **identique** |
+
+**Conclusion : on ne construit rien.** Ni empreinte salée, ni `secret-ok` sur la
+ligne précédente, ni exemption de chemin. Le compte réel de faux positifs sans
+sortie sur les 38 dépôts est **zéro**, et les deux options envisagées coûtaient
+chacune une porte permanente — un second secret à garder pour le sel, une surface
+d'exemption élargie pour le marqueur déporté — pour un problème qui n'existe pas.
+**`detect-secrets.js` n'est pas touché** : aucune règle ne change, aucune détection
+n'apparaît ni ne disparaît sur le parc. Ce README l'est, et il appartient au lot —
+la propagation aux 37 copies porte donc du texte, pas du comportement.
+
+**Prouvé dans les deux sens**, sur une copie jetable des deux fichiers, jamais dans
+l'arbre partagé :
+
+1. **témoin** — les deux lignes rougissent (`url-avec-identifiants`) ;
+2. **le marqueur éteint** — 2 détections → 0 ;
+3. **la valeur ne bouge pas** — empreintes identiques pour les deux lecteurs ;
+4. **la garde mord toujours** — une clé Google engendrée à l'instant, posée sur une
+   ligne **voisine non marquée** du fichier marqué → **détectée** (`cle-api-google`
+   *et* `assignation-sensible`).
+
+**La porte que le marqueur ouvre, dite plutôt que tue** : posé sur une ligne,
+`secret-ok` exempte **la ligne entière** — la même clé engendrée, déplacée **sur**
+la ligne marquée, passe. C'est la propriété connue de cette échappatoire, pas une
+régression : elle vaut pour un emplacement, là où `.secrets-connus` vaut pour une
+valeur. Sur une ligne de `.env.example` dont l'objet est de porter un gabarit, le
+coût est acceptable ; c'est aussi pourquoi on n'a pas cherché à généraliser le
+marqueur à des formats où il n'a pas de place.
+
+**Ce qui reste non prouvé** : la classification « marquable / immarquable » des
+131 autres détections est faite **par extension de fichier**, pas en ouvrant chaque
+ligne. Les 36 classées « bloc » (`.md`, `.html`) et « inconnu » (les cinq faux
+`.ttf` de `ldveh-premium`) sont réputées marquables sans que chacune ait été
+essayée. Aucune ne pouvait entrer dans l'intersection mesurée, mais le compte de
+131 n'a pas la même solidité que celui de 5.
 
 ### Laissés nus, et pourquoi
 

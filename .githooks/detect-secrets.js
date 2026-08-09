@@ -36,6 +36,9 @@
 'use strict';
 
 const { execFileSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
 // ---------------------------------------------------------------------------
 // Regles a MOTIF NOMME. Faible taux de faux positifs : ces prefixes ne se
@@ -70,20 +73,33 @@ const { execFileSync } = require('child_process');
 const REGLES_MOTIF = [
   { nom: 'cle-privee-pem', desc: 'entete de cle privee PEM/OpenSSH',
     re: /-----BEGIN\s+(?:[A-Z]+\s+)?PRIVATE KEY-----/ },
+  // `empreintable` : cette regle peut voir une de ses valeurs exemptee par
+  // `.secrets-connus` (voir plus bas). Le drapeau n est pas decoratif — il ne
+  // porte QUE sur les regles dont le motif impose une valeur STRUCTURELLEMENT a
+  // haute entropie (un prefixe fixe suivi de 16 a 40 caracteres tires d un
+  // alphabet large). Deux raisons, et les deux comptent :
+  //   1. l empreinte publiee dans le depot doit etre irreversible. Le sha-256 d un
+  //      mot de passe court se retrouve par force brute ; celui d une cle AIza+35
+  //      ne se retrouve pas. Exempter par empreinte une valeur devinable
+  //      reviendrait a la publier.
+  //   2. la valeur exempter doit etre SANS AMBIGUITE. Ces motifs designent
+  //      exactement la valeur ; `url-avec-identifiants` designe une URL entiere et
+  //      `aws_secret_access_key=` inclut son assignation — l empreinte porterait
+  //      alors sur autre chose que le secret, et changerait au moindre reformatage.
   { nom: 'aws-access-key-id', desc: 'identifiant de cle AWS (AKIA...)',
-    re: /\bAKIA[0-9A-Z]{16}\b/ },
+    re: /\bAKIA[0-9A-Z]{16}\b/, empreintable: true },
   { nom: 'aws-secret-access-key', desc: 'cle secrete AWS (aws_secret_access_key)',
     re: /\baws_secret_access_key\s*=\s*\S{20,}/i },
   { nom: 'jeton-github', desc: 'jeton GitHub (ghp_/gho_/ghu_/ghs_/ghr_)',
-    re: /\bgh[pousr]_[A-Za-z0-9]{30,}\b/ },
+    re: /\bgh[pousr]_[A-Za-z0-9]{30,}\b/, empreintable: true },
   { nom: 'jeton-github-pat', desc: 'jeton GitHub fine-grained (github_pat_)',
-    re: /\bgithub_pat_[A-Za-z0-9_]{22,}\b/ },
+    re: /\bgithub_pat_[A-Za-z0-9_]{22,}\b/, empreintable: true },
   { nom: 'cle-openai-anthropic', desc: 'cle d API sk-... (OpenAI / Anthropic)',
-    re: /\bsk-(?:ant-)?[A-Za-z0-9](?:[A-Za-z0-9_-]{18,})\b/ },
+    re: /\bsk-(?:ant-)?[A-Za-z0-9](?:[A-Za-z0-9_-]{18,})\b/, empreintable: true },
   { nom: 'cle-api-google', desc: 'cle d API Google (AIza...)',
-    re: /\bAIza[0-9A-Za-z_-]{35}\b/ },
+    re: /\bAIza[0-9A-Za-z_-]{35}\b/, empreintable: true },
   { nom: 'jeton-slack', desc: 'jeton Slack (xox...)',
-    re: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/ },
+    re: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/, empreintable: true },
   // LES CLASSES SONT ECRITES EN POSITIF, DEPUIS LA RFC 3986 (2026-08-09, tache
   // 7bdeca91). Elles etaient ecrites en NEGATIF — `[^\s/:@]`, « tout sauf quatre
   // caracteres » — donc le guillemet double, la virgule et l accolade y etaient
@@ -130,9 +146,9 @@ const REGLES_MOTIF = [
   // Le suffixe est exige a 16 caracteres au moins pour que le PREFIXE SEUL, cite
   // dans de la documentation ou dans ce fichier, ne suffise pas a faire rougir.
   { nom: 'cle-secrete-stripe-live', desc: 'cle secrete Stripe LIVE (sk_live_/rk_live_)',
-    re: /\b[sr]k_live_[A-Za-z0-9]{16,}\b/ },
+    re: /\b[sr]k_live_[A-Za-z0-9]{16,}\b/, empreintable: true },
   { nom: 'secret-webhook-stripe', desc: 'secret de signature de webhook Stripe (whsec_)',
-    re: /\bwhsec_[A-Za-z0-9]{16,}\b/ },
+    re: /\bwhsec_[A-Za-z0-9]{16,}\b/, empreintable: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -636,15 +652,186 @@ function litterauxSuspects(texte, voisinage = '') {
 const RE_DEROGATION = /(?:secret-ok|gitleaks:allow|allow-secret)/i;
 
 // Chemins ou un motif de secret est un ELEMENT DE CODE, pas un secret.
-const CHEMINS_EXEMPTES = [/^\.githooks\/detect-secrets\.js$/];
+const CHEMINS_EXEMPTES = [
+  /^\.githooks\/detect-secrets\.js$/,
+  // Le registre d exemptions ne porte QUE des empreintes sha-256, jamais des
+  // valeurs — et son format est verifie ligne a ligne juste en dessous. Sans
+  // cette exemption il se condamnerait lui-meme : 64 caracteres hexadecimaux
+  // poses a cote du mot « secret » sont exactement ce que la regle d entropie
+  // cherche. L exemption de chemin ne cree pas de trou : une VALEUR collee dans
+  // ce fichier n a pas la forme d une entree, donc elle fait ECHOUER la lecture
+  // et refuse le commit, au lieu de s y cacher.
+  /^\.secrets-connus$/,
+];
 
-function git(args) {
+// ---------------------------------------------------------------------------
+// `.secrets-connus` — L ECHAPPATOIRE DES FORMATS SANS COMMENTAIRE
+// (2026-08-09, tache 8ce1d6b9)
+//
+// LE PROBLEME QU IL RESOUT. `secret-ok` s ecrit dans un COMMENTAIRE. JSON, CSV,
+// un dump SQL, un fichier minifie n en ont pas : un faux positif dans ces
+// formats-la n a AUCUNE issue. Il ne se marque pas, donc il reste. Le depot
+// devient bruyant en permanence, et un depot bruyant en permanence finit
+// desarme ou contourne au `--no-verify` — c est-a-dire nu, en se croyant garde.
+// Mesure fondatrice : `maj-divi5-zeller`, 102 detections en pire cas, dont 92
+// sur UNE SEULE valeur, dans quatre releves PageSpeed en JSON. De loin le plus
+// gros residu du parc, et le seul qu on ne pouvait pas traiter.
+//
+// CE QU IL N EST PAS. Ce n est ni une exemption de chemin, ni un assouplissement
+// de regle, ni un `--no-verify` en fichier :
+//   - il porte UNE VALEUR, designee par son empreinte sha-256, pas un fichier ni
+//     un dossier. Une autre valeur dans le meme fichier rougit toujours ;
+//   - il est BORNE A UNE REGLE. La meme empreinte sous une autre regle n exempte
+//     rien ;
+//   - il exige une JUSTIFICATION ECRITE, sans quoi la lecture echoue ;
+//   - il est VERSIONNE : il se lit dans l INDEX git, pas sur le disque. Une
+//     exemption non indexee n exempte rien — elle serait invisible en revue et
+//     ne vaudrait que sur le poste qui l a posee ;
+//   - il ne cite JAMAIS la valeur. Une empreinte sha-256 ne se remonte pas : le
+//     registre peut donc etre publie, la valeur non. C est la raison du drapeau
+//     `empreintable`, reserve aux regles a valeur structurellement longue.
+//
+// FORMAT, une entree par ligne, `#` commence un commentaire :
+//     <sha-256 en 64 hexadecimaux minuscules>  <nom-de-regle>  # <justification>
+//
+// TOUTE ANOMALIE ARRETE LE COMMIT, elle n est jamais ignoree « au mieux » : une
+// ligne illisible, une regle inconnue, une regle non empreintable, une
+// justification vide, un fichier present sur le disque mais absent de l index.
+// Un registre d exemptions qui se lit a moitie est pire que pas de registre.
+// ---------------------------------------------------------------------------
+const FICHIER_CONNUS = '.secrets-connus';
+const RE_ENTREE_CONNUE = /^([0-9a-f]{64})\s+([a-z0-9-]+)\s+#\s*(\S.*)$/;
+
+const empreinteDe = (v) => crypto.createHash('sha256').update(v, 'utf8').digest('hex');
+
+// Les regles sont ecrites sans `g` (elles servent a `test`). Pour lister TOUTES
+// les valeurs d une ligne il faut une copie globale — memoisee, une par regle.
+const GLOBALES = new Map();
+function motifGlobal(r) {
+  if (!GLOBALES.has(r.nom)) {
+    GLOBALES.set(r.nom, new RegExp(r.re.source, r.re.flags.includes('g') ? r.re.flags : r.re.flags + 'g'));
+  }
+  const g = GLOBALES.get(r.nom);
+  g.lastIndex = 0;
+  return g;
+}
+
+function refuserRegistre(motif) {
+  console.error('');
+  console.error('COMMIT REFUSE : ' + FICHIER_CONNUS + ' est illisible.');
+  console.error('  ' + motif);
+  console.error('  Format attendu, une entree par ligne :');
+  console.error('    <sha-256 en 64 hexadecimaux>  <nom-de-regle>  # <justification>');
+  console.error('  Le fichier doit etre INDEXE (git add ' + FICHIER_CONNUS + ') : une');
+  console.error('  exemption non versionnee n exempte rien.');
+  console.error('');
+  process.exit(1);
+}
+
+// Memoise par racine : le hook n analyse qu une fois, mais la MESURE en pire cas
+// appelle `analyser` une fois par fichier suivi. Sans memo, chaque fichier
+// relancerait un `git show` — la mesure du parc passait de secondes a des
+// dizaines de minutes, et une mesure qu on n a pas le temps de rejouer ne se
+// rejoue pas.
+const CACHE_CONNUS = new Map();
+
+// Rend un Set de cles « <empreinte>|<regle> ». Vide si le registre n existe pas.
+function lireConnus(racine) {
+  const cle = racine || '.';
+  if (CACHE_CONNUS.has(cle)) return CACHE_CONNUS.get(cle);
+  const r = calculerConnus(racine);
+  CACHE_CONNUS.set(cle, r);
+  return r;
+}
+
+function calculerConnus(racine) {
+  const nomsEmpreintables = new Set(REGLES_MOTIF.filter((r) => r.empreintable).map((r) => r.nom));
+  const nomsConnus = new Set(REGLES_MOTIF.map((r) => r.nom));
+
+  let indexe = null;
+  try {
+    // stderr etouffe VOLONTAIREMENT : l absence du fichier est le cas NORMAL (la
+    // quasi-totalite des depots n en a pas), et git ecrit alors un « fatal: »
+    // sur stderr. Laisse tel quel, chaque commit du parc afficherait une erreur
+    // fatale mensongere — et une garde qui a l air cassee se fait desinstaller.
+    indexe = git(['show', ':' + FICHIER_CONNUS], racine, ['ignore', 'pipe', 'ignore']);
+  } catch (e) {
+    indexe = null;   // absent de l index : cas normal, la plupart des depots n en ont pas.
+  }
+
+  // Le disque ne fait pas foi, mais son DESACCORD avec l index doit se voir : sans
+  // ce controle, une exemption ecrite et jamais indexee serait silencieusement sans
+  // effet (ou, pire, une exemption retiree du disque resterait active).
+  let surDisque = null;
+  try {
+    surDisque = fs.readFileSync(path.join(racine || '.', FICHIER_CONNUS), 'utf8');
+  } catch (e) {
+    surDisque = null;
+  }
+  // Comparaison a fins de ligne normalisees : sous Windows `core.autocrlf` rend le
+  // disque en CRLF et l index en LF. Sans cette normalisation le controle rougirait
+  // en permanence, et se ferait donc retirer.
+  const sansCR = (s) => (s === null ? null : s.replace(/\r\n/g, '\n'));
+  if (surDisque !== null && indexe === null) {
+    refuserRegistre(FICHIER_CONNUS + ' existe sur le disque mais n est pas indexe.');
+  }
+  if (surDisque !== null && indexe !== null && sansCR(surDisque) !== sansCR(indexe)) {
+    refuserRegistre('le contenu indexe de ' + FICHIER_CONNUS + ' differe de celui du disque'
+      + ' — c est la version INDEXEE qui ferait foi, indexe tes modifications.');
+  }
+  if (indexe === null) return new Set();
+
+  const connus = new Set();
+  const lignes = sansCR(indexe).split('\n');
+  for (let i = 0; i < lignes.length; i++) {
+    const brute = lignes[i];
+    const l = brute.trim();
+    if (l === '' || l.startsWith('#')) continue;
+    const m = RE_ENTREE_CONNUE.exec(l);
+    if (!m) {
+      refuserRegistre('ligne ' + (i + 1) + ' : ni vide, ni commentaire, ni entree valide.');
+    }
+    const [, emp, regle] = m;
+    if (!nomsConnus.has(regle)) {
+      refuserRegistre('ligne ' + (i + 1) + ' : la regle "' + regle + '" n existe pas.');
+    }
+    if (!nomsEmpreintables.has(regle)) {
+      refuserRegistre('ligne ' + (i + 1) + ' : la regle "' + regle + '" n est pas exemptable par'
+        + ' empreinte (valeur trop courte ou trop ambigue pour qu une empreinte la designe sans'
+        + ' la trahir). Utilise le marqueur secret-ok sur la ligne concernee.');
+    }
+    connus.add(emp + '|' + regle);
+  }
+  return connus;
+}
+
+// Vrai si la regle tire sur cette ligne UNIQUEMENT a cause de valeurs deja jugees
+// et inscrites au registre. Une seule valeur non inscrite suffit a refuser : c est
+// ce qui empeche une entree de degenerer en exemption de fichier.
+function toutesValeursConnues(r, texte, connus) {
+  if (!r.empreintable || connus.size === 0) return false;
+  const g = motifGlobal(r);
+  let m;
+  let n = 0;
+  while ((m = g.exec(texte)) !== null) {
+    n++;
+    if (!connus.has(empreinteDe(m[0]) + '|' + r.nom)) return false;
+    if (m[0].length === 0) break;   // garde-fou : un motif vide bouclerait
+  }
+  return n > 0;
+}
+
+function git(args, cwd, stdio) {
   return execFileSync('git', args, {
-    encoding: 'utf8', maxBuffer: 256 * 1024 * 1024,
+    encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, cwd, stdio,
   });
 }
 
-function analyser(diffFourni) {
+// `options.racine` : le depot a interroger. Indispensable a la mesure en pire cas,
+// qui analyse un depot AUTRE que le repertoire courant — sans elle, le registre
+// d exemptions lu serait celui du mauvais depot et le compte mentirait.
+function analyser(diffFourni, options) {
+  const racine = (options && options.racine) || undefined;
   // -U<CONTEXTE_LIGNES> et non -U0 : voir le bloc « LE VOISINAGE DEBORDE LE DIFF » plus bas.
   // On ne JUGE toujours que les lignes AJOUTEES ; les lignes inchangees rendues ici servent
   // uniquement de voisinage, jamais de source de litteral.
@@ -654,7 +841,7 @@ function analyser(diffFourni) {
   if (diff === undefined) {
     try {
       diff = git(['diff', '--cached', '-U' + CONTEXTE_LIGNES, '--no-color', '--no-ext-diff',
-                  '--diff-filter=ACMR']);
+                  '--diff-filter=ACMR'], racine);
     } catch (e) {
       console.error('pre-commit: impossible de lire l index git : ' + e.message);
       process.exit(1);
@@ -720,6 +907,9 @@ function analyser(diffFourni) {
       .join('\n');
 
   const trouvailles = [];
+  // Lu UNE fois par analyse : chaque appel est un `git show`, et le pire cas en
+  // rejoue un par fichier du depot.
+  const connus = lireConnus(racine);
 
   for (const ajout of ajoutees) {
     const { fichier, numero, texte } = ajout;
@@ -727,7 +917,9 @@ function analyser(diffFourni) {
     if (RE_DEROGATION.test(texte)) continue;
 
     for (const r of REGLES_MOTIF) {
-      if (r.re.test(texte)) trouvailles.push({ fichier, numero, r });
+      if (!r.re.test(texte)) continue;
+      if (toutesValeursConnues(r, texte, connus)) continue;
+      trouvailles.push({ fichier, numero, r });
     }
 
     // Le gabarit « 4 groupes de 4 » se cherche a part : RE_ASSIGNATION s arrete au

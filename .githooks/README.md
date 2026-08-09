@@ -533,8 +533,12 @@ const { analyser } = require('./.githooks/detect-secrets.js');
 const lignes = fs.readFileSync(f, 'utf8').split('\n');
 const diff = `+++ b/${f}\n@@ -0,0 +1,${lignes.length} @@\n`
            + lignes.map((l) => '+' + l).join('\n');
-analyser(diff);   // -> [{fichier, numero, r}]
+analyser(diff, { racine: depot });   // -> [{fichier, numero, r}]
 ```
+
+`racine` n'est pas facultatif dans cette mesure : c'est le dépôt dont le registre
+`.secrets-connus` doit être lu. Sans lui, `analyser` lirait celui du répertoire
+courant — donc le mauvais — et le compte mentirait sans rien signaler.
 
 Relevé du 2026-08-06 sur 2 962 fichiers, en faisant varier `CONTEXTE_LIGNES` :
 
@@ -553,7 +557,7 @@ une détection sur un fichier vivant fait désinstaller la garde.
 ## L'échappatoire
 
 Un jour un faux positif légitime surviendra — une fixture de test, un exemple de
-documentation. Deux sorties, dans cet ordre de préférence :
+documentation. Trois sorties, dans cet ordre de préférence :
 
 ### 1. Le marqueur `secret-ok` (à préférer)
 
@@ -567,7 +571,53 @@ La ligne est laissée passer. C'est **borné à cette ligne**, **visible en revu
 et **versionné** : dans six mois on saura pourquoi. Les alias `gitleaks:allow` et
 `allow-secret` fonctionnent aussi.
 
-### 2. `git commit --no-verify` (dernier recours)
+### 2. Le registre `.secrets-connus` (quand le format n'a pas de commentaire)
+
+`secret-ok` s'écrit dans un **commentaire**. JSON, CSV, un dump SQL, un fichier
+minifié n'en ont pas : un faux positif y est **immarquable**. C'est le pire cas de
+tous — il ne laisse aucune issue entre subir le bruit et désarmer la garde.
+
+Le marqueur peut alors vivre **hors du fichier fautif**, dans `.secrets-connus` à
+la racine du dépôt. Une entrée par ligne, `#` commence un commentaire :
+
+```
+<sha-256 en 64 hexadécimaux>  <nom-de-règle>  # <justification>
+```
+
+**Ce n'est pas une exemption de chemin, et surtout pas un `--no-verify` en
+fichier.** Cinq propriétés le tiennent, chacune éprouvée par un cas de recette :
+
+- il porte **une valeur**, désignée par son empreinte, **pas un fichier ni un
+  dossier**. Une autre valeur dans le même fichier rougit toujours — y compris
+  sur la même ligne ;
+- il est **borné à une règle** : la même empreinte sous une autre règle n'exempte
+  rien ;
+- il exige une **justification écrite**, sans quoi la lecture échoue ;
+- il se lit dans **l'index git**, pas sur le disque : une exemption non versionnée
+  n'exempte rien, et un désaccord index/disque arrête le commit ;
+- il ne cite **jamais** la valeur. Un sha-256 ne se remonte pas — le registre peut
+  être publié, la valeur non.
+
+C'est cette dernière propriété qui borne le mécanisme : il n'est ouvert qu'aux
+règles marquées **`empreintable`**, celles dont le motif impose une valeur
+structurellement longue (`AIza…`, `AKIA…`, `ghp_…`, `sk-…`, `xox…`, `sk_live_…`,
+`whsec_…`). Le sha-256 d'un mot de passe court se retrouve par force brute :
+l'exempter par empreinte reviendrait à le publier. `url-avec-identifiants`,
+`aws_secret_access_key=` et `cle-privee-pem` en sont donc **exclus** — leur match
+n'est d'ailleurs pas la valeur seule, mais l'URL ou l'assignation entière.
+
+**Toute anomalie arrête le commit** plutôt que d'être lue « au mieux » : ligne
+illisible, règle inconnue, règle non empreintable, justification vide, fichier
+présent sur le disque mais absent de l'index. Un registre d'exemptions qui se lit
+à moitié est pire que pas de registre — et c'est aussi ce qui empêche d'y coller
+une vraie valeur : elle n'a pas la forme d'une entrée, donc elle **refuse** le
+commit au lieu de s'y cacher.
+
+Le fichier est exempté de l'analyse (il porte 64 hexadécimaux à côté du mot
+« secret », soit exactement ce que la règle d'entropie cherche) — mais son
+**format**, lui, est vérifié ligne à ligne.
+
+### 3. `git commit --no-verify` (dernier recours)
 
 ```sh
 git commit --no-verify -m "..."
@@ -607,7 +657,7 @@ rouvre chaque semaine coûte la garde entière.
 | --- | --- | --- | --- |
 | `strategie-marketing-freelance` | 5 → 2 → **0** | **0** | 3 faux jetons de recette marqués `secret-ok`. **Les 2 derniers ont été supprimés à la source le 2026-08-09** — pas marqués, *corrigés* : voir « Le faux positif qu'on ne peut pas marquer » ci-dessous. Plus aucun résidu. |
 | `automatisation-maintenance-wordpress` | 18 → **0** | **0** | 19 lignes marquées (13 jetons de fixture PHPUnit, 6 identifiants de ressources Google Drive). Aucun résidu. |
-| `maj-divi5-zeller` | **102** | **0** | 92 dans `perf/**/*.json` (relevés PageSpeed, clé Google Maps **navigateur** publique par construction) et 10 dans `recette-p*/**.html`. Marqueur impossible en JSON, et ces relevés sont relus par `_parse.js` / `_compare.js` : y insérer une clé les fausserait. Familles figées depuis juin. Levier si le sujet perf reprend : un `.gitignore` sur `perf/**`, **jamais** un assouplissement de la règle. |
+| `maj-divi5-zeller` | 102 → **10** | **0** | Les **92** de `perf/**/*.json` sont traitées le 2026-08-09 par une entrée de `.secrets-connus` — **une seule valeur**, une clé Google **navigateur** publique par construction : voir « Les 92 relevés PageSpeed » ci-dessous. Restent 10 `litteral-haute-entropie` dans `recette-p*/**.html`, familles figées depuis juin, sur des pages archivées. |
 
 **La leçon de mesure du 19e marqueur** (`automatisation-maintenance-wordpress`) :
 le détecteur **regroupe les détections voisines à une ligne près**. Exempter une
@@ -680,6 +730,86 @@ mesuré sur la seule chose qu'il devait supprimer.
 serait resté vert si une **autre** règle avait pris le relais — la règle visée
 pouvant alors être cassée sans que rien ne rougisse. Cf.
 [[preuve-doit-exercer-critere-acceptation]].
+
+### Les 92 relevés PageSpeed de `maj-divi5-zeller` (2026-08-09, tâche `8ce1d6b9`)
+
+Le plus gros résidu du parc — **102 détections en pire cas**, dont **92** sur la
+règle `cle-api-google`, dans quatre rapports PageSpeed en JSON. Immarquables : JSON
+n'a pas de commentaire.
+
+**La question qui décidait de tout n'était pas « comment faire taire », c'était
+« qu'est-ce qui est réellement attrapé ».** Les deux réponses possibles menaient à
+des chemins opposés : une vraie clé secrète en fait un **incident** (rotation), une
+chaîne qui en a seulement la forme en fait du **bruit**. La réponse mesurée est une
+troisième, et c'est elle qui commande le traitement retenu.
+
+**Ce que c'est, établi et pas déduit :**
+
+- **une seule valeur**, répétée 92 fois dans 4 fichiers (empreintes sha-256
+  comparées ; balayage des 38 dépôts armés : elle n'existe nulle part ailleurs) ;
+- **toutes ses occurrences sont des URL de requêtes réseau du navigateur** —
+  chemins JSON `audits.network-requests`, `third-parties-insight`, `cache-insight`,
+  `image-delivery-insight`, `script-treemap-data` — sur `maps.googleapis.com` (28)
+  et `www.google.com/maps` (64). C'est ce que le navigateur a chargé en affichant
+  la page publique `/contact/` : la clé est donc **transmise à chaque visiteur du
+  site**, exactement comme une `pk_live_` Stripe. Publiable par construction ;
+- **ce n'est pas la clé PageSpeed d'Aymeric.** PageSpeed ne renvoie pas la clé de la
+  requête dans sa réponse ; aucune URL du rapport ne pointe vers
+  `pagespeedonline.googleapis.com` (la seule occurrence du mot est le champ
+  `"kind": "pagespeedonline#result"`) ; et la valeur n'apparaît dans aucun script
+  du parc.
+
+**Trois chemins étaient ouverts. Deux sont écartés, et il faut dire pourquoi :**
+
+1. **Resserrer `cle-api-google`** — écarté. `AIza`+35 *est* la forme canonique d'une
+   clé Google : rien dans la chaîne ne distingue une clé navigateur d'une clé
+   serveur. Le seul signal est le contexte (`key=` dans une URL Maps), et l'exempter
+   perdrait une vraie fuite : une clé **Geocoding**, **Places** ou **PageSpeed**
+   côté serveur s'écrit exactement pareil. C'est précisément la forme sous laquelle
+   les dumps n8n de `~/.claude` portaient des clés réelles. Un cas de recette
+   verrouille ce raccourci (`clé AIza en paramètre key= d'une URL Google` →
+   **refuse**).
+2. **`.gitignore` sur `perf/**`** — écarté, sur le critère **écrit** du `.gitignore`
+   de `~/.claude` plutôt qu'un critère inventé pour l'occasion : *on ignore les
+   fichiers dont l'objet **même** est de porter un identifiant ; on n'ignore pas ce
+   qui **pourrait** en contenir un — c'est le travail du détecteur.* Des relevés
+   PageSpeed sont dans la seconde catégorie. Deux raisons de plus, chacune
+   suffisante : un `.gitignore` **ne désuit rien**, donc le pire cas serait resté à
+   102 ; et ces quatre fichiers sont **les preuves avant/après de la migration
+   Divi 5**, relues par `_parse.js` / `_compare.js`.
+3. **Retenu : une entrée dans `.secrets-connus`.** La règle n'est pas touchée, le
+   chemin n'est pas exempté, la valeur est jugée **une fois**, par écrit, et
+   l'exemption est bornée à cette valeur et à cette règle.
+
+**La contre-épreuve — deux niveaux, parce qu'ils ne prouvent pas la même chose.**
+
+| | Avant | Après |
+| --- | --- | --- |
+| Parc entier, **sans aucun registre** | 233 | **233** (0 perdue, 0 apparue, comparaison clé à clé) |
+| `maj-divi5-zeller`, **avec** son entrée | 102 | **10** (92 disparues, **0 apparue**, mesure stable au second passage) |
+
+La première ligne est celle qui compte pour les 37 autres dépôts : le mécanisme
+ajouté ne change **rien** là où personne n'a rien inscrit.
+
+**Et le témoin mord toujours — vérifié en cassant ce que le registre protège**
+(cf. [[un-controle-se-prouve-en-cassant-ce-qu-il-protege]]). Cinq essais, tous
+verts :
+
+- une **autre** clé Google dans le dossier `perf/` → **détectée** ;
+- une **autre** clé Google dans le fichier exact déjà exempté → **détectée** ;
+- la valeur inscrite **et** une autre sur la même ligne → **détectée** ;
+- la valeur inscrite, dans un dépôt **sans** registre → **détectée** ;
+- la valeur inscrite, ailleurs dans le dépôt qui l'a jugée → muette (c'est le but).
+
+**Quatre cas de recette `cle-api-google` ont été écrits AVANT de toucher au
+détecteur**, verts avant comme après : clé nue, clé en paramètre `key=` d'une URL
+Google, clé dans du JSON minifié, et la borne du préfixe seul. Sans eux, le
+mécanisme se serait mesuré sur la seule chose qu'il devait faire disparaître.
+
+**Ce qui reste, et n'est pas traité ici** : les 10 `litteral-haute-entropie` des
+pages HTML archivées de `recette-p*/`. Elles sont **marquables** (HTML a des
+commentaires) et vivent dans des fichiers figés — elles ne relèvent pas de cette
+échappatoire.
 
 ### Laissés nus, et pourquoi
 

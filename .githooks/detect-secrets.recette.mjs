@@ -16,6 +16,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, copyFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -78,6 +79,25 @@ const JETON_NPM = 'Kf7Q2' + 'mZt9Rw4Nx1Hb3Vd5Cy8Ju6Le0Ap2Sg';
 // sauverait les cas JSON, qui n'ont pas de commentaire.
 const MDP_URL = 'Zt7Rq2' + 'Wm9Xb4';
 const dsn = (schema, user, mdp, reste) => schema + '://' + user + ':' + mdp + '@' + reste;
+
+// --- Clés d'API Google (2026-08-09, tâche 8ce1d6b9) ---------------------------
+// INVENTÉES, assemblées à l'exécution — même raison que les valeurs Stripe : la
+// protection de push de GitHub lit `AIza`+35 comme une clé Google réelle, et un
+// fichier de recette qui ne peut pas être poussé sur 38 dépôts est inutilisable.
+//
+// LA LONGUEUR EST VÉRIFIÉE À L'EXÉCUTION, pas supposée : une valeur assemblée
+// d'un caractère trop court ne serait plus reconnue par la règle, et TOUS les cas
+// ci-dessous vireraient au vert sans rien éprouver. Un témoin qui ne mord plus
+// doit s'effondrer bruyamment, pas passer.
+const CLE_G_A = 'AIza' + 'Sy' + 'Bq7Xm2Td9Rw4Nz1Hb3Vd5Cy8Ju6Le0Ap2';
+const CLE_G_B = 'AIza' + 'Sy' + 'Cx8Yn3Ue0Sv5Oa2Ic4We6Dz9Kv7Mf1Bq3';
+for (const [nom, v] of [['CLE_G_A', CLE_G_A], ['CLE_G_B', CLE_G_B]]) {
+  if (!/^AIza[0-9A-Za-z_-]{35}$/.test(v)) {
+    throw new Error(`recette inutilisable : ${nom} n a pas la forme AIza+35 (longueur ${v.length}) — `
+      + 'les cas cle-api-google ne prouveraient plus rien.');
+  }
+}
+const empreinte = (v) => createHash('sha256').update(v).digest('hex');
 
 const CAS = [
   { nom: 'mot-clé et littéral sur la MÊME ligne', fichier: 'a.js',
@@ -492,6 +512,98 @@ const CAS = [
   { nom: 'URL-ID : BORNE — mot de passe de moins de 6 caractères', fichier: 'u14.md',
     contenu: 'Sonde locale : redis://u:abc@cache.exemple.fr/0\n',
     attendu: 'passe', regle: 'url-avec-identifiants' },
+
+  // =========================================================================
+  // CLÉ D'API GOOGLE — LES TÉMOINS (2026-08-09, tâche 8ce1d6b9)
+  //
+  // Écrits AVANT que quoi que ce soit bouge, et VERTS AVANT COMME APRÈS. Ce sont
+  // eux qui prouvent que l'exemption par empreinte ajoutée ensuite ne retire
+  // RIEN à la règle `cle-api-google` : elle continue de mordre sur toute clé
+  // Google, y compris dans les formes exactes où le faux positif se produisait
+  // (URL `?key=`, JSON minifié). La règle elle-même n'est pas touchée.
+  // =========================================================================
+  { nom: 'CLE-GOOGLE : clé AIza nue', fichier: 'g1.env',
+    contenu: `GOOGLE_API_KEY=${CLE_G_A}\n`,
+    attendu: 'refuse', regle: 'cle-api-google' },
+  // LE CAS QUI INTERDIT LE RACCOURCI : une clé Google portée par le paramètre
+  // `key=` d'une URL Google reste refusée. C'est la forme sous laquelle les 92
+  // faux positifs de `maj-divi5-zeller` se présentaient — et c'est exactement
+  // pourquoi on n'a PAS exempté ce contexte : une clé serveur (Geocoding,
+  // Places, PageSpeed) s'écrit de la même façon.
+  { nom: 'CLE-GOOGLE : clé AIza en paramètre `key=` d une URL Google', fichier: 'g2.md',
+    contenu: `Appel : https://maps.googleapis.com/maps/api/geocode/json?address=x&key=${CLE_G_A}\n`,
+    attendu: 'refuse', regle: 'cle-api-google' },
+  { nom: 'CLE-GOOGLE : clé AIza dans du JSON minifié', fichier: 'g3.json',
+    contenu: `{"a":1,"url":"https://exemple.fr/x?key=${CLE_G_A}","b":2}\n`,
+    attendu: 'refuse', regle: 'cle-api-google' },
+  // BORNE : le préfixe seul, cité en documentation, ne doit pas rougir.
+  { nom: 'CLE-GOOGLE : BORNE — préfixe AIza trop court', fichier: 'g4.md',
+    contenu: 'Les cles Google commencent par AIzaSy suivi de 33 caracteres.\n',
+    attendu: 'passe', regle: 'cle-api-google' },
+
+  // =========================================================================
+  // `.secrets-connus` — L'ÉCHAPPATOIRE DES FORMATS SANS COMMENTAIRE
+  //
+  // Pourquoi elle existe : `secret-ok` s'écrit dans un COMMENTAIRE. JSON, CSV,
+  // un dump SQL, un fichier minifié n'en ont pas. Un faux positif dans ces
+  // formats-là n'a AUCUNE issue — il laisse le dépôt bruyant en permanence, et
+  // un dépôt bruyant finit désarmé. Le marqueur devait donc pouvoir vivre HORS
+  // du fichier fautif.
+  //
+  // Ce qui la distingue d'une exemption de chemin (et de `--no-verify`) : elle
+  // ne porte ni un fichier ni un dossier, mais UNE VALEUR PRÉCISE, désignée par
+  // son empreinte sha-256 et bornée à UNE règle. Une autre valeur dans le même
+  // fichier rougit toujours. C'est ce que les cas ci-dessous éprouvent.
+  // =========================================================================
+  { nom: 'CONNUS : empreinte listée → la clé passe', fichier: 'c1.json',
+    contenu: `{"url":"https://exemple.fr/x?key=${CLE_G_A}"}\n`,
+    fichierAnnexe: '.secrets-connus',
+    contenuAnnexe: `${empreinte(CLE_G_A)}  cle-api-google  # cle navigateur publique, cas de recette\n`,
+    attendu: 'passe', regle: 'cle-api-google' },
+  // LE CAS QUI EMPÊCHE L'EXEMPTION DE DEVENIR UNE EXEMPTION DE FICHIER : deux
+  // clés sur la MÊME ligne, une seule listée. La ligne doit rester refusée.
+  { nom: 'CONNUS : une seconde clé NON listée sur la même ligne → refuse', fichier: 'c2.json',
+    contenu: `{"a":"${CLE_G_A}","b":"${CLE_G_B}"}\n`,
+    fichierAnnexe: '.secrets-connus',
+    contenuAnnexe: `${empreinte(CLE_G_A)}  cle-api-google  # une seule des deux\n`,
+    attendu: 'refuse', regle: 'cle-api-google' },
+  { nom: 'CONNUS : empreinte listée sous une AUTRE règle → refuse', fichier: 'c3.json',
+    contenu: `{"url":"https://exemple.fr/x?key=${CLE_G_A}"}\n`,
+    fichierAnnexe: '.secrets-connus',
+    contenuAnnexe: `${empreinte(CLE_G_A)}  jeton-slack  # mauvaise regle : ne doit rien exempter\n`,
+    attendu: 'refuse', regle: 'cle-api-google' },
+  // Les quatre cas suivants prouvent que le dispositif ÉCHOUE BRUYAMMENT plutôt
+  // que de laisser passer. Un fichier d'exemptions qu'on ne comprend pas ne doit
+  // jamais être lu « au mieux » : il doit arrêter le commit.
+  { nom: 'CONNUS : règle non empreintable → échec bruyant', fichier: 'c4.md',
+    contenu: 'Rien de sensible ici.\n',
+    fichierAnnexe: '.secrets-connus',
+    contenuAnnexe: `${empreinte(CLE_G_A)}  url-avec-identifiants  # regle a valeur devinable\n`,
+    attendu: 'refuse', sortieContient: '.secrets-connus' },
+  { nom: 'CONNUS : ligne malformée → échec bruyant', fichier: 'c5.md',
+    contenu: 'Rien de sensible ici.\n',
+    fichierAnnexe: '.secrets-connus',
+    contenuAnnexe: 'perf/**  cle-api-google  # un chemin n est pas une empreinte\n',
+    attendu: 'refuse', sortieContient: '.secrets-connus' },
+  { nom: 'CONNUS : justification absente → échec bruyant', fichier: 'c6.md',
+    contenu: 'Rien de sensible ici.\n',
+    fichierAnnexe: '.secrets-connus',
+    contenuAnnexe: `${empreinte(CLE_G_A)}  cle-api-google\n`,
+    attendu: 'refuse', sortieContient: '.secrets-connus' },
+  // UNE EXEMPTION NON VERSIONNÉE N'EXEMPTE RIEN. Sinon le fichier pourrait vivre
+  // à côté de git, invisible en revue, et taire la garde sur ce poste seulement.
+  { nom: 'CONNUS : fichier présent sur le disque mais non indexé → échec bruyant',
+    fichier: 'c7.json',
+    contenu: `{"url":"https://exemple.fr/x?key=${CLE_G_A}"}\n`,
+    fichierLibre: '.secrets-connus',
+    contenuLibre: `${empreinte(CLE_G_A)}  cle-api-google  # jamais indexe\n`,
+    attendu: 'refuse', sortieContient: '.secrets-connus' },
+  // Le fichier d'exemptions porte des empreintes, jamais des valeurs : il ne doit
+  // pas se faire juger par les règles (64 caractères hexadécimaux à côté du mot
+  // « secret » sont exactement ce que la règle d'entropie cherche).
+  { nom: 'CONNUS : le fichier d exemptions ne se juge pas lui-même', fichier: '.secrets-connus',
+    contenu: `${empreinte(CLE_G_A)}  cle-api-google  # secret connu, publie par construction\n`,
+    attendu: 'passe' },
 ];
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
@@ -521,6 +633,12 @@ for (const cas of CAS) {
     writeFileSync(join(d, cas.fichierAnnexe), cas.contenuAnnexe, 'utf8');
     git(d, ['add', cas.fichierAnnexe]);
   }
+  // `fichierLibre` : ÉCRIT SUR LE DISQUE ET JAMAIS INDEXÉ. Sert au seul cas qu'un
+  // fichier annexe ne sait pas reproduire — une exemption posée à côté de git,
+  // qui ne doit PAS s'appliquer en silence.
+  if (cas.fichierLibre) {
+    writeFileSync(join(d, cas.fichierLibre), cas.contenuLibre, 'utf8');
+  }
 
   let code = 0;
   let sortie = '';
@@ -541,11 +659,16 @@ for (const cas of CAS) {
   const marqueur = `[${cas.regle}]`;
   const bonneRegle = cas.regle === undefined
     || (cas.attendu === 'refuse' ? sortie.includes(marqueur) : !sortie.includes(marqueur));
-  const ok = obtenu === cas.attendu && bonneRegle;
+  // `sortieContient` (facultatif) : pour les refus qui ne viennent PAS d'une règle
+  // mais d'un échec bruyant du détecteur (fichier d'exemptions malformé, non
+  // indexé...). Sans lui, ces cas resteraient verts si le refus venait d'une tout
+  // autre cause — un `exit 1` ne dit pas pourquoi.
+  const bonMotif = cas.sortieContient === undefined || sortie.includes(cas.sortieContient);
+  const ok = obtenu === cas.attendu && bonneRegle && bonMotif;
   if (!ok) echecs++;
   const pourquoi = !bonneRegle
     ? ` — regle ${cas.regle} ${cas.attendu === 'refuse' ? 'ABSENTE de' : 'PRESENTE dans'} la sortie`
-    : '';
+    : (!bonMotif ? ` — motif attendu absent de la sortie : ${JSON.stringify(cas.sortieContient)}` : '');
   console.log(`  ${ok ? 'ok    ' : 'ECHEC '} ${cas.nom} — attendu ${cas.attendu}, obtenu ${obtenu}${pourquoi}`);
 }
 

@@ -405,3 +405,36 @@ test('les 94 medias VERSIONNES portent une ligne de credit au format, ayant droi
   assert.deepEqual(horsFormat, []);
   assert.equal(corpus.medias.length, 94);
 });
+
+/* ------------------------------------------------------------------ */
+/* Les liens sociaux du journal : UN SEUL, et c est un arbitrage.       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * ARBITRAGE D AYMERIC, canal chat du Cockpit, 2026-08-07, cite : « Pour les
+ * reseaux sociaux mets uniquement mon linkedin ».
+ *
+ * Ce que ce test garde, et pourquoi il est ici plutot que dans une revue de
+ * code. `Configuration.reseaux` alimente directement le bloc de liens sociaux
+ * du pied de page, sur les 86 pages du site (`PiedDePage.astro` →
+ * `LiensSociaux.astro`). Une entree ajoutee dans ce fichier de donnees est donc
+ * une marque de plus affichee partout, sans qu aucune ligne de code ne bouge et
+ * sans qu aucun test existant ne rougisse : le seul endroit ou la decision
+ * pouvait etre tenue par un mecanisme est le corpus versionne lui-meme.
+ *
+ * Il ne dit RIEN des auteurs (`auteurs.json`), dont les `reseaux` pointent vers
+ * leur propre page du meme site : ce ne sont pas des marques tierces, et ils ne
+ * sont pas l objet de cet arbitrage.
+ *
+ * Il ne dit rien non plus du registre des glyphes ni de l enum a huit
+ * plateformes d A-30, qui restent entiers : ce que le journal PUBLIE et ce que
+ * le site SAIT rendre sont deux questions distinctes. Les fixtures de
+ * `apps/web/tests/fixtures/` continuent d exercer les huit valeurs — c est un
+ * banc, pas la configuration du site.
+ */
+test('la Configuration versionnee ne porte QU UN lien social, le LinkedIn d Aymeric', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  assert.deepEqual(corpus.configuration.reseaux, [
+    { plateforme: 'linkedin', url: 'https://www.linkedin.com/in/aymeric-filliot-37442a17a/' },
+  ]);
+});

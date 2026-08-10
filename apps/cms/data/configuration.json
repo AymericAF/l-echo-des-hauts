@@ -3,7 +3,9 @@
   "logoSombre": "identite/logo-sombre.svg",
   "favicon": "identite/favicon.svg",
   "imagePartageDefaut": "identite/partage-defaut.svg",
-  "reseaux": [{ "plateforme": "site", "url": "https://echo.ayfiweb.fr" }],
+  "reseaux": [
+    { "plateforme": "linkedin", "url": "https://www.linkedin.com/in/aymeric-filliot-37442a17a/" }
+  ],
   "fr": {
     "nomSite": "L'Écho des Hauts",
     "baseline": "Le plateau, documents à l'appui",

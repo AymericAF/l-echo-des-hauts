@@ -175,11 +175,24 @@ try {
     // ── 4. Deriver le graphe d imports, dans le contenu INDEXE ───────────────
     const RESOLUTIONS = ['', '.ts', '.mjs', '.js', '.astro', '/index.ts', '/index.js'];
 
+    // Les fichiers de test portent des SOURCES FABRIQUEES dans des gabarits
+    // (`const REPARTITEUR_FABRIQUE = ` … `import X from './Y.astro'` … `),
+    // qu'un scan naif prend pour de vrais imports. Ils ne se resolvent jamais,
+    // et le test serait alors elargi a CHAQUE commit — un declencheur qui
+    // s'allume toujours ne cible plus rien. On retire donc gabarits et
+    // commentaires avant de lire les imports. Un faux negatif introduit ici est
+    // rattrape par l'integration, qui lance tout.
+    const sansGabarits = (s) =>
+        s
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+            .replace(/`(?:\\[\s\S]|[^\\`])*`/g, '``');
+
     /** Chemins repo-relatifs importes directement par `fichier` (repo-relatif). */
     function importsDirects(fichier) {
         let source;
         try {
-            source = fs.readFileSync(path.join(racine, fichier), 'utf8');
+            source = sansGabarits(fs.readFileSync(path.join(racine, fichier), 'utf8'));
         } catch {
             return { cibles: [], irresolus: [fichier] };
         }
@@ -315,10 +328,15 @@ try {
         // Les fichiers que node nomme comme ayant echoue. On les remonte en
         // tete : « un test a casse » sans dire lequel oblige a relire toute la
         // sortie, et c est ce qui pousse au --no-verify.
+        // node ne nomme le FICHIER en echec que dans les lignes
+        // « test at tests\x.test.ts:110:3 » de sa section « failing tests ».
+        // C'est cette ligne qu'on lit : « un test a casse » sans dire lequel
+        // oblige a relire toute la sortie, et c'est ce qui pousse au
+        // --no-verify.
         const rouges = [
             ...new Set(
-                (sortie.match(/^✖ (tests[\\/][^\s(]+\.test\.ts)/gm) || []).map((l) =>
-                    l.replace(/^✖ /, '').replace(/\\/g, '/')
+                [...sortie.matchAll(/^test at ([^\n:]+\.test\.ts):/gm)].map((m) =>
+                    m[1].replace(/\\/g, '/')
                 )
             ),
         ];

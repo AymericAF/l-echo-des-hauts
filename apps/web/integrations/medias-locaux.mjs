@@ -16,6 +16,17 @@ import { localiserMedias, resumeMediasLocaux } from '../scripts/medias-locaux.mj
 
 const NOM = 'medias-locaux';
 
+/**
+ * CE MODULE DEPOSE DES OCTETS DANS LA SORTIE. C est cette declaration — et non l ordre
+ * lu dans `astro.config.mjs` — qui porte la dependance : `tests/astro-config.test.ts`
+ * exige que toute integration declaree `verifie-que-les-references-aboutissent` s execute
+ * APRES celle-ci. Deplacer ce module apres l une d elles fait ROUGIR ce test.
+ *
+ * Preuve du role, pas deduction du nom : `localiserMedias()` (scripts/medias-locaux.mjs)
+ * fait `fs.writeFileSync(destination, …)` sous `dist/<PREFIXE_MEDIAS>`.
+ */
+export const ROLE_SORTIE = 'depose-des-octets';
+
 function echec(echecs) {
   return new Error(
     `[${NOM}] ${echecs.length} media(s) references par la sortie n ont PAS pu etre ` +

@@ -60,6 +60,16 @@ const APPS = ['apps/web', 'apps/cms'];
 // sous-arbre). Tout ce qui est atteint par `import` est deja couvert et n'a
 // rien a faire ici.
 const LECTURES = {
+    'apps/web/tests/astro-config.test.ts': [
+        // Il IMPORTE `astro.config.mjs` — donc tout ce que le tableau
+        // `integrations:` atteint est deja couvert par le graphe. Ce qu'il lit
+        // en PLUS, et que le graphe ne peut pas voir : le DOSSIER
+        // `integrations/` en entier, parcouru pour verifier qu'aucun module
+        // livre n'a ete debranche. Sans cette ligne, ajouter un module SANS le
+        // brancher ne declencherait rien — exactement le cas que ce test existe
+        // pour attraper.
+        'apps/web/integrations/',
+    ],
     'apps/web/tests/requete.test.ts': [
         // Il PARCOURT src/ en entier a la recherche d'un populate etoile :
         // n'importe quel fichier de src/ peut le faire rougir.

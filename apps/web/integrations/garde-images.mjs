@@ -19,6 +19,15 @@ import { inspecterImages, resumeImages } from '../scripts/verifier-images.mjs';
 
 const NOM = 'garde-images';
 
+/**
+ * AUCUNE CONTRAINTE D ORDRE, et c est mesure, pas suppose : `inspecterImages()` ne lit que
+ * des ATTRIBUTS (`width`, `height`, `loading`, `fetchpriority`) dans le HTML deja emis, et
+ * ne verifie jamais qu un fichier reference existe dans `dist/`. Deposer les octets avant
+ * ou apres ne change donc rien a son verdict. Sa place actuelle — entre `medias-locaux` et
+ * les trois gardes de reference — n est qu une commodite de lecture.
+ */
+export const ROLE_SORTIE = 'sans-contrainte-d-ordre';
+
 /** Le message d echec, ecrit pour quelqu un qui decouvre la contrainte. */
 function echec(manquements) {
   return new Error(

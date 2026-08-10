@@ -22,6 +22,17 @@ import { inspecterOrigineMedias, resumeOrigineMedias } from '../scripts/verifier
 
 const NOM = 'garde-origine-medias';
 
+/**
+ * CETTE GARDE VERIFIE QU UNE REFERENCE ABOUTIT DANS LA SORTIE : elle doit donc s executer
+ * APRES toute integration declaree `depose-des-octets`. `tests/astro-config.test.ts` tient
+ * cette dependance ; la phrase « ELLE PASSE APRES `medias-locaux` » ci-dessus n etait
+ * qu un commentaire, et un commentaire ne tient rien.
+ *
+ * Preuve du role, pas deduction du nom : `inspecterOrigineMedias()` pousse un manquement
+ * « aucun fichier de dist/ ne repond a ce chemin » (scripts/verifier-origine-medias.mjs).
+ */
+export const ROLE_SORTIE = 'verifie-que-les-references-aboutissent';
+
 /** Le message d echec, ecrit pour quelqu un qui decouvre la contrainte. */
 function echec(manquements) {
   return new Error(

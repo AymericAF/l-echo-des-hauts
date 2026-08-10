@@ -17,6 +17,17 @@ import { inspecterLiens, resumeLiens } from '../scripts/verifier-liens.mjs';
 
 const NOM = 'garde-liens';
 
+/**
+ * CETTE GARDE VERIFIE QU UNE REFERENCE ABOUTIT DANS LA SORTIE : apres tout depot d octets.
+ *
+ * Preuve du role, et elle n a rien d evident — ce fichier s interdit les `src` d images,
+ * on pourrait donc le croire independant des medias. Il ne l est pas : il lit les `href`
+ * des `<link>`, et depuis T-01 la sortie porte
+ * `<link rel="icon" href="/medias/favicon_….png">` sur chacune de ses pages (constate dans
+ * `dist/` le 2026-08-10). Sans les octets deposes, c est un « lien mort » par page.
+ */
+export const ROLE_SORTIE = 'verifie-que-les-references-aboutissent';
+
 function echec(manquements) {
   return new Error(
     `[${NOM}] ${manquements.length} lien(s) interne(s) sans cible dans la sortie :\n` +

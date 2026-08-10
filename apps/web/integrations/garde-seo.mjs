@@ -15,6 +15,15 @@ import { inspecterSeo, resumeSeo } from '../scripts/verifier-seo.mjs';
 
 const NOM = 'garde-seo';
 
+/**
+ * CETTE GARDE VERIFIE QU UNE REFERENCE ABOUTIT DANS LA SORTIE : apres tout depot d octets.
+ *
+ * Preuve du role : `inspecterSeo()` pousse « og:image pointe « … », absent de dist/ », et
+ * la sortie constatee le 2026-08-10 porte
+ * `og:image` = `…/medias/partage_defaut_….jpg` — un fichier que `medias-locaux` depose.
+ */
+export const ROLE_SORTIE = 'verifie-que-les-references-aboutissent';
+
 function echec(manquements) {
   return new Error(
     `[${NOM}] ${manquements.length} manquement(s) dans les sorties SEO :\n` +

@@ -28,6 +28,13 @@ import { inspecterStylesEnLigne, resumeStylesEnLigne } from '../scripts/verifier
 
 const NOM = 'garde-styles-en-ligne';
 
+/**
+ * AUCUNE CONTRAINTE D ORDRE — c est la formalisation de la phrase « SA PLACE DANS L ORDRE
+ * EST LIBRE » ci-dessus. `inspecterStylesEnLigne()` ne lit que le HTML emis (blocs
+ * `<style>` et attributs `style=`) et ne confronte aucune reference a `dist/`.
+ */
+export const ROLE_SORTIE = 'sans-contrainte-d-ordre';
+
 /** Le message d echec, ecrit pour quelqu un qui decouvre la contrainte. */
 function echec(manquements) {
   const montres = manquements.slice(0, 12);

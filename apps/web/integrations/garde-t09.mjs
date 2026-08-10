@@ -28,6 +28,20 @@ import { inspecterSortie, resume } from '../scripts/verifier-sortie.mjs';
 
 const NOM = 'garde-t09';
 
+/**
+ * AUCUNE CONTRAINTE DE REFERENCE : `inspecterSortie()` ne verifie jamais qu une reference
+ * aboutit ; il cherche du JavaScript servi et des marqueurs de sortie serveur. Rien ne lui
+ * impose donc de suivre un depot d octets, et ce module est branche EN PREMIER.
+ *
+ * CE QUE CETTE PLACE LAISSE OUVERT, et qu il faut ecrire plutot que taire : place avant
+ * `medias-locaux`, son hook `astro:build:done` ne voit PAS les octets deposes ensuite. Un
+ * media dont le nom finit en `.js` serait donc depose apres son passage, sans etre compte
+ * comme « fichier JavaScript servi ». Le trou est etroit (il faut qu une page reference un
+ * tel media) et il n est pas ferme ici : le test de configuration tient l ordre declare, il
+ * ne redresse pas un ordre incomplet.
+ */
+export const ROLE_SORTIE = 'sans-contrainte-d-ordre';
+
 /** Le message d echec, ecrit pour quelqu un qui decouvre la contrainte. */
 function echec(titre, manquements) {
   return new Error(

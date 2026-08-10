@@ -160,10 +160,13 @@ test('un segment vide n est pas emis du tout', () => {
     construireRegistre({ articles: [], categories: [], tags: [], auteurs: [], dossiers: [] }),
     CONFIGURATIONS,
   );
-  assert.deepEqual(sansRien.map((s) => s.nom), ['pages']); // accueil + /a-propos, toujours emis
+  assert.deepEqual(sansRien.map((s) => s.nom), ['pages']); // accueil, /a-propos, /recherche : toujours emis
   assert.deepEqual(
     sansRien[0].entrees.map((e) => e.chemin).sort(),
-    ['/', '/a-propos', '/en', '/en/a-propos'],
+    // `/recherche` y figure comme `/a-propos` : elle est indexable, et la table de
+    // volumetrie de `docs/protocole-mesure.md` la compte au sitemap (1 FR + 1 EN).
+    // `/404` et `/mentions-legales` en sortent par A-29, pas par leur nature.
+    ['/', '/a-propos', '/en', '/en/a-propos', '/en/recherche', '/recherche'],
   );
 });
 

@@ -56,6 +56,24 @@ function enveloppe(entrees) {
 function demarrerServeur(corpus) {
   const serveur = http.createServer((requete, reponse) => {
     const url = new URL(requete.url ?? '/', 'http://localhost');
+
+    /* `/uploads/` — AJOUTE le 2026-08-10, sinon ce script ne construit plus rien.
+       Depuis le commit `6ff1fb8` (T-01), l integration `medias-locaux` TELECHARGE au
+       build les medias que la sortie reference et fait echouer le build s ils ne
+       repondent pas. Le Strapi de substitution de `serveur-fixtures.mjs` sert deja
+       `/uploads/` pour cette raison ; celui-ci ne le faisait pas, et `preuve:pagination`
+       echouait sur 5 medias en 404 — un echec qui ne dit RIEN de la pagination, seul
+       objet de ce script. Les octets importent peu : c est l aboutissement de la
+       requete qui est exerce. */
+    if (url.pathname.startsWith('/uploads/')) {
+      reponse.writeHead(200, { 'content-type': 'image/svg+xml' });
+      reponse.end(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="9" viewBox="0 0 16 9">' +
+          '<rect width="16" height="9" fill="#d9d4c8"/></svg>',
+      );
+      return;
+    }
+
     const nom = url.pathname.replace(/^\/api\//, '');
     const locale = url.searchParams.get('locale') ?? 'fr';
 

@@ -47,6 +47,7 @@ import {
   type DetailArticle,
   type ImagePartage,
 } from '../lib/seo/metadonnees.ts';
+import { indexableParRecherche } from '../lib/seo/recherche.ts';
 import { CHEMIN_SITEMAP_INDEX } from '../lib/seo/sitemap.ts';
 import EnTete from '../components/EnTete.astro';
 import PiedDePage from '../components/PiedDePage.astro';
@@ -155,6 +156,13 @@ const meta = metadonneesSeo({
    le verra : la page, elle, aura l air normale. */
 for (const avertissement of meta.avertissements) console.warn(`[seo] ${avertissement}`);
 
+/* CE QUE PAGEFIND INDEXE (§5.4). L attribut delimite la zone indexee a `<main>` : sans
+   lui, Pagefind indexe le `<body>` entier, et chaque resultat porterait alors le menu et
+   le pied de page. Son ABSENCE vaut exclusion — Pagefind n indexe que les pages qui le
+   portent des lors qu au moins une le porte. La regle qui decide vit dans
+   `src/lib/seo/recherche.ts`, jamais ici : ce gabarit ne fait que l appliquer. */
+const indexeParRecherche = indexableParRecherche(page, meta.noindex);
+
 const fluxDeLaLocale = new URL(CHEMIN_FLUX[locale], origine).href;
 const sitemap = new URL(CHEMIN_SITEMAP_INDEX, origine).href;
 ---
@@ -182,7 +190,7 @@ const sitemap = new URL(CHEMIN_SITEMAP_INDEX, origine).href;
   <body>
     <a class="lien-evitement" href="#contenu">{mots.allerAuContenu}</a>
     <EnTete configuration={configuration} locale={locale} registre={registre} bascule={cible} />
-    <main id="contenu" class="contenu-principal">
+    <main id="contenu" class="contenu-principal" data-pagefind-body={indexeParRecherche ? '' : undefined}>
       <slot />
     </main>
     <PiedDePage configuration={configuration} locale={locale} registre={registre} />

@@ -27,6 +27,25 @@
  * CE QU IL NE CHANGE PAS, ET NE DOIT PAS CHANGER : quand l origine se lit, un lien vers
  * un AUTRE hote reste hors garde, et le reste silencieusement. Un verificateur qui
  * rougirait sur les liens sortants legitimes serait desarme dans la semaine.
+ *
+ * PAR OU LE DEFAUT ETAIT REELLEMENT JOIGNABLE — mesure le 2026-08-10, et plus etroit
+ * que ce que la description de la tache supposait :
+ *
+ *   - PAS par `astro build`. Astro protege ses propres hooks : `ECHO_SITE_URL=''` est
+ *     refuse a la validation de configuration (`! Invalid URL`, code 1) et `foo:bar`,
+ *     qui passe cette validation, fait mourir le build dans `compileAstro` (`new URL`,
+ *     greffon vite) AVANT `astro:build:done`. Les trois gardes de `integrations/` ne
+ *     pouvaient donc pas voir le repli. Elles sont corrigees quand meme : leur defense
+ *     ne doit pas dependre d une protection qui vit chez un tiers et peut bouger a la
+ *     montee de version.
+ *   - PAR LA LIGNE DE COMMANDE, grande ouverte, et c est la PORTE DE LA RECETTE :
+ *     `node scripts/verifier-*.mjs [dist] [origine]` (usage ecrit en tete de chaque
+ *     fichier) et `npm run verifier:*` avec un `ECHO_SITE_URL` exporte vide ou mal
+ *     forme — `??` ne remplace que `null`/`undefined`, jamais la chaine vide. C est la
+ *     seconde porte du job `sortie` de l integration continue, celle qui juge un
+ *     `dist/` deja construit. Et c est la classe de defaut deja nommee dans le depot
+ *     de documentation : un `$ECHO_*` vide a l execution, qui ne casse pas la commande
+ *     mais la fait MENTIR.
  */
 import { ISSUES } from './issues.mjs';
 
@@ -58,9 +77,8 @@ export function lireOrigine(origine) {
 
   /* `new URL('foo:bar')` NE THROW PAS : le schema n est pas special, l origine est
      opaque, et `.origin` rend la CHAINE 'null'. Un `try/catch` seul ne la voit donc
-     pas — et cette valeur-la traverse la validation de configuration d Astro, qui
-     refuse `''` mais accepte `foo:bar` (constate le 2026-08-10). C est le seul chemin
-     par lequel un `astro build` pouvait atteindre le repli. */
+     pas — et en ligne de commande cette valeur produisait 296 faux « href illisible »
+     sur un site sain (mesure du 2026-08-10 sur `dist/`). */
   if (hote === null || hote === 'null') {
     return {
       lisible: false,

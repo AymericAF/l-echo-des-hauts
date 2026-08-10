@@ -104,6 +104,16 @@ l'origine du site (`liens`, `origine-medias`, `seo`) la lisent désormais par un
 prenait pour « aucun lien interne à vérifier ». Un lien **réellement** externe, lui, reste hors
 garde et le reste en silence : c'est un lien sortant légitime, pas un défaut.
 
+**Par où le défaut était joignable, et par où il ne l'était pas** — mesuré, pas supposé.
+**Pas** par `astro build` : Astro refuse `ECHO_SITE_URL=''` à la validation de configuration
+(`! Invalid URL`) et meurt dans `compileAstro` sur `foo:bar`, donc avant `astro:build:done` ; les
+trois gardes d'intégration ne pouvaient pas voir le repli. Elles sont corrigées quand même — une
+défense ne doit pas dépendre d'une protection qui vit chez un tiers. **Par la ligne de commande**,
+en revanche, grande ouverte : `node scripts/verifier-*.mjs [dist] [origine]` et
+`npm run verifier:*` avec un `ECHO_SITE_URL` exporté **vide** (`??` ne remplace que
+`null`/`undefined`, jamais la chaîne vide). C'est-à-dire **la seconde porte du job `sortie`**,
+celle qui juge un `dist/` déjà construit — la porte de la recette.
+
 **Pas dans le crochet local, et c'est mesuré** : les vérificateurs coûtent ~105 ms à eux six, mais
 le **build** coûte 3,3 s (17 pages) à 4,9 s (52 pages) — contre 0,2 à 3,0 s pour le crochet entier
 aujourd'hui. Un crochet à plusieurs secondes se fait contourner, après quoi on perd aussi ce qui

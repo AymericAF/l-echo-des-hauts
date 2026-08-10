@@ -267,6 +267,14 @@ test('en ligne de commande, une origine illisible sort en 2 et le cas normal en 
 
 // ── 8. Les trois gardes de build refusent de construire sur une origine illisible ─────
 
+/**
+ * Ce test garde une defense que `astro build` ne peut pas atteindre AUJOURD HUI, et
+ * c est assume : mesure le 2026-08-10, Astro refuse `ECHO_SITE_URL=''` a la validation
+ * de configuration et meurt dans `compileAstro` sur `foo:bar`, donc avant
+ * `astro:build:done`. La protection vit chez un tiers et peut bouger a la montee de
+ * version ; les gardes ne doivent pas en dependre. La porte REELLEMENT ouverte etait la
+ * ligne de commande — le test ci-dessus, `[code=2]`.
+ */
 test('les trois gardes du build ECHOUENT quand ECHO_SITE_URL ne se lit pas', async () => {
   const dist = distFactice({
     'index.html': page(`<link rel="canonical" href="${ORIGINE}/">`, `<img src="${ORIGINE}/medias/a.svg" alt="x">`),

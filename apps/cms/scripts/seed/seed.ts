@@ -68,8 +68,25 @@ export async function executerSeed(
   for (const media of corpus.medias) {
     const existants = await client.listerMedias(media.nom);
     if (existants.length > 0) {
-      idsMedia.set(media.cle, existants[0].id);
+      const enBase = existants[0];
+      idsMedia.set(media.cle, enBase.id);
       compter(misAJour, 'media');
+      // Le rapprochement retenait l'id et s'arretait la : un fichier deja
+      // televerse gardait SES metadonnees pour toujours, et corriger le
+      // manifeste ne changeait rien a ce qui est PUBLIE. Or le `caption` est,
+      // depuis le 2026-08-10, la ligne de credit rendue sous le portrait.
+      // On ne reecrit que ce qui differe : une ecriture systematique ferait
+      // 94 requetes a chaque passage et ferait mentir le comptage.
+      if (
+        enBase.alternativeText !== media.alternativeText ||
+        enBase.caption !== media.caption
+      ) {
+        await client.majInfosMedia(enBase.id, {
+          alternativeText: media.alternativeText,
+          caption: media.caption,
+        });
+        journal(`media remis a jour : ${media.cle} — « ${media.caption} »`);
+      }
     } else {
       const televerse = await client.televerser(media);
       idsMedia.set(media.cle, televerse.id);

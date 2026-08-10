@@ -89,10 +89,25 @@ class FauxStrapi implements ClientStrapi {
   }
 
   async televerser(f: { nom: string; chemin: string; alternativeText: string; caption: string }) {
-    const media = { id: this.medias.size + 1, name: f.nom };
+    const media = {
+      id: this.medias.size + 1,
+      name: f.nom,
+      alternativeText: f.alternativeText,
+      caption: f.caption,
+    };
     this.medias.set(f.nom, media);
     this.journal.push(`upload ${f.nom}`);
     return media;
+  }
+
+  async majInfosMedia(id: number, infos: { alternativeText: string; caption: string }) {
+    for (const media of this.medias.values()) {
+      if (media.id !== id) continue;
+      Object.assign(media, infos);
+      this.journal.push(`infos ${media.name}`);
+      return media;
+    }
+    throw new Error(`media inconnu : ${id}`);
   }
 
   /** Nombre d'entrees, toutes familles et toutes locales confondues. */
@@ -176,4 +191,52 @@ test('les relations d un article EN sont ecrites sur la localisation EN, pas sur
     assert.ok(en.auteur, 'l article EN doit porter un auteur (requis)');
     assert.ok(en.categorie, 'l article EN doit porter une categorie (requise)');
   }
+});
+
+/* ------------------------------------------------------------------ */
+/* La LIGNE DE CREDIT d'un media DEJA televerse                         */
+/*                                                                      */
+/* Le rapprochement se fait sur le nom de fichier, et se contentait de   */
+/* retenir l'id : un media deja present gardait SES metadonnees, pour    */
+/* toujours. Corriger le manifeste ne changeait donc RIEN a ce qui est   */
+/* publie — et c'est precisement le cas ou l'on corrige : les 94 legendes*/
+/* ne creditaient rien, et elles etaient deja dans la mediatheque.       */
+/* ------------------------------------------------------------------ */
+
+test('un media deja televerse voit sa ligne de credit REMISE A JOUR', async () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const faux = new FauxStrapi();
+  await executerSeed(faux, corpus);
+
+  // On simule l'etat constate le 2026-08-10 : le fichier est en place, mais sa
+  // legende ne credite rien.
+  const portrait = corpus.medias.find((m) => m.cle === 'auteurs/camille-fournier-braud.svg')!;
+  const enBase = faux.medias.get(portrait.nom)!;
+  enBase.caption = "Portrait graphique genere ; aucune personne reelle n'est representee";
+  enBase.alternativeText = 'perime';
+
+  const avant = faux.journal.filter((l) => l.startsWith('upload')).length;
+  await executerSeed(faux, corpus);
+
+  assert.equal(
+    faux.journal.filter((l) => l.startsWith('upload')).length,
+    avant,
+    'la remise a jour ne doit pas reteleverser le fichier'
+  );
+  assert.equal(faux.medias.get(portrait.nom)!.caption, portrait.caption);
+  assert.equal(faux.medias.get(portrait.nom)!.alternativeText, portrait.alternativeText);
+});
+
+test('un media deja conforme n est PAS reecrit — la remise a jour reste idempotente', async () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const faux = new FauxStrapi();
+  await executerSeed(faux, corpus);
+
+  const avant = faux.journal.filter((l) => l.startsWith('infos')).length;
+  await executerSeed(faux, corpus);
+  assert.equal(
+    faux.journal.filter((l) => l.startsWith('infos')).length,
+    avant,
+    'aucune ecriture de metadonnees quand rien ne differe'
+  );
 });

@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { composerCredit, verifierFormatCredit, type SourceCredit } from './credits.ts';
 import { ErreurCorpus, MediaIntrouvable } from './erreurs.ts';
 import { lireArticle, markdownVersBlocks, type BlocBrut } from './markdown.ts';
 import { verifierUnicite } from './rapprochement.ts';
@@ -29,7 +30,9 @@ export type MediaCorpus = {
   nom: string;
   chemin: string;
   alternativeText: string;
+  /** Ligne de credit COMPOSEE au format du §6.5, jamais ecrite a la main. */
   caption: string;
+  ayantDroit: string;
   licence: string;
 };
 
@@ -148,7 +151,6 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
     if (!fs.existsSync(chemin)) throw new MediaIntrouvable(cle, chemin);
 
     const alternativeText = meta?.alternativeText;
-    const caption = meta?.caption;
     if (typeof alternativeText !== 'string' || alternativeText.trim() === '') {
       throw new ErreurCorpus(
         `manifeste des medias, "${cle}" : alternativeText vide.\n` +
@@ -156,8 +158,36 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
           `  et le controle 5 du plan editorial l'exige non vide sur chaque media.`
       );
     }
-    if (typeof caption !== 'string' || caption.trim() === '') {
-      throw new ErreurCorpus(`manifeste des medias, "${cle}" : caption vide (controle 5 du plan)`);
+
+    // Le `caption` n'est PAS ecrit a la main : il est COMPOSE depuis les champs
+    // de la source, au format impose du §6.5. Une phrase toute faite dans le
+    // manifeste serait une seconde copie de la licence, a diverger — et c'est
+    // exactement l'etat que ce champ avait avant le 2026-08-10, ou 94 medias
+    // sur 94 portaient une legende editoriale qui ne creditait rien.
+    if (meta?.caption !== undefined) {
+      throw new ErreurCorpus(
+        `manifeste des medias, "${cle}" : champ \`caption\` interdit.\n` +
+          `  La ligne de credit se COMPOSE depuis \`ayantDroit\`, \`licence\` et\n` +
+          `  \`modifications\` (§6.5) ; l'ecrire a la main en ferait une seconde copie\n` +
+          `  de la licence. Une legende editoriale se met dans \`note\`.`
+      );
+    }
+
+    let caption: string;
+    try {
+      caption = composerCredit(meta as SourceCredit, cle);
+    } catch (e) {
+      throw new ErreurCorpus((e as Error).message);
+    }
+    // Ceinture et bretelles : ce qui part vers la mediatheque est ce qui a ete
+    // juge. Sans ce second passage, une evolution du composeur pourrait
+    // televerser une ligne que la garde refuse ailleurs — seed vert, registre
+    // faux, et « le succes declare qui ment ».
+    const verdict = verifierFormatCredit(caption);
+    if (!verdict.conforme) {
+      throw new ErreurCorpus(
+        `manifeste des medias, "${cle}" : ligne de credit hors format — ${verdict.motif}`
+      );
     }
 
     const nom = path.basename(cle);
@@ -176,7 +206,11 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
       chemin,
       alternativeText,
       caption,
-      licence: typeof meta?.licence === 'string' ? meta.licence : 'oeuvre du projet',
+      ayantDroit: String(meta.ayantDroit).trim(),
+      // Plus de valeur par defaut : `composerCredit` vient de refuser une
+      // licence absente ou hors liste blanche. Un defaut ici reintroduirait
+      // une licence que personne n'a relevee (§6.8).
+      licence: String(meta.licence).trim(),
     };
     liste.push(media);
     parCle.set(cle, media);

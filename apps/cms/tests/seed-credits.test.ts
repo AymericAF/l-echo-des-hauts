@@ -1,0 +1,184 @@
+/**
+ * La LIGNE DE CREDIT d'un media, et la garde qui exige son FORMAT.
+ *
+ * Ce que ce fichier protege, et pourquoi il existe. Le `caption` natif de la
+ * mediatheque est, depuis le 2026-08-10, PUBLIE sous chaque portrait d'auteur
+ * comme ligne de credit. Jusque-la il dormait dans la mediatheque, et la seule
+ * garde qui le regardait exigeait « non vide » : n'importe quelle phrase la
+ * satisfaisait. Les 94 medias du manifeste rendaient donc une phrase qui ne
+ * nommait NI ayant droit NI licence — un credit qui ne credite rien, ce qui est
+ * pire qu'un credit absent puisqu'il a l'air de remplir l'obligation.
+ *
+ * Le format est impose par le cadrage (plan editorial §6.5) :
+ *
+ *     <Auteur ou « Œuvre du projet »> — <Licence> — <modifications si CC BY>
+ *
+ * Une garde qui verifie la PRESENCE et non la CONFORMITE ne garde rien : c'est
+ * le motif que ce projet ferme partout. Les cas ci-dessous exercent les deux
+ * sens — ce qui doit passer, et ce qui doit etre REFUSE EN NOMMANT ce qui
+ * manque. Le refus muet est un echec de test au meme titre que l'acceptation.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  LICENCES_ADMISES,
+  SEPARATEUR,
+  composerCredit,
+  verifierFormatCredit,
+} from '../scripts/seed/credits.ts';
+
+/* ------------------------------------------------------------------ */
+/* Le format lui-meme                                                  */
+/* ------------------------------------------------------------------ */
+
+test('un credit au format, sans modifications, est accepte', () => {
+  const verdict = verifierFormatCredit('Œuvre du projet — Œuvre du projet');
+  assert.equal(verdict.conforme, true);
+});
+
+test('un credit au format avec la mention des modifications est accepte', () => {
+  const verdict = verifierFormatCredit('Jeanne Aubry — CC BY 4.0 — recadre en carre, converti en AVIF');
+  assert.equal(verdict.conforme, true);
+});
+
+test('un credit VIDE reste refuse — la garde precedente n est pas perdue', () => {
+  for (const vide of ['', '   ', '\n']) {
+    const verdict = verifierFormatCredit(vide);
+    assert.equal(verdict.conforme, false, `"${vide}" aurait du etre refuse`);
+    assert.match(verdict.motif, /vide/i);
+  }
+});
+
+test('un credit absent (non-chaine) reste refuse', () => {
+  for (const absent of [undefined, null, 42, {}]) {
+    const verdict = verifierFormatCredit(absent as never);
+    assert.equal(verdict.conforme, false);
+    assert.match(verdict.motif, /vide|absent/i);
+  }
+});
+
+test('une phrase quelconque — ce que le depot publiait — est REFUSEE', () => {
+  // Le texte exact des cinq portraits publies le 2026-08-10.
+  const verdict = verifierFormatCredit(
+    "Portrait graphique genere ; aucune personne reelle n'est representee"
+  );
+  assert.equal(verdict.conforme, false);
+  // Le motif doit dire CE QUI MANQUE, pas seulement « non conforme ».
+  assert.match(verdict.motif, /separateur|format/i);
+  assert.match(verdict.motif, /—/);
+});
+
+test('un credit a un seul segment est refuse : il ne nomme pas de licence', () => {
+  const verdict = verifierFormatCredit('Œuvre du projet');
+  assert.equal(verdict.conforme, false);
+  assert.match(verdict.motif, /licence/i);
+});
+
+test('un credit a quatre segments est refuse : le format en compte deux ou trois', () => {
+  const verdict = verifierFormatCredit('A — CC BY 4.0 — recadre — et autre chose');
+  assert.equal(verdict.conforme, false);
+  assert.match(verdict.motif, /deux|trois|segment/i);
+});
+
+test('un ayant droit vide est refuse, et le motif le nomme', () => {
+  const verdict = verifierFormatCredit(' — CC0 1.0');
+  assert.equal(verdict.conforme, false);
+  assert.match(verdict.motif, /ayant droit/i);
+});
+
+test('une licence hors liste blanche est refusee, et le motif CITE la licence lue', () => {
+  const verdict = verifierFormatCredit('Jeanne Aubry — CC BY-SA 4.0');
+  assert.equal(verdict.conforme, false);
+  assert.match(verdict.motif, /CC BY-SA 4\.0/);
+  assert.match(verdict.motif, /liste blanche|admise/i);
+});
+
+test('CC BY sans mention des modifications est refuse — §6.5 l exige', () => {
+  const verdict = verifierFormatCredit('Jeanne Aubry — CC BY 4.0');
+  assert.equal(verdict.conforme, false);
+  assert.match(verdict.motif, /modification/i);
+});
+
+test('une licence sans attribution obligatoire n exige PAS de troisieme segment', () => {
+  for (const licence of LICENCES_ADMISES.filter((l) => !l.startsWith('CC BY '))) {
+    const verdict = verifierFormatCredit(`Œuvre du projet ${SEPARATEUR} ${licence}`);
+    assert.equal(verdict.conforme, true, `${licence} aurait du passer`);
+  }
+});
+
+test('le separateur est le tiret cadratin entoure d espaces, pas un tiret court', () => {
+  assert.equal(verifierFormatCredit('Œuvre du projet - Œuvre du projet').conforme, false);
+  assert.equal(verifierFormatCredit('Œuvre du projet–Œuvre du projet').conforme, false);
+});
+
+/* ------------------------------------------------------------------ */
+/* La composition depuis les champs de la source                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `assert.throws` rend `undefined` : il verifie qu'on jette, jamais CE QU'ON
+ * DIT. Or tout l'enjeu ici est le MESSAGE — un refus qui ne nomme ni le media
+ * ni ce qui manque oblige a chercher sur 94 entrees, et c'est ce qui fait
+ * desarmer une garde. On capture donc l'erreur pour la lire.
+ */
+function capturer(fn: () => unknown): Error {
+  try {
+    fn();
+  } catch (e) {
+    return e as Error;
+  }
+  assert.fail('aucune erreur jetee — le refus attendu n a pas eu lieu');
+}
+
+test('composerCredit rend une chaine qui passe sa propre garde', () => {
+  const credit = composerCredit(
+    { ayantDroit: 'Œuvre du projet', licence: 'Œuvre du projet' },
+    'auteurs/x.svg'
+  );
+  assert.equal(credit, 'Œuvre du projet — Œuvre du projet');
+  assert.equal(verifierFormatCredit(credit).conforme, true);
+});
+
+test('composerCredit reporte la mention des modifications quand elle est donnee', () => {
+  const credit = composerCredit(
+    { ayantDroit: 'Jeanne Aubry', licence: 'CC BY 4.0', modifications: 'recadre en carre' },
+    'auteurs/y.jpg'
+  );
+  assert.equal(credit, 'Jeanne Aubry — CC BY 4.0 — recadre en carre');
+});
+
+test('composerCredit NOMME LE MEDIA et ce qui manque quand un champ est absent', () => {
+  const erreur = capturer(() => composerCredit({ licence: 'CC0 1.0' } as never, 'couvertures/A01.svg'));
+  assert.match(erreur.message, /couvertures\/A01\.svg/);
+  assert.match(erreur.message, /ayantDroit/);
+});
+
+test('composerCredit refuse une licence hors liste blanche en la citant', () => {
+  const erreur = capturer(() =>
+    composerCredit({ ayantDroit: 'X', licence: 'Unsplash' }, 'blocs/A01-poste-source.svg')
+  );
+  assert.match(erreur.message, /blocs\/A01-poste-source\.svg/);
+  assert.match(erreur.message, /Unsplash/);
+});
+
+test('composerCredit refuse un ayant droit qui porte le separateur — il casserait le format', () => {
+  const erreur = capturer(() =>
+    composerCredit({ ayantDroit: 'A — B', licence: 'CC0 1.0' }, 'identite/logo.svg')
+  );
+  assert.match(erreur.message, /identite\/logo\.svg/);
+  assert.match(erreur.message, /—/);
+});
+
+test('la liste blanche est celle du §6.2 / D.3, et elle ne contient aucune licence exclue', () => {
+  for (const exclue of ['CC BY-SA 4.0', 'CC BY-NC 4.0', 'CC BY-ND 4.0', 'Unsplash', 'Pexels']) {
+    assert.equal(
+      LICENCES_ADMISES.includes(exclue as never),
+      false,
+      `${exclue} est exclue par le §6.2 et ne doit pas figurer en liste blanche`
+    );
+  }
+  assert.ok(LICENCES_ADMISES.includes('CC BY 4.0' as never));
+  assert.ok(LICENCES_ADMISES.includes('CC0 1.0' as never));
+  assert.ok(LICENCES_ADMISES.includes('Œuvre du projet' as never));
+});

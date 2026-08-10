@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { chargerCorpus } from '../scripts/seed/corpus.ts';
+import { verifierFormatCredit } from '../scripts/seed/credits.ts';
 import { ErreurCorpus, MediaIntrouvable } from '../scripts/seed/erreurs.ts';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
@@ -37,9 +38,22 @@ function ecrireCorpusMinimal(): string {
   ecrire(
     'medias/manifeste.json',
     JSON.stringify({
-      'couvertures/A05.svg': { alternativeText: 'Bassin versant', caption: 'Oeuvre du projet' },
-      'identite/logo.svg': { alternativeText: 'Logo', caption: 'Oeuvre du projet' },
-      'identite/partage.svg': { alternativeText: 'Partage', caption: 'Oeuvre du projet' },
+      // La ligne de credit est COMPOSEE depuis ces champs (§6.5), jamais ecrite.
+      'couvertures/A05.svg': {
+        alternativeText: 'Bassin versant',
+        ayantDroit: 'Œuvre du projet',
+        licence: 'Œuvre du projet',
+      },
+      'identite/logo.svg': {
+        alternativeText: 'Logo',
+        ayantDroit: 'Œuvre du projet',
+        licence: 'Œuvre du projet',
+      },
+      'identite/partage.svg': {
+        alternativeText: 'Partage',
+        ayantDroit: 'Œuvre du projet',
+        licence: 'Œuvre du projet',
+      },
     })
   );
 
@@ -200,7 +214,11 @@ test('chargerCorpus echoue sur deux medias de meme nom de fichier', () => {
   fs.writeFileSync(path.join(racine, 'medias/identite/A05.svg'), '<svg/>');
   const chemin = path.join(racine, 'medias/manifeste.json');
   const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
-  manifeste['identite/A05.svg'] = { alternativeText: 'Doublon', caption: 'Doublon' };
+  manifeste['identite/A05.svg'] = {
+    alternativeText: 'Doublon',
+    ayantDroit: 'Œuvre du projet',
+    licence: 'Œuvre du projet',
+  };
   fs.writeFileSync(chemin, JSON.stringify(manifeste));
 
   assert.throws(() => chargerCorpus(racine), ErreurCorpus);
@@ -270,4 +288,120 @@ test('le corpus versionne porte les effectifs EN annonces par le controle 12', (
     41,
     'total des localisations EN portant un uid'
   );
+});
+
+/* ------------------------------------------------------------------ */
+/* La LIGNE DE CREDIT au niveau du corpus — les trois sens              */
+/*                                                                      */
+/* `credits.ts` a ses propres tests unitaires. Ce qui se prouve ICI est  */
+/* autre chose : que la garde est REELLEMENT BRANCHEE sur le chemin que  */
+/* le seed emprunte. Un format juste dans un module que personne         */
+/* n'appelle ne garde rien — c'est le mode d'echec que ce projet ferme   */
+/* partout.                                                             */
+/* ------------------------------------------------------------------ */
+
+/** Ecrit un corpus minimal dont le media de couverture porte `meta`. */
+function corpusAvecMediaMeta(meta: Record<string, unknown>): string {
+  const racine = ecrireCorpusMinimal();
+  const chemin = path.join(racine, 'medias/manifeste.json');
+  const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+  manifeste['couvertures/A05.svg'] = meta;
+  fs.writeFileSync(chemin, JSON.stringify(manifeste));
+  return racine;
+}
+
+function refusDe(racine: string): string {
+  try {
+    chargerCorpus(racine);
+  } catch (e) {
+    assert.ok(e instanceof ErreurCorpus, 'doit etre une ErreurCorpus');
+    return (e as Error).message;
+  }
+  return assert.fail('le corpus a ete ACCEPTE : la garde ne juge pas ce cas');
+}
+
+test('SENS 1 — un credit hors format est REFUSE, en nommant le media et ce qui manque', () => {
+  const message = refusDe(
+    corpusAvecMediaMeta({
+      alternativeText: 'Bassin versant',
+      ayantDroit: 'Œuvre du projet',
+      // Exactement ce que le depot publiait sous les portraits : une licence
+      // qui n'en est pas une.
+      licence: "Portrait graphique genere ; aucune personne reelle n'est representee",
+    })
+  );
+  assert.match(message, /couvertures\/A05\.svg/, 'le refus doit NOMMER le media');
+  assert.match(message, /licence/i, 'le refus doit dire CE QUI manque');
+  assert.match(message, /liste blanche/i);
+});
+
+test('SENS 1 bis — une licence exclue par le §6.2 est refusee en la citant', () => {
+  const message = refusDe(
+    corpusAvecMediaMeta({
+      alternativeText: 'Bassin versant',
+      ayantDroit: 'Jeanne Aubry',
+      licence: 'CC BY-SA 4.0',
+    })
+  );
+  assert.match(message, /couvertures\/A05\.svg/);
+  assert.match(message, /CC BY-SA 4\.0/);
+});
+
+test('SENS 1 ter — CC BY sans mention des modifications est refuse', () => {
+  const message = refusDe(
+    corpusAvecMediaMeta({
+      alternativeText: 'Bassin versant',
+      ayantDroit: 'Jeanne Aubry',
+      licence: 'CC BY 4.0',
+    })
+  );
+  assert.match(message, /couvertures\/A05\.svg/);
+  assert.match(message, /modification/i);
+});
+
+test('SENS 2 — un credit conforme PASSE, et arrive compose au format du §6.5', () => {
+  const racine = corpusAvecMediaMeta({
+    alternativeText: 'Bassin versant',
+    ayantDroit: 'Jeanne Aubry',
+    licence: 'CC BY 4.0',
+    modifications: 'recadre en carre, converti en AVIF',
+  });
+  const corpus = chargerCorpus(racine);
+  const media = corpus.medias.find((m) => m.cle === 'couvertures/A05.svg');
+  assert.equal(media?.caption, 'Jeanne Aubry — CC BY 4.0 — recadre en carre, converti en AVIF');
+});
+
+test('SENS 3 — un credit VIDE reste refuse : la garde precedente n est PAS perdue', () => {
+  for (const vide of [{}, { ayantDroit: '   ' }, { ayantDroit: 'X', licence: '  ' }]) {
+    const message = refusDe(
+      corpusAvecMediaMeta({ alternativeText: 'Bassin versant', ...vide })
+    );
+    assert.match(message, /couvertures\/A05\.svg/);
+    assert.match(message, /ayantDroit|licence/);
+  }
+});
+
+test('un `caption` ecrit a la main est refuse — il serait une seconde copie de la licence', () => {
+  const message = refusDe(
+    corpusAvecMediaMeta({
+      alternativeText: 'Bassin versant',
+      ayantDroit: 'Œuvre du projet',
+      licence: 'Œuvre du projet',
+      caption: 'Œuvre du projet — CC0 1.0',
+    })
+  );
+  assert.match(message, /couvertures\/A05\.svg/);
+  assert.match(message, /caption/);
+});
+
+test('les 94 medias VERSIONNES portent une ligne de credit au format, ayant droit et licence', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const horsFormat: string[] = [];
+  for (const media of corpus.medias) {
+    const verdict = verifierFormatCredit(media.caption);
+    if (!verdict.conforme) horsFormat.push(`${media.cle} : ${verdict.motif}`);
+    if (media.ayantDroit.trim() === '') horsFormat.push(`${media.cle} : ayant droit vide`);
+  }
+  assert.deepEqual(horsFormat, []);
+  assert.equal(corpus.medias.length, 94);
 });

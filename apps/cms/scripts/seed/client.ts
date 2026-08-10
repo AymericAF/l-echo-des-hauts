@@ -30,6 +30,19 @@ export interface ClientStrapi {
     alternativeText: string;
     caption: string;
   }): Promise<any>;
+  /**
+   * Reecrit les metadonnees d'un fichier DEJA televerse, sans renvoyer d'octets.
+   *
+   * Sans elle, le rapprochement par nom de fichier retient l'id et s'arrete la :
+   * un media deja present garde ses metadonnees POUR TOUJOURS, et corriger le
+   * manifeste ne change rien a ce qui est publie. C'est exactement le cas du
+   * 2026-08-10 — les 94 lignes de credit ne creditaient rien, et les fichiers
+   * etaient deja dans la mediatheque.
+   */
+  majInfosMedia(
+    id: number,
+    infos: { alternativeText: string; caption: string }
+  ): Promise<any>;
 }
 
 const TYPES_MIME: Record<string, string> = {
@@ -168,6 +181,25 @@ export class ClientHttp implements ClientStrapi {
     const texte = await reponse.text();
     if (!reponse.ok) throw new ErreurStrapi('POST', url, reponse.status, texte);
     const rendu = JSON.parse(texte);
+    return Array.isArray(rendu) ? rendu[0] : rendu;
+  }
+
+  async majInfosMedia(id: number, infos: { alternativeText: string; caption: string }) {
+    // Le plugin Upload met a jour les METADONNEES quand `?id=` est fourni et
+    // qu'aucun fichier n'accompagne le `fileInfo` — c'est la seule route qui
+    // touche `caption` sans renvoyer les octets.
+    const formulaire = new FormData();
+    formulaire.append('fileInfo', JSON.stringify(infos));
+
+    const url = requete(this.base, 'api/upload', { id: String(id) });
+    const reponse = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.jeton}` },
+      body: formulaire,
+    });
+    const texte = await reponse.text();
+    if (!reponse.ok) throw new ErreurStrapi('POST', url, reponse.status, texte);
+    const rendu = texte === '' ? null : JSON.parse(texte);
     return Array.isArray(rendu) ? rendu[0] : rendu;
   }
 }

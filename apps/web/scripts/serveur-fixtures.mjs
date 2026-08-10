@@ -34,10 +34,30 @@ const COLLECTIONS = ['articles', 'auteurs', 'categories', 'tags', 'dossiers'];
  * et surtout laisserait le telechargement hors de portee des preuves hors ligne. Les
  * octets importent peu, l aboutissement de la requete est ce qui est exerce.
  */
-const MEDIA = Buffer.from(
+export const MEDIA = Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="9" viewBox="0 0 16 9">' +
     '<rect width="16" height="9" fill="#d9d4c8"/></svg>',
 );
+
+/**
+ * Le meme `/uploads/` pour TOUT Strapi de substitution de ce depot.
+ *
+ * `preuve-pagination.mjs` porte son propre serveur (son corpus n est pas celui des
+ * fixtures) et avait donc sa propre omission : sans route `/uploads/`, le
+ * telechargement des medias de T-01 echouait et le build de recette sortait en 1. Le
+ * defaut n a pas ete vu pendant deux jours parce que rien ne lancait ce script. Poser la
+ * route ICI plutot que de la recopier la-bas evite qu une troisieme preuve reintroduise
+ * le meme trou.
+ *
+ * @returns {boolean} `true` si la requete a ete servie, `false` si elle ne visait pas un media.
+ */
+export function servirMedia(requete, reponse) {
+  const chemin = new URL(requete.url ?? '/', 'http://localhost').pathname;
+  if (!chemin.startsWith('/uploads/')) return false;
+  reponse.writeHead(200, { 'content-type': 'image/svg+xml' });
+  reponse.end(MEDIA);
+  return true;
+}
 
 function fixture(nom) {
   return JSON.parse(fs.readFileSync(path.join(FIXTURES, `${nom}.json`), 'utf8'));
@@ -62,11 +82,7 @@ export function demarrerServeurFixtures(port = 0) {
   const serveur = http.createServer((requete, reponseHttp) => {
     const url = new URL(requete.url ?? '/', 'http://localhost');
 
-    if (url.pathname.startsWith('/uploads/')) {
-      reponseHttp.writeHead(200, { 'content-type': 'image/svg+xml' });
-      reponseHttp.end(MEDIA);
-      return;
-    }
+    if (servirMedia(requete, reponseHttp)) return;
 
     const chemin = url.pathname.replace(/^\/api\//, '');
     const locale = url.searchParams.get('locale') ?? 'fr';

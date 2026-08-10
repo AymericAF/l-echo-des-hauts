@@ -52,15 +52,55 @@ La règle « quel fichier déclenche quel test » ne s'écrit pas à la main : e
 graphe d'imports lu dans l'index. Seuls les fichiers qu'un test lit *par chemin* sans les importer
 sont déclarés, dans la table `LECTURES` d'`outils/gardes-au-commit.js`.
 
-**Ce qui n'est pas dans le dispositif, et pourquoi** : `apps/web/scripts/verifier-*` et `preuve-*`
-lisent un `dist/` réellement construit ou sortent sur le réseau. Les câbler ici les rendrait
-rouges en permanence faute d'infrastructure — et un dispositif toujours rouge n'est plus lu. Leur
-place est la recette, sur l'environnement en ligne.
-
 **Coût mesuré le 2026-08-10** (poste Windows, Git for Windows) — ajouté au `git commit` :
 commit hors `apps/` **~0,2 s**, aucun `node` lancé ; un fichier de test ciblé **~0,9 s** ;
 4 tests sur 8 **~1,1 s** ; les 33 fichiers **~3,0 s**. Les suites complètes, à chaud :
 `apps/web` 485 tests en ~1,8 s, `apps/cms` 81 tests en ~1,0 s.
+
+## Un troisième étage : la sortie réellement construite
+
+Les 566 tests ci-dessus jugent des **arborescences fabriquées**. C'est utile et ce n'est pas la
+même chose que juger le site produit : `build.inlineStylesheets` peut repasser à `'auto'`, une
+intégration peut sortir d'`astro.config.mjs`, un composant peut cesser d'écrire ses dimensions —
+**les 566 tests restent verts**, et c'est le lecteur qui voit le défaut. Neuf scripts existent qui
+lisent, eux, la sortie d'un build réel.
+
+~~`apps/web/scripts/verifier-*` et `preuve-*` lisent un `dist/` réellement construit ou sortent
+sur le réseau. Les câbler rendrait le dispositif rouge en permanence faute d'infrastructure.~~
+**Faux, mesuré le 2026-08-10** : `fetch` n'apparaît **qu'une fois** dans tout `scripts/` et
+`integrations/` — `medias-locaux.mjs`, qui télécharge depuis l'URL qu'on lui donne. Les six
+`verifier-*` lisent un répertoire sur disque ; les trois `preuve-*` construisent contre un Strapi
+de substitution servi en `127.0.0.1`. **Aucun ne sort de la machine, aucun n'a besoin
+d'infrastructure.** Ils tournent donc à chaque `push`, dans le job `sortie` de
+`.github/workflows/gardes-du-code.yml`.
+
+| Script | Ce qu'il lit | Ce qu'il attrape que les tests ne voient pas | Coût |
+|---|---|---|---|
+| `verifier:sortie` (T‑09) | `dist/` | un `.js` servi, un `<script>`, un `on…=`, une sortie serveur — **dans la sortie**, pas dans le code | ~7 ms |
+| `verifier:images` (§5.3) | le HTML émis | un `<img>` dont Strapi n'a pas rendu les dimensions : Astro omet l'attribut **sans avertissement** | ~6 ms |
+| `verifier:liens` (T‑06) | `<a>`, `<link>` vs `dist/` | une URL que le registre annonce et que `getStaticPaths` n'émet pas | ~8 ms |
+| `verifier:origine-medias` (T‑01) | `src`, `srcset`, `og:image`, `rel=icon` | une image d'origine étrangère, que la CSP servie **refuse** — déclarée, jamais peinte | ~9 ms |
+| `verifier:seo` (§5.2, §4.5) | sitemaps, flux, métas, PNG OG | une `<loc>` morte, une page indexable hors sitemap, une **vignette OG sans glyphes** | ~66 ms |
+| `verifier:styles-en-ligne` (§5.5) | le HTML émis | un bloc `<style>` ou un `style=` que `style-src 'self'` refuse — la page répond 200 et rend autre chose | ~9 ms |
+| `preuve:rendu` | un build sur fixtures | qu'une page article rend bien les **8 types de blocs**, ce qu'aucune garde ne sait dire | 3,3 s |
+| `preuve:pagination` | un build sur corpus de recette | les **bornes** que le corpus éditorial n'atteint pas : page 2, catégorie à exactement 12, article non traduit | 4,9 s |
+| `preuve:encre-og` | le gabarit rastérisé deux fois | que le seuil de la garde OG **sépare encore** les deux populations (avec fontes / sans aucune fonte) | 1,5 s |
+
+Les six vérificateurs sont **déjà branchés dans le build** comme intégrations Astro : un défaut de
+sortie fait échouer `astro build`, donc le déploiement Coolify. Le job les relance **aussi en
+ligne de commande**, et ce n'est pas une redondance : le build ne les exerce que **tant qu'ils
+sont branchés** dans `astro.config.mjs`. Débrancher une ligne rend le build vert sur une sortie
+fautive ; ce second passage lit la même sortie par l'autre porte.
+
+**Pas dans le crochet local, et c'est mesuré** : les vérificateurs coûtent ~105 ms à eux six, mais
+le **build** coûte 3,3 s (17 pages) à 4,9 s (52 pages) — contre 0,2 à 3,0 s pour le crochet entier
+aujourd'hui. Un crochet à plusieurs secondes se fait contourner, après quoi on perd aussi ce qui
+marchait.
+
+**Ce qui reste hors de portée de l'intégration continue**, et n'y entrera pas : tout ce qui se lit
+sur la **réponse servie** — en-têtes et CSP, compression et version HTTP négociées, certificat,
+campagnes Lighthouse, inventaire réseau. Ce ne sont pas des scripts de ce dépôt : ce sont les
+mesures du protocole, et leur place est la recette sur l'environnement en ligne.
 
 ## Prérequis
 

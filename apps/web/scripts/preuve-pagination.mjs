@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { corpusRecette, ROUTES_ATTENDUES } from './corpus-recette.mjs';
+import { servirMedia } from './serveur-fixtures.mjs';
 import { inspecterLiens } from './verifier-liens.mjs';
 
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -58,6 +59,11 @@ function demarrerServeur(corpus) {
     const url = new URL(requete.url ?? '/', 'http://localhost');
     const nom = url.pathname.replace(/^\/api\//, '');
     const locale = url.searchParams.get('locale') ?? 'fr';
+
+    // Depuis T-01 le build TELECHARGE les medias qu il reference : un Strapi de
+    // substitution muet sur `/uploads/` fait echouer le build entier, et la preuve
+    // rougit pour une raison etrangere a son objet (les bornes de pagination).
+    if (servirMedia(requete, reponse)) return;
 
     if (nom === 'configuration') {
       reponse.writeHead(200, { 'content-type': 'application/json' });

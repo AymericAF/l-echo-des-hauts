@@ -129,6 +129,97 @@ function ecartsLiensSociaux(dist) {
 }
 
 /**
+ * Le PIED DE PAGE, lu dans la sortie, LOCALE PAR LOCALE.
+ *
+ * POURQUOI CE CONTROLE EXISTE, alors qu il y en avait deja un juste au-dessus. Celui du
+ * dessus ne peut PAS rougir sur une absence : il boucle sur les liens qu il trouve, et
+ * une page sans aucun lien social lui rend zero ecart. Mesure du 2026-08-10 sur le
+ * `dist/` d alors : 13 pages francaises portaient le bloc, les 4 pages anglaises en
+ * portaient ZERO, et la preuve etait verte. Un controle qui verifie « le pied de page
+ * rend bien un lien » constatait le vrai en francais et croyait avoir tout vu — angle
+ * mort ASYMETRIQUE, la pire forme, parce que rien ne signalait la difference.
+ *
+ * CE QU IL EXIGE, ET D OU CHAQUE EXIGENCE VIENT.
+ *   - Toute page emise porte le bloc dans son `<footer class="pied">`. Ce n est pas une
+ *     preference : `PiedDePage.astro` le rend des que la Configuration existe, et le seed
+ *     ECRIT la Configuration aux deux locales (`apps/cms/scripts/seed/seed.ts`, §4).
+ *   - Les URL du bloc sont EXACTEMENT celles de la Configuration de la locale de la page,
+ *     dans le meme ordre. `reseaux` est declare `i18n.localized: false` : les deux locales
+ *     lisent la MEME liste. Un lien perdu, ajoute ou reordonne en anglais rougit ici.
+ *   - Les DEUX locales ont ete inspectees. Sans cette derniere ligne, un banc qui
+ *     cesserait de servir l anglais rendrait ce controle vert sur zero page anglaise —
+ *     c est exactement le defaut qu on ferme, et il reviendrait par la porte du controle.
+ *
+ * Il ne juge PAS le libelle du bloc (`aria-label`), seulement qu il en porte un et qu il
+ * n est pas vide : ce que ce libelle doit dire est un point de fond en cours d arbitrage,
+ * et un controle n a pas a trancher a la place de son arbitre.
+ */
+function urlsDuPied(html) {
+  const pied = /<footer class="pied"[^>]*>([\s\S]*?)<\/footer>/.exec(html);
+  if (pied === null) return { pied: false, nomme: false, urls: [] };
+  const bloc = /<nav class="liens-sociaux"[^>]*>[\s\S]*?<\/nav>/.exec(pied[1]);
+  if (bloc === null) return { pied: true, nomme: false, urls: null };
+  const nomme = /aria-label="[^"]+"/.test(bloc[0]);
+  const urls = [...bloc[0].matchAll(/<a\b([^>]*)>/g)]
+    .filter(([, attributs]) => /class="[^"]*liens-sociaux__lien/.test(attributs))
+    .map(([, attributs]) => (/href="([^"]*)"/.exec(attributs) ?? [, ''])[1]);
+  return { pied: true, nomme, urls };
+}
+
+function ecartsPiedDePage(dist) {
+  const attendues = {};
+  for (const locale of ['fr', 'en']) {
+    const chemin = path.join(RACINE, 'tests', 'fixtures', `configuration-${locale}.json`);
+    if (!fs.existsSync(chemin)) continue;
+    attendues[locale] = JSON.parse(fs.readFileSync(chemin, 'utf8')).data.reseaux.map((r) => r.url);
+  }
+
+  const ecarts = [];
+  const inspectees = { fr: 0, en: 0 };
+
+  for (const fichier of fs.readdirSync(dist, { recursive: true })) {
+    const relatif = String(fichier).replace(/\\/g, '/');
+    if (!relatif.endsWith('.html')) continue;
+
+    const locale = relatif === 'en.html' || relatif.startsWith('en/') ? 'en' : 'fr';
+    const attendu = attendues[locale];
+    if (attendu === undefined) {
+      ecarts.push(`aucune fixture de Configuration pour la locale « ${locale} » : rien a comparer`);
+      continue;
+    }
+
+    const { pied, nomme, urls } = urlsDuPied(fs.readFileSync(path.join(dist, relatif), 'utf8'));
+    inspectees[locale] += 1;
+
+    if (!pied) {
+      ecarts.push(`${relatif} : aucun pied de page`);
+      continue;
+    }
+    if (urls === null) {
+      ecarts.push(`${relatif} [${locale}] : le pied de page ne porte AUCUN bloc de reseaux`);
+      continue;
+    }
+    if (!nomme) ecarts.push(`${relatif} : le bloc de reseaux du pied de page n a pas d aria-label`);
+    if (urls.join('|') !== attendu.join('|')) {
+      ecarts.push(
+        `${relatif} [${locale}] : reseaux du pied de page = [${urls.join(', ')}], ` +
+          `la Configuration ${locale} dit [${attendu.join(', ')}]`,
+      );
+    }
+  }
+
+  for (const locale of ['fr', 'en']) {
+    if (inspectees[locale] === 0) {
+      ecarts.push(
+        `aucune page « ${locale} » dans la sortie : le pied de page de cette locale n est garde par rien`,
+      );
+    }
+  }
+
+  return { ecarts, inspectees };
+}
+
+/**
  * Le credit du portrait, lu DANS LA SORTIE — §13 point 6b du plan editorial, tranche le
  * 2026-08-03 : `/auteur/[slug]` affiche le `caption` de la mediatheque sous l image.
  *
@@ -163,46 +254,58 @@ function texteHtml(fragment) {
     .trim();
 }
 
+/**
+ * LES DEUX LOCALES, et pas seulement le francais. `photo` est declare
+ * `i18n.localized: false` : la page auteur anglaise affiche donc EXACTEMENT le meme
+ * `caption` de mediatheque. Ne lire que `auteurs-fr.json` laissait `/en/auteur/…` hors de
+ * toute garde — meme classe de defaut que le pied de page anglais, meme correction.
+ */
 function ecartsCreditPortrait(dist) {
-  const auteurs = JSON.parse(
-    fs.readFileSync(path.join(RACINE, 'tests', 'fixtures', 'auteurs-fr.json'), 'utf8'),
-  ).data;
-
   const ecarts = [];
   let controles = 0;
 
-  for (const auteur of auteurs) {
-    const page = path.join(dist, 'auteur', auteur.slug, 'index.html');
-    if (!fs.existsSync(page)) {
-      ecarts.push(`/auteur/${auteur.slug} : page absente de la sortie`);
+  for (const locale of ['fr', 'en']) {
+    const fichier = path.join(RACINE, 'tests', 'fixtures', `auteurs-${locale}.json`);
+    if (!fs.existsSync(fichier)) {
+      ecarts.push(`auteurs-${locale}.json absent : la page auteur « ${locale} » n est gardee par rien`);
       continue;
     }
-    const html = fs.readFileSync(page, 'utf8');
-    const positionImage = html.indexOf('index__portrait');
-    const credit = /<p[^>]*class="[^"]*index__credit[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(html);
+    const prefixe = locale === 'fr' ? '' : 'en/';
 
-    if (auteur.photo === null) {
-      if (credit !== null) ecarts.push(`/auteur/${auteur.slug} : credit rendu sans portrait`);
-      continue;
-    }
+    for (const auteur of JSON.parse(fs.readFileSync(fichier, 'utf8')).data) {
+      const route = `/${prefixe}auteur/${auteur.slug}`;
+      const page = path.join(dist, `${prefixe}auteur`, auteur.slug, 'index.html');
+      if (!fs.existsSync(page)) {
+        ecarts.push(`${route} : page absente de la sortie`);
+        continue;
+      }
+      const html = fs.readFileSync(page, 'utf8');
+      const positionImage = html.indexOf('index__portrait');
+      const credit = /<p[^>]*class="[^"]*index__credit[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(html);
 
-    controles += 1;
-    if (positionImage === -1) {
-      ecarts.push(`/auteur/${auteur.slug} : portrait absent de la page`);
-      continue;
-    }
-    if (credit === null) {
-      ecarts.push(`/auteur/${auteur.slug} : portrait sans ligne de credit`);
-      continue;
-    }
-    if (credit.index < positionImage) {
-      ecarts.push(`/auteur/${auteur.slug} : le credit precede l image, il doit la suivre`);
-    }
-    const rendu = texteHtml(credit[1]);
-    if (rendu !== auteur.photo.caption) {
-      ecarts.push(
-        `/auteur/${auteur.slug} : credit rendu « ${rendu} » ≠ caption de la mediatheque « ${auteur.photo.caption} »`,
-      );
+      if (auteur.photo === null) {
+        if (credit !== null) ecarts.push(`${route} : credit rendu sans portrait`);
+        continue;
+      }
+
+      controles += 1;
+      if (positionImage === -1) {
+        ecarts.push(`${route} : portrait absent de la page`);
+        continue;
+      }
+      if (credit === null) {
+        ecarts.push(`${route} : portrait sans ligne de credit`);
+        continue;
+      }
+      if (credit.index < positionImage) {
+        ecarts.push(`${route} : le credit precede l image, il doit la suivre`);
+      }
+      const rendu = texteHtml(credit[1]);
+      if (rendu !== auteur.photo.caption) {
+        ecarts.push(
+          `${route} : credit rendu « ${rendu} » ≠ caption de la mediatheque « ${auteur.photo.caption} »`,
+        );
+      }
     }
   }
 
@@ -223,6 +326,13 @@ console.log(
     : `Liens de reseaux : ${ecartsSociaux.length} ecart(s).`,
 );
 
+const pied = ecartsPiedDePage(dist);
+console.log(
+  pied.ecarts.length === 0
+    ? `Pied de page : bloc de reseaux conforme a la Configuration sur ${pied.inspectees.fr} page(s) fr et ${pied.inspectees.en} page(s) en.`
+    : `Pied de page : ${pied.ecarts.length} ecart(s) — ${pied.inspectees.fr} page(s) fr, ${pied.inspectees.en} page(s) en inspectees.`,
+);
+
 if (rapport.manquements.length > 0) {
   console.error('\n✖ Manquements dans la sortie :');
   for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
@@ -232,6 +342,12 @@ if (rapport.manquements.length > 0) {
 if (ecartsSociaux.length > 0) {
   console.error('\n✖ Accessibilite des liens de reseaux :');
   for (const ecart of ecartsSociaux) console.error(`  - ${ecart}`);
+  process.exit(1);
+}
+
+if (pied.ecarts.length > 0) {
+  console.error('\n✖ Pied de page (les deux locales) :');
+  for (const ecart of pied.ecarts) console.error(`  - ${ecart}`);
   process.exit(1);
 }
 

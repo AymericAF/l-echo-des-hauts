@@ -1,0 +1,29 @@
+{
+  "_note": "GET /api/tags?locale=en. « Travaux » reste sans traduction : c est le tag que l article anglais doit PERDRE, et c est ce qui prouve qu une relation est bien par locale. Le tag n a aucun champ partage (schema : aucun `localized: false`).",
+  "data": [
+    {
+      "id": 47,
+      "documentId": "tag0000000000000000007",
+      "nom": "Mobility",
+      "slug": "mobility",
+      "locale": "en",
+      "updatedAt": "2026-01-22T09:00:00.000Z",
+      "localizations": [
+        {
+          "id": 7,
+          "documentId": "tag0000000000000000007",
+          "locale": "fr",
+          "slug": "mobilite"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "pageSize": 25,
+      "pageCount": 1,
+      "total": 1
+    }
+  }
+}

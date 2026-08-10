@@ -1,0 +1,117 @@
+{
+  "_note": "GET /api/configuration?locale=en. Le seed ECRIT ce Single Type aux deux locales (apps/cms/scripts/seed/seed.ts, section 4). Les cinq champs medias et `reseaux` sont declares `i18n.localized: false` dans le schema : ils sont COPIES A L OCTET depuis la fixture francaise, ce ne sont pas d autres valeurs. Le Single Type ne peuple pas `localizations` (src/lib/strapi/requete.ts).",
+  "data": {
+    "id": 2,
+    "documentId": "cfg0000000000000000001",
+    "nomSite": "The Highland Echo",
+    "baseline": "The newspaper of the valley",
+    "descriptionDefaut": "The local magazine of the valley: planning, local life, culture and environment.",
+    "locale": "en",
+    "updatedAt": "2026-02-14T12:00:00.000Z",
+    "logo": {
+      "id": 90,
+      "documentId": "med0000000000000000090",
+      "url": "/uploads/logo_clair_3344.svg",
+      "alternativeText": "L Echo des Hauts",
+      "caption": "Oeuvre du projet — CC0 1.0",
+      "width": 320,
+      "height": 64,
+      "mime": "image/svg+xml"
+    },
+    "logoSombre": {
+      "id": 91,
+      "documentId": "med0000000000000000091",
+      "url": "/uploads/logo_sombre_5566.svg",
+      "alternativeText": "L Echo des Hauts",
+      "caption": "Oeuvre du projet — CC0 1.0",
+      "width": 320,
+      "height": 64,
+      "mime": "image/svg+xml"
+    },
+    "favicon": {
+      "id": 92,
+      "documentId": "med0000000000000000092",
+      "url": "/uploads/favicon_7788.png",
+      "alternativeText": null,
+      "caption": "Oeuvre du projet — CC0 1.0",
+      "width": 512,
+      "height": 512,
+      "mime": "image/png"
+    },
+    "imagePartageDefaut": {
+      "id": 93,
+      "documentId": "med0000000000000000093",
+      "url": "/uploads/partage_defaut_99aa.jpg",
+      "alternativeText": "L Echo des Hauts",
+      "caption": "Oeuvre du projet — CC0 1.0",
+      "width": 1200,
+      "height": 630,
+      "mime": "image/jpeg"
+    },
+    "reseaux": [
+      {
+        "id": 310,
+        "plateforme": "mastodon",
+        "url": "https://exemple.invalid/@echodeshauts"
+      },
+      {
+        "id": 311,
+        "plateforme": "bluesky",
+        "url": "https://exemple.invalid/profile/echodeshauts"
+      },
+      {
+        "id": 312,
+        "plateforme": "linkedin",
+        "url": "https://exemple.invalid/company/echodeshauts"
+      },
+      {
+        "id": 313,
+        "plateforme": "x",
+        "url": "https://exemple.invalid/echodeshauts"
+      },
+      {
+        "id": 314,
+        "plateforme": "instagram",
+        "url": "https://exemple.invalid/echodeshauts"
+      },
+      {
+        "id": 315,
+        "plateforme": "youtube",
+        "url": "https://exemple.invalid/@echodeshauts"
+      },
+      {
+        "id": 316,
+        "plateforme": "facebook",
+        "url": "https://exemple.invalid/echodeshauts"
+      },
+      {
+        "id": 317,
+        "plateforme": "site",
+        "url": "https://exemple.invalid"
+      }
+    ],
+    "texteFooter": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Technical demonstrator. Fictional outlet."
+          }
+        ]
+      }
+    ],
+    "mentionsLegales": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "The Highland Echo is a fictional outlet."
+          }
+        ]
+      }
+    ]
+  },
+  "meta": {}
+}

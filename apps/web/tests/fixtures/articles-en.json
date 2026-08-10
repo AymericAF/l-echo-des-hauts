@@ -1,0 +1,328 @@
+{
+  "_note": "GET /api/articles?locale=en. Un seul article : celui que la fixture francaise ANNONCE (art…001 -> viaduct-reopens-after-eighteen-months-of-works). « Une braderie sans voiture » reste sans traduction — le corpus reel est ainsi (8 articles anglais sur 40, apps/cms/data/articles/), et c est ce qui garde le repli de la bascule FR/EN. `imageCouverture`, `datePublication` et `aLaUne` sont `i18n.localized: false` : copies a l octet. Les relations sont par locale — le tag « Travaux », sans localisation anglaise, est ABSENT ici, et les quatre `articlesLies` gardent leurs documentId pour que la troncature A-13 s exerce aussi en anglais.",
+  "data": [
+    {
+      "id": 13,
+      "documentId": "art0000000000000000001",
+      "titre": "The viaduct reopens after eighteen months of works",
+      "slug": "viaduct-reopens-after-eighteen-months-of-works",
+      "chapo": "Traffic is running again over the structure, at the end of a project that took longer than planned.",
+      "legendeCouverture": "The viaduct at first light, on the day it reopened.",
+      "datePublication": "2026-03-04T07:30:00.000Z",
+      "aLaUne": true,
+      "locale": "en",
+      "createdAt": "2026-03-01T09:12:00.000Z",
+      "updatedAt": "2026-03-05T11:02:00.000Z",
+      "publishedAt": "2026-03-04T07:35:00.000Z",
+      "imageCouverture": {
+        "id": 31,
+        "documentId": "med0000000000000000031",
+        "url": "/uploads/viaduc_aube_8f2c1a.jpg",
+        "alternativeText": "Un viaduc de pierre enjambant une vallee dans la brume",
+        "caption": "Oeuvre du projet — CC0 1.0",
+        "width": 2400,
+        "height": 1350,
+        "mime": "image/jpeg"
+      },
+      "auteur": {
+        "id": 33,
+        "documentId": "aut0000000000000000003",
+        "nom": "Camille Ferrand",
+        "slug": "camille-ferrand"
+      },
+      "categorie": {
+        "id": 22,
+        "documentId": "cat0000000000000000002",
+        "nom": "Planning and development",
+        "slug": "planning-and-development",
+        "couleurAccent": "#1f6f4a"
+      },
+      "tags": [
+        {
+          "id": 47,
+          "documentId": "tag0000000000000000007",
+          "nom": "Mobility",
+          "slug": "mobility"
+        }
+      ],
+      "dossier": {
+        "id": 11,
+        "documentId": "dos0000000000000000001",
+        "titre": "The valley rebuilds",
+        "slug": "the-valley-rebuilds"
+      },
+      "articlesLies": [
+        {
+          "id": 24,
+          "documentId": "art0000000000000000004",
+          "titre": "What the works cost",
+          "slug": "what-the-works-cost",
+          "chapo": "The spending, line by line.",
+          "imageCouverture": {
+            "id": 40,
+            "documentId": "med0000000000000000040",
+            "url": "/uploads/chantier_1b7d.jpg",
+            "alternativeText": "Une grue jaune au-dessus d un pilier de beton",
+            "caption": "Oeuvre du projet — CC0 1.0",
+            "width": 1600,
+            "height": 900,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "id": 25,
+          "documentId": "art0000000000000000005",
+          "titre": "Residents take stock",
+          "slug": "residents-take-stock",
+          "chapo": "Eighteen months of detours, told by those who lived them.",
+          "imageCouverture": {
+            "id": 41,
+            "documentId": "med0000000000000000041",
+            "url": "/uploads/riverains_2c8e.jpg",
+            "alternativeText": "Deux habitants discutent devant une palissade de chantier",
+            "caption": "Oeuvre du projet — CC0 1.0",
+            "width": 1600,
+            "height": 900,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "id": 26,
+          "documentId": "art0000000000000000006",
+          "titre": "The schedule of the next structures",
+          "slug": "the-schedule-of-the-next-structures",
+          "chapo": "Three bridges and a footbridge by 2029.",
+          "imageCouverture": {
+            "id": 42,
+            "documentId": "med0000000000000000042",
+            "url": "/uploads/passerelle_3d9f.jpg",
+            "alternativeText": "Une passerelle metallique en construction",
+            "caption": "Oeuvre du projet — CC0 1.0",
+            "width": 1600,
+            "height": 900,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "id": 27,
+          "documentId": "art0000000000000000007",
+          "titre": "Fourth related article, beyond the A-13 ceiling",
+          "slug": "fourth-related-article",
+          "chapo": "Present only to exercise the defensive truncation at build time.",
+          "imageCouverture": {
+            "id": 43,
+            "documentId": "med0000000000000000043",
+            "url": "/uploads/quatrieme_4e0a.jpg",
+            "alternativeText": "Photo de remplissage",
+            "caption": "Oeuvre du projet — CC0 1.0",
+            "width": 1600,
+            "height": 900,
+            "mime": "image/jpeg"
+          }
+        }
+      ],
+      "contenu": [
+        {
+          "__component": "bloc.texte",
+          "id": 151,
+          "contenu": [
+            {
+              "type": "heading",
+              "level": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Eighteen months of detours"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "The first vehicle crossed the structure at 6.12 am, to the applause of some thirty residents who had come out despite the cold."
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "children": [
+                {
+                  "type": "text",
+                  "text": "What the works changed"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "The approaches have been widened, and the upstream pavement now makes it possible to cross on foot."
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "text": "What is still to come"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "The cycle footbridge, dropped from the original contract, is waiting on funding from the department."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "__component": "bloc.citation",
+          "id": 152,
+          "texte": "We had got used to the detour in the end, but nobody will miss it.",
+          "auteurCitation": "Helene Bouvier",
+          "source": "shopkeeper, place du Marche"
+        },
+        {
+          "__component": "bloc.galerie",
+          "id": 153,
+          "legende": "The works, from the first stone to the last.",
+          "disposition": "grille",
+          "images": [
+            {
+              "id": 50,
+              "documentId": "med0000000000000000050",
+              "url": "/uploads/galerie_1_aa11.jpg",
+              "alternativeText": "Un pilier de beton en cours de coulage",
+              "caption": "Oeuvre du projet — CC0 1.0",
+              "width": 1200,
+              "height": 800,
+              "mime": "image/jpeg"
+            },
+            {
+              "id": 51,
+              "documentId": "med0000000000000000051",
+              "url": "/uploads/galerie_2_bb22.jpg",
+              "alternativeText": "Le tablier du viaduc pose a la grue",
+              "caption": "Oeuvre du projet — CC0 1.0",
+              "width": 1200,
+              "height": 800,
+              "mime": "image/jpeg"
+            }
+          ]
+        },
+        {
+          "__component": "bloc.encadre",
+          "id": 154,
+          "titre": "What to remember",
+          "variante": "info",
+          "contenu": [
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Traffic is running again in both directions."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "__component": "bloc.video",
+          "id": 155,
+          "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa",
+          "legende": "Lifting the deck into place, in three minutes.",
+          "vignette": {
+            "id": 60,
+            "documentId": "med0000000000000000060",
+            "url": "/uploads/vignette_video_cc33.jpg",
+            "alternativeText": "Le tablier suspendu au-dessus de la vallee",
+            "caption": "Oeuvre du projet — CC0 1.0",
+            "width": 1280,
+            "height": 720,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "__component": "bloc.image-legendee",
+          "id": 156,
+          "legende": "The viaduct seen from the left bank.",
+          "credit": "Photo: Camille Ferrand",
+          "image": {
+            "id": 61,
+            "documentId": "med0000000000000000061",
+            "url": "/uploads/rive_gauche_dd44.jpg",
+            "alternativeText": "Le viaduc vu d en bas, depuis la berge",
+            "caption": "Oeuvre du projet — CC0 1.0",
+            "width": 1800,
+            "height": 1200,
+            "mime": "image/jpeg"
+          }
+        },
+        {
+          "__component": "bloc.separateur",
+          "id": 157,
+          "style": "ligne"
+        },
+        {
+          "__component": "bloc.chiffres-cles",
+          "id": 158,
+          "entrees": [
+            {
+              "id": 251,
+              "valeur": "18",
+              "unite": "months",
+              "libelle": "of closure"
+            },
+            {
+              "id": 252,
+              "valeur": "4.2",
+              "unite": "M EUR",
+              "libelle": "of works"
+            },
+            {
+              "id": 253,
+              "valeur": "1 in 4",
+              "unite": null,
+              "libelle": "residents affected"
+            }
+          ]
+        }
+      ],
+      "seo": {
+        "id": 71,
+        "metaTitre": null,
+        "metaDescription": null,
+        "noindex": false,
+        "canonique": null,
+        "imagePartage": null
+      },
+      "localizations": [
+        {
+          "id": 12,
+          "documentId": "art0000000000000000001",
+          "locale": "fr",
+          "slug": "viaduc-rouvre-apres-dix-huit-mois-de-travaux"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "pageSize": 25,
+      "pageCount": 1,
+      "total": 1
+    }
+  }
+}

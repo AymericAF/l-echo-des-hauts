@@ -1,0 +1,63 @@
+{
+  "_note": "GET /api/auteurs?locale=en. `nom`, `photo` et `reseaux` sont `i18n.localized: false` : copies a l octet — le credit du portrait rendu sur /en/auteur/… est donc le MEME caption de mediatheque, ce que preuve-rendu.mjs verifie sur la sortie. Le slug ne change pas de locale ici, et c est l annonce de la fixture francaise qui le dit : un nom propre ne se traduit pas, meme dans un `uid` localise d office (A-06).",
+  "data": [
+    {
+      "id": 33,
+      "documentId": "aut0000000000000000003",
+      "nom": "Camille Ferrand",
+      "slug": "camille-ferrand",
+      "fonction": "Planning and development editor",
+      "locale": "en",
+      "updatedAt": "2026-01-20T08:00:00.000Z",
+      "bio": [
+        {
+          "type": "paragraph",
+          "children": [
+            {
+              "type": "text",
+              "text": "Has covered the valley building sites for eight years."
+            }
+          ]
+        }
+      ],
+      "photo": {
+        "id": 85,
+        "documentId": "med0000000000000000085",
+        "url": "/uploads/portrait_camille_ff66.jpg",
+        "alternativeText": "Portrait de Camille Ferrand",
+        "caption": "Studio Vallon — CC BY 4.0 — recadre, l'original est en 4:3",
+        "width": 800,
+        "height": 800,
+        "mime": "image/jpeg"
+      },
+      "reseaux": [
+        {
+          "id": 300,
+          "plateforme": "linkedin",
+          "url": "https://www.linkedin.com/in/exemple"
+        },
+        {
+          "id": 301,
+          "plateforme": "site",
+          "url": "https://exemple.invalid"
+        }
+      ],
+      "localizations": [
+        {
+          "id": 3,
+          "documentId": "aut0000000000000000003",
+          "locale": "fr",
+          "slug": "camille-ferrand"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "pageSize": 25,
+      "pageCount": 1,
+      "total": 1
+    }
+  }
+}

@@ -31,9 +31,22 @@ const ORIGINE = 'https://echo.ayfiweb.fr';
 
 // --- Strapi de substitution -----------------------------------------------------
 
+/**
+ * La Configuration de LA locale demandee.
+ *
+ * Elle etait lue dans `configuration-fr.json` pour les deux locales, faute de fixture
+ * anglaise : les pages `/en/` de ce corpus portaient donc un texte de pied de page
+ * FRANCAIS sous une etiquette `locale: 'en'`. Sans consequence sur l objet de cette
+ * preuve — les bornes de pagination — mais un banc qui ne ressemble pas a ce que le seed
+ * ecrit finit par prouver autre chose que le site.
+ */
 function configuration(locale) {
+  const propre = path.join(RACINE, 'tests', 'fixtures', `configuration-${locale}.json`);
   const base = JSON.parse(
-    fs.readFileSync(path.join(RACINE, 'tests', 'fixtures', 'configuration-fr.json'), 'utf8'),
+    fs.readFileSync(
+      fs.existsSync(propre) ? propre : path.join(RACINE, 'tests', 'fixtures', 'configuration-fr.json'),
+      'utf8',
+    ),
   );
   return {
     data: {

@@ -86,6 +86,11 @@ const LECTURES = {
         'apps/web/src/lib/seo/gabarit-og.ts',
     ],
     'apps/web/tests/mapping.test.ts': ['apps/web/tests/fixtures/'],
+    // Il lit les DOUZE fixtures par chemin (six par locale) et n'en importe
+    // aucune. Sans cette ligne, retirer `configuration-en.json` ou vider ses
+    // `reseaux` ne declencherait AUCUN test au commit — c'est-a-dire le trou
+    // meme que ce fichier de test existe pour fermer.
+    'apps/web/tests/fixtures-locales.test.ts': ['apps/web/tests/fixtures/'],
     'apps/cms/tests/modele-donnees.test.ts': ['apps/cms/src/api/', 'apps/cms/src/components/'],
     'apps/cms/tests/seed-code-sortie.test.ts': ['apps/cms/scripts/seed/', 'apps/cms/data/'],
     'apps/cms/tests/seed-corpus.test.ts': ['apps/cms/data/'],

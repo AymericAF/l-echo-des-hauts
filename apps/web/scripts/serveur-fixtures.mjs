@@ -60,22 +60,34 @@ export function servirMedia(requete, reponse) {
 }
 
 function fixture(nom) {
-  return JSON.parse(fs.readFileSync(path.join(FIXTURES, `${nom}.json`), 'utf8'));
+  const chemin = path.join(FIXTURES, `${nom}.json`);
+  if (!fs.existsSync(chemin)) return null;
+  return JSON.parse(fs.readFileSync(chemin, 'utf8'));
 }
 
 const VIDE = { data: [], meta: { pagination: { page: 1, pageSize: 25, pageCount: 1, total: 0 } } };
 
 /**
- * Les fixtures ne portent que le francais. La locale `en` rend donc une collection vide
- * et un 404 sur le Single Type — exactement ce que Strapi repond quand aucune
- * localisation n existe, et ce que `corpus.ts` sait deja traiter.
+ * CHAQUE LOCALE EST SERVIE DEPUIS SA PROPRE FIXTURE.
+ *
+ * Jusqu au 2026-08-10 ce serveur rendait `VIDE` pour toute locale autre que `fr`, et un
+ * 404 sur le Single Type. Consequence mesuree sur le `dist/` produit : les 4 pages
+ * anglaises portaient le bandeau « Configuration Strapi absente » et AUCUN bloc de
+ * reseaux, quand les 13 francaises en portaient un. Le site n avait pas ce trou — le seed
+ * ecrit la Configuration aux DEUX locales (`apps/cms/scripts/seed/seed.ts`, §4) — c est le
+ * banc qui l avait, et rien ne signalait la difference.
+ *
+ * L absence reste representee, mais elle se DECLARE au lieu de se subir : une collection
+ * dont la fixture `-en` n existe pas rend `VIDE`, et le Single Type rend 404 — exactement
+ * ce que Strapi repond quand aucune localisation n existe, et ce que `corpus.ts` sait
+ * traiter. Ce qui est INTERDIT, c est que ce repli s applique a une locale entiere sans
+ * que personne ne l ait decide : `tests/fixtures-locales.test.ts` exige les six fixtures
+ * anglaises, et `preuve-rendu.mjs` exige que les deux locales soient inspectees.
  */
 function reponse(chemin, locale) {
-  if (chemin === 'configuration') {
-    return locale === 'fr' ? fixture('configuration-fr') : null;
-  }
+  if (chemin === 'configuration') return fixture(`configuration-${locale}`);
   if (!COLLECTIONS.includes(chemin)) return null;
-  return locale === 'fr' ? fixture(`${chemin}-fr`) : VIDE;
+  return fixture(`${chemin}-${locale}`) ?? VIDE;
 }
 
 export function demarrerServeurFixtures(port = 0) {

@@ -8,6 +8,11 @@
  * Le slug est le bon choix parce qu'il est **requis et unique** sur les cinq
  * collections (A-09), y compris sur chaque localisation : Strapi 5 localise
  * d'office tout champ `uid` (A-06), et l'unicite est verifiee par locale.
+ *
+ * Garde : `tests/seed-rapprochement.test.ts`. Depuis le 2026-08-10, elle se
+ * lance TOUTE SEULE au commit (`.githooks/commit-msg`) des que ce fichier —
+ * ou l'un de ceux qu'il importe — est indexe, et a chaque push
+ * (`.github/workflows/gardes-du-code.yml`).
  */
 import { ErreurCorpus } from './erreurs.ts';
 

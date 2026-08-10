@@ -19,6 +19,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { ISSUES } from './issues.mjs';
+
 /**
  * L exception `/recherche`, bornee au plus juste.
  *
@@ -59,11 +61,23 @@ function balisesOuvrantes(html) {
 
 /**
  * @param {string} dist Chemin du repertoire de sortie.
- * @returns {{manquements: string[], pages: number, fichiers: number, octets: number}}
+ * @returns {{manquements: string[], issue: number, pages: number, fichiers: number, octets: number}}
  */
 export function inspecterSortie(dist) {
   if (!fs.existsSync(dist)) {
-    return { manquements: [`sortie absente : ${dist}`], pages: 0, fichiers: 0, octets: 0 };
+    /* UNE INCAPACITE N EST PAS UNE ANOMALIE. Jusqu au 2026-08-10 ce retour sortait en `1`,
+       le code d un manquement du site : « la sortie de construction est absente » et « la
+       sortie est presente et fautive » devenaient indiscernables pour un lecteur
+       automatique, alors qu elles envoient a des gestes opposes — comprendre pourquoi rien
+       n a ete construit, ou corriger le site. La convention vient de `./issues.mjs` et n est
+       PAS recopiee ici : deux definitions d un code de sortie finissent par diverger. */
+    return {
+      manquements: [`sortie absente : ${dist}`],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      pages: 0,
+      fichiers: 0,
+      octets: 0,
+    };
   }
 
   const tous = fichiersDe(dist).map((f) => ({
@@ -105,6 +119,7 @@ export function inspecterSortie(dist) {
 
   return {
     manquements,
+    issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
     pages: tous.filter((f) => f.relatif.endsWith('.html')).length,
     fichiers: tous.length,
     octets: tous.reduce((total, f) => total + fs.statSync(f.absolu).size, 0),
@@ -119,14 +134,23 @@ export function resume(rapport) {
   );
 }
 
-// --- Usage en ligne de commande -------------------------------------------------------
+/* Execution directe : `node scripts/verifier-sortie.mjs [dist]`. L argument est accepte
+   comme sur les cinq autres — sans lui, le seul moyen d exercer ce script sur autre chose
+   que `apps/web/dist` etait de DEPLACER la sortie du depot, ce qui rend la preuve
+   difficilement rejouable. `npm run verifier:sortie` n en passe aucun : le defaut est
+   inchange. */
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const racine = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const rapport = inspecterSortie(path.join(racine, 'dist'));
+  const rapport = inspecterSortie(process.argv[2] ?? path.join(racine, 'dist'));
+  if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+    console.error('\n⛔ VERIFICATION IMPOSSIBLE — aucune sortie n a ete jugee :');
+    for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+    process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+  }
   if (rapport.manquements.length > 0) {
     console.error(`\n✖ ${rapport.manquements.length} manquement(s) :`);
     for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
-    process.exit(1);
+    process.exit(ISSUES.ANOMALIE);
   }
   console.log(`✔ ${resume(rapport)}`);
 }

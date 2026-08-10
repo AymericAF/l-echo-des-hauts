@@ -15,6 +15,7 @@
  */
 import { fileURLToPath } from 'node:url';
 
+import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
 import { inspecterImages, resumeImages } from '../scripts/verifier-images.mjs';
 
 const NOM = 'garde-images';
@@ -51,6 +52,12 @@ export default function gardeImages() {
         // `/C:/Users/...`, que `fs` ne trouve pas — la garde inspecterait une sortie
         // « absente » au lieu de la vraie, et rendrait vert sur zero image lue.
         const rapport = inspecterImages(fileURLToPath(dir));
+        /* UNE INCAPACITE N EST PAS UNE ANOMALIE : « dimensions non explicites » envoie
+           corriger la donnee en base, « verification impossible » envoie comprendre
+           pourquoi il n y a pas de sortie a lire. */
+        if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+          throw erreurVerificationImpossible(NOM, rapport.manquements);
+        }
         if (rapport.manquements.length > 0) throw echec(rapport.manquements);
         logger.info(resumeImages(rapport));
       },

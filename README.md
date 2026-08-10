@@ -104,6 +104,23 @@ l'origine du site (`liens`, `origine-medias`, `seo`) la lisent désormais par un
 prenait pour « aucun lien interne à vérifier ». Un lien **réellement** externe, lui, reste hors
 garde et le reste en silence : c'est un lien sortant légitime, pas un défaut.
 
+**Les six l'appliquent, et c'est mesuré sur chacun.** La convention n'a d'abord été portée que par
+ces trois-là ; les trois autres rendaient encore l'**incapacité** avec le code de l'**anomalie**.
+Relevé le 2026-08-10 en écartant `apps/web/dist` puis en lançant les six — même cause, même phrase
+`sortie absente : …\dist` : `sortie` → `1`, `images` → `1`, `styles-en-ligne` → `1`, contre `2`
+pour `liens`, `origine-medias` et `seo`. Un dispositif à **moitié** converti est plus trompeur
+qu'un dispositif uniforme : on croit la règle appliquée partout. Second endroit corrigé, dans le
+même mouvement : `styles-en-ligne` était le seul des six à voir une sortie **sans aucune page
+HTML** — son message le nommait déjà (« la garde n'a rien inspecté »), son code envoyait corriger
+le site. L'invariant est tenu par `tests/verificateurs-incapacite.test.ts`, qui exerce les **trois
+sens** (absence → `2`, manquement réel → `1`, sortie saine → `0`) sur la fonction **et** en ligne
+de commande, et qui **refuse** un septième `scripts/verifier-*.mjs` qui n'y figurerait pas.
+
+**Ce que ça ne donne à personne, et il faut le dire** : le seul lecteur **automatique** de ces
+codes dans le dépôt est le job `sortie` ci-dessous, et il fait `|| echec=1` — il aplatit donc tout
+code non nul sur un seul rouge. Le gain va au lecteur en **ligne de commande** (la recette), et à
+l'uniformité — pouvoir lire un code sans aller relire la source de celui qui l'a rendu.
+
 **Par où le défaut était joignable, et par où il ne l'était pas** — mesuré, pas supposé.
 **Pas** par `astro build` : Astro refuse `ECHO_SITE_URL=''` à la validation de configuration
 (`! Invalid URL`) et meurt dans `compileAstro` sur `foo:bar`, donc avant `astro:build:done` ; les

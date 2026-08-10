@@ -40,6 +40,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { ISSUES } from './issues.mjs';
+
 /** La directive citee dans un refus : c est elle qui bloque, dans le navigateur. */
 const DIRECTIVE = "style-src 'self'";
 
@@ -171,11 +173,21 @@ function manquementAttribut(relatif, balise, valeur) {
 
 /**
  * @param {string} dist Chemin du repertoire de sortie.
- * @returns {{manquements: string[], pages: number, blocs: number, attributs: number}}
+ * @returns {{manquements: string[], issue: number, pages: number, blocs: number, attributs: number}}
  */
 export function inspecterStylesEnLigne(dist) {
   if (!fs.existsSync(dist)) {
-    return { manquements: [`sortie absente : ${dist}`], pages: 0, blocs: 0, attributs: 0 };
+    /* UNE INCAPACITE N EST PAS UNE ANOMALIE : « la sortie est absente » envoie chercher
+       pourquoi rien n a ete construit, « bloc <style> » envoie corriger un reglage de build
+       ou un composant. Jusqu au 2026-08-10 les deux sortaient en `1`. Convention IMPORTEE
+       de `./issues.mjs`, jamais recopiee. */
+    return {
+      manquements: [`sortie absente : ${dist}`],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      pages: 0,
+      blocs: 0,
+      attributs: 0,
+    };
   }
 
   const tous = fichiersDe(dist).map((f) => path.relative(dist, f).split(path.sep).join('/'));
@@ -200,16 +212,33 @@ export function inspecterStylesEnLigne(dist) {
     }
   }
 
-  // Zero page inspectee n est pas une preuve, c est une garde branchee sur le vide — le
-  // mode d echec le plus discret d un controle : il rend vert sans avoir rien regarde.
+  /* Zero page inspectee n est pas une preuve, c est une garde branchee sur le vide — le
+     mode d echec le plus discret d un controle : il rend vert sans avoir rien regarde.
+     CE CAS EST UNE INCAPACITE, pas un manquement du site, et c est le SECOND endroit de ce
+     fichier ou la distinction se joue : ce verificateur etait le seul des six a voir le cas,
+     son message le nommait deja correctement — et il le rendait avec le code d une anomalie,
+     donc en envoyant corriger un site qui n a peut-etre rien. Il sort desormais en `2`, et
+     ce retour precede celui des styles : sur une sortie vide il n y a rien a juger. */
   if (pages === 0) {
-    manquements.push(
-      `aucune page HTML dans ${dist} : la garde n a rien inspecte. ` +
-        'Un vert sur zero page ne prouve rien — verifier le chemin de la sortie.',
-    );
+    return {
+      manquements: [
+        `aucune page HTML dans ${dist} : la garde n a rien inspecte. ` +
+          'Un vert sur zero page ne prouve rien — verifier le chemin de la sortie.',
+      ],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      pages,
+      blocs,
+      attributs,
+    };
   }
 
-  return { manquements, pages, blocs, attributs };
+  return {
+    manquements,
+    issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
+    pages,
+    blocs,
+    attributs,
+  };
 }
 
 /** Le compte rendu au vert, en une ligne. */
@@ -225,10 +254,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const racine = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
   const dist = process.argv[2] ?? path.join(racine, 'dist');
   const rapport = inspecterStylesEnLigne(dist);
+  if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+    console.error('\n⛔ VERIFICATION IMPOSSIBLE — aucun style en ligne n a ete juge :');
+    for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+    process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+  }
   if (rapport.manquements.length > 0) {
     console.error(`\n✖ ${rapport.manquements.length} manquement(s) :`);
     for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
-    process.exit(1);
+    process.exit(ISSUES.ANOMALIE);
   }
   console.log(`✔ ${resumeStylesEnLigne(rapport)}`);
 }

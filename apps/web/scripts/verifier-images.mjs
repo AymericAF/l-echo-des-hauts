@@ -46,6 +46,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { ISSUES } from './issues.mjs';
+
 /** Les deux seules valeurs qui expriment une intention (HTML `loading` sur `<img>`). */
 const CHARGEMENTS = new Set(['lazy', 'eager']);
 
@@ -83,11 +85,19 @@ function nommer(balise) {
 
 /**
  * @param {string} dist Chemin du repertoire de sortie.
- * @returns {{manquements: string[], images: number, pages: number}}
+ * @returns {{manquements: string[], issue: number, images: number, pages: number}}
  */
 export function inspecterImages(dist) {
   if (!fs.existsSync(dist)) {
-    return { manquements: [`sortie absente : ${dist}`], images: 0, pages: 0 };
+    /* UNE INCAPACITE N EST PAS UNE ANOMALIE : « la sortie est absente » ne se corrige pas
+       dans un composant, contrairement a une dimension manquante. Jusqu au 2026-08-10 les
+       deux sortaient en `1`. La convention est IMPORTEE de `./issues.mjs`, jamais recopiee. */
+    return {
+      manquements: [`sortie absente : ${dist}`],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      images: 0,
+      pages: 0,
+    };
   }
 
   const pages = fichiersDe(dist)
@@ -151,7 +161,12 @@ export function inspecterImages(dist) {
     }
   }
 
-  return { manquements, images, pages: pages.length };
+  return {
+    manquements,
+    issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
+    images,
+    pages: pages.length,
+  };
 }
 
 /** Le compte rendu au vert, en une ligne. */
@@ -162,14 +177,21 @@ export function resumeImages(rapport) {
   );
 }
 
-// --- Usage en ligne de commande -------------------------------------------------------
+/* Execution directe : `node scripts/verifier-images.mjs [dist]`. L argument est accepte
+   comme sur les cinq autres ; `npm run verifier:images` n en passe aucun, le defaut est
+   inchange. */
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const racine = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const rapport = inspecterImages(path.join(racine, 'dist'));
+  const rapport = inspecterImages(process.argv[2] ?? path.join(racine, 'dist'));
+  if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+    console.error('\n⛔ VERIFICATION IMPOSSIBLE — aucune image n a ete jugee :');
+    for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+    process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+  }
   if (rapport.manquements.length > 0) {
     console.error(`\n✖ ${rapport.manquements.length} manquement(s) :`);
     for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
-    process.exit(1);
+    process.exit(ISSUES.ANOMALIE);
   }
   console.log(`✔ ${resumeImages(rapport)}`);
 }

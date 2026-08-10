@@ -24,6 +24,7 @@
  */
 import { fileURLToPath } from 'node:url';
 
+import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
 import { inspecterStylesEnLigne, resumeStylesEnLigne } from '../scripts/verifier-styles-en-ligne.mjs';
 
 const NOM = 'garde-styles-en-ligne';
@@ -67,9 +68,16 @@ export default function gardeStylesEnLigne() {
       'astro:build:done': ({ dir, logger }) => {
         // `fileURLToPath`, jamais `dir.pathname` : sous Windows ce dernier rend
         // `/C:/Users/...`, que `fs` ne trouve pas — la garde inspecterait une sortie
-        // « absente » au lieu de la vraie. C est aussi pourquoi zero page inspectee est
-        // un manquement plutot qu un vert.
+        // « absente » au lieu de la vraie. C est aussi pourquoi zero page inspectee fait
+        // echouer le build plutot que de rendre un vert.
         const rapport = inspecterStylesEnLigne(fileURLToPath(dir));
+        /* UNE INCAPACITE N EST PAS UNE ANOMALIE. Les deux cas d incapacite de ce
+           verificateur — sortie absente, zero page HTML — viennent presque toujours d un
+           CHEMIN de sortie faux ; le message de `echec()` renverrait alors chercher un
+           `<style>` ou un composant fautif qui n existe pas. */
+        if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+          throw erreurVerificationImpossible(NOM, rapport.manquements);
+        }
         if (rapport.manquements.length > 0) throw echec(rapport.manquements);
         logger.info(resumeStylesEnLigne(rapport));
       },

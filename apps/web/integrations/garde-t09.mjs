@@ -24,6 +24,7 @@
  */
 import { fileURLToPath } from 'node:url';
 
+import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
 import { inspecterSortie, resume } from '../scripts/verifier-sortie.mjs';
 
 const NOM = 'garde-t09';
@@ -143,6 +144,13 @@ export default function gardeT09() {
         // `/C:/Users/...`, un chemin que `fs` ne trouve pas — la garde inspecterait alors
         // une sortie « absente » au lieu de la vraie.
         const rapport = inspecterSortie(fileURLToPath(dir));
+        /* UNE INCAPACITE N EST PAS UNE ANOMALIE, et les deux messages n envoient pas au
+           meme endroit : « JavaScript servi » envoie corriger la sortie, « verification
+           impossible » envoie comprendre pourquoi il n y a pas de sortie. Le build echoue
+           dans les deux cas — jamais au vert sur ce qui n a pas ete regarde. */
+        if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+          throw erreurVerificationImpossible(NOM, rapport.manquements);
+        }
         if (rapport.manquements.length > 0) {
           throw echec(`${rapport.manquements.length} manquement(s) dans la sortie :`, rapport.manquements);
         }

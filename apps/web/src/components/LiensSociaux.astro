@@ -49,8 +49,11 @@ const rendus = liens.map((lien) => ({
             <a
               href={lien.url}
               rel="me noopener"
-              class:list={['liens-sociaux__lien', { 'liens-sociaux__lien--glyphe': glyphe !== null }]}
-              style={glyphe ? `--encre:${glyphe.encre};--encre-sombre:${glyphe.encreSombre}` : undefined}
+              class:list={[
+                'liens-sociaux__lien',
+                { 'liens-sociaux__lien--glyphe': glyphe !== null },
+                glyphe ? `liens-sociaux__lien--${lien.plateforme}` : null,
+              ]}
             >
               {glyphe && (
                 <svg
@@ -100,6 +103,53 @@ const rendus = liens.map((lien) => ({
     justify-content: center;
     min-width: 44px;
     min-height: 44px;
+  }
+
+  /*
+   * L ENCRE DE CHAQUE MARQUE, UNE CLASSE PAR PLATEFORME.
+   *
+   * Elle etait posee jusqu au 2026-08-10 en attribut `style="--encre:…"` sur le lien, ce
+   * qui la mettait DANS le document — et `style-src 'self'` (§5.5, etape 27 du runbook)
+   * refuse un attribut de style comme il refuse un bloc `<style>`. Les 86 pages du site en
+   * portaient un : les glyphes rendaient donc en `fill: var(--encre)` sans `--encre`,
+   * c est-a-dire en noir par defaut du navigateur, y compris sur fond sombre. Aucun
+   * reglage de build ne retire un attribut ecrit par un composant ; la seule correction
+   * est celle-ci, et elle appartient au composant.
+   *
+   * Ce sont les variantes de couleur PUBLIEES par chaque plateforme, pas des choix de
+   * charte du site : elles sont recopiees de `src/lib/glyphes-sociaux.ts`, qui reste leur
+   * source. Une feuille de style ne sait pas importer un module TypeScript, la recopie est
+   * donc inevitable — `tests/glyphes-sociaux.test.ts` la tient : il refuse tout ecart entre
+   * le registre et ces regles, et tout glyphe sans classe ici.
+   */
+  .liens-sociaux__lien--linkedin {
+    --encre: #000000;
+    --encre-sombre: #ffffff;
+  }
+  .liens-sociaux__lien--x {
+    --encre: #000000;
+    --encre-sombre: #ffffff;
+  }
+  .liens-sociaux__lien--bluesky {
+    --encre: #000000;
+    --encre-sombre: #ffffff;
+  }
+  .liens-sociaux__lien--mastodon {
+    --encre: #000000;
+    --encre-sombre: #ffffff;
+  }
+  .liens-sociaux__lien--instagram {
+    --encre: #000000;
+    --encre-sombre: #ffffff;
+  }
+  .liens-sociaux__lien--youtube {
+    /* L « Almost Black » officiel de YouTube : ce n est pas un noir approche. */
+    --encre: #212121;
+    --encre-sombre: #ffffff;
+  }
+  .liens-sociaux__lien--site {
+    --encre: #000000;
+    --encre-sombre: #ffffff;
   }
 
   .liens-sociaux__glyphe {

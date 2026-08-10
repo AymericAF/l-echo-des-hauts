@@ -15,7 +15,10 @@
  * Sans le troisieme, une plateforme oubliee ne casserait rien : elle rendrait un lien nu.
  */
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { PLATEFORMES } from '../src/lib/domaine.ts';
 import { GLYPHES, LIBELLES, RAISONS_SANS_GLYPHE, glypheDe } from '../src/lib/glyphes-sociaux.ts';
@@ -72,4 +75,67 @@ test('Facebook reste en toutes lettres — constat du 2026-08-07, a ne pas defai
 test('glypheDe rend le glyphe quand il existe, et null sinon', () => {
   assert.equal(glypheDe('facebook'), null);
   assert.equal(glypheDe('mastodon'), GLYPHES.mastodon);
+});
+
+// --- L encre passe du document a la feuille : la recopie est TENUE, pas surveillee -----
+
+/**
+ * Les encres etaient posees jusqu au 2026-08-10 en attribut `style="--encre:…"` sur chaque
+ * lien, donc DANS le document — ce que `style-src 'self'` (§5.5) refuse : les 86 pages du
+ * site en portaient un, et aucun glyphe ne recevait sa couleur. Elles vivent desormais dans
+ * le `<style>` de `LiensSociaux.astro`, qui sort en fichier servi.
+ *
+ * Une feuille de style ne sait pas importer un module TypeScript : la valeur est donc
+ * ECRITE DEUX FOIS, dans le registre et dans la regle. C est exactement le motif de derive
+ * que ce projet corrige partout (« pointer, jamais dupliquer ») — la duplication est ici
+ * inevitable, alors ce test la rend mecanique : tout ecart casse, et toute plateforme qui
+ * entrerait au registre sans sa classe casse aussi.
+ */
+const COMPOSANT = fs.readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'components', 'LiensSociaux.astro'),
+  'utf8',
+);
+
+/** Les deux encres declarees par la regle `.liens-sociaux__lien--<plateforme>`. */
+function encresDeLaRegle(plateforme: string): { encre?: string; encreSombre?: string } | null {
+  const regle = new RegExp(`\\.liens-sociaux__lien--${plateforme}\\s*\\{([^}]*)\\}`).exec(COMPOSANT);
+  if (regle === null) return null;
+  const corps = regle[1];
+  return {
+    encre: /--encre:\s*(#[0-9a-fA-F]{3,8})/.exec(corps)?.[1]?.toLowerCase(),
+    encreSombre: /--encre-sombre:\s*(#[0-9a-fA-F]{3,8})/.exec(corps)?.[1]?.toLowerCase(),
+  };
+}
+
+test('aucun attribut style= ne subsiste dans LiensSociaux : la CSP le refuserait', () => {
+  // Le composant etait le SEUL du depot a en ecrire un. Ce test garde la porte par ou le
+  // defaut est entre ; `garde-styles-en-ligne` tient la sortie entiere, y compris celle-ci.
+  assert.doesNotMatch(COMPOSANT, /\sstyle=/);
+});
+
+test('chaque glyphe du registre a sa classe d encre dans la feuille du composant', () => {
+  for (const plateforme of Object.keys(GLYPHES)) {
+    assert.notEqual(
+      encresDeLaRegle(plateforme),
+      null,
+      `${plateforme} : aucune regle .liens-sociaux__lien--${plateforme} — le glyphe rendrait sans encre`,
+    );
+  }
+});
+
+test('les encres de la feuille sont EXACTEMENT celles du registre, sans une nuance d ecart', () => {
+  for (const [plateforme, glyphe] of Object.entries(GLYPHES)) {
+    const regle = encresDeLaRegle(plateforme);
+    assert.equal(regle?.encre, glyphe.encre, `${plateforme} : --encre`);
+    assert.equal(regle?.encreSombre, glyphe.encreSombre, `${plateforme} : --encre-sombre`);
+  }
+});
+
+test('aucune classe d encre orpheline : une regle sans glyphe au registre est un residu', () => {
+  const classes = [...COMPOSANT.matchAll(/\.liens-sociaux__lien--([a-z]+)\s*\{/g)]
+    .map((m) => m[1])
+    .filter((nom) => nom !== 'glyphe');
+  for (const nom of classes) {
+    assert.ok(GLYPHES[nom as keyof typeof GLYPHES] !== undefined, `${nom} : classe sans glyphe`);
+  }
 });

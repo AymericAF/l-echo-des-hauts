@@ -37,6 +37,7 @@ import { nomFournisseurVideo } from '../src/lib/article/video.ts';
 const MEDIA: Media = {
   url: '/uploads/x.jpg',
   alternative: 'Une image',
+  legende: 'Oeuvre du projet — CC0 1.0',
   largeur: 1600,
   hauteur: 900,
   mime: 'image/jpeg',

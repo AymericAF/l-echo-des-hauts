@@ -29,6 +29,7 @@ import type {
 export const MEDIA: Media = {
   url: '/uploads/factice.jpg',
   alternative: 'Une image de test',
+  legende: 'Oeuvre du projet — CC0 1.0',
   largeur: 1600,
   hauteur: 900,
   mime: 'image/jpeg',

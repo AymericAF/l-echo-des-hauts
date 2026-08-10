@@ -92,6 +92,21 @@ const carteProritaire = hero === null && tranche.numero === 1 ? 0 : null;
     )
   }
 
+  {/*
+    Le credit du portrait, SOUS l image — §13 point 6b du plan editorial, option (ii)
+    tranchee par Aymeric le 2026-08-03. Il vient du `caption` natif de la mediatheque
+    (`Media.legende`) et de nulle part ailleurs : `Auteur` n a volontairement pas de champ
+    `credit`, un second porteur d une meme information finissant toujours par diverger.
+
+    Une attribution qui n est pas AFFICHEE ne satisfait pas une licence CC BY : c est cette
+    ligne, et elle seule, qui admet CC BY 4.0 sur un portrait (§6.3, D.3).
+
+    Pas de repli quand le `caption` manque : la garde de build du §6.7 (condition 3) refuse
+    deja un media sans `caption`, donc un portrait sans credit ne va jamais jusqu au rendu.
+    Ecrire un texte de substitution ici masquerait cette garde au lieu de s y adosser.
+  */}
+  {auteur?.photo?.legende && <p class="index__credit">{auteur.photo.legende}</p>}
+
   {auteur?.bio && <div class="index__bio"><RichTexte noeuds={auteur.bio} /></div>}
   {auteur && auteur.reseaux.length > 0 && <LiensSociaux liens={auteur.reseaux} intitule={auteur.nom} />}
 
@@ -148,6 +163,13 @@ const carteProritaire = hero === null && tranche.numero === 1 ? 0 : null;
     height: auto;
     border-radius: 50%;
     margin-block: var(--espace-4);
+  }
+
+  /* Colle au portrait : `margin-block` de l image (`--espace-4`) puis rien au-dessus. */
+  .index__credit {
+    margin: calc(var(--espace-4) * -1) 0 var(--espace-4);
+    color: var(--couleur-texte-doux);
+    font-size: var(--taille-xs);
   }
 
   .index__description,

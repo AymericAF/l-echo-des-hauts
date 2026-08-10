@@ -34,8 +34,15 @@ export interface Requete {
   [autre: string]: unknown;
 }
 
-/** Champs d un media : ce que le rendu utilise, et rien de plus (pas de `formats`, lourd). */
-const CHAMPS_MEDIA = ['url', 'alternativeText', 'width', 'height', 'mime'];
+/**
+ * Champs d un media : ce que le rendu utilise, et rien de plus (pas de `formats`, lourd).
+ *
+ * `caption` y est demande pour TOUS les medias, pas pour le seul portrait d auteur qui
+ * l affiche aujourd hui (§13, point 6b) : il porte le credit et la licence du fichier
+ * (§6.5), donc il appartient au media, pas a la page. Le demander au cas par cas ferait
+ * du populate une liste des ecrans qui l affichent — une liste a diverger.
+ */
+const CHAMPS_MEDIA = ['url', 'alternativeText', 'caption', 'width', 'height', 'mime'];
 const MEDIA: FeuillePopulate = { fields: CHAMPS_MEDIA };
 
 const SEO: FeuillePopulate = {

@@ -79,6 +79,8 @@ function media(brut: unknown, chemin: string): Media {
   return {
     url: texteRequis(brut, 'url', chemin),
     alternative: texteOptionnel(brut, 'alternativeText', chemin),
+    // `caption` natif : le credit se LIT ici, il ne se recopie dans aucune entite (§6.5).
+    legende: texteOptionnel(brut, 'caption', chemin),
     largeur: nombreOptionnel(brut, 'width', chemin),
     hauteur: nombreOptionnel(brut, 'height', chemin),
     mime: texteOptionnel(brut, 'mime', chemin),

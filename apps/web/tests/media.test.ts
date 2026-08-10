@@ -29,7 +29,7 @@ import {
 import type { Media } from '../src/lib/domaine.ts';
 
 function media(url: string): Media {
-  return { url, alternative: null, largeur: null, hauteur: null, mime: null };
+  return { url, alternative: null, legende: null, largeur: null, hauteur: null, mime: null };
 }
 
 // --- Famille 1 : ce que rend `urlMedia` -----------------------------------------------

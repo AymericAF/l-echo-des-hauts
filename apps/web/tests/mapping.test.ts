@@ -230,6 +230,7 @@ for (const champ of CHAMPS_ARTICLE) {
 const CHAMPS_IMBRIQUES_ARTICLE = [
   'imageCouverture.url',
   'imageCouverture.alternativeText',
+  'imageCouverture.caption',
   'imageCouverture.width',
   'imageCouverture.height',
   'auteur.nom',
@@ -293,6 +294,25 @@ test('mapperAuteur traduit une entree complete', () => {
   assert.ok(Array.isArray(auteur.bio));
 });
 
+/**
+ * Le CREDIT du portrait vient du `caption` NATIF de la mediatheque, et de nulle part
+ * ailleurs (plan editorial §6.5, et §13 point 6b tranche le 2026-08-03 : la page auteur
+ * l affiche sous l image). Ce test l ancre sur la valeur de la fixture plutot que sur une
+ * chaine recopiee ici : une copie de plus est exactement ce que la decision (ii) a ecarte
+ * en refusant un champ `credit` sur `Auteur`.
+ */
+test('mapperAuteur lit le credit du portrait dans le `caption` natif, pas ailleurs', () => {
+  const brut = copie(AUTEURS.data[0]);
+  const auteur = mapperAuteur(brut);
+
+  assert.equal(auteur.photo?.legende, brut.photo.caption);
+  assert.notEqual(
+    auteur.photo?.legende,
+    brut.photo.alternativeText,
+    'le credit n est pas l alternative textuelle (A-04) : deux champs, deux fonctions',
+  );
+});
+
 test('mapperAuteur rend les optionnels a null sans lever', () => {
   const auteur = mapperAuteur(copie(AUTEURS.data[1]));
   assert.equal(auteur.fonction, null);
@@ -307,7 +327,21 @@ test('mapperAuteur refuse une plateforme hors de l enum ferme (A-30)', () => {
   assert.throws(() => mapperAuteur(brut), /threads/);
 });
 
-for (const champ of ['documentId', 'locale', 'nom', 'slug', 'fonction', 'bio', 'photo', 'reseaux', 'updatedAt', 'localizations']) {
+for (const champ of [
+  'documentId',
+  'locale',
+  'nom',
+  'slug',
+  'fonction',
+  'bio',
+  'photo',
+  // Le credit affiche sous le portrait : s il disparait du populate, le build casse ici,
+  // pas silencieusement sur une page auteur rendue sans attribution (§6.3, D.4).
+  'photo.caption',
+  'reseaux',
+  'updatedAt',
+  'localizations',
+]) {
   test(`Auteur : la disparition du champ « ${champ} » fait echouer le mapping`, () => {
     assert.throws(() => mapperAuteur(sansChamp(copie(AUTEURS.data[0]), champ)), ChampManquantError);
   });

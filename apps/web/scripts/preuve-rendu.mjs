@@ -128,6 +128,94 @@ function ecartsLiensSociaux(dist) {
   return ecarts;
 }
 
+/**
+ * Le credit du portrait, lu DANS LA SORTIE — §13 point 6b du plan editorial, tranche le
+ * 2026-08-03 : `/auteur/[slug]` affiche le `caption` de la mediatheque sous l image.
+ *
+ * Pourquoi ici et pas dans un test : une attribution CC BY qui n est pas AFFICHEE ne
+ * satisfait pas la licence. Ce qu il faut constater n est donc pas qu un composant lit un
+ * champ, c est qu une ligne de texte existe dans la page, apres l image, et qu elle porte
+ * EXACTEMENT ce que la mediatheque dit. Un test de source dirait « le gabarit mentionne
+ * legende » ; il resterait vert sur une page vide.
+ *
+ * Trois ecarts distincts, parce qu ils ont trois causes differentes :
+ *   - portrait sans credit         → la ligne de gabarit a saute ;
+ *   - credit avant l image         → « sous le portrait » n est plus tenu ;
+ *   - credit different du caption  → une seconde source s est glissee entre les deux.
+ */
+/**
+ * Le texte d un fragment HTML, entites comprises.
+ *
+ * Sans ce decodage, la comparaison au `caption` de la mediatheque echouerait sur la
+ * PONCTUATION : Astro echappe l apostrophe en `&#39;`, et les captions du seed en portent
+ * (« aucune personne reelle n'est representee »). Le controle aurait alors rougi sur un
+ * rendu juste — mesure le 2026-08-10 sur les 5 portraits du corpus de seed.
+ */
+function texteHtml(fragment) {
+  return fragment
+    .replace(/<[^>]+>/g, '')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .trim();
+}
+
+function ecartsCreditPortrait(dist) {
+  const auteurs = JSON.parse(
+    fs.readFileSync(path.join(RACINE, 'tests', 'fixtures', 'auteurs-fr.json'), 'utf8'),
+  ).data;
+
+  const ecarts = [];
+  let controles = 0;
+
+  for (const auteur of auteurs) {
+    const page = path.join(dist, 'auteur', auteur.slug, 'index.html');
+    if (!fs.existsSync(page)) {
+      ecarts.push(`/auteur/${auteur.slug} : page absente de la sortie`);
+      continue;
+    }
+    const html = fs.readFileSync(page, 'utf8');
+    const positionImage = html.indexOf('index__portrait');
+    const credit = /<p[^>]*class="[^"]*index__credit[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(html);
+
+    if (auteur.photo === null) {
+      if (credit !== null) ecarts.push(`/auteur/${auteur.slug} : credit rendu sans portrait`);
+      continue;
+    }
+
+    controles += 1;
+    if (positionImage === -1) {
+      ecarts.push(`/auteur/${auteur.slug} : portrait absent de la page`);
+      continue;
+    }
+    if (credit === null) {
+      ecarts.push(`/auteur/${auteur.slug} : portrait sans ligne de credit`);
+      continue;
+    }
+    if (credit.index < positionImage) {
+      ecarts.push(`/auteur/${auteur.slug} : le credit precede l image, il doit la suivre`);
+    }
+    const rendu = texteHtml(credit[1]);
+    if (rendu !== auteur.photo.caption) {
+      ecarts.push(
+        `/auteur/${auteur.slug} : credit rendu « ${rendu} » ≠ caption de la mediatheque « ${auteur.photo.caption} »`,
+      );
+    }
+  }
+
+  return { ecarts, controles };
+}
+
+const credits = ecartsCreditPortrait(dist);
+console.log(
+  credits.ecarts.length === 0
+    ? `Credit du portrait : ${credits.controles} page(s) auteur, caption de la mediatheque rendu sous l image.`
+    : `Credit du portrait : ${credits.ecarts.length} ecart(s).`,
+);
+
 const ecartsSociaux = ecartsLiensSociaux(dist);
 console.log(
   ecartsSociaux.length === 0
@@ -144,6 +232,15 @@ if (rapport.manquements.length > 0) {
 if (ecartsSociaux.length > 0) {
   console.error('\n✖ Accessibilite des liens de reseaux :');
   for (const ecart of ecartsSociaux) console.error(`  - ${ecart}`);
+  process.exit(1);
+}
+
+if (credits.ecarts.length > 0 || credits.controles === 0) {
+  console.error('\n✖ Credit du portrait sur la page auteur :');
+  for (const ecart of credits.ecarts) console.error(`  - ${ecart}`);
+  if (credits.controles === 0) {
+    console.error('  - aucune page auteur avec portrait : la preuve ne prouverait rien');
+  }
   process.exit(1);
 }
 

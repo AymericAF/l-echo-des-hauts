@@ -16,6 +16,17 @@ export interface Media {
   readonly url: string;
   /** `alternativeText` natif de la Media Library — jamais une legende (A-04). */
   readonly alternative: string | null;
+  /**
+   * `caption` NATIF de la Media Library — le porteur du credit et de la licence
+   * (plan editorial §6.5). Il voyage avec le fichier, donc il reste juste partout ou
+   * l image est reutilisee ; c est la raison pour laquelle `Auteur` n a pas de champ
+   * `credit` (§13, point 6b, option (ii) tranchee le 2026-08-03 : deux porteurs d un
+   * meme credit finissent par diverger).
+   *
+   * Optionnel ICI, exige AILLEURS : la garde de build du §6.7, condition 3, refuse un
+   * media au `caption` vide. Le front n a donc pas a se substituer a elle.
+   */
+  readonly legende: string | null;
   readonly largeur: number | null;
   readonly hauteur: number | null;
   readonly mime: string | null;

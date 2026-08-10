@@ -34,6 +34,7 @@ const IMAGE = {
   documentId: 'med-recette-900',
   url: '/uploads/recette_couverture.jpg',
   alternativeText: 'Image de recette',
+  caption: 'Oeuvre du projet — CC0 1.0',
   width: 1600,
   height: 900,
   mime: 'image/jpeg',

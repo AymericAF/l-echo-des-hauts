@@ -123,6 +123,44 @@ for (const [nom, requete] of Object.entries(REQUETES)) {
   });
 }
 
+/**
+ * Le `caption` est le PORTEUR DU CREDIT (plan editorial §6.5), et la page auteur l affiche
+ * sous le portrait depuis la decision du 2026-08-03 (§13, point 6b). Un populate qui cesse
+ * de le demander ne casse rien de visible : Strapi rend une cle en moins, `lecture.ts` leve,
+ * et le build s arrete — mais seulement parce que le mapping l exige. Ce test tient l autre
+ * bout, sur la requete elle-meme, et il le fait pour TOUT media : le credit voyage avec le
+ * fichier, pas avec la page ou il est rendu aujourd hui.
+ *
+ * Un media se reconnait a sa forme, pas a une liste de chemins recopiee ici — une liste
+ * derive, une forme non.
+ */
+function estFeuilleMedia(feuille: unknown): boolean {
+  const champs = (feuille as any)?.fields;
+  return Array.isArray(champs) && champs.includes('url') && champs.includes('alternativeText');
+}
+
+function mediasDe(requete: unknown): Array<[string, unknown]> {
+  const populate = (requete as any).populate as Populate | undefined;
+  if (!populate) return [];
+  return feuilles(populate).filter(([, feuille]) => estFeuilleMedia(feuille));
+}
+
+test('les requetes declarent bien des medias (sinon le controle suivant est vide)', () => {
+  const total = Object.values(REQUETES).reduce((somme, requete) => somme + mediasDe(requete).length, 0);
+  assert.ok(total > 0, 'aucun media reconnu dans REQUETES : l extracteur ne voit plus rien');
+});
+
+for (const [nom, requete] of Object.entries(REQUETES)) {
+  test(`${nom} : chaque media demande son `.concat('`caption`', ' (porteur du credit, §6.5)'), () => {
+    for (const [chemin, feuille] of mediasDe(requete)) {
+      assert.ok(
+        (feuille as any).fields.includes('caption'),
+        `populate.${chemin} ne demande pas « caption » : le credit ne parviendrait jamais au rendu`,
+      );
+    }
+  });
+}
+
 test('articles : la Dynamic Zone est peuplee composant par composant, les 8 y sont', () => {
   const contenu = (REQUETES.articles as any).populate.contenu;
   assert.ok(contenu.on, 'une Dynamic Zone se peuple avec `on`, jamais en bloc');

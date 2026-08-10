@@ -14,6 +14,13 @@
  *
  * La sortie va dans `dist-recette/`, jamais dans `dist/` : le corpus de recette n est pas
  * le site, et l ecraser ferait passer un jeu de test pour la sortie de production.
+ *
+ * CODES DE SORTIE — trois issues, pas deux (convention du parc, cf. `serveur-fixtures.mjs`) :
+ *   0  toutes les bornes tenues ;
+ *   1  au moins une borne non tenue — la preuve a eu lieu et a trouve quelque chose ;
+ *   2  VERIFICATION IMPOSSIBLE — une donnee de banc manque, rien n a ete prouve.
+ * Le 2 est ce que cette preuve n avait pas : `configuration-en.json` ecarte du banc, elle
+ * rendait 0 et « 57 constats verts » sur des pages anglaises servies en francais.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -21,44 +28,39 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { corpusRecette, ROUTES_ATTENDUES } from './corpus-recette.mjs';
-import { servirMedia } from './serveur-fixtures.mjs';
+import { configurationRecette, corpusRecette, entreesDuCorpus, ROUTES_ATTENDUES } from './corpus-recette.mjs';
+import { exigerBanc, ISSUES, servirMedia } from './serveur-fixtures.mjs';
 import { inspecterLiens } from './verifier-liens.mjs';
+import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
 
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SORTIE = path.join(RACINE, 'dist-recette');
 const ORIGINE = 'https://echo.ayfiweb.fr';
 
+/**
+ * LE BANC EST EXIGE AVANT LE BUILD — trois issues, et non deux.
+ *
+ * Cette preuve ne consomme des fixtures que pour la Configuration ; son corpus, lui, est
+ * embarque (`corpus-recette.mjs`). Elle exige donc la Configuration de CHAQUE locale du
+ * site, et s arrete en 2 (VERIFICATION IMPOSSIBLE) si l une manque, en la nommant.
+ *
+ * Sans ce pas, l absence se subissait : mesure du 2026-08-10, `configuration-en.json`
+ * ecarte, la preuve rendait « 57 constats verts » et un code 0, sur des pages anglaises
+ * bourrees de francais.
+ */
+exigerBanc(
+  'bornes de pagination et bascule FR/EN',
+  LOCALES_SITE.map((locale) => `configuration-${locale}`),
+);
+
 // --- Strapi de substitution -----------------------------------------------------
 
 /**
- * La Configuration de LA locale demandee.
- *
- * Elle etait lue dans `configuration-fr.json` pour les deux locales, faute de fixture
- * anglaise : les pages `/en/` de ce corpus portaient donc un texte de pied de page
- * FRANCAIS sous une etiquette `locale: 'en'`. Sans consequence sur l objet de cette
- * preuve — les bornes de pagination — mais un banc qui ne ressemble pas a ce que le seed
- * ecrit finit par prouver autre chose que le site.
+ * Ce que le banc n a PAS su servir pendant le build. Non vide = la preuve n a pas eu
+ * lieu, et le verdict final sort en 2 plutot qu en 1 : une donnee manquante n est pas
+ * une borne non tenue.
  */
-function configuration(locale) {
-  const propre = path.join(RACINE, 'tests', 'fixtures', `configuration-${locale}.json`);
-  const base = JSON.parse(
-    fs.readFileSync(
-      fs.existsSync(propre) ? propre : path.join(RACINE, 'tests', 'fixtures', 'configuration-fr.json'),
-      'utf8',
-    ),
-  );
-  return {
-    data: {
-      ...base.data,
-      locale,
-      nomSite: locale === 'fr' ? 'L Echo des Hauts' : 'L Echo des Hauts',
-      baseline: locale === 'fr' ? 'Corpus de recette' : 'Acceptance corpus',
-      descriptionDefaut:
-        locale === 'fr' ? 'Corpus fabrique pour la recette des routes.' : 'Corpus built to test routes.',
-    },
-  };
-}
+const incapacites = [];
 
 function enveloppe(entrees) {
   return {
@@ -78,18 +80,28 @@ function demarrerServeur(corpus) {
     // rougit pour une raison etrangere a son objet (les bornes de pagination).
     if (servirMedia(requete, reponse)) return;
 
-    if (nom === 'configuration') {
+    // Toute incapacite du banc sort en 500 NOMME : le build n a pas de mode degrade
+    // (`src/lib/strapi/client.ts`), il s arrete donc en portant la cause. Un 404 ou une
+    // liste vide serait une reponse plausible — c est-a-dire un mensonge indiscernable.
+    try {
+      if (nom === 'configuration') {
+        reponse.writeHead(200, { 'content-type': 'application/json' });
+        reponse.end(JSON.stringify(configurationRecette(locale)));
+        return;
+      }
+      if (!(nom in corpus)) {
+        reponse.writeHead(404, { 'content-type': 'application/json' });
+        reponse.end(JSON.stringify({ error: { status: 404 } }));
+        return;
+      }
       reponse.writeHead(200, { 'content-type': 'application/json' });
-      reponse.end(JSON.stringify(configuration(locale)));
-      return;
+      reponse.end(JSON.stringify(enveloppe(entreesDuCorpus(corpus, nom, locale))));
+    } catch (erreur) {
+      incapacites.push(erreur.message);
+      console.error(`\n${erreur.message}\n`);
+      reponse.writeHead(500, { 'content-type': 'application/json' });
+      reponse.end(JSON.stringify({ error: { status: 500, name: 'BancIndisponible' } }));
     }
-    if (!(nom in corpus)) {
-      reponse.writeHead(404, { 'content-type': 'application/json' });
-      reponse.end(JSON.stringify({ error: { status: 404 } }));
-      return;
-    }
-    reponse.writeHead(200, { 'content-type': 'application/json' });
-    reponse.end(JSON.stringify(enveloppe(corpus[nom][locale] ?? [])));
   });
 
   return new Promise((resoudre) => {
@@ -170,6 +182,15 @@ const code = await lancer('npx', ['astro', 'build', '--outDir', SORTIE], {
   ECHO_SITE_URL: ORIGINE,
 });
 await serveur.arreter();
+
+// L INCAPACITE SE LIT AVANT L ECHEC DU BUILD, et sous son propre intitule : le build a
+// bien echoue, mais dire « borne non tenue » d une donnee de banc absente enverrait
+// chercher un defaut de pagination la ou il n y en a aucun.
+if (incapacites.length > 0) {
+  console.error(`\n${[...new Set(incapacites)].join('\n')}\n`);
+  console.error('✖ La preuve n a PAS eu lieu : le banc n a pas su servir ce qu on lui demandait.');
+  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
 
 if (code !== 0) {
   console.error(`\n✖ Le build de recette a echoue (code ${code}).`);
@@ -334,7 +355,7 @@ console.log(`\n${constats.join('\n')}`);
 if (echecs.length > 0) {
   console.error(`\n✖ ${echecs.length} borne(s) non tenue(s) :`);
   for (const echec of echecs) console.error(`  - ${echec}`);
-  process.exit(1);
+  process.exit(ISSUES.ANOMALIE);
 }
 
 console.log(

@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { articlesDuBanc, inspecterBlocs, TYPES } from './couverture-blocs.mjs';
-import { demarrerServeurFixtures } from './serveur-fixtures.mjs';
+import { demarrerServeurFixtures, exigerBanc, fixturesDuBanc } from './serveur-fixtures.mjs';
 import { inspecterSortie, resume } from './verifier-sortie.mjs';
 import { prefixeLocale } from '../src/lib/routes/chemins.ts';
 import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
@@ -97,6 +97,17 @@ function lirePage(dist, route) {
   const fichier = path.join(dist, ...route.slice(1).split('/'), 'index.html');
   return fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : null;
 }
+
+/**
+ * LE BANC EST EXIGE AVANT LE BUILD.
+ *
+ * Les controles ci-dessous savent deja accuser le banc plutot que le site, mais ils ne le
+ * font qu APRES un build de plusieurs secondes, et chacun a sa maniere. Exiger les douze
+ * fixtures ici rend la meme absence sous une seule forme, avec le nom du fichier et le
+ * code 2 (VERIFICATION IMPOSSIBLE) : « je n ai rien pu verifier » cesse de ressembler a
+ * « une borne n est pas tenue ».
+ */
+exigerBanc('preuve de rendu sur fixtures', fixturesDuBanc([...LOCALES_SITE]));
 
 const serveur = await demarrerServeurFixtures();
 console.log(`\n▸ Strapi de substitution : ${serveur.url} (fixtures de tests/fixtures/)\n`);

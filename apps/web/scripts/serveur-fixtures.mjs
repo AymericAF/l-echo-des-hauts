@@ -21,9 +21,24 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FIXTURES = path.join(RACINE, 'tests', 'fixtures');
+export const FIXTURES = path.join(RACINE, 'tests', 'fixtures');
 
-const COLLECTIONS = ['articles', 'auteurs', 'categories', 'tags', 'dossiers'];
+export const COLLECTIONS = ['articles', 'auteurs', 'categories', 'tags', 'dossiers'];
+
+/**
+ * TROIS ISSUES, TROIS CODES — la convention du parc, reprise et non reinventee
+ * (`~/.claude/.githooks/verifier-alignement.mjs`, `~/.claude/check-alignement-deploiement.ps1`).
+ *
+ *   0  VERIFIE ET CONFORME     — la preuve a eu lieu, et rien ne cloche.
+ *   1  VERIFIE ET ANOMALIE     — la preuve a eu lieu, et a trouve quelque chose.
+ *   2  VERIFICATION IMPOSSIBLE — la preuve n a PAS eu lieu : une donnee de banc manque.
+ *
+ * La troisieme est la raison d etre de la convention. Sans elle, « je n ai rien pu
+ * verifier » rend le meme code que « j ai tout verifie, tout va bien » — et c est
+ * exactement ce qui s est mesure le 2026-08-10 sur `preuve-pagination.mjs` : la fixture
+ * anglaise ecartee, la preuve rendait ses 57 constats verts et un code 0.
+ */
+export const ISSUES = { CONFORME: 0, ANOMALIE: 1, VERIFICATION_IMPOSSIBLE: 2 };
 
 /**
  * Un media de substitution, servi sur `/uploads/…` comme le provider local de Strapi.
@@ -59,16 +74,65 @@ export function servirMedia(requete, reponse) {
   return true;
 }
 
-function fixture(nom) {
-  const chemin = path.join(FIXTURES, `${nom}.json`);
-  if (!fs.existsSync(chemin)) return null;
-  return JSON.parse(fs.readFileSync(chemin, 'utf8'));
+/** Le chemin d une fixture, et rien d autre — la lecture se decide plus bas. */
+function cheminFixture(nom, dossier = FIXTURES) {
+  return path.join(dossier, `${nom}.json`);
 }
 
-const VIDE = { data: [], meta: { pagination: { page: 1, pageSize: 25, pageCount: 1, total: 0 } } };
+export function existeFixture(nom, dossier = FIXTURES) {
+  return fs.existsSync(cheminFixture(nom, dossier));
+}
+
+export function lireFixture(nom, dossier = FIXTURES) {
+  return JSON.parse(fs.readFileSync(cheminFixture(nom, dossier), 'utf8'));
+}
 
 /**
- * CHAQUE LOCALE EST SERVIE DEPUIS SA PROPRE FIXTURE.
+ * Ce que le banc EXIGE : une fixture par collection ET par locale du site, Configuration
+ * comprise. La liste est DECLAREE a partir des locales qu on lui passe — elle ne se
+ * derive pas de ce que `tests/fixtures/` contient, sans quoi elle certifierait la
+ * presence de ce qui est present.
+ */
+export function fixturesDuBanc(locales) {
+  return locales.flatMap((locale) => [
+    `configuration-${locale}`,
+    ...COLLECTIONS.map((collection) => `${collection}-${locale}`),
+  ]);
+}
+
+/** Celles qui manquent, dans l ordre ou elles etaient exigees. */
+export function absencesDeBanc(noms, dossier = FIXTURES) {
+  return noms.filter((nom) => !existeFixture(nom, dossier));
+}
+
+/** Le texte de la 3e issue : ce qui manque, et ce qui n a PAS ete servi a la place. */
+export function messageVerificationImpossible(intitule, absentes) {
+  return [
+    `VERIFICATION IMPOSSIBLE — ${intitule}`,
+    ...absentes.map((nom) => `  - donnee de banc absente : tests/fixtures/${nom}.json`),
+    'Aucune donnee d une autre locale, ni collection vide, n a ete servie a la place :',
+    'le banc ne peut pas conclure, et ne pretend pas le contraire.',
+  ].join('\n');
+}
+
+/**
+ * LE BANC EXIGE SES DONNEES AVANT DE CONSTRUIRE — sinon il ne construit pas.
+ *
+ * Sort en `ISSUES.VERIFICATION_IMPOSSIBLE` (2) en nommant chaque fichier absent. Le 2
+ * n existe pas par gout de la nuance : il separe « je n ai rien pu verifier » de « tout
+ * va bien », que le code 0 confondait.
+ */
+export function exigerBanc(intitule, noms, dossier = FIXTURES) {
+  const absentes = absencesDeBanc(noms, dossier);
+  if (absentes.length === 0) return;
+  console.error('');
+  console.error(messageVerificationImpossible(intitule, absentes));
+  console.error('');
+  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
+
+/**
+ * CHAQUE LOCALE EST SERVIE DEPUIS SA PROPRE FIXTURE, OU N EST PAS SERVIE DU TOUT.
  *
  * Jusqu au 2026-08-10 ce serveur rendait `VIDE` pour toute locale autre que `fr`, et un
  * 404 sur le Single Type. Consequence mesuree sur le `dist/` produit : les 4 pages
@@ -77,17 +141,29 @@ const VIDE = { data: [], meta: { pagination: { page: 1, pageSize: 25, pageCount:
  * ecrit la Configuration aux DEUX locales (`apps/cms/scripts/seed/seed.ts`, §4) — c est le
  * banc qui l avait, et rien ne signalait la difference.
  *
- * L absence reste representee, mais elle se DECLARE au lieu de se subir : une collection
- * dont la fixture `-en` n existe pas rend `VIDE`, et le Single Type rend 404 — exactement
- * ce que Strapi repond quand aucune localisation n existe, et ce que `corpus.ts` sait
- * traiter. Ce qui est INTERDIT, c est que ce repli s applique a une locale entiere sans
- * que personne ne l ait decide : `tests/fixtures-locales.test.ts` exige les six fixtures
- * anglaises, et `preuve-rendu.mjs` exige que les deux locales soient inspectees.
+ * LE REPLI QUI RESTAIT, ET POURQUOI IL TOMBE. La premiere correction laissait `?? VIDE` :
+ * une fixture `-en` absente rendait une collection vide — « exactement ce que Strapi
+ * repond quand aucune localisation n existe ». C est vrai, et c est precisement le
+ * probleme : une collection vide est une REPONSE PLAUSIBLE, indiscernable du fait
+ * editorial qu elle imite. Le banc n a aucun moyen de dire lequel des deux il sert, donc
+ * il ne sert plus ni l un ni l autre : il DECLARE son incapacite, et l appelant la
+ * remonte. Meme raisonnement pour le 404 du Single Type.
+ *
+ * CE QUI N EST PAS TOUCHE, et ne doit pas l etre : les asymetries qui vivent DANS les
+ * fixtures — un article francais sans jumelle anglaise, une rubrique sans contrepartie,
+ * une collection anglaise legitimement vide. Le cahier les prevoit (`tests/fixtures-locales.test.ts`,
+ * « le manque legitime est PRESERVE »), et les supprimer rendrait la preuve rouge en
+ * permanence, donc desarmee. Le critere n est pas « il y a un repli » mais « ce repli
+ * fait-il passer une ABSENCE pour une REPONSE ».
+ *
+ * @returns `{ hors: true }` hors perimetre du banc, `{ incapacite }` si la donnee manque,
+ *          `{ corps }` sinon.
  */
-function reponse(chemin, locale) {
-  if (chemin === 'configuration') return fixture(`configuration-${locale}`);
-  if (!COLLECTIONS.includes(chemin)) return null;
-  return fixture(`${chemin}-${locale}`) ?? VIDE;
+export function reponseDeFixture(chemin, locale, dossier = FIXTURES) {
+  if (chemin !== 'configuration' && !COLLECTIONS.includes(chemin)) return { hors: true };
+  const nom = `${chemin}-${locale}`;
+  if (!existeFixture(nom, dossier)) return { incapacite: `tests/fixtures/${nom}.json` };
+  return { corps: lireFixture(nom, dossier) };
 }
 
 export function demarrerServeurFixtures(port = 0) {
@@ -98,11 +174,24 @@ export function demarrerServeurFixtures(port = 0) {
 
     const chemin = url.pathname.replace(/^\/api\//, '');
     const locale = url.searchParams.get('locale') ?? 'fr';
-    const corps = reponse(chemin, locale);
+    const { hors, incapacite, corps } = reponseDeFixture(chemin, locale);
 
-    if (corps === null) {
+    if (hors) {
       reponseHttp.writeHead(404, { 'content-type': 'application/json' });
       reponseHttp.end(JSON.stringify({ error: { status: 404, name: 'NotFoundError' } }));
+      return;
+    }
+
+    // 500 et non 404 : un 404 dit « cette localisation n existe pas », ce que le site
+    // sait traiter et absorbe en silence. Ici rien n est connu — le banc est muet, et le
+    // build doit s arreter en le NOMMANT plutot que de rendre un site ampute.
+    if (incapacite) {
+      const message = messageVerificationImpossible(`banc de ${chemin} (${locale})`, [
+        incapacite.replace(/^tests\/fixtures\//, '').replace(/\.json$/, ''),
+      ]);
+      console.error(`\n${message}\n`);
+      reponseHttp.writeHead(500, { 'content-type': 'application/json' });
+      reponseHttp.end(JSON.stringify({ error: { status: 500, name: 'BancIndisponible', message } }));
       return;
     }
 

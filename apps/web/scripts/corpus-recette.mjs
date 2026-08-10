@@ -29,6 +29,74 @@
  *   | tag `sans-en`          |  3  | 0  | tag FR emis, contrepartie EN non emise            |
  */
 
+import {
+  FIXTURES,
+  existeFixture,
+  lireFixture,
+  messageVerificationImpossible,
+} from './serveur-fixtures.mjs';
+
+/**
+ * La Configuration de LA locale demandee — ou aucune.
+ *
+ * ELLE REPLIAIT SUR LE FRANCAIS, ET C EST LE DEFAUT QU ON A MESURE. La ligne etait
+ * `fs.existsSync(propre) ? propre : configuration-fr.json` : la fixture anglaise ecartee
+ * du banc, les pages `/en/` recevaient la Configuration FRANCAISE et
+ * `npm run preuve:pagination` rendait exactement la meme sortie qu avec — 57 constats
+ * verts, code 0 — pendant que `dist-recette/en/index.html` portait le pied de page
+ * francais. Le repli etait MORT tant que la fixture existait : rien ne le signalait, il
+ * attendait qu un fichier disparaisse.
+ *
+ * Il ne reste donc AUCUN chemin qui rende une Configuration d une autre langue : ou la
+ * fixture de la locale est la, ou l appelant recoit une VERIFICATION IMPOSSIBLE nommee.
+ */
+export function configurationRecette(locale, dossier = FIXTURES) {
+  const nom = `configuration-${locale}`;
+  if (!existeFixture(nom, dossier)) {
+    throw new Error(
+      messageVerificationImpossible(`Configuration du corpus de recette (${locale})`, [nom]),
+    );
+  }
+  const base = lireFixture(nom, dossier);
+  return {
+    data: {
+      ...base.data,
+      locale,
+      nomSite: 'L Echo des Hauts',
+      baseline: locale === 'fr' ? 'Corpus de recette' : 'Acceptance corpus',
+      descriptionDefaut:
+        locale === 'fr' ? 'Corpus fabrique pour la recette des routes.' : 'Corpus built to test routes.',
+    },
+  };
+}
+
+/**
+ * Les entrees d une collection du corpus, pour une locale — ou une incapacite.
+ *
+ * `corpus[nom][locale] ?? []` etait le meme defaut d un cran plus loin : une locale que le
+ * corpus ne declare PAS rendait une liste vide, soit « cette langue n a rien publie » —
+ * une reponse parfaitement plausible, sous laquelle toutes les routes interdites de cette
+ * locale passent au vert sans que rien n ait ete construit.
+ *
+ * A ne pas confondre avec une collection declaree et VIDE (`dossiers.en`, `categories.en`
+ * plus courte que le francais) : ce sont des faits du corpus, ecrits expres pour exercer
+ * §10.3 et T-05. Elles passent ici sans encombre.
+ */
+export function entreesDuCorpus(corpus, nom, locale) {
+  const parLocale = corpus[nom];
+  if (parLocale === undefined) {
+    throw new Error(`VERIFICATION IMPOSSIBLE — le corpus de recette ne declare pas « ${nom} »`);
+  }
+  const entrees = parLocale[locale];
+  if (!Array.isArray(entrees)) {
+    throw new Error(
+      `VERIFICATION IMPOSSIBLE — le corpus de recette ne declare pas la locale « ${locale} » ` +
+        `pour « ${nom} » : une absence de banc n est pas une collection vide`,
+    );
+  }
+  return entrees;
+}
+
 const IMAGE = {
   id: 900,
   documentId: 'med-recette-900',

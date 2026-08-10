@@ -16,22 +16,47 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { articlesDuBanc, inspecterBlocs, TYPES } from './couverture-blocs.mjs';
 import { demarrerServeurFixtures } from './serveur-fixtures.mjs';
 import { inspecterSortie, resume } from './verifier-sortie.mjs';
+import { prefixeLocale } from '../src/lib/routes/chemins.ts';
+import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
 
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const FIXTURES = path.join(RACINE, 'tests', 'fixtures');
 
-/** Les huit blocs du §3.6, chacun reconnu par la classe que son composant pose. */
-const SIGNATURES = {
-  'bloc.texte': 'bloc-texte',
-  'bloc.citation': 'bloc-citation',
-  'bloc.galerie': 'bloc-galerie',
-  'bloc.encadre': 'bloc-encadre',
-  'bloc.video': 'bloc-video',
-  'bloc.image-legendee': 'bloc-image',
-  'bloc.separateur': 'bloc-separateur',
-  'bloc.chiffres-cles': 'bloc-chiffres',
-};
+/**
+ * LES LOCALES NE SONT PLUS ECRITES DANS CE FICHIER.
+ *
+ * Les trois controles ci-dessous en enumeraient chacun sa propre liste — `['fr', 'en']`
+ * ecrit trois fois, plus un `locale === 'fr' ? '' : 'en/'` pour le prefixe d URL. Une
+ * liste par controle est une liste qu on oublie : c est exactement par la que les pages
+ * article anglaises sont restees hors garde jusqu au 2026-08-10, quand le pied de page
+ * et le credit du portrait, eux, y etaient deja passes.
+ *
+ * `LOCALES_SITE` et `prefixeLocale` sont les declarations que le SITE consomme pour
+ * emettre ses pages. Ajouter une locale la-bas etend ces controles sans qu on ait a y
+ * penser ; en retirer une les retrecit, ce qui est le comportement juste — mais pas en
+ * silence : `tests/couverture-blocs.test.ts` confronte `LOCALES_SITE` aux fixtures
+ * `articles-*.json` presentes, et rougit si les deux ensembles divergent.
+ */
+const LOCALES = [...LOCALES_SITE];
+
+/** Le dossier de `dist/` d une locale : '' pour la locale par defaut, `en/` sinon. */
+function dossierLocale(locale) {
+  const prefixe = prefixeLocale(locale);
+  return prefixe === '' ? '' : `${prefixe.slice(1)}/`;
+}
+
+/** La locale qu un fichier de `dist/` sert, deduite de son prefixe de dossier. */
+function localeDuFichier(relatif) {
+  for (const locale of LOCALES) {
+    const dossier = dossierLocale(locale);
+    if (dossier === '') continue;
+    if (relatif === `${locale}.html` || relatif.startsWith(dossier)) return locale;
+  }
+  return LOCALES.find((locale) => dossierLocale(locale) === '') ?? LOCALES[0];
+}
 
 function lancer(commande, arguments_, env) {
   return new Promise((resoudre) => {
@@ -45,17 +70,32 @@ function lancer(commande, arguments_, env) {
   });
 }
 
-function pagesArticle(dist) {
-  const dossier = path.join(dist, 'article');
-  if (!fs.existsSync(dossier)) return [];
-  return fs
-    .readdirSync(dossier, { withFileTypes: true })
-    .filter((entree) => entree.isDirectory())
-    .map((entree) => ({
-      slug: entree.name,
-      html: path.join(dossier, entree.name, 'index.html'),
-    }))
-    .filter((page) => fs.existsSync(page.html));
+/**
+ * Le banc, locale par locale : ce que la fixture d articles de chacune POSE.
+ *
+ * Une locale du site sans fixture rend `null` — le controle l accuse alors elle, et pas
+ * le site : un banc muet ne prouve pas qu une page ne rend rien.
+ */
+function bancParLocale() {
+  const banc = {};
+  for (const locale of LOCALES) {
+    const fichier = path.join(FIXTURES, `articles-${locale}.json`);
+    banc[locale] = fs.existsSync(fichier)
+      ? articlesDuBanc(locale, JSON.parse(fs.readFileSync(fichier, 'utf8')))
+      : null;
+  }
+  return banc;
+}
+
+/**
+ * Le HTML servi a une route, dans la sortie `build.format: 'directory'`.
+ *
+ * `null` — et non une exception — quand la page n existe pas : l absence d une page est
+ * un ecart a REPORTER avec les autres, pas un arret qui masquerait le reste de la liste.
+ */
+function lirePage(dist, route) {
+  const fichier = path.join(dist, ...route.slice(1).split('/'), 'index.html');
+  return fs.existsSync(fichier) ? fs.readFileSync(fichier, 'utf8') : null;
 }
 
 const serveur = await demarrerServeurFixtures();
@@ -75,24 +115,19 @@ if (code !== 0) {
 
 const dist = path.join(RACINE, 'dist');
 const rapport = inspecterSortie(dist);
-const pages = pagesArticle(dist);
 
 console.log('\n─────────────  PREUVE DE RENDU  ─────────────\n');
 console.log(`Sortie : ${resume(rapport)}`);
-console.log(`Pages article generees : ${pages.length}`);
 
-let complete = false;
-for (const page of pages) {
-  const html = fs.readFileSync(page.html, 'utf8');
-  const absents = Object.entries(SIGNATURES)
-    .filter(([, classe]) => !html.includes(classe))
-    .map(([bloc]) => bloc);
-
+const blocs = inspecterBlocs(bancParLocale(), (route) => lirePage(dist, route));
+for (const locale of LOCALES) {
+  const compte = blocs.inspectees[locale];
   console.log(
-    `  /article/${page.slug} : ${Object.keys(SIGNATURES).length - absents.length}/8 types de blocs` +
-      (absents.length > 0 ? ` — absents : ${absents.join(', ')}` : ''),
+    compte === undefined
+      ? `  [${locale}] locale non inspectee`
+      : `  [${locale}] ${compte.pages} page(s) article, ${compte.typesExerces}/${TYPES.length} ` +
+          `types exerces par le banc, ${compte.pagesCompletes} page(s) rendant les ${TYPES.length}`,
   );
-  if (absents.length === 0) complete = true;
 }
 
 /**
@@ -178,17 +213,17 @@ function urlsDuPied(html) {
 function ecartsPiedDePage(dist) {
   /** La locale de REFERENCE, et elle seule — cf. l encadre ci-dessus. */
   const attendu = JSON.parse(
-    fs.readFileSync(path.join(RACINE, 'tests', 'fixtures', 'configuration-fr.json'), 'utf8'),
+    fs.readFileSync(path.join(FIXTURES, 'configuration-fr.json'), 'utf8'),
   ).data.reseaux.map((r) => r.url);
 
   const ecarts = [];
-  const inspectees = { fr: 0, en: 0 };
+  const inspectees = Object.fromEntries(LOCALES.map((locale) => [locale, 0]));
 
   for (const fichier of fs.readdirSync(dist, { recursive: true })) {
     const relatif = String(fichier).replace(/\\/g, '/');
     if (!relatif.endsWith('.html')) continue;
 
-    const locale = relatif === 'en.html' || relatif.startsWith('en/') ? 'en' : 'fr';
+    const locale = localeDuFichier(relatif);
     const { pied, nomme, urls } = urlsDuPied(fs.readFileSync(path.join(dist, relatif), 'utf8'));
     inspectees[locale] += 1;
 
@@ -209,7 +244,7 @@ function ecartsPiedDePage(dist) {
     }
   }
 
-  for (const locale of ['fr', 'en']) {
+  for (const locale of LOCALES) {
     if (inspectees[locale] === 0) {
       ecarts.push(
         `aucune page « ${locale} » dans la sortie : le pied de page de cette locale n est garde par rien`,
@@ -265,13 +300,13 @@ function ecartsCreditPortrait(dist) {
   const ecarts = [];
   let controles = 0;
 
-  for (const locale of ['fr', 'en']) {
-    const fichier = path.join(RACINE, 'tests', 'fixtures', `auteurs-${locale}.json`);
+  for (const locale of LOCALES) {
+    const fichier = path.join(FIXTURES, `auteurs-${locale}.json`);
     if (!fs.existsSync(fichier)) {
       ecarts.push(`auteurs-${locale}.json absent : la page auteur « ${locale} » n est gardee par rien`);
       continue;
     }
-    const prefixe = locale === 'fr' ? '' : 'en/';
+    const prefixe = dossierLocale(locale);
 
     for (const auteur of JSON.parse(fs.readFileSync(fichier, 'utf8')).data) {
       const route = `/${prefixe}auteur/${auteur.slug}`;
@@ -328,10 +363,11 @@ console.log(
 );
 
 const pied = ecartsPiedDePage(dist);
+const comptePied = LOCALES.map((locale) => `${pied.inspectees[locale]} page(s) ${locale}`).join(', ');
 console.log(
   pied.ecarts.length === 0
-    ? `Pied de page : bloc de reseaux conforme a la Configuration sur ${pied.inspectees.fr} page(s) fr et ${pied.inspectees.en} page(s) en.`
-    : `Pied de page : ${pied.ecarts.length} ecart(s) — ${pied.inspectees.fr} page(s) fr, ${pied.inspectees.en} page(s) en inspectees.`,
+    ? `Pied de page : bloc de reseaux conforme a la Configuration sur ${comptePied}.`
+    : `Pied de page : ${pied.ecarts.length} ecart(s) — ${comptePied} inspectees.`,
 );
 
 if (rapport.manquements.length > 0) {
@@ -361,9 +397,28 @@ if (credits.ecarts.length > 0 || credits.controles === 0) {
   process.exit(1);
 }
 
-if (!complete) {
-  console.error('\n✖ Aucune page article ne rend les 8 types de blocs.');
+/**
+ * LE BANC D ABORD, LE SITE ENSUITE — et jamais l inverse.
+ *
+ * Un banc qui n exercerait pas les huit types dans une locale ferait rougir un site
+ * sain : la page ne peut pas rendre un bloc que la fixture ne lui donne pas. Rendre ce
+ * verdict-la EN PREMIER, et sous son propre intitule, evite de partir chercher un defaut
+ * de rendu la ou il n y en a pas.
+ */
+if (blocs.banc.length > 0) {
+  console.error('\n✖ LE BANC, pas le site — ces types ne sont exerces nulle part :');
+  for (const ecart of blocs.banc) console.error(`  - ${ecart}`);
   process.exit(1);
 }
 
-console.log('\n✔ Une page article rend les 8 types de blocs, et aucun JavaScript n est servi.\n');
+if (blocs.site.length > 0) {
+  console.error('\n✖ Types de blocs rendus, locale par locale :');
+  for (const ecart of blocs.site) console.error(`  - ${ecart}`);
+  process.exit(1);
+}
+
+console.log(
+  `\n✔ Dans chacune des ${LOCALES.length} locales (${LOCALES.join(', ')}), chaque page article ` +
+    `rend exactement les blocs que le banc lui pose, les ${TYPES.length} types y compris — ` +
+    'et aucun JavaScript n est servi.\n',
+);

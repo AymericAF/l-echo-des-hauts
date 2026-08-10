@@ -82,7 +82,7 @@ d'infrastructure.** Ils tournent donc à chaque `push`, dans le job `sortie` de
 | `verifier:origine-medias` (T‑01) | `src`, `srcset`, `og:image`, `rel=icon` | une image d'origine étrangère, que la CSP servie **refuse** — déclarée, jamais peinte | ~9 ms |
 | `verifier:seo` (§5.2, §4.5) | sitemaps, flux, métas, PNG OG | une `<loc>` morte, une page indexable hors sitemap, une **vignette OG sans glyphes** | ~66 ms |
 | `verifier:styles-en-ligne` (§5.5) | le HTML émis | un bloc `<style>` ou un `style=` que `style-src 'self'` refuse — la page répond 200 et rend autre chose | ~9 ms |
-| `preuve:rendu` | un build sur fixtures | qu'une page article rend bien les **8 types de blocs**, ce qu'aucune garde ne sait dire | 3,3 s |
+| `preuve:rendu` | un build sur fixtures | que chaque page article rend les blocs que le banc lui pose, **les 8 types y compris**, et **dans chaque locale** — ce qu'aucune garde ne sait dire | 3,3 s |
 | `preuve:pagination` | un build sur corpus de recette | les **bornes** que le corpus éditorial n'atteint pas : page 2, catégorie à exactement 12, article non traduit | 4,9 s |
 | `preuve:encre-og` | le gabarit rastérisé deux fois | que le seuil de la garde OG **sépare encore** les deux populations (avec fontes / sans aucune fonte) | 1,5 s |
 

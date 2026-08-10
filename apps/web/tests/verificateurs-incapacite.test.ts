@@ -284,20 +284,28 @@ test('les six importent la convention du module dedie, aucun ne la redefinit', (
  * entrer dans le tableau ci-dessus.
  *
  * Le tableau tient un invariant precis : « recois un chemin de `dist/`, distingue une
- * sortie absente ou vide d une sortie fautive ». `verifier-en-tetes.mjs` ne recoit pas de
- * chemin : son corpus est une REPONSE HTTP de la production, et sa raison d etre est
- * exactement de voir ce qu aucune relecture de fichiers ne peut voir — la disparition, le
- * 2026-08-10, des en-tetes poses en labels Traefik hors du depot. Le forcer dans le
- * tableau demanderait de lui inventer un `dist/`, c est-a-dire de lui faire juger un objet
- * qu il ne juge pas.
+ * sortie absente ou vide d une sortie fautive ». Les deux exemptes ne recoivent pas de
+ * chemin : leur corpus est une REPONSE HTTP, et c est leur raison d etre — voir ce
+ * qu aucune relecture de fichiers ne peut voir.
  *
- * IL RESTE TENU, mais par deux autres choses : la convention des trois issues est verifiee
- * ici meme (import, pas de redefinition), et ses trois sens — conforme, anomalie,
- * incapacite — sont exerces dans `garde-en-tetes-securite.test.ts`, sur ses propres
- * entrees. Ce qui ne doit PAS arriver, et que la garde de couverture continue d empecher,
- * c est qu un septieme verificateur de SORTIE apparaisse sans entrer dans le tableau.
+ *   - `verifier-en-tetes.mjs` juge la reponse de la PRODUCTION : le 2026-08-10, les
+ *     en-tetes poses en labels Traefik hors du depot ont disparu sans aucun signal.
+ *   - `verifier-surface-publique.mjs` juge la reponse de l INSTANCE STRAPI : le meme jour,
+ *     le role Public servait `/api/articles` — et `?status=draft` — sans aucun jeton. La
+ *     permission vit dans la base de Strapi, pas dans ce depot ; une garde qui relirait des
+ *     fichiers ne la verrait jamais.
+ *
+ * Les forcer dans le tableau demanderait de leur inventer un `dist/`, c est-a-dire de leur
+ * faire juger un objet qu ils ne jugent pas.
+ *
+ * ILS RESTENT TENUS, mais par deux autres choses : la convention des trois issues est
+ * verifiee ici meme (import, pas de redefinition), et leurs trois sens — conforme,
+ * anomalie, incapacite — sont exerces dans `garde-en-tetes-securite.test.ts` et
+ * `garde-surface-publique.test.ts`, sur leurs propres entrees. Ce qui ne doit PAS arriver,
+ * et que la garde de couverture continue d empecher, c est qu un septieme verificateur de
+ * SORTIE apparaisse sans entrer dans le tableau.
  */
-const HORS_TABLEAU = ['verifier-en-tetes.mjs'];
+const HORS_TABLEAU = ['verifier-en-tetes.mjs', 'verifier-surface-publique.mjs'];
 
 test('couverture : tout scripts/verifier-*.mjs figure dans le tableau des six', () => {
   const surDisque = fs

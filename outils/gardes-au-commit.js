@@ -91,6 +91,15 @@ const LECTURES = {
     // `reseaux` ne declencherait AUCUN test au commit — c'est-a-dire le trou
     // meme que ce fichier de test existe pour fermer.
     'apps/web/tests/fixtures-locales.test.ts': ['apps/web/tests/fixtures/'],
+    // CE TEST LIT UNE AUTRE APPLICATION QUE LA SIENNE, et c'est voulu :
+    // `verifier-surface-publique.mjs` DERIVE la liste des types de contenu a
+    // sonder des schemas du CMS, plutot que de la recopier — une liste ecrite a
+    // la main refarait le defaut du 2026-08-10 le jour du septieme type de
+    // contenu. Cette ligne est donc ce qui fait que toucher un schema du CMS
+    // rejoue la garde de surface d'`apps/web` (§ « lecture inter-application »
+    // plus bas), et que l'arbre temporaire porte `apps/cms` meme quand le commit
+    // ne concerne qu'`apps/web`.
+    'apps/web/tests/garde-surface-publique.test.ts': ['apps/cms/src/api/'],
     'apps/cms/tests/modele-donnees.test.ts': ['apps/cms/src/api/', 'apps/cms/src/components/'],
     'apps/cms/tests/seed-code-sortie.test.ts': ['apps/cms/scripts/seed/', 'apps/cms/data/'],
     'apps/cms/tests/seed-corpus.test.ts': ['apps/cms/data/'],
@@ -132,8 +141,45 @@ const dansLeCommit = new Set(indexes);
 const global = DECLENCHEURS_GLOBAUX.some((p) => dansLeCommit.has(p));
 
 // ── 2. Quelles applications sont concernees ──────────────────────────────────
+//
+// LECTURE INTER-APPLICATION. Un test peut declarer, dans `LECTURES`, un chemin
+// qui appartient a une AUTRE application que la sienne — `garde-surface-publique`
+// derive sa liste des schemas du CMS. Deux consequences, et les oublier rendrait
+// ce crochet faussement vert :
+//
+//   1. DECLENCHEMENT — toucher `apps/cms/src/api/` doit rejouer ce test, donc
+//      rendre `apps/web` concernee alors qu'aucun de ses fichiers n'est indexe.
+//      Sans cela, ajouter un type de contenu ne rejouerait jamais la garde qui
+//      existe precisement pour le sonder.
+//   2. MATERIALISATION — le test LIT `apps/cms/src/api/` sur disque. L'arbre
+//      temporaire ne porte que les applications concernees ; sans ce calcul,
+//      le test echoue non pas sur une regression mais sur une absence, et un
+//      crochet qui rougit pour une raison qui n'est pas la sienne se fait
+//      desactiver.
+const proprietaireDuTest = (test) => APPS.find((app) => test.startsWith(app + '/'));
+const toucheParLeCommit = (prefixe) =>
+    indexes.some((p) => p === prefixe || (prefixe.endsWith('/') && p.startsWith(prefixe)));
+
 const appsConcernees = APPS.filter(
-    (app) => global || indexes.some((p) => p === app || p.startsWith(app + '/'))
+    (app) =>
+        global ||
+        indexes.some((p) => p === app || p.startsWith(app + '/')) ||
+        Object.entries(LECTURES).some(
+            ([test, prefixes]) =>
+                proprietaireDuTest(test) === app && prefixes.some(toucheParLeCommit)
+        )
+);
+
+// Les applications qu'il faut POSER dans l'arbre sans y lancer de test : celles
+// que les tests des applications concernees lisent par chemin.
+const appsSupport = APPS.filter(
+    (app) =>
+        !appsConcernees.includes(app) &&
+        Object.entries(LECTURES).some(
+            ([test, prefixes]) =>
+                appsConcernees.includes(proprietaireDuTest(test)) &&
+                prefixes.some((pre) => pre === app || pre.startsWith(app + '/'))
+        )
 );
 
 if (appsConcernees.length === 0) {
@@ -149,7 +195,9 @@ let code = 0;
 try {
     let listeSuivie;
     try {
-        listeSuivie = git(['ls-files', '-z', '--'].concat(appsConcernees), { encoding: 'buffer' });
+        listeSuivie = git(['ls-files', '-z', '--'].concat(appsConcernees, appsSupport), {
+            encoding: 'buffer',
+        });
     } catch (e) {
         abandonner('git n a pas rendu la liste des fichiers suivis (' + e.message + ').');
     }

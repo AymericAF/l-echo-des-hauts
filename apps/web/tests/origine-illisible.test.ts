@@ -191,7 +191,13 @@ function distSeo(locSegment: string) {
         `<meta property="og:title" content="t"><meta property="og:description" content="d">` +
         `<meta property="og:type" content="website"><meta property="og:url" content="${ORIGINE}/">` +
         `<meta property="og:locale" content="fr_FR">` +
-        `<meta property="og:image" content="${ORIGINE}/partage/a.png"><meta name="twitter:card" content="summary">`,
+        `<meta property="og:image" content="${ORIGINE}/partage/a.png"><meta name="twitter:card" content="summary">` +
+        /* Depuis le controle 8 (§5.1), une page indexable sans donnees structurees est un
+           manquement. Ce squelette doit rester SAIN pour que le vert de ce test prouve ce
+           qu il pretend prouver — l origine, pas le SEO. */
+        '<script type="application/ld+json">' +
+        '{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"t"}]}' +
+        '</script>',
       'x',
     ),
     'partage/a.png': 'octets',

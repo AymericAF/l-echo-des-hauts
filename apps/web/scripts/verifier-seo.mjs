@@ -7,7 +7,7 @@
  * decouvre jamais en test : une URL de sitemap absente du site ne casse aucune page, ne
  * fait rougir aucun build, et se manifeste des mois plus tard en Search Console.
  *
- * SEPT CONTROLES, chacun ferme une classe de defaut que rien d autre ne voit :
+ * HUIT CONTROLES, chacun ferme une classe de defaut que rien d autre ne voit :
  *
  *   1. **Chaque segment declare par l index existe.** Un index qui annonce un fichier
  *      absent est un sitemap mort ; le crawler abandonne le segment sans le dire.
@@ -41,6 +41,13 @@
  *      etaient vides et UNE SEULE a rougi. Ce qu on mesure est desormais la HAUTEUR des
  *      glyphes, qui ne depend pas de la longueur du titre — cf. `HAUTEUR_MINIMALE_GLYPHES`
  *      et sa derivation chiffree.
+ *   8. **100 % des pages indexables portent un JSON-LD lisible** (§5.1, et le critere
+ *      chiffre du §1). Chaque bloc est PARSE, son `@context` schema.org exige, ses noeuds
+ *      typologiquement verifies, et les URL qu il affirme joignables confrontees a
+ *      `dist/`. Le decompte est ensuite oppose au nombre de pages indexables du controle
+ *      4 : nommer les pages manquantes ne suffit pas, l ecart global s affirme a part.
+ *      Ce controle est le seul qui verrait un layout ayant cesse d appeler le calcul —
+ *      le module de calcul, lui, resterait vert sur ses propres tests.
  *
  * `npm run verifier:seo` pour inspecter un `dist/` deja construit. Ce qui rend ces
  * clauses opposables en machine, c est `integrations/garde-seo.mjs`, qui appelle
@@ -194,6 +201,90 @@ export function estNoindex(html) {
 }
 
 /**
+ * Le contenu BRUT de chaque `<script type="application/ld+json">` d une page.
+ *
+ * La forme du type est lue largement ICI (casse, apostrophes, espaces), et strictement
+ * par la garde T-09 : les deux ne repondent pas a la meme question. `verifier-sortie`
+ * decide de ce que le site A LE DROIT de servir ; ce fichier-ci compte ce qui EST servi,
+ * et compter large est la bonne erreur — un bloc mal type doit apparaitre comme un bloc
+ * fautif, pas disparaitre du decompte.
+ */
+export function blocsJsonLd(html) {
+  const trouves = [];
+  const motif = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
+  for (const [, attributs, contenu] of html.matchAll(motif)) {
+    const type = attributs.match(/\stype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/i);
+    const valeur = type === null ? '' : (type[1] ?? type[2] ?? type[3] ?? '');
+    if (valeur.trim().replace(/\s+/g, ' ').toLowerCase() === 'application/ld+json') {
+      trouves.push(contenu);
+    }
+  }
+  return trouves;
+}
+
+/**
+ * Les noeuds d un bloc JSON-LD, ou `null` si le bloc n est pas un graphe lisible.
+ *
+ * Les trois formes acceptees par JSON-LD sont ramenees a une liste : un objet unique, un
+ * tableau d objets, ou un objet portant `@graph`. Rendre `null` plutot que `[]` distingue
+ * « je n ai pas su lire » de « il n y a rien dedans » — deux verdicts qui envoient a des
+ * gestes opposes.
+ */
+export function noeudsJsonLd(contenu) {
+  let valeur;
+  try {
+    valeur = JSON.parse(contenu);
+  } catch {
+    return null;
+  }
+  if (Array.isArray(valeur)) return valeur.filter((n) => typeof n === 'object' && n !== null);
+  if (typeof valeur !== 'object' || valeur === null) return null;
+  if (Array.isArray(valeur['@graph'])) {
+    return valeur['@graph'].filter((n) => typeof n === 'object' && n !== null);
+  }
+  return [valeur];
+}
+
+/** `true` quand le bloc declare le vocabulaire schema.org, sous l une de ses formes. */
+export function declareSchemaOrg(contenu) {
+  try {
+    const valeur = JSON.parse(contenu);
+    const contexte = Array.isArray(valeur)
+      ? valeur.map((n) => n?.['@context'])
+      : [valeur?.['@context']];
+    return contexte.some((c) => {
+      if (typeof c === 'string') return /^https?:\/\/schema\.org\/?$/i.test(c.trim());
+      if (typeof c === 'object' && c !== null) return Object.values(c).some((v) => typeof v === 'string' && /schema\.org/i.test(v));
+      return false;
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Les URL qu un graphe AFFIRME joignables : `url` et `item`, a toute profondeur.
+ *
+ * `@id` est volontairement exclu : c est un identifiant, souvent porteur d un fragment
+ * (`…/#organisation`) qui ne designe aucun fichier. `urlTemplate` l est aussi — celui du
+ * `SearchAction` porte un gabarit (`{search_term_string}`) et vise `/recherche`, qui
+ * releve du lot Pagefind (§5.4) et n est pas encore construit. Ce point-la est une dette
+ * NOMMEE, pas un oubli : il se refermera quand la page existera, sans rien changer ici.
+ */
+export function urlsDuGraphe(valeur, trouvees = new Set()) {
+  if (Array.isArray(valeur)) {
+    for (const entree of valeur) urlsDuGraphe(entree, trouvees);
+    return trouvees;
+  }
+  if (typeof valeur !== 'object' || valeur === null) return trouvees;
+  for (const [cle, sous] of Object.entries(valeur)) {
+    if ((cle === 'url' || cle === 'item') && typeof sous === 'string') trouvees.add(sous);
+    else urlsDuGraphe(sous, trouvees);
+  }
+  return trouvees;
+}
+
+/**
  * Les deux grandeurs de la bande de titre d une image : la hauteur des glyphes dessines,
  * sur laquelle la garde DECIDE, et l ecart-type des pixels, qu elle ne fait que rapporter.
  *
@@ -262,7 +353,17 @@ export async function mesurerBandeTitre(fichier) {
  * @param {string} origine URL publique du site (`ECHO_SITE_URL`).
  */
 export async function inspecterSeo(dist, origine) {
-  const vide = { manquements: [], issue: ISSUES.CONFORME, pagesIndexables: 0, urlsSitemap: 0, liensFlux: 0, imagesOg: 0, segments: 0 };
+  const vide = {
+    manquements: [],
+    issue: ISSUES.CONFORME,
+    pagesIndexables: 0,
+    pagesIndexablesAvecJsonLd: 0,
+    noeudsStructures: 0,
+    urlsSitemap: 0,
+    liensFlux: 0,
+    imagesOg: 0,
+    segments: 0,
+  };
 
   /* AVANT TOUT : la reference. Ce fichier portait la variante la plus silencieuse des
      trois — `hote !== null && absolue.origin !== hote` DESACTIVE le test d origine en
@@ -480,10 +581,97 @@ export async function inspecterSeo(dist, origine) {
     }
   }
 
+  /* --- 8. Les donnees structurees du §5.1, EXERCEES AU POINT DE LECTURE -------------
+     Le critere du §1 dit « 100 % des pages indexables portent un JSON-LD valide ». Il ne
+     se lit ni dans le layout ni dans `src/lib/seo/donnees-structurees.ts` : un layout qui
+     oublierait d appeler la fonction, une page qui court-circuiterait le layout, une
+     valeur qui casserait le JSON a la serialisation ne se verraient QUE dans `dist/`.
+     C est donc ici que le critere se mesure — on compte les pages indexables, on compte
+     celles qui portent un graphe lisible, et on refuse tout ecart.
+
+     Le comptage est double a dessein : chaque page manquante est nommee, ET l ecart
+     global est affirme separement. Nommer sans compter laisserait passer un decompte
+     fausse par un `continue` ; compter sans nommer n enverrait nulle part. */
+  let pagesIndexablesAvecJsonLd = 0;
+  let noeudsStructures = 0;
+
+  for (const relatif of relatifs) {
+    if (!relatif.endsWith('.html')) continue;
+    const route = routeDuFichier(relatif);
+    const indexable = route !== null && noindexParRoute.get(route) === false;
+    const blocs = blocsJsonLd(fs.readFileSync(path.join(dist, relatif), 'utf8'));
+
+    if (blocs.length === 0) {
+      if (indexable) {
+        manquements.push(
+          `page indexable SANS donnees structurees : « ${route} » — §5.1, et critere du §1 ` +
+            '(« 100 % des pages indexables portent un JSON-LD valide »)',
+        );
+      }
+      continue;
+    }
+
+    let lisibles = 0;
+    for (const [rang, contenu] of blocs.entries()) {
+      const ou = `${relatif} : bloc JSON-LD ${rang + 1}/${blocs.length}`;
+      const noeuds = noeudsJsonLd(contenu);
+
+      if (noeuds === null) {
+        manquements.push(`${ou} — contenu illisible, JSON.parse le refuse : « ${contenu.trim().slice(0, 60)} »`);
+        continue;
+      }
+      if (noeuds.length === 0) {
+        manquements.push(`${ou} — graphe VIDE : un bloc valide et sans noeud ne declare rien`);
+        continue;
+      }
+      if (!declareSchemaOrg(contenu)) {
+        manquements.push(`${ou} — aucun « @context » schema.org : un graphe sans vocabulaire n est interprete par personne`);
+        continue;
+      }
+
+      const sansType = noeuds.filter((n) => n['@type'] === undefined || n['@type'] === null);
+      if (sansType.length > 0) {
+        manquements.push(`${ou} — ${sansType.length} noeud(s) sans « @type »`);
+        continue;
+      }
+
+      /* Les URL que le graphe AFFIRME joignables doivent l etre. Un `item` de fil
+         d Ariane ou une `image` qui ne resout pas ne casse aucune page et ne se
+         decouvre qu en Search Console — exactement le silence que ce fichier existe
+         pour rompre (meme raison que le controle 6 sur `og:image`). */
+      for (const url of urlsDuGraphe(noeuds)) {
+        const cible = cheminInterne(url);
+        if (cible === undefined) {
+          manquements.push(`${ou} — URL illisible « ${url} »`);
+          continue;
+        }
+        if (cible === null) continue; // un autre hote sort de la portee de ce fichier
+        if (!resout(cible)) {
+          manquements.push(`${ou} — le graphe declare « ${cible} », que dist/ ne contient pas`);
+        }
+      }
+
+      noeudsStructures += noeuds.length;
+      lisibles += 1;
+    }
+
+    if (lisibles > 0 && indexable) pagesIndexablesAvecJsonLd += 1;
+  }
+
+  if (pagesIndexablesAvecJsonLd !== pagesIndexables) {
+    manquements.push(
+      `couverture des donnees structurees : ${pagesIndexablesAvecJsonLd} page(s) indexable(s) ` +
+        `sur ${pagesIndexables} portent un JSON-LD lisible — le critere du §1 exige 100 %, ` +
+        `l ecart est de ${pagesIndexables - pagesIndexablesAvecJsonLd}`,
+    );
+  }
+
   return {
     manquements,
     issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
     pagesIndexables,
+    pagesIndexablesAvecJsonLd,
+    noeudsStructures,
     urlsSitemap: urlsSitemap.size,
     liensFlux,
     imagesOg,
@@ -495,6 +683,8 @@ export function resumeSeo(rapport) {
   return (
     `${rapport.urlsSitemap} URL au sitemap sur ${rapport.segments} segment(s), ` +
     `${rapport.pagesIndexables} page(s) indexable(s) toutes declarees, ` +
+    `${rapport.pagesIndexablesAvecJsonLd}/${rapport.pagesIndexables} portant un JSON-LD lisible ` +
+    `(${rapport.noeudsStructures} noeud(s) structure(s)), ` +
     `${rapport.liensFlux} lien(s) de flux, ${rapport.imagesOg} image(s) OG dont le titre est ` +
     `dessine a plus de ${HAUTEUR_MINIMALE_GLYPHES} px de haut.`
   );

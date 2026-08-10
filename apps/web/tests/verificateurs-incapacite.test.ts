@@ -79,7 +79,14 @@ function fichiersSeo(loc: string): Record<string, string> {
         '<meta property="og:title" content="t"><meta property="og:description" content="d">' +
         `<meta property="og:type" content="website"><meta property="og:url" content="${ORIGINE}/">` +
         '<meta property="og:locale" content="fr_FR">' +
-        `<meta property="og:image" content="${ORIGINE}/partage/a.png"><meta name="twitter:card" content="summary">`,
+        `<meta property="og:image" content="${ORIGINE}/partage/a.png"><meta name="twitter:card" content="summary">` +
+        /* Depuis le controle 8 (§5.1), une page INDEXABLE sans donnees structurees est un
+           manquement. Ce squelette est le temoin SAIN du verificateur SEO : il doit donc
+           en porter, sinon la preuve d incapacite rougirait pour une autre raison que la
+           sienne — et un banc qui rougit a cote de sa cible ne prouve plus rien. */
+        '<script type="application/ld+json">' +
+        '{"@context":"https://schema.org","@graph":[{"@type":"WebPage","name":"t"}]}' +
+        '</script>',
       'x',
     ),
     'partage/a.png': 'octets',

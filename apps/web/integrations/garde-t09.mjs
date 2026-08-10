@@ -17,7 +17,13 @@
  *   - `astro:routes:resolved` → une route non prerendue (`prerender = false`), nommee par
  *     son fichier — c est la condition que T-09 dit invisible dans le fichier fautif ;
  *   - `astro:build:done`    → la sortie elle-meme (`inspecterSortie`) : JavaScript servi,
- *     balise `<script>`, attribut `on*=` inline, marqueurs de sortie serveur.
+ *     balise `<script>` executable, attribut `on*=` inline, marqueurs de sortie serveur.
+ *
+ * UNE SEULE EXCEPTION DE TYPE, ouverte le 2026-08-10 : `<script type="application/ld+json">`
+ * dont le CONTENU se parse en graphe JSON. §5.1 du cahier exige des donnees structurees,
+ * et il n existe pas d autre facon de les servir. Le type seul n ouvre rien — il dit ce
+ * que l auteur pretend, pas ce que le navigateur executera : `manquementsScripts` de
+ * `scripts/verifier-sortie.mjs` exige les deux, et ses tests exercent le tunnel deguise.
  *
  * Une exception lancee dans un hook fait echouer `astro build`, qui sort en code NON NUL.
  * C est la seule chose qui compte : le deploiement Coolify s arrete la.

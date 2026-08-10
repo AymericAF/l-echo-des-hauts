@@ -20,12 +20,15 @@ import sharp from 'sharp';
 
 import {
   HAUTEUR_MINIMALE_GLYPHES,
+  blocsJsonLd,
   inspecterSeo,
   estNoindex,
   liensDuFlux,
   locsDe,
   mesurerBandeTitre,
   metasDe,
+  noeudsJsonLd,
+  urlsDuGraphe,
 } from '../scripts/verifier-seo.mjs';
 import { CADRE_OG, dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
 
@@ -41,9 +44,42 @@ function distFactice(fichiers: Record<string, string | Buffer>): string {
   return racine;
 }
 
-/** Une page HTML complete au sens de la garde : partage minimal + canonique unique. */
-function page(chemin: string, options: { noindex?: boolean; ogImage?: string; sansCanonique?: boolean } = {}): string {
+/**
+ * Un bloc JSON-LD minimal mais COMPLET au sens du controle 8 : vocabulaire declare, un
+ * noeud type, aucune URL a faire resoudre.
+ */
+function jsonLd(chemin: string): string {
+  return (
+    '<script type="application/ld+json">' +
+    JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [{ '@type': 'WebPage', name: chemin }],
+    }) +
+    '</script>'
+  );
+}
+
+/**
+ * Une page HTML complete au sens de la garde : partage minimal, canonique unique, et —
+ * depuis le controle 8 — ses donnees structurees. `sansJsonLd` et `jsonLdBrut` existent
+ * pour fabriquer les defauts que ce controle est cense voir.
+ */
+function page(
+  chemin: string,
+  options: {
+    noindex?: boolean;
+    ogImage?: string;
+    sansCanonique?: boolean;
+    sansJsonLd?: boolean;
+    jsonLdBrut?: string;
+  } = {},
+): string {
   const url = `${ORIGINE}${chemin}`;
+  const structure = options.jsonLdBrut !== undefined
+    ? `<script type="application/ld+json">${options.jsonLdBrut}</script>`
+    : options.sansJsonLd
+      ? ''
+      : jsonLd(chemin);
   return (
     '<!doctype html><html lang="fr"><head><title>t</title>' +
     (options.sansCanonique ? '' : `<link rel="canonical" href="${url}">`) +
@@ -54,6 +90,7 @@ function page(chemin: string, options: { noindex?: boolean; ogImage?: string; sa
     `<meta property="og:url" content="${url}">` +
     (options.ogImage ? `<meta property="og:image" content="${options.ogImage}">` : '') +
     '<meta name="twitter:card" content="summary">' +
+    structure +
     '</head><body>x</body></html>'
   );
 }
@@ -433,4 +470,136 @@ test('les extracteurs lisent ce qu ils doivent lire, et rien de plus', () => {
   assert.equal(estNoindex('<meta name="robots" content="noindex, follow">'), true);
   assert.equal(estNoindex('<meta name="robots" content="index, follow">'), false);
   assert.equal(estNoindex('<p>noindex est un mot du texte</p>'), false);
+});
+
+// --- 8. les donnees structurees du §5.1 — un controle qui ne rougit jamais ne prouve rien
+
+test('le temoin sain porte bien ses donnees structurees, sur 100 % des pages indexables', async () => {
+  const rapport = await inspecter();
+  assert.equal(rapport.pagesIndexablesAvecJsonLd, rapport.pagesIndexables);
+  assert.equal(rapport.pagesIndexablesAvecJsonLd, 2);
+  assert.ok(rapport.noeudsStructures > 0);
+});
+
+test('une page indexable SANS JSON-LD est un manquement, et l ecart est affirme a part', async () => {
+  const rapport = await inspecter({
+    'article/a/index.html': page('/article/a', { ogImage: `${ORIGINE}/og/fr/a.png`, sansJsonLd: true }),
+  });
+  assert.ok(rapport.manquements.some((m) => /SANS donnees structurees.*\/article\/a/.test(m)));
+  // Le second membre : nommer la page ne suffit pas, le compte doit le dire aussi.
+  assert.ok(
+    rapport.manquements.some((m) => /couverture des donnees structurees : 1 .* sur 2 .*ecart est de 1/.test(m)),
+  );
+  assert.equal(rapport.pagesIndexablesAvecJsonLd, 1);
+});
+
+test('une page NOINDEX sans JSON-LD ne remonte rien : le critere porte sur les indexables', async () => {
+  const rapport = await inspecter({
+    'mentions-legales/index.html': page('/mentions-legales', { noindex: true, sansJsonLd: true }),
+  });
+  assert.deepEqual(rapport.manquements, []);
+});
+
+test('un JSON-LD que JSON.parse refuse est un manquement', async () => {
+  const rapport = await inspecter({
+    'index.html': page('/', { ogImage: `${ORIGINE}/og/fr/a.png`, jsonLdBrut: '{"@type": ' }),
+  });
+  assert.ok(rapport.manquements.some((m) => /contenu illisible/.test(m)));
+  assert.ok(rapport.manquements.some((m) => /couverture des donnees structurees/.test(m)));
+});
+
+test('un graphe VIDE est un manquement : valide, et sans une seule information', async () => {
+  const rapport = await inspecter({
+    'index.html': page('/', {
+      ogImage: `${ORIGINE}/og/fr/a.png`,
+      jsonLdBrut: '{"@context":"https://schema.org","@graph":[]}',
+    }),
+  });
+  assert.ok(rapport.manquements.some((m) => /graphe VIDE/.test(m)));
+});
+
+test('un graphe sans @context schema.org est un manquement : personne ne l interprete', async () => {
+  const rapport = await inspecter({
+    'index.html': page('/', { ogImage: `${ORIGINE}/og/fr/a.png`, jsonLdBrut: '{"@type":"WebPage"}' }),
+  });
+  assert.ok(rapport.manquements.some((m) => /@context/.test(m)));
+});
+
+test('un noeud sans @type est un manquement', async () => {
+  const rapport = await inspecter({
+    'index.html': page('/', {
+      ogImage: `${ORIGINE}/og/fr/a.png`,
+      jsonLdBrut: '{"@context":"https://schema.org","@graph":[{"name":"sans type"}]}',
+    }),
+  });
+  assert.ok(rapport.manquements.some((m) => /sans « @type »/.test(m)));
+});
+
+test('une URL du graphe qui ne resout pas dans dist/ est un manquement', async () => {
+  // Un `item` de fil d Ariane mort ne casse aucune page et ne se decouvre qu en Search
+  // Console : c est le meme silence que le controle 6 ferme sur `og:image`.
+  const rapport = await inspecter({
+    'index.html': page('/', {
+      ogImage: `${ORIGINE}/og/fr/a.png`,
+      jsonLdBrut: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'A', item: `${ORIGINE}/` },
+              { '@type': 'ListItem', position: 2, name: 'B', item: `${ORIGINE}/rubrique/disparue` },
+            ],
+          },
+        ],
+      }),
+    }),
+  });
+  assert.ok(rapport.manquements.some((m) => /\/rubrique\/disparue.*dist\/ ne contient pas/.test(m)));
+});
+
+test('une URL du graphe vers un AUTRE hote sort de la portee, sans manquement', async () => {
+  const rapport = await inspecter({
+    'index.html': page('/', {
+      ogImage: `${ORIGINE}/og/fr/a.png`,
+      jsonLdBrut: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@graph': [{ '@type': 'Person', name: 'A', sameAs: ['https://www.linkedin.com/in/x'], url: 'https://ailleurs.invalid/p' }],
+      }),
+    }),
+  });
+  assert.deepEqual(rapport.manquements, []);
+});
+
+test('les trois formes d un bloc JSON-LD sont lues : objet, tableau, @graph', () => {
+  assert.equal(noeudsJsonLd('{"@type":"A"}')?.length, 1);
+  assert.equal(noeudsJsonLd('[{"@type":"A"},{"@type":"B"}]')?.length, 2);
+  assert.equal(noeudsJsonLd('{"@graph":[{"@type":"A"}]}')?.length, 1);
+  // « je n ai pas su lire » et « il n y a rien dedans » ne se confondent pas.
+  assert.equal(noeudsJsonLd('pas du json'), null);
+  assert.equal(noeudsJsonLd('42'), null);
+  assert.deepEqual(noeudsJsonLd('{"@graph":[]}'), []);
+});
+
+test('l extracteur de blocs ne retient QUE le type ld+json, quelle qu en soit la forme', () => {
+  assert.deepEqual(blocsJsonLd('<script type="application/ld+json">{}</script>'), ['{}']);
+  assert.deepEqual(blocsJsonLd("<script TYPE='Application/LD+JSON'>{}</script>"), ['{}']);
+  assert.deepEqual(blocsJsonLd('<script>{}</script>'), []);
+  assert.deepEqual(blocsJsonLd('<script type="application/json">{}</script>'), []);
+  assert.deepEqual(blocsJsonLd('<script type="module">{}</script>'), []);
+});
+
+test('urlsDuGraphe ramasse url et item a toute profondeur, jamais @id ni urlTemplate', () => {
+  // `@id` porte souvent un fragment (`…/#organisation`) qui ne designe aucun fichier, et
+  // `urlTemplate` porte un gabarit — les confronter a dist/ ferait rougir un site sain.
+  const trouvees = urlsDuGraphe([
+    {
+      '@type': 'WebSite',
+      '@id': 'https://a/#site',
+      url: 'https://a/',
+      potentialAction: { target: { urlTemplate: 'https://a/recherche?q={search_term_string}' } },
+    },
+    { '@type': 'BreadcrumbList', itemListElement: [{ item: 'https://a/x' }] },
+  ]);
+  assert.deepEqual([...trouvees].sort(), ['https://a/', 'https://a/x']);
 });

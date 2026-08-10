@@ -61,9 +61,173 @@ test('une balise <script> dans une page est refusee', () => {
   assert.match(rapport.manquements[0], /<script>/);
 });
 
-test('un <script type="application/ld+json"> reste refuse : il se lit dans dist, pas dans l intention', () => {
-  const html = '<html><head><script type="application/ld+json">{}</script></head></html>';
-  assert.equal(inspecterSortie(dist({ 'index.html': html })).manquements.length, 1);
+// --- Famille 2 bis : l EXCEPTION TYPEE du JSON-LD, et surtout sa BORNE ----------------
+//
+// §5.1 du cahier exige des donnees structurees sur toutes les pages indexables, et il
+// n existe qu une facon de les servir : un `<script type="application/ld+json">`. La
+// garde s ouvre donc — et c est le moment ou elle peut se percer.
+//
+// CE QUI REND L EXCEPTION SURE, ET QU AUCUN DES DEUX SEUL NE SUFFIT :
+//   1. le TYPE est compare EXACTEMENT a `application/ld+json` — aucun prefixe, aucun
+//      parametre MIME, aucune autre valeur ;
+//   2. le CONTENU est PARSE. Sans cela, `<script type="application/ld+json">alert(1)`
+//      passerait : le type ne dit pas ce que le navigateur executera, il dit ce que
+//      l auteur pretend. Un tunnel a JavaScript deguise, ouvert par la garde elle-meme.
+//
+// Ce bloc de tests est la preuve que l ouverture ne perce pas. Chaque cas refuse ici
+// etait accepte par une garde qui se contenterait de lire le `type`.
+
+const LD_VALIDE =
+  '{"@context":"https://schema.org","@type":"WebSite","name":"L Echo des Hauts"}';
+
+const pageLd = (attributs: string, contenu = LD_VALIDE): string =>
+  `<!DOCTYPE html><html lang="fr"><head><script${attributs}>${contenu}</script></head><body></body></html>`;
+
+test('un <script type="application/ld+json"> au contenu JSON valide est ACCEPTE', () => {
+  const rapport = inspecterSortie(dist({ 'index.html': pageLd(' type="application/ld+json"') }));
+  assert.deepEqual(rapport.manquements, []);
+});
+
+test('la comparaison du type est insensible a la casse', () => {
+  const rapport = inspecterSortie(dist({ 'index.html': pageLd(' TYPE="Application/LD+JSON"') }));
+  assert.deepEqual(rapport.manquements, []);
+});
+
+test('les espaces autour du type et de l egal sont normalises', () => {
+  const rapport = inspecterSortie(
+    dist({ 'index.html': pageLd(' type =  "  application/ld+json\n" ') }),
+  );
+  assert.deepEqual(rapport.manquements, []);
+});
+
+test('un JSON-LD en tableau, ou sur plusieurs lignes, reste accepte', () => {
+  const contenu = '[\n  {"@context":"https://schema.org","@type":"BreadcrumbList"}\n]';
+  const rapport = inspecterSortie(dist({ 'index.html': pageLd(' type="application/ld+json"', contenu) }));
+  assert.deepEqual(rapport.manquements, []);
+});
+
+test('LE TUNNEL DEGUISE — un type ld+json dont le contenu n est PAS du JSON est refuse', () => {
+  // C est le cas qui justifie de parser plutot que de lire l etiquette. Sans lui,
+  // l exception typee devient la porte d entree du JavaScript qu elle etait censee
+  // fermer : il suffit d ecrire le bon `type` au-dessus de n importe quel code.
+  const rapport = inspecterSortie(
+    dist({ 'index.html': pageLd(' type="application/ld+json"', 'alert(1)') }),
+  );
+  assert.equal(rapport.manquements.length, 1);
+  assert.match(rapport.manquements[0], /JSON/i);
+});
+
+test('LE TUNNEL DEGUISE — une IIFE sous etiquette ld+json est refusee', () => {
+  const rapport = inspecterSortie(
+    dist({ 'index.html': pageLd(' type="application/ld+json"', '(function(){document.cookie})()') }),
+  );
+  assert.equal(rapport.manquements.length, 1);
+});
+
+test('un ld+json vide est refuse : la chaine vide n est pas du JSON', () => {
+  assert.equal(inspecterSortie(dist({ 'index.html': pageLd(' type="application/ld+json"', '') })).manquements.length, 1);
+});
+
+test('un ld+json scalaire est refuse : un graphe est un objet ou un tableau', () => {
+  // `42` et `"alert(1)"` sont du JSON PARFAITEMENT valide. Ils sont inertes, donc sans
+  // danger — mais ils ne sont pas un graphe, et les accepter reviendrait a dire que la
+  // garde ne sait pas ce qu elle laisse passer.
+  assert.equal(inspecterSortie(dist({ 'index.html': pageLd(' type="application/ld+json"', '42') })).manquements.length, 1);
+  assert.equal(
+    inspecterSortie(dist({ 'index.html': pageLd(' type="application/ld+json"', '"alert(1)"') })).manquements.length,
+    1,
+  );
+});
+
+test('un ld+json non ferme est refuse : sans balise fermante, rien n a ete juge', () => {
+  const html = `<html><head><script type="application/ld+json">${LD_VALIDE}</head></html>`;
+  const rapport = inspecterSortie(dist({ 'index.html': html }));
+  assert.equal(rapport.manquements.length, 1);
+  assert.match(rapport.manquements[0], /fermee|fermante/i);
+});
+
+test('LA SORTIE PAR LA FERMETURE — un </script> a l interieur du JSON est refuse', () => {
+  // Une valeur de graphe qui contient litteralement `</script>` ferme la balise pour
+  // l analyseur du navigateur, et ce qui suit redevient du HTML — donc du JavaScript
+  // executable. Le JSON restant est tronque, donc invalide : la garde le voit.
+  const contenu = '{"@type":"Article","headline":"</script><script>alert(1)</script>"}';
+  const rapport = inspecterSortie(dist({ 'index.html': pageLd(' type="application/ld+json"', contenu) }));
+  assert.ok(rapport.manquements.length >= 1);
+});
+
+test('CE QUI DOIT CONTINUER A ECHOUER — les quatre types executables et le type absent', () => {
+  // La liste vient de la consigne d ouverture de la garde, mot pour mot. Chacun de ces
+  // quatre cas est un script que le navigateur EXECUTE.
+  for (const attributs of [
+    '',
+    ' type="module"',
+    ' type="text/javascript"',
+    ' type="application/javascript"',
+  ]) {
+    const rapport = inspecterSortie(dist({ 'index.html': pageLd(attributs, 'alert(1)') }));
+    assert.equal(rapport.manquements.length, 1, `accepte a tort : <script${attributs}>`);
+    assert.match(rapport.manquements[0], /script/i);
+  }
+});
+
+test('un type VOISIN de ld+json est refuse : la comparaison est exacte, pas par prefixe', () => {
+  // `application/json` n est pas `application/ld+json`, et surtout : un parametre MIME
+  // (`; charset=utf-8`) ou un suffixe arbitraire ne doivent pas suffire a entrer. Une
+  // comparaison par `startsWith` ou par expression reguliere laxiste passerait ici.
+  for (const type of [
+    'application/json',
+    'application/ld+jsonp',
+    'application/ld+json; charset=utf-8',
+    'xapplication/ld+json',
+    'application/ld + json',
+    'text/application/ld+json',
+  ]) {
+    const rapport = inspecterSortie(dist({ 'index.html': pageLd(` type="${type}"`) }));
+    assert.equal(rapport.manquements.length, 1, `accepte a tort : type="${type}"`);
+  }
+});
+
+test('un data-type ne se fait pas passer pour un type', () => {
+  const rapport = inspecterSortie(
+    dist({ 'index.html': pageLd(' data-type="application/ld+json"', 'alert(1)') }),
+  );
+  assert.equal(rapport.manquements.length, 1);
+});
+
+test('un attribut on*= sur la balise ld+json elle-meme reste refuse', () => {
+  // L exception porte sur le TYPE du script, jamais sur la balise entiere.
+  const rapport = inspecterSortie(
+    dist({ 'index.html': pageLd(' type="application/ld+json" onload="v()"') }),
+  );
+  assert.ok(rapport.manquements.some((m) => /evenement inline/.test(m)));
+});
+
+test('deux blocs ld+json valides sur une meme page sont acceptes, un troisieme fautif est vu', () => {
+  // Le second bloc ne doit pas etre avale par la lecture du premier : c est le defaut
+  // classique d une expression reguliere gloutonne, et il rendrait la garde aveugle a
+  // tout ce qui suit le premier JSON-LD de la page.
+  const html =
+    '<html><head>' +
+    `<script type="application/ld+json">${LD_VALIDE}</script>` +
+    `<script type="application/ld+json">${LD_VALIDE}</script>` +
+    '<script>alert(1)</script>' +
+    '</head></html>';
+  const rapport = inspecterSortie(dist({ 'index.html': html }));
+  assert.equal(rapport.manquements.length, 1);
+  assert.match(rapport.manquements[0], /<script>/);
+});
+
+test('un script executable CACHE derriere un premier bloc ld+json est vu', () => {
+  // Meme piege, pris par l autre bout : si la lecture du bloc ld+json consommait
+  // jusqu au DERNIER `</script>` de la page, le script du milieu disparaitrait.
+  const html =
+    '<html><head>' +
+    `<script type="application/ld+json">${LD_VALIDE}</script>` +
+    '<script type="text/javascript">document.write(1)</script>' +
+    '</head></html>';
+  const rapport = inspecterSortie(dist({ 'index.html': html }));
+  assert.equal(rapport.manquements.length, 1);
+  assert.match(rapport.manquements[0], /text\/javascript/);
 });
 
 // --- Famille 3 : un attribut d evenement inline ---------------------------------------

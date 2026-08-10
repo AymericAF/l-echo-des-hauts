@@ -39,6 +39,126 @@ const JS_EXEMPTE = /^(en\/)?pagefind\/[^/]+\.(js|mjs|cjs)$/;
 /** Marqueurs d une sortie serveur a la racine de `dist/` (§4.1 : aucune route serveur). */
 const MARQUEURS_SERVEUR = ['_worker.js', 'server', 'functions', '_routes.json'];
 
+/**
+ * LA SEULE VALEUR DE `type` QUI OUVRE LA GARDE — l exception du 2026-08-10.
+ *
+ * §5.1 du cahier exige des donnees structurees sur les pages indexables, et il n existe
+ * qu une facon de les servir : un `<script type="application/ld+json">`. La garde devait
+ * donc s ouvrir. Elle s ouvre sur une valeur EXACTE, jamais sur un prefixe : ni
+ * `application/json`, ni `application/ld+json; charset=utf-8`, ni rien qui la contienne.
+ * Un `startsWith` ou une expression reguliere laxiste ici rouvrirait le site entier.
+ *
+ * Ce que le type NE PROUVE PAS, et pourquoi il ne suffit jamais seul : il dit ce que
+ * l auteur PRETEND servir, pas ce que le navigateur executera. `type="application/ld+json"`
+ * pose au-dessus de `alert(1)` est un tunnel a JavaScript deguise, ouvert par la garde
+ * elle-meme. Le contenu est donc PARSE (`estGrapheJson` ci-dessous) : les deux conditions
+ * ensemble, jamais l une sans l autre.
+ */
+const TYPE_LD_JSON = 'application/ld+json';
+
+/**
+ * La valeur de l attribut `type` d une balise ouvrante, ou `null` s il n y en a pas.
+ *
+ * `\s` en tete est ce qui empeche `data-type="application/ld+json"` de se faire passer
+ * pour un `type` : le caractere qui precede y est un tiret, pas une espace. Les trois
+ * formes de valeur du HTML sont acceptees (guillemets, apostrophes, valeur nue), parce
+ * que refuser une forme legale reviendrait a juger le style plutot que le contenu.
+ */
+export function typeDeScript(attributs) {
+  const trouve = attributs.match(/\stype\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/i);
+  if (trouve === null) return null;
+  return trouve[1] ?? trouve[2] ?? trouve[3] ?? '';
+}
+
+/**
+ * Le type designe-t-il EXACTEMENT du JSON-LD ?
+ *
+ * « Comparaison exacte, insensible a la casse, espaces normalises » : `\n` et les
+ * espaces de bord ne changent pas une valeur d attribut, un espace INTERIEUR si
+ * (`application/ld + json` n est pas un type MIME). D ou le `trim` + collapse, puis
+ * l egalite stricte.
+ */
+export function estTypeLdJson(valeur) {
+  if (valeur === null) return false;
+  return valeur.trim().replace(/\s+/g, ' ').toLowerCase() === TYPE_LD_JSON;
+}
+
+/**
+ * Le contenu d un bloc ld+json est-il un GRAPHE ?
+ *
+ * Deux exigences, et la seconde n est pas de la coquetterie. `42` et `"alert(1)"` sont
+ * du JSON parfaitement valide : ils sont inertes, donc sans danger — mais les accepter
+ * reviendrait a dire que la garde ne sait pas ce qu elle laisse passer. Un graphe
+ * JSON-LD est un objet ou un tableau, toujours.
+ */
+export function estGrapheJson(contenu) {
+  try {
+    const valeur = JSON.parse(contenu);
+    return typeof valeur === 'object' && valeur !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Les manquements de TOUS les blocs `<script>` d une page.
+ *
+ * Lu bloc par bloc plutot que par une expression reguliere globale, pour une raison
+ * precise : une lecture gloutonne du premier `<script …>` jusqu au DERNIER `</script>`
+ * de la page avalerait tout ce qui se trouve entre les deux. Un script executable pose
+ * apres un premier JSON-LD legitime disparaitrait alors de la garde — et c est le
+ * placement le plus naturel pour quelqu un qui ajoute un traceur.
+ *
+ * @param {string} html
+ * @param {string} fichier Chemin relatif, pour nommer la page dans le message.
+ */
+export function manquementsScripts(html, fichier) {
+  const manquements = [];
+  const ouvrantes = /<script\b([^>]*)>/gi;
+  const minuscules = html.toLowerCase();
+
+  let ouvrante;
+  while ((ouvrante = ouvrantes.exec(html)) !== null) {
+    const attributs = ouvrante[1];
+    const type = typeDeScript(attributs);
+    const etiquette = type === null ? '<script>' : `<script type="${type.trim()}">`;
+
+    if (!estTypeLdJson(type)) {
+      manquements.push(
+        `balise ${etiquette} dans ${fichier}` +
+          (type === null ? '' : ' — seul « application/ld+json » est admis (§5.1)'),
+      );
+      continue;
+    }
+
+    const debut = ouvrantes.lastIndex;
+    const fin = minuscules.indexOf('</script', debut);
+    if (fin === -1) {
+      manquements.push(
+        `balise ${etiquette} non fermee dans ${fichier} : sans balise fermante, son contenu ` +
+          'n a pas ete juge — et un bloc que la garde ne lit pas est un bloc qui passe',
+      );
+      continue;
+    }
+
+    const contenu = html.slice(debut, fin);
+    if (!estGrapheJson(contenu)) {
+      manquements.push(
+        `balise ${etiquette} dans ${fichier} dont le contenu N EST PAS un graphe JSON : ` +
+          `« ${contenu.trim().slice(0, 60)} ». Le type dit ce que l auteur pretend servir, ` +
+          'pas ce que le navigateur executera — l exception typee ne doit pas devenir un ' +
+          'tunnel a JavaScript deguise.',
+      );
+    }
+
+    /* On reprend la lecture APRES la fermeture : ce qui est a l interieur d un bloc
+       ld+json valide n est pas du HTML, et ce qui suit doit rester inspecte. */
+    ouvrantes.lastIndex = fin;
+  }
+
+  return manquements;
+}
+
 function fichiersDe(dossier) {
   const trouves = [];
   for (const entree of fs.readdirSync(dossier, { withFileTypes: true })) {
@@ -95,14 +215,16 @@ export function inspecterSortie(dist) {
     manquements.push(`fichier JavaScript servi : ${fichier.relatif}`);
   }
 
-  // 2. Aucune balise <script> ni attribut d evenement inline, hors la page /recherche.
+  /* 2. Aucune balise <script> EXECUTABLE ni attribut d evenement inline, hors la page
+        /recherche. Depuis le 2026-08-10 la garde admet le seul `<script
+        type="application/ld+json">` au contenu PARSABLE (§5.1) — l ouverture et sa borne
+        vivent dans `manquementsScripts`, avec la raison pour laquelle le type ne suffit
+        jamais seul. */
   for (const fichier of tous) {
     if (!fichier.relatif.endsWith('.html')) continue;
     if (PAGES_EXEMPTEES.has(fichier.relatif)) continue;
     const html = fs.readFileSync(fichier.absolu, 'utf8');
-    if (/<script[\s>]/i.test(html)) {
-      manquements.push(`balise <script> dans ${fichier.relatif}`);
-    }
+    manquements.push(...manquementsScripts(html, fichier.relatif));
     const baliseFautive = balisesOuvrantes(html).find((b) => /\son[a-z]+\s*=/i.test(b));
     if (baliseFautive) {
       manquements.push(

@@ -31,13 +31,20 @@
  * ZERO JavaScript : aucune balise <script>, aucun composant hydrate.
  */
 import { getEntry } from 'astro:content';
-import type { Locale, Seo } from '../lib/domaine.ts';
+import type { Auteur, Locale, Media, Seo } from '../lib/domaine.ts';
 import { urlMedia } from '../lib/media.ts';
 import { libelles } from '../lib/i18n/libelles.ts';
-import { normaliserChemin } from '../lib/routes/chemins.ts';
+import { cheminAccueil, cheminIndex, normaliserChemin } from '../lib/routes/chemins.ts';
 import { contrepartie, type DescripteurPage } from '../lib/routes/contrepartie.ts';
 import { registreDuSite } from '../lib/routes/registre-site.ts';
 import { origineDuSite } from '../lib/seo/contexte-site.ts';
+import {
+  donneesStructurees,
+  serialiserJsonLd,
+  type EtapeFilAriane,
+  type ImageJsonLd,
+  type SujetJsonLd,
+} from '../lib/seo/donnees-structurees.ts';
 import { CHEMIN_FLUX } from '../lib/seo/flux.ts';
 import { cheminImageOg, texteAlternatifOg } from '../lib/seo/gabarit-og.ts';
 import { noindexDe } from '../lib/seo/indexation.ts';
@@ -155,6 +162,110 @@ const meta = metadonneesSeo({
    le verra : la page, elle, aura l air normale. */
 for (const avertissement of meta.avertissements) console.warn(`[seo] ${avertissement}`);
 
+/* ------------------------------------------------------------------------------------
+   LES DONNEES STRUCTUREES DU §5.1 — assemblees ici, CALCULEES par `donnees-structurees.ts`.
+
+   Ce bloc ne decide d aucun contenu de graphe : il RESOUT ce que la fonction pure ne peut
+   pas atteindre depuis un test — l entite d un index, la rubrique d un article, l URL
+   d une page voisine. Tout le reste (quel type sur quelle page, quelles proprietes, quoi
+   ecarter) vit dans le module et s exerce par `node --test`.
+
+   L INDEX SE LIT DANS LE REGISTRE, jamais reconstruit : le descripteur de page ne porte
+   qu un `documentId`, et le registre est le seul endroit qui sait ce qui est EMIS (T-04,
+   §10.3). Une page d index dont la contrepartie n existe pas ne doit pas etre citee.
+   ------------------------------------------------------------------------------------ */
+const absolue = (relatif: string): string => new URL(relatif, origine).href;
+
+const indexCourant =
+  page.genre === 'index' ? registre.index(locale, page.famille, page.documentId) : null;
+
+/** L image d un `Media` du modele, en URL absolue — un graphe se lit hors de sa page. */
+const imageJsonLd = (media: Media | null | undefined): ImageJsonLd | null =>
+  media ? { url: absolue(urlMedia(media)), largeur: media.largeur, hauteur: media.hauteur } : null;
+
+/* LE FIL D ARIANE — « BreadcrumbList sur toutes les pages profondes » (§5.1).
+   L accueil n en est pas une : son fil n aurait qu une marche. Sur une page d index
+   paginee, le fil est celui de la PAGE 1 — une page 2 n est pas un niveau de hierarchie,
+   et lui en inventer un ferait dire au graphe autre chose que ce que le site organise. */
+const filAriane: EtapeFilAriane[] = [];
+if (page.genre !== 'accueil') {
+  filAriane.push({ nom: mots.accueil, url: absolue(cheminAccueil(locale)) });
+
+  if (page.genre === 'article' && article !== null) {
+    const rubrique = registre.index(locale, 'categorie', article.categorie.documentId);
+    if (rubrique !== null) {
+      filAriane.push({
+        nom: rubrique.titre,
+        url: absolue(cheminIndex(locale, 'categorie', rubrique.slug, 1)),
+      });
+    }
+    filAriane.push({ nom: article.titre, url: absolue(chemin) });
+  } else if (page.genre === 'index' && indexCourant !== null) {
+    filAriane.push({
+      nom: indexCourant.titre,
+      url: absolue(cheminIndex(locale, page.famille, indexCourant.slug, 1)),
+    });
+  } else if (page.genre === 'statique') {
+    filAriane.push({ nom: titre, url: absolue(chemin) });
+  }
+}
+
+/* LE SUJET. `'aucun'` est un cas EXPLICITE, pas un trou : les pages etiquette et les
+   pages statiques sont profondes — elles portent donc leur fil d Ariane — mais le §5.1
+   ne leur demande aucun type. On ne lui en invente pas. */
+const sujet: SujetJsonLd = (() => {
+  if (page.genre === 'accueil') return { genre: 'accueil' };
+
+  if (page.genre === 'article' && article !== null) {
+    /* La page auteur n est pas toujours emise (§10.3) : sans elle, on garde le nom et on
+       laisse tomber l URL plutot que de publier un lien mort dans le graphe. */
+    const pageAuteur = registre.index(locale, 'auteur', article.auteur.documentId);
+    return {
+      genre: 'article',
+      titre: article.titre,
+      datePublication: article.datePublication,
+      dateModification: article.updatedAt,
+      image: imageJsonLd(article.imageCouverture),
+      auteur: {
+        nom: article.auteur.nom,
+        url: pageAuteur === null ? null : absolue(cheminIndex(locale, 'auteur', pageAuteur.slug, 1)),
+      },
+      rubrique: article.categorie.nom,
+      etiquettes: article.tags.map((etiquette) => etiquette.nom),
+    };
+  }
+
+  if (page.genre === 'index' && indexCourant !== null) {
+    if (page.famille === 'auteur') {
+      const auteurCourant = indexCourant.entite as Auteur;
+      return {
+        genre: 'auteur',
+        fonction: auteurCourant.fonction,
+        portrait: imageJsonLd(auteurCourant.photo),
+        reseaux: auteurCourant.reseaux.map((lien) => lien.url),
+      };
+    }
+    /* §5.1 nomme CATEGORIE et DOSSIER, pas etiquette. Le perimetre se pointe. */
+    if (page.famille === 'categorie' || page.famille === 'dossier') return { genre: 'collection' };
+  }
+
+  return { genre: 'aucun' };
+})();
+
+const graphe = donneesStructurees({
+  locale,
+  origine,
+  canonique: meta.canonique,
+  /* Le nom AFFICHE de la page : pour un index, celui de l entite — jamais le titre
+     suffixe « — Page 2 sur 3 », qui nommerait la pagination plutot que la rubrique. */
+  titre: indexCourant?.titre ?? titre,
+  description: indexCourant?.description ?? description,
+  nomSite: configuration?.nomSite ?? null,
+  logo: imageJsonLd(configuration?.logo),
+  filAriane,
+  sujet,
+});
+
 const fluxDeLaLocale = new URL(CHEMIN_FLUX[locale], origine).href;
 const sitemap = new URL(CHEMIN_SITEMAP_INDEX, origine).href;
 ---
@@ -178,6 +289,17 @@ const sitemap = new URL(CHEMIN_SITEMAP_INDEX, origine).href;
     <link rel="sitemap" type="application/xml" href={sitemap} />
     {meta.og.map((balise) => <meta property={balise.property} content={balise.content} />)}
     {meta.twitter.map((balise) => <meta name={balise.name} content={balise.content} />)}
+    {
+      /* §5.1 — LE SEUL `<script>` QUE CE SITE SERT, et la garde T-09 ne l admet qu a deux
+         conditions : le type EXACTEMENT `application/ld+json`, et un contenu qui se PARSE.
+         `is:inline` est obligatoire — sans lui Astro traite la balise comme un module a
+         empaqueter, et un fichier `.js` apparaitrait dans `dist/`, que la meme garde
+         refuserait. Le contenu est deja echappe par `serialiserJsonLd` : aucun chevron ne
+         subsiste, donc aucune saisie ne peut fermer la balise et redevenir du HTML. */
+      graphe && (
+        <script is:inline type="application/ld+json" set:html={serialiserJsonLd(graphe)} />
+      )
+    }
   </head>
   <body>
     <a class="lien-evitement" href="#contenu">{mots.allerAuContenu}</a>

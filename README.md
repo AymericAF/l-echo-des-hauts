@@ -62,8 +62,8 @@ commit hors `apps/` **~0,2 s**, aucun `node` lancé ; un fichier de test ciblé 
 Les 566 tests ci-dessus jugent des **arborescences fabriquées**. C'est utile et ce n'est pas la
 même chose que juger le site produit : `build.inlineStylesheets` peut repasser à `'auto'`, une
 intégration peut sortir d'`astro.config.mjs`, un composant peut cesser d'écrire ses dimensions —
-**les 566 tests restent verts**, et c'est le lecteur qui voit le défaut. Neuf scripts existent qui
-lisent, eux, la sortie d'un build réel.
+**les 566 tests restent verts**, et c'est le lecteur qui voit le défaut. Dix scripts existent qui
+lisent, eux, la sortie d'un build réel — **ou, pour le dernier, la réponse de la production**.
 
 ~~`apps/web/scripts/verifier-*` et `preuve-*` lisent un `dist/` réellement construit ou sortent
 sur le réseau. Les câbler rendrait le dispositif rouge en permanence faute d'infrastructure.~~
@@ -74,6 +74,14 @@ de substitution servi en `127.0.0.1`. **Aucun ne sort de la machine, aucun n'a b
 d'infrastructure.** Ils tournent donc à chaque `push`, dans le job `sortie` de
 `.github/workflows/gardes-du-code.yml`.
 
+**Une exception, et elle est délibérée : `verifier:en-tetes`.** Il *doit* sortir de la machine,
+parce que ce qu'il juge n'existe nulle part ailleurs que dans la réponse de la production — les
+en-têtes du §5.5 sont posés en labels Traefik sur l'application Coolify, et **n'ont aucun domicile
+dans ce dépôt**. Il n'est donc **ni branché dans le build ni dans le job `sortie`** : un
+vérificateur qui dépend d'un site en ligne rendrait le dispositif rouge sur une coupure réseau, et
+un rouge qui ne veut rien dire se fait ignorer. Il se lance à la main — et lui donner une cadence
+est un travail qui reste à faire.
+
 | Script | Ce qu'il lit | Ce qu'il attrape que les tests ne voient pas | Coût |
 |---|---|---|---|
 | `verifier:sortie` (T‑09) | `dist/` | un `.js` servi, un `<script>`, un `on…=`, une sortie serveur — **dans la sortie**, pas dans le code | ~7 ms |
@@ -82,6 +90,7 @@ d'infrastructure.** Ils tournent donc à chaque `push`, dans le job `sortie` de
 | `verifier:origine-medias` (T‑01) | `src`, `srcset`, `og:image`, `rel=icon` | une image d'origine étrangère, que la CSP servie **refuse** — déclarée, jamais peinte | ~9 ms |
 | `verifier:seo` (§5.2, §4.5) | sitemaps, flux, métas, PNG OG | une `<loc>` morte, une page indexable hors sitemap, une **vignette OG sans glyphes** | ~66 ms |
 | `verifier:styles-en-ligne` (§5.5) | le HTML émis | un bloc `<style>` ou un `style=` que `style-src 'self'` refuse — la page répond 200 et rend autre chose | ~9 ms |
+| `verifier:en-tetes` (§5.5) | la **réponse servie** par `echo.ayfiweb.fr` | la disparition des en-têtes de sécurité — arrivée le 2026-08-10, sans **aucun** signal : build vert, `200` partout, images et styles affichés, politique absente | ~1 s |
 | `preuve:rendu` | un build sur fixtures | que chaque page article rend les blocs que le banc lui pose, **les 8 types y compris**, et **dans chaque locale** — ce qu'aucune garde ne sait dire | 3,3 s |
 | `preuve:pagination` | un build sur corpus de recette | les **bornes** que le corpus éditorial n'atteint pas : page 2, catégorie à exactement 12, article non traduit | 4,9 s |
 | `preuve:encre-og` | le gabarit rastérisé deux fois | que le seuil de la garde OG **sépare encore** les deux populations (avec fontes / sans aucune fonte) | 1,5 s |

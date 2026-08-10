@@ -279,10 +279,31 @@ test('les six importent la convention du module dedie, aucun ne la redefinit', (
   }
 });
 
+/**
+ * LES VERIFICATEURS QUI NE JUGENT PAS LA SORTIE CONSTRUITE, et pourquoi ils ne peuvent pas
+ * entrer dans le tableau ci-dessus.
+ *
+ * Le tableau tient un invariant precis : « recois un chemin de `dist/`, distingue une
+ * sortie absente ou vide d une sortie fautive ». `verifier-en-tetes.mjs` ne recoit pas de
+ * chemin : son corpus est une REPONSE HTTP de la production, et sa raison d etre est
+ * exactement de voir ce qu aucune relecture de fichiers ne peut voir — la disparition, le
+ * 2026-08-10, des en-tetes poses en labels Traefik hors du depot. Le forcer dans le
+ * tableau demanderait de lui inventer un `dist/`, c est-a-dire de lui faire juger un objet
+ * qu il ne juge pas.
+ *
+ * IL RESTE TENU, mais par deux autres choses : la convention des trois issues est verifiee
+ * ici meme (import, pas de redefinition), et ses trois sens — conforme, anomalie,
+ * incapacite — sont exerces dans `garde-en-tetes-securite.test.ts`, sur ses propres
+ * entrees. Ce qui ne doit PAS arriver, et que la garde de couverture continue d empecher,
+ * c est qu un septieme verificateur de SORTIE apparaisse sans entrer dans le tableau.
+ */
+const HORS_TABLEAU = ['verifier-en-tetes.mjs'];
+
 test('couverture : tout scripts/verifier-*.mjs figure dans le tableau des six', () => {
   const surDisque = fs
     .readdirSync(path.join(RACINE, 'scripts'))
     .filter((f) => /^verifier-.+\.mjs$/.test(f))
+    .filter((f) => !HORS_TABLEAU.includes(f))
     .sort();
   const declares = VERIFICATEURS.map((v) => v.script).sort();
   assert.deepEqual(
@@ -290,6 +311,19 @@ test('couverture : tout scripts/verifier-*.mjs figure dans le tableau des six', 
     declares,
     'un verificateur echappe a la convention : ajoute-le au tableau de ce fichier',
   );
+});
+
+test('la liste des exceptions est VIVANTE, et chaque exception tient quand meme la convention', () => {
+  for (const script of HORS_TABLEAU) {
+    const chemin = path.join(RACINE, 'scripts', script);
+    /* Une exception qui survit au fichier qu elle exempte elargit le trou en silence : le
+       jour ou un verificateur de sortie prendrait ce nom, il entrerait par la porte
+       laissee ouverte. */
+    assert.equal(fs.existsSync(chemin), true, `${script} est exempte mais n existe pas`);
+    const source = fs.readFileSync(chemin, 'utf8');
+    assert.match(source, /from '\.\/issues\.mjs'/, `${script} n importe pas ./issues.mjs`);
+    assert.doesNotMatch(source, /VERIFICATION_IMPOSSIBLE\s*:/, `${script} redefinit la convention`);
+  }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════════════════

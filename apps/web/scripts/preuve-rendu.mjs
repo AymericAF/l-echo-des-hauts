@@ -143,9 +143,18 @@ function ecartsLiensSociaux(dist) {
  *   - Toute page emise porte le bloc dans son `<footer class="pied">`. Ce n est pas une
  *     preference : `PiedDePage.astro` le rend des que la Configuration existe, et le seed
  *     ECRIT la Configuration aux deux locales (`apps/cms/scripts/seed/seed.ts`, §4).
- *   - Les URL du bloc sont EXACTEMENT celles de la Configuration de la locale de la page,
- *     dans le meme ordre. `reseaux` est declare `i18n.localized: false` : les deux locales
- *     lisent la MEME liste. Un lien perdu, ajoute ou reordonne en anglais rougit ici.
+ *   - Les URL du bloc sont EXACTEMENT celles de la Configuration de la locale de REFERENCE
+ *     — le francais — dans le meme ordre, ET SUR TOUTE PAGE, quelle que soit sa locale.
+ *     `reseaux` est declare `i18n.localized: false` : les deux locales lisent la MEME
+ *     liste, la comparer a la reference n est donc pas un raccourci, c est la regle.
+ *
+ *     CE POINT A ETE MESURE, PAS SUPPOSE. Ce controle a d abord compare chaque page a la
+ *     Configuration DE SA LOCALE. Le 2026-08-10, la preuve en cassant a retire le lien
+ *     LinkedIn de `configuration-en.json` : les pages anglaises ont perdu le lien, le
+ *     controle est reste VERT — il lisait l attendu dans le fichier meme que le build
+ *     venait de consommer. Un controle qui derive son attendu de ce qu il controle ne
+ *     controle rien ; c est le defaut qu il etait cense fermer, revenu par sa propre
+ *     porte.
  *   - Les DEUX locales ont ete inspectees. Sans cette derniere ligne, un banc qui
  *     cesserait de servir l anglais rendrait ce controle vert sur zero page anglaise —
  *     c est exactement le defaut qu on ferme, et il reviendrait par la porte du controle.
@@ -167,12 +176,10 @@ function urlsDuPied(html) {
 }
 
 function ecartsPiedDePage(dist) {
-  const attendues = {};
-  for (const locale of ['fr', 'en']) {
-    const chemin = path.join(RACINE, 'tests', 'fixtures', `configuration-${locale}.json`);
-    if (!fs.existsSync(chemin)) continue;
-    attendues[locale] = JSON.parse(fs.readFileSync(chemin, 'utf8')).data.reseaux.map((r) => r.url);
-  }
+  /** La locale de REFERENCE, et elle seule — cf. l encadre ci-dessus. */
+  const attendu = JSON.parse(
+    fs.readFileSync(path.join(RACINE, 'tests', 'fixtures', 'configuration-fr.json'), 'utf8'),
+  ).data.reseaux.map((r) => r.url);
 
   const ecarts = [];
   const inspectees = { fr: 0, en: 0 };
@@ -182,12 +189,6 @@ function ecartsPiedDePage(dist) {
     if (!relatif.endsWith('.html')) continue;
 
     const locale = relatif === 'en.html' || relatif.startsWith('en/') ? 'en' : 'fr';
-    const attendu = attendues[locale];
-    if (attendu === undefined) {
-      ecarts.push(`aucune fixture de Configuration pour la locale « ${locale} » : rien a comparer`);
-      continue;
-    }
-
     const { pied, nomme, urls } = urlsDuPied(fs.readFileSync(path.join(dist, relatif), 'utf8'));
     inspectees[locale] += 1;
 
@@ -203,7 +204,7 @@ function ecartsPiedDePage(dist) {
     if (urls.join('|') !== attendu.join('|')) {
       ecarts.push(
         `${relatif} [${locale}] : reseaux du pied de page = [${urls.join(', ')}], ` +
-          `la Configuration ${locale} dit [${attendu.join(', ')}]`,
+          `la Configuration de reference (fr) dit [${attendu.join(', ')}]`,
       );
     }
   }

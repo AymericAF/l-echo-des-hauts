@@ -1,0 +1,112 @@
+# Le filet increvable des gardes du code.
+#
+# Le crochet local (.githooks/commit-msg) est immediat mais il a TROIS trous
+# assumes : il se contourne d'un `--no-verify`, il est ABSENT d'un clone frais
+# tant que `core.hooksPath = .githooks` n'y a pas ete pose a la main, et son
+# ciblage par graphe d'imports ne voit pas un fichier qu'aucun test n'atteint.
+# Ce workflow ferme les trois : il tourne chez GitHub, sur ce que le depot porte
+# reellement, sans dependre du poste ni d'un reglage local.
+#
+# IL LANCE TOUT, DELIBEREMENT. Le ciblage a un sens dans le crochet, ou il
+# achete la latence d'un commit ; ici il n'achete rien et coute une garantie :
+# un commit passe en `--no-verify`, ou un `git push` de plusieurs commits,
+# laisserait une regression dans un test que le DERNIER commit n'a pas
+# declenche. La ou le crochet demande « qu'est-ce qui a bouge ? »,
+# l'integration demande « est-ce que tout passe encore ? ».
+#
+# CE QUI N'EST PAS ICI, ET POURQUOI. Les scripts `apps/web/scripts/verifier-*` et
+# `preuve-*` ne sont PAS lances : ils lisent un `dist/` reellement construit, ou
+# sortent sur le reseau (site servi, instance Strapi). Les cabler ici les
+# rendrait rouges en permanence faute d'infrastructure — et un dispositif
+# toujours rouge n'est plus lu. Leur place est la recette (P3), sur
+# l'environnement en ligne, pas l'integration continue. Les TESTS, eux, sont
+# hermetiques : mesure du 2026-08-10 sur un clone frais, 566 tests, zero acces
+# reseau, zero infrastructure — d'ou leur presence ici.
+#
+# Cout mesure des deux suites reunies : ~3,0 s de calcul a chaud. La minute de
+# runner part en `npm ci`, pas en verification.
+
+name: Gardes du code
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  declenchement:
+    name: Le declenchement local est versionne, executable et branche
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Le crochet est en 100755 dans l index, et il appelle son declencheur
+        # Un crochet en 100644 est saute EN SILENCE hors Windows : le depot
+        # paraitrait garde et ne le serait pas. Et un crochet qui n'appelle plus
+        # son declencheur est une coquille. Les deux se lisent dans l'index,
+        # donc depuis un clone frais — le seul point de vue qui ne ment pas.
+        run: |
+          mode="$(git ls-files -s .githooks/commit-msg | cut -d' ' -f1)"
+          if [ "$mode" != "100755" ]; then
+            echo "ROUGE : .githooks/commit-msg absent de l index ou non executable (mode='$mode')"
+            exit 1
+          fi
+          git show :.githooks/commit-msg | grep -q 'outils/gardes-au-commit.js' || {
+            echo "ROUGE : .githooks/commit-msg n appelle plus outils/gardes-au-commit.js"
+            exit 1
+          }
+          echo "OK : .githooks/commit-msg 100755, et il appelle outils/gardes-au-commit.js"
+
+      - name: Le declencheur lui-meme se lance sans erreur
+        # Sur un arbre ou rien n'est indexe, il doit rendre 0 en n'ayant rien
+        # lance. Un declencheur qui plante ici plante a chaque commit.
+        run: node outils/gardes-au-commit.js
+
+      - name: Aucun fichier de test n est absent du `npm test` de son application
+        # Le `test` de package.json ENUMERE les fichiers. Un test ajoute dans
+        # tests/ mais oublie dans cette liste ne tournerait NULLE PART — ni au
+        # crochet, ni ici. C'est le trou que ce pas ferme, et il ne se voit
+        # autrement qu'en comptant a la main.
+        run: |
+          node -e '
+            const fs = require("fs");
+            let rouge = false;
+            for (const app of ["apps/web", "apps/cms"]) {
+              const pkg = JSON.parse(fs.readFileSync(app + "/package.json", "utf8"));
+              const listes = new Set(pkg.scripts.test.match(/tests\/[A-Za-z0-9._-]+\.test\.ts/g) || []);
+              const presents = fs.readdirSync(app + "/tests")
+                .filter((f) => f.endsWith(".test.ts"))
+                .map((f) => "tests/" + f);
+              const manquants = presents.filter((f) => !listes.has(f));
+              const fantomes = [...listes].filter((f) => !presents.includes(f));
+              if (manquants.length) { rouge = true; console.log("ROUGE " + app + " : absent du npm test -> " + manquants.join(", ")); }
+              if (fantomes.length) { rouge = true; console.log("ROUGE " + app + " : liste mais inexistant -> " + fantomes.join(", ")); }
+              if (!manquants.length && !fantomes.length) console.log("OK " + app + " : " + presents.length + " tests, tous lances par npm test");
+            }
+            process.exit(rouge ? 1 : 0);
+          '
+
+  tests:
+    name: ${{ matrix.app }} — la suite complete
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [apps/web, apps/cms]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: npm ci
+        working-directory: ${{ matrix.app }}
+        run: npm ci --no-audit --no-fund
+
+      - name: npm test
+        working-directory: ${{ matrix.app }}
+        run: npm test

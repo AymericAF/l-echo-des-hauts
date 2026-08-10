@@ -1,0 +1,68 @@
+#!/bin/sh
+# Declenchement des gardes de ce depot — les tests — AU MOMENT ou la regression
+# est introduite. Sans ce fichier, les 33 fichiers de test de `apps/web` et
+# `apps/cms` ne tournaient qu'a la main, quand quelqu'un y pensait : ils
+# gardaient par convention, pas par mecanisme. Et ce sont eux qui tiennent
+# l'origine des medias, les styles sortis du HTML, les fontes du build, les
+# liens et le SEO — c'est-a-dire ce qui se voit chez le lecteur.
+#
+# POURQUOI `commit-msg` ET PAS `pre-commit` — `.githooks/pre-commit` appartient
+# au LOT COMMUN de detection de secrets, propage sur 37 depots et compare
+# empreinte par empreinte (~/.claude/.githooks/EMPREINTES.txt). Y ajouter une
+# seule ligne ferait diverger cette copie de sa source ; et au premier
+# `verifier-alignement.mjs --corriger`, la source ecraserait la copie — la garde
+# des tests disparaitrait sans bruit. `commit-msg` est un hook git DISTINCT,
+# absent du lot : il compose au lieu d'ecraser. Il tourne APRES `pre-commit`,
+# donc la detection de secrets conserve la priorite, et un commit qui porte un
+# secret est refuse avant meme que les tests ne soient consultes. Ce fichier
+# apparait dans le rapport d'alignement en « FICHIERS HORS LOT (signales, pas
+# comptes comme derive) » : c'est l'echappatoire prevue par le lot lui-meme pour
+# les hooks propres a un depot, et elle ne change pas son verdict.
+#
+# PRE-FILTRE EN SH, ET DELIBEREMENT STRUCTUREL — un crochet qui coute plusieurs
+# secondes se fait contourner en une semaine, et on perd tout, y compris ce qui
+# marchait. Un commit qui ne touche aucune application ne doit donc RIEN payer :
+# sans ce filtre, chaque commit paierait un demarrage de node pour n'avoir rien
+# a faire. Le filtre ne cite AUCUN nom de module : il reconnait la FORME
+# `apps/<application>/…`. La regle precise « quel fichier declenche quel test »
+# vit a UN SEUL endroit, `outils/gardes-au-commit.js`, et elle s'y DERIVE du
+# graphe d'imports plutot que de s'y ecrire : deux listes de noms finiraient par
+# diverger, et une entree oubliee serait un trou silencieux.
+#
+# CE QU'IL NE COUVRE PAS. Il se contourne d'un `--no-verify` et il n'existe pas
+# dans un clone frais tant que `core.hooksPath = .githooks` n'y a pas ete pose.
+# C'est `.github/workflows/gardes-du-code.yml` qui ferme les deux, en lancant
+# TOUT a chaque push.
+#
+# Enveloppe /bin/sh et resolution explicite de node : meme motif que le
+# `pre-commit` du lot, pour la meme raison — sous Git for Windows, un shebang
+# `#!/usr/bin/env node` ne resout pas toujours node selon le PATH du processus
+# appelant. On ECHOUE BRUYAMMENT si node manque : une garde qui s'efface quand
+# son moteur est absent ne garde rien.
+
+repo="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+touches="$(git diff --cached --name-only --diff-filter=ACMRD)"
+
+if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.githooks/commit-msg|outils/gardes-au-commit\.js)$'; then
+    echo "gardes du code : aucune application gardee dans ce commit — 0 test lance" >&2
+    exit 0
+fi
+
+if command -v node >/dev/null 2>&1; then
+    node "$repo/outils/gardes-au-commit.js"
+    exit $?
+fi
+
+for n in "/c/Program Files/nodejs/node.exe" "$LOCALAPPDATA/Programs/nodejs/node.exe"; do
+    if [ -x "$n" ]; then
+        "$n" "$repo/outils/gardes-au-commit.js"
+        exit $?
+    fi
+done
+
+echo "" >&2
+echo "COMMIT REFUSE : node est introuvable, les gardes du code n ont pas pu" >&2
+echo "s executer. Installe node — ne contourne pas : c'est precisement la garde" >&2
+echo "que ce commit toucherait." >&2
+exit 1

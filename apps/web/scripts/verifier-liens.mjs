@@ -30,6 +30,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { ISSUES } from './issues.mjs';
+import { lireOrigine } from './origine.mjs';
+
 /** Protocoles qui ne designent pas une page du site. */
 const HORS_PERIMETRE = /^(mailto:|tel:|javascript:|data:|#)/i;
 
@@ -79,11 +82,28 @@ function liensDe(html) {
  * @param {string} dist Chemin du repertoire de sortie.
  * @param {string} origine URL publique du site (`ECHO_SITE_URL`) : un lien absolu vers
  *   cette origine designe une page du site et doit donc aboutir.
- * @returns {{manquements: string[], routes: number, liens: number, fichiers: number}}
+ * @returns {{manquements: string[], issue: number, routes: number, liens: number, fichiers: number}}
  */
 export function inspecterLiens(dist, origine) {
+  const rien = { routes: 0, liens: 0, fichiers: 0 };
+
+  /* AVANT TOUT : la reference. Sans elle, tout lien absolu serait classe « externe,
+     hors garde » et la fonction rendrait un vert sur une sortie qu elle n a pas
+     regardee — 114 liens sur 425 le 2026-08-10, sans un mot. */
+  const lecture = lireOrigine(origine);
+  if (!lecture.lisible) {
+    return { manquements: [lecture.manquement], issue: lecture.issue, ...rien };
+  }
+  const hote = lecture.hote;
+
   if (!fs.existsSync(dist)) {
-    return { manquements: [`sortie absente : ${dist}`], routes: 0, liens: 0, fichiers: 0 };
+    /* Meme classe : la preuve n a pas eu lieu. Une sortie absente n est pas un site
+       sans lien mort, et ne doit pas rendre le meme code qu une anomalie. */
+    return {
+      manquements: [`sortie absente : ${dist}`],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      ...rien,
+    };
   }
 
   const tous = fichiersDe(dist).map((f) => path.relative(dist, f).split(path.sep).join('/'));
@@ -95,14 +115,6 @@ export function inspecterLiens(dist, origine) {
   /* Un lien peut viser un fichier servi qui n est pas une page : `/rss.xml`,
      `/favicon.svg`, `/sitemap-index.xml`. Ce sont des cibles valides. */
   const servis = new Set(tous.map((relatif) => `/${relatif}`));
-
-  const hote = (() => {
-    try {
-      return new URL(origine).origin;
-    } catch {
-      return null;
-    }
-  })();
 
   const manquements = [];
   let liens = 0;
@@ -119,7 +131,7 @@ export function inspecterLiens(dist, origine) {
       if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//')) {
         const absolue = (() => {
           try {
-            return new URL(href, hote ?? 'https://invalide.invalid');
+            return new URL(href, hote);
           } catch {
             return null;
           }
@@ -128,7 +140,11 @@ export function inspecterLiens(dist, origine) {
           manquements.push(`${relatif} : href illisible « ${href} »`);
           continue;
         }
-        if (hote === null || absolue.origin !== hote) continue; // lien externe : hors garde
+        /* Un lien REELLEMENT externe reste hors garde, et le reste en silence : c est
+           un lien sortant legitime, pas un defaut. Ce `continue`-la est correct — il ne
+           l etait plus quand `hote === null` le declenchait aussi, parce qu alors il ne
+           disait plus « ce lien est ailleurs » mais « je n ai pas su regarder ». */
+        if (absolue.origin !== hote) continue;
         chemin = normaliser(absolue.pathname);
       } else {
         // Relatif ou absolu-racine : resolu depuis la ROUTE de la page, pas depuis la racine.
@@ -146,7 +162,13 @@ export function inspecterLiens(dist, origine) {
     }
   }
 
-  return { manquements, routes: routes.size, liens, fichiers: tous.length };
+  return {
+    manquements,
+    issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
+    routes: routes.size,
+    liens,
+    fichiers: tous.length,
+  };
 }
 
 export function resumeLiens(rapport) {
@@ -159,10 +181,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const dist = process.argv[2] ?? path.join(racine, 'dist');
   const origine = process.argv[3] ?? process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
   const rapport = inspecterLiens(dist, origine);
+  if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+    console.error('⛔ VERIFICATION IMPOSSIBLE — aucun lien n a ete juge :');
+    for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+    process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+  }
   if (rapport.manquements.length > 0) {
     console.error(`✖ ${rapport.manquements.length} lien(s) mort(s) :`);
     for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
-    process.exit(1);
+    process.exit(ISSUES.ANOMALIE);
   }
   console.log(`✔ ${resumeLiens(rapport)}`);
 }

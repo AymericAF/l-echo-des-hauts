@@ -18,6 +18,7 @@
  */
 import { fileURLToPath } from 'node:url';
 
+import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
 import { inspecterOrigineMedias, resumeOrigineMedias } from '../scripts/verifier-origine-medias.mjs';
 
 const NOM = 'garde-origine-medias';
@@ -60,6 +61,9 @@ export default function gardeOrigineMedias() {
         // « absente » au lieu de la vraie, et rendrait vert sur zero image lue.
         const origine = process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
         const rapport = inspecterOrigineMedias(fileURLToPath(dir), origine);
+        if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+          throw erreurVerificationImpossible(NOM, rapport.manquements);
+        }
         if (rapport.manquements.length > 0) throw echec(rapport.manquements);
         logger.info(resumeOrigineMedias(rapport));
       },

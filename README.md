@@ -92,6 +92,18 @@ ligne de commande**, et ce n'est pas une redondance : le build ne les exerce que
 sont branchés** dans `astro.config.mjs`. Débrancher une ligne rend le build vert sur une sortie
 fautive ; ce second passage lit la même sortie par l'autre porte.
 
+**Trois issues, trois codes de sortie** — `0` vérifié et conforme, `1` vérifié et anomalie, `2`
+**vérification impossible** (`apps/web/scripts/issues.mjs`, convention reprise du parc). La
+troisième est la seule qui compte ici : sans elle, « je n'ai rien pu vérifier » rend le même code
+que « j'ai tout vérifié ». Mesuré le 2026-08-10 sur le `dist/` du dépôt, **avant** correctif, avec
+une origine vide : `verifier:liens` affichait `✔ 311 lien(s) interne(s)` au lieu de `✔ 425` — même
+coche, même code `0`, 114 liens absolus silencieusement retirés de la garde ; `verifier:seo`
+rendait une sortie **identique au caractère près**. Les trois vérificateurs qui ont besoin de
+l'origine du site (`liens`, `origine-medias`, `seo`) la lisent désormais par un seul module,
+`scripts/origine.mjs`, qui **déclare son incapacité** au lieu de rendre un `null` que l'appelant
+prenait pour « aucun lien interne à vérifier ». Un lien **réellement** externe, lui, reste hors
+garde et le reste en silence : c'est un lien sortant légitime, pas un défaut.
+
 **Pas dans le crochet local, et c'est mesuré** : les vérificateurs coûtent ~105 ms à eux six, mais
 le **build** coûte 3,3 s (17 pages) à 4,9 s (52 pages) — contre 0,2 à 3,0 s pour le crochet entier
 aujourd'hui. Un crochet à plusieurs secondes se fait contourner, après quoi on perd aussi ce qui

@@ -11,6 +11,7 @@
  */
 import { fileURLToPath } from 'node:url';
 
+import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
 import { inspecterSeo, resumeSeo } from '../scripts/verifier-seo.mjs';
 
 const NOM = 'garde-seo';
@@ -49,6 +50,9 @@ export default function gardeSeo() {
         // « absente » au lieu de la vraie.
         const origine = process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
         const rapport = await inspecterSeo(fileURLToPath(dir), origine);
+        if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+          throw erreurVerificationImpossible(NOM, rapport.manquements);
+        }
         if (rapport.manquements.length > 0) throw echec(rapport.manquements);
         logger.info(resumeSeo(rapport));
       },

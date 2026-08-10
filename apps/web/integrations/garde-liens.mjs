@@ -13,6 +13,7 @@
  */
 import { fileURLToPath } from 'node:url';
 
+import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
 import { inspecterLiens, resumeLiens } from '../scripts/verifier-liens.mjs';
 
 const NOM = 'garde-liens';
@@ -51,6 +52,13 @@ export default function gardeLiens() {
         // « absente » au lieu de la vraie.
         const origine = process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
         const rapport = inspecterLiens(fileURLToPath(dir), origine);
+        /* UNE INCAPACITE N EST PAS UNE ANOMALIE, et les deux messages n envoient pas au
+           meme endroit : « lien mort » envoie corriger le registre des routes, «
+           verification impossible » envoie corriger `ECHO_SITE_URL`. Le build echoue
+           dans les deux cas — jamais au vert sur ce qui n a pas ete regarde. */
+        if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+          throw erreurVerificationImpossible(NOM, rapport.manquements);
+        }
         if (rapport.manquements.length > 0) throw echec(rapport.manquements);
         logger.info(resumeLiens(rapport));
       },

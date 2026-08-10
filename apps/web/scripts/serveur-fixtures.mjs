@@ -20,25 +20,23 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ISSUES } from './issues.mjs';
+
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const FIXTURES = path.join(RACINE, 'tests', 'fixtures');
 
 export const COLLECTIONS = ['articles', 'auteurs', 'categories', 'tags', 'dossiers'];
 
 /**
- * TROIS ISSUES, TROIS CODES — la convention du parc, reprise et non reinventee
- * (`~/.claude/.githooks/verifier-alignement.mjs`, `~/.claude/check-alignement-deploiement.ps1`).
+ * TROIS ISSUES, TROIS CODES — 0 conforme, 1 anomalie, 2 verification impossible.
  *
- *   0  VERIFIE ET CONFORME     — la preuve a eu lieu, et rien ne cloche.
- *   1  VERIFIE ET ANOMALIE     — la preuve a eu lieu, et a trouve quelque chose.
- *   2  VERIFICATION IMPOSSIBLE — la preuve n a PAS eu lieu : une donnee de banc manque.
- *
- * La troisieme est la raison d etre de la convention. Sans elle, « je n ai rien pu
- * verifier » rend le meme code que « j ai tout verifie, tout va bien » — et c est
- * exactement ce qui s est mesure le 2026-08-10 sur `preuve-pagination.mjs` : la fixture
- * anglaise ecartee, la preuve rendait ses 57 constats verts et un code 0.
+ * La definition a DEMENAGE dans `./issues.mjs` le 2026-08-10, quand les six
+ * verificateurs s en sont servis a leur tour : trois d entre eux sont importes par
+ * `integrations/`, donc charges dans chaque build reel, et un build de production n a
+ * rien a faire d un Strapi de substitution. Elle est REEXPORTEE ici pour qu aucun
+ * appelant n ait a bouger — une seule definition, un seul domicile.
  */
-export const ISSUES = { CONFORME: 0, ANOMALIE: 1, VERIFICATION_IMPOSSIBLE: 2 };
+export { ISSUES };
 
 /**
  * Un media de substitution, servi sur `/uploads/…` comme le provider local de Strapi.

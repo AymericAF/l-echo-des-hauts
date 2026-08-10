@@ -41,6 +41,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { ISSUES } from './issues.mjs';
+import { lireOrigine } from './origine.mjs';
 import { normaliser, routeDuFichier } from './verifier-liens.mjs';
 
 /**
@@ -134,11 +136,30 @@ export function referencesDImages(html) {
 /**
  * @param {string} dist Chemin du repertoire de sortie.
  * @param {string} origine URL publique du site (`ECHO_SITE_URL`).
- * @returns {{manquements: string[], references: number, pages: number}}
+ * @returns {{manquements: string[], issue: number, references: number, pages: number}}
  */
 export function inspecterOrigineMedias(dist, origine) {
+  const rien = { references: 0, pages: 0 };
+
+  /* AVANT TOUT : la reference. Sans elle, ce fichier ne rendait pas un vert mais une
+     FAUSSE ACCUSATION — 44 manquements le 2026-08-10, chacun denoncant
+     `https://echo.ayfiweb.fr`, notre propre origine, comme « hote hors du site ». Le
+     nom denonce venait de `https://invalide.invalid`, une base fabriquee. C est la
+     meme faute que le laissez-passer des deux autres : une incapacite rendue sous la
+     forme d une reponse plausible — ici un verdict rouge, qui envoie corriger un site
+     sain. */
+  const lecture = lireOrigine(origine);
+  if (!lecture.lisible) {
+    return { manquements: [lecture.manquement], issue: lecture.issue, ...rien };
+  }
+  const hote = lecture.hote;
+
   if (!fs.existsSync(dist)) {
-    return { manquements: [`sortie absente : ${dist}`], references: 0, pages: 0 };
+    return {
+      manquements: [`sortie absente : ${dist}`],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      ...rien,
+    };
   }
 
   const tous = fichiersDe(dist).map((f) => path.relative(dist, f).split(path.sep).join('/'));
@@ -148,14 +169,6 @@ export function inspecterOrigineMedias(dist, origine) {
     if (route !== null) routes.add(route);
   }
   const servis = new Set(tous.map((relatif) => `/${relatif}`));
-
-  const hote = (() => {
-    try {
-      return new URL(origine).origin;
-    } catch {
-      return null;
-    }
-  })();
 
   const manquements = [];
   let references = 0;
@@ -178,7 +191,7 @@ export function inspecterOrigineMedias(dist, origine) {
       if (/^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//')) {
         const absolue = (() => {
           try {
-            return new URL(url, hote ?? 'https://invalide.invalid');
+            return new URL(url, hote);
           } catch {
             return null;
           }
@@ -187,7 +200,7 @@ export function inspecterOrigineMedias(dist, origine) {
           manquements.push(`${relatif} → ${position} : URL illisible « ${url} »`);
           continue;
         }
-        if (hote === null || absolue.origin !== hote) {
+        if (absolue.origin !== hote) {
           manquements.push(
             `${relatif} → ${position} « ${url} » : hote ${absolue.origin}, hors du site. ` +
               `La CSP servie (« ${DIRECTIVE} ») REFUSE cette image dans le navigateur — ` +
@@ -213,7 +226,12 @@ export function inspecterOrigineMedias(dist, origine) {
     }
   }
 
-  return { manquements, references, pages };
+  return {
+    manquements,
+    issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
+    references,
+    pages,
+  };
 }
 
 /** Le compte rendu au vert, en une ligne. */
@@ -230,10 +248,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const dist = process.argv[2] ?? path.join(racine, 'dist');
   const origine = process.argv[3] ?? process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
   const rapport = inspecterOrigineMedias(dist, origine);
+  if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+    console.error('\n⛔ VERIFICATION IMPOSSIBLE — aucune reference d image n a ete jugee :');
+    for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+    process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+  }
   if (rapport.manquements.length > 0) {
     console.error(`\n✖ ${rapport.manquements.length} manquement(s) :`);
     for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
-    process.exit(1);
+    process.exit(ISSUES.ANOMALIE);
   }
   console.log(`✔ ${resumeOrigineMedias(rapport)}`);
 }

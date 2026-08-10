@@ -53,6 +53,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 
 import { TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
+import { ISSUES } from './issues.mjs';
+import { lireOrigine } from './origine.mjs';
 import { normaliser, routeDuFichier } from './verifier-liens.mjs';
 
 /** Les balises `<meta>` de partage qu on exige sur TOUTE page HTML. */
@@ -260,8 +262,21 @@ export async function mesurerBandeTitre(fichier) {
  * @param {string} origine URL publique du site (`ECHO_SITE_URL`).
  */
 export async function inspecterSeo(dist, origine) {
-  const vide = { manquements: [], pagesIndexables: 0, urlsSitemap: 0, liensFlux: 0, imagesOg: 0, segments: 0 };
-  if (!fs.existsSync(dist)) return { ...vide, manquements: [`sortie absente : ${dist}`] };
+  const vide = { manquements: [], issue: ISSUES.CONFORME, pagesIndexables: 0, urlsSitemap: 0, liensFlux: 0, imagesOg: 0, segments: 0 };
+
+  /* AVANT TOUT : la reference. Ce fichier portait la variante la plus silencieuse des
+     trois — `hote !== null && absolue.origin !== hote` DESACTIVE le test d origine en
+     entier quand l origine ne se lit pas. Toute URL, meme celle d un autre site,
+     redevenait alors « interne », et sa seule partie chemin etait confrontee a dist/.
+     Le 2026-08-10, sortie IDENTIQUE au caractere pres avec et sans origine valide :
+     `✔ 18 URL au sitemap sur 6 segment(s)…`, code 0. Succes et incapacite rendaient
+     litteralement la meme phrase. */
+  const lecture = lireOrigine(origine);
+  if (!lecture.lisible) return { ...vide, manquements: [lecture.manquement], issue: lecture.issue };
+
+  if (!fs.existsSync(dist)) {
+    return { ...vide, manquements: [`sortie absente : ${dist}`], issue: ISSUES.VERIFICATION_IMPOSSIBLE };
+  }
 
   const relatifs = fichiersDe(dist).map((f) => path.relative(dist, f).split(path.sep).join('/'));
   const routes = new Set();
@@ -271,27 +286,22 @@ export async function inspecterSeo(dist, origine) {
   }
   const servis = new Set(relatifs.map((relatif) => `/${relatif}`));
 
-  const hote = (() => {
-    try {
-      return new URL(origine).origin;
-    } catch {
-      return null;
-    }
-  })();
-
+  const hote = lecture.hote;
   const manquements = [];
 
   /** Le chemin d une URL du site, ou `null` si elle designe un autre hote. */
   const cheminInterne = (url) => {
     const absolue = (() => {
       try {
-        return new URL(url, hote ?? 'https://invalide.invalid');
+        return new URL(url, hote);
       } catch {
         return null;
       }
     })();
     if (absolue === null) return undefined; // illisible
-    if (hote !== null && absolue.origin !== hote) return null; // externe : hors garde
+    /* Un autre hote sort de la portee de ce fichier, et c est correct : ce `null`-la
+       dit « cette URL est ailleurs », il ne dit plus « je n ai pas su regarder ». */
+    if (absolue.origin !== hote) return null;
     return normaliser(absolue.pathname);
   };
 
@@ -454,7 +464,15 @@ export async function inspecterSeo(dist, origine) {
     }
   }
 
-  return { manquements, pagesIndexables, urlsSitemap: urlsSitemap.size, liensFlux, imagesOg, segments };
+  return {
+    manquements,
+    issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
+    pagesIndexables,
+    urlsSitemap: urlsSitemap.size,
+    liensFlux,
+    imagesOg,
+    segments,
+  };
 }
 
 export function resumeSeo(rapport) {
@@ -472,10 +490,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const dist = process.argv[2] ?? path.join(racine, 'dist');
   const origine = process.argv[3] ?? process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
   const rapport = await inspecterSeo(dist, origine);
+  if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+    console.error('\n⛔ VERIFICATION IMPOSSIBLE — aucune sortie SEO n a ete jugee :');
+    for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+    process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+  }
   if (rapport.manquements.length > 0) {
     console.error(`\n✖ ${rapport.manquements.length} manquement(s) :`);
     for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
-    process.exit(1);
+    process.exit(ISSUES.ANOMALIE);
   }
   console.log(`✔ ${resumeSeo(rapport)}`);
 }

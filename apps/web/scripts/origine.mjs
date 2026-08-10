@@ -49,8 +49,18 @@
  */
 import { ISSUES } from './issues.mjs';
 
-/** Nommer ce qui a ete recu — sans cela, on cherche un defaut de site la ou il y a un defaut de variable. */
-function decrire(origine) {
+/**
+ * Nommer ce qui a ete recu — sans cela, on cherche un defaut de site la ou il y a un
+ * defaut de variable.
+ *
+ * EXPORTE depuis le 2026-08-10 (tache e510a3f9) : le PRODUCTEUR de l origine
+ * (`src/lib/seo/origine-site.ts`) doit nommer la meme valeur, mais son message ne peut
+ * pas etre celui de `lireOrigine()` — « la verification n a pas eu lieu » decrit un
+ * verificateur, quand le producteur, lui, n a rien PRODUIT. Le morceau commun est
+ * exactement celui-ci, et rien de plus : deux `decrire()` finiraient par nommer la meme
+ * chaine vide de deux facons.
+ */
+export function decrire(origine) {
   if (origine === undefined) return 'valeur absente (undefined)';
   if (origine === null) return 'valeur nulle (null)';
   if (typeof origine !== 'string') return `valeur de type ${typeof origine}`;

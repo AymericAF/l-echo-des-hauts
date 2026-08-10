@@ -26,17 +26,19 @@ import type { Configuration, Locale } from '../domaine.ts';
 import { LOCALES_SITE } from '../routes/registre.ts';
 
 /**
- * L origine publique du site, sans slash final.
+ * L origine publique du site — elle vit dans `origine-site.ts` depuis le 2026-08-10.
  *
- * `Astro.site` vient de `astro.config.mjs`, qui la lit dans `ECHO_SITE_URL`. Le repli
- * n est pas une valeur inventee : c est la meme constante que celle du fichier de
- * configuration et de `integrations/garde-liens.mjs`, pour qu un build sans variable
- * d environnement produise un site coherent plutot qu un melange.
+ * ELLE A DEMENAGE POUR POUVOIR ETRE TESTEE. Ce module importe `astro:content` en tete,
+ * donc `node --test` ne peut pas le charger ; `origineDuSite` etait de ce fait le SEUL
+ * module SEO sans aucun test, et c est la qu un `??` laissait passer la chaine vide.
+ * Le decoupage applique ici est exactement celui que l en-tete de ce fichier decrit deja
+ * pour `metadonnees`, `sitemap`, `flux`, `robots` et `gabarit-og` — il manquait a
+ * l origine elle-meme.
+ *
+ * REEXPORTEE plutot que deplacee chez les appelants : une seule definition, aucun des
+ * six sites d appel a retoucher.
  */
-export function origineDuSite(site: URL | undefined): string {
-  const brute = site?.href ?? process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
-  return brute.replace(/\/+$/, '');
-}
+export { ORIGINE_PAR_DEFAUT, origineDuSite } from './origine-site.ts';
 
 let memoire: Promise<Map<Locale, Configuration | null>> | null = null;
 

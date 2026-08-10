@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { chargerCorpus } from '../scripts/seed/corpus.ts';
-import { verifierFormatCredit } from '../scripts/seed/credits.ts';
+import { SEPARATEUR, verifierFormatCredit } from '../scripts/seed/credits.ts';
 import { ErreurCorpus, MediaIntrouvable } from '../scripts/seed/erreurs.ts';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
@@ -404,6 +404,45 @@ test('les 94 medias VERSIONNES portent une ligne de credit au format, ayant droi
   }
   assert.deepEqual(horsFormat, []);
   assert.equal(corpus.medias.length, 94);
+});
+
+/* ------------------------------------------------------------------ */
+/* §13 point 4 — la licence des assets du depot, TRANCHEE le 2026-08-10 */
+/*                                                                      */
+/* Decision 90276751 d'Aymeric, branche (A) : CC0 1.0. Ce que ces deux   */
+/* tests gardent n'est PAS le format — le test ci-dessus s'en charge, et */
+/* la ligne tautologique « Œuvre du projet — Œuvre du projet » le        */
+/* passait sans broncher. Ils gardent le fait que la DECISION est        */
+/* appliquee : le second segment nomme une licence PUBLIABLE, et non le  */
+/* statut d'ayant droit recopie.                                         */
+/*                                                                      */
+/* Pourquoi un mecanisme et pas une relecture : la valeur vit dans un    */
+/* fichier de donnees de 94 entrees, qu'aucun test ne regardait au fond. */
+/* Une reecriture partielle du manifeste — 93 lignes changees sur 94 —   */
+/* ne ferait rougir strictement rien d'autre.                            */
+/* ------------------------------------------------------------------ */
+
+test('§13 point 4 applique : aucun media versionne ne porte le STATUT « Œuvre du projet » en licence', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const tautologiques = corpus.medias
+    .filter((m) => m.caption.split(` ${SEPARATEUR} `)[1]?.trim() === 'Œuvre du projet')
+    .map((m) => `${m.cle} : "${m.caption}"`);
+  assert.deepEqual(
+    tautologiques,
+    [],
+    'la ligne de credit repete l ayant droit au lieu de nommer une licence — ' +
+      'c est exactement ce que la decision 90276751 a tranche le 2026-08-10'
+  );
+});
+
+test('§13 point 4 applique : les 5 portraits d auteur portent « Œuvre du projet — CC0 1.0 », au caractere pres', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const portraits = corpus.medias.filter((m) => m.cle.startsWith('auteurs/'));
+  assert.equal(portraits.length, 5, '5 portraits d auteur au manifeste');
+  for (const portrait of portraits) {
+    // C'est la ligne PUBLIEE sous chaque portrait (§13 point 6b, option (ii)).
+    assert.equal(portrait.caption, 'Œuvre du projet — CC0 1.0', portrait.cle);
+  }
 });
 
 /* ------------------------------------------------------------------ */

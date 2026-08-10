@@ -22,11 +22,17 @@
  * POURQUOI LE CREDIT EST COMPOSE, ET NON RECOPIE. Le manifeste porte deja les
  * champs de la source (`ayantDroit`, `licence`, `modifications`). Composer la
  * ligne a partir d'eux fait de la source la SEULE origine du credit : le jour
- * ou la licence des assets du depot sera arretee (plan editorial §13, point 4 —
- * CC0 1.0 ou CC BY 4.0, decision d'Aymeric, NON PRISE a ce jour), une seule
- * valeur change et les 94 lignes suivent. Stocker la phrase toute faite en
- * ferait une seconde copie de la licence, a diverger — exactement ce que ce
- * depot corrige partout.
+ * ou la licence des assets du depot sera arretee (plan editorial §13, point 4),
+ * une seule valeur change et les 94 lignes suivent. Stocker la phrase toute
+ * faite en ferait une seconde copie de la licence, a diverger — exactement ce
+ * que ce depot corrige partout.
+ *
+ * CE PARI A ETE TENU, ET C'EST DESORMAIS UN FAIT PLUTOT QU'UNE PROMESSE. Le
+ * 2026-08-10, la decision `90276751` (branche A) a arrete la licence des assets
+ * du depot : **CC0 1.0**. Une seule valeur a change dans
+ * `data/medias/manifeste.json` — 94 occurrences du meme champ, aucune ligne de
+ * code, aucune migration — et les 94 credits publies sont passes du tautologique
+ * « Œuvre du projet — Œuvre du projet » a « Œuvre du projet — CC0 1.0 ».
  */
 
 /** Le separateur du §6.5 : tiret cadratin entoure d'une espace. */
@@ -40,9 +46,23 @@ const SEP = ` ${SEPARATEUR} `;
  * licence absente de cette liste n'est pas « a verifier », elle est refusee.
  *
  * `Œuvre du projet` y figure comme STATUT au sens du §6.2 : nous sommes
- * l'ayant droit, aucune attribution tierce n'est due. Ce n'est pas encore un
- * identifiant de licence publiable — c'est precisement l'objet du §13, point 4,
- * qui reste ouvert.
+ * l'ayant droit, aucune attribution tierce n'est due. Ce n'est PAS un
+ * identifiant de licence publiable, et il ne le devient pas : depuis le
+ * 2026-08-10 (§13 point 4 tranche, decision `90276751`), c'est `CC0 1.0` que le
+ * manifeste porte en `licence`, et `Œuvre du projet` ne vaut plus que comme
+ * premier segment — l'`ayantDroit`.
+ *
+ * IL RESTE EN LISTE BLANCHE, ET CE N'EST PAS UN OUBLI — mais la raison n'est
+ * pas celle qu'on suppose. VERIFIE plutot que deduit : cette liste n'est
+ * opposee qu'au SECOND segment ; l'ayant droit, lui, n'est controle que sur son
+ * caractere non vide (`verifierFormatCredit`, ci-dessous). L'en retirer ne
+ * casserait donc AUCUN des 94 medias. Il y reste parce que la garde n'est pas
+ * l'objet de la decision du §13 point 4 : celle-ci arrete une VALEUR, pas un
+ * mecanisme. Retirer `Œuvre du projet` de la liste blanche serait retrecir la
+ * garde, une question distincte qui appartient a Aymeric.
+ *
+ * Ce que la decision interdit est de le remettre en `licence`, et c'est garde
+ * par `tests/seed-corpus.test.ts` sur le corpus REEL — pas ici.
  */
 export const LICENCES_ADMISES = [
   'Œuvre du projet',

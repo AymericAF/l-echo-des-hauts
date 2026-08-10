@@ -46,7 +46,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ISSUES } from './issues.mjs';
+import { ISSUES, manquementCorpusVide } from './issues.mjs';
 
 /** Les deux seules valeurs qui expriment une intention (HTML `loading` sur `<img>`). */
 const CHARGEMENTS = new Set(['lazy', 'eager']);
@@ -100,9 +100,26 @@ export function inspecterImages(dist) {
     };
   }
 
-  const pages = fichiersDe(dist)
-    .map((f) => ({ absolu: f, relatif: path.relative(dist, f).split(path.sep).join('/') }))
-    .filter((f) => f.relatif.endsWith('.html'));
+  const tous = fichiersDe(dist).map((f) => ({
+    absolu: f,
+    relatif: path.relative(dist, f).split(path.sep).join('/'),
+  }));
+  const pages = tous.filter((f) => f.relatif.endsWith('.html'));
+
+  /* SECONDE INCAPACITE : `dist/` existe et ne porte pas une seule page. Jusqu au
+     2026-08-10 ce cas rendait « ✔ 0 image(s) sur 0 page(s) : dimensions explicites,
+     intention de chargement ecrite sur chacune » et le code `0` — la phrase du succes sur
+     un corpus inexistant. Le declencheur est « zero PAGE inspectee », JAMAIS « zero image
+     trouvee » : une page sans `<img>` reste conforme, et le rester est vital — une garde
+     rouge en permanence est desarmee dans la semaine. Argument et message : `./issues.mjs`. */
+  if (pages.length === 0) {
+    return {
+      manquements: [manquementCorpusVide(dist, tous.length)],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      images: 0,
+      pages: 0,
+    };
+  }
 
   const manquements = [];
   let images = 0;

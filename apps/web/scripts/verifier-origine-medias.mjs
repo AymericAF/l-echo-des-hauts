@@ -41,7 +41,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ISSUES } from './issues.mjs';
+import { ISSUES, manquementCorpusVide } from './issues.mjs';
 import { lireOrigine } from './origine.mjs';
 import { normaliser, routeDuFichier } from './verifier-liens.mjs';
 
@@ -163,6 +163,21 @@ export function inspecterOrigineMedias(dist, origine) {
   }
 
   const tous = fichiersDe(dist).map((f) => path.relative(dist, f).split(path.sep).join('/'));
+
+  /* SECONDE INCAPACITE : `dist/` existe et ne porte pas une seule page. Jusqu au
+     2026-08-10 ce cas rendait « ✔ 0 reference(s) d image sur 0 page(s) : toutes servies
+     par le site ou en data:, toutes presentes dans la sortie » et le code `0` — la
+     formulation exacte du defaut du 2026-08-08, mais cette fois sur zero page. Le
+     declencheur est « zero PAGE inspectee », JAMAIS « zero reference trouvee » : une page
+     sans media reste conforme. Argument et message : `./issues.mjs`. */
+  if (!tous.some((relatif) => relatif.endsWith('.html'))) {
+    return {
+      manquements: [manquementCorpusVide(dist, tous.length)],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      ...rien,
+    };
+  }
+
   const routes = new Set();
   for (const relatif of tous) {
     const route = routeDuFichier(relatif);

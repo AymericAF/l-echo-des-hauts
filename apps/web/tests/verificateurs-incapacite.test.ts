@@ -45,7 +45,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
-import { ISSUES } from '../scripts/issues.mjs';
+import { ISSUES, manquementCorpusVide } from '../scripts/issues.mjs';
 import { inspecterImages } from '../scripts/verifier-images.mjs';
 import { inspecterLiens } from '../scripts/verifier-liens.mjs';
 import { inspecterOrigineMedias } from '../scripts/verifier-origine-medias.mjs';
@@ -93,6 +93,12 @@ function fichiersSeo(loc: string): Record<string, string> {
  * verificateur-la, et rien de plus : la fonction, le script, une sortie conforme, une
  * sortie REELLEMENT fautive (le manquement propre a son objet), et le motif que son
  * message d anomalie doit continuer de porter.
+ *
+ * `objetVide` porte le PIEGE SYMETRIQUE : une sortie qui a de vraies pages, mais dans
+ * laquelle l objet propre du verificateur est LEGITIMEMENT absent (aucune image, aucun
+ * lien, aucune reference de media, aucun style en ligne). Ce cas-la doit rester VERT
+ * apres le correctif : le jour ou un correctif d incapacite le fait rougir, la preuve
+ * rougit en permanence, et une preuve rouge en permanence est une preuve morte.
  */
 const VERIFICATEURS: {
   nom: string;
@@ -100,6 +106,7 @@ const VERIFICATEURS: {
   inspecter: (dist: string, origine: string) => Promise<{ issue: number; manquements: string[] }>;
   conforme: Record<string, string>;
   fautif: Record<string, string>;
+  objetVide: Record<string, string>;
   motifAnomalie: RegExp;
 }[] = [
   {
@@ -108,6 +115,8 @@ const VERIFICATEURS: {
     inspecter: async (dist) => inspecterSortie(dist),
     conforme: { 'index.html': page('', '<p>x</p>'), '_astro/style.css': 'p{}' },
     fautif: { 'index.html': page('', '<p>x</p>'), 'app.js': 'alert(1)' },
+    // Une page reelle, et aucun fichier servi hors du HTML : rien a reprocher.
+    objetVide: { 'index.html': page('', '<p>x</p>') },
     motifAnomalie: /fichier JavaScript servi/i,
   },
   {
@@ -118,6 +127,8 @@ const VERIFICATEURS: {
       'index.html': page('', '<img src="/a.svg" width="10" height="10" loading="lazy" alt="x">'),
     },
     fautif: { 'index.html': page('', '<img src="/a.svg" alt="x">') },
+    // Une page sans une seule <img> : zero image jugee, et pourtant rien de fautif.
+    objetVide: { 'index.html': page('', '<p>aucune image sur cette page</p>') },
     motifAnomalie: /dimensions non explicites/i,
   },
   {
@@ -126,6 +137,8 @@ const VERIFICATEURS: {
     inspecter: async (dist, origine) => inspecterLiens(dist, origine),
     conforme: { 'index.html': page('', '<a href="/">accueil</a>') },
     fautif: { 'index.html': page('', '<a href="/nulle-part">mort</a>') },
+    // Une page sans un seul <a> ni <link> : zero lien juge, aucun lien mort.
+    objetVide: { 'index.html': page('', '<p>aucun lien sur cette page</p>') },
     motifAnomalie: /lien mort/i,
   },
   {
@@ -137,6 +150,8 @@ const VERIFICATEURS: {
       'medias/a.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
     },
     fautif: { 'index.html': page('', `<img src="${ETRANGERE}/a.jpg" alt="x">`) },
+    // Une page sans une seule reference d image : zero origine a juger.
+    objetVide: { 'index.html': page('', '<p>aucun media sur cette page</p>') },
     motifAnomalie: /hors du site/i,
   },
   {
@@ -145,6 +160,9 @@ const VERIFICATEURS: {
     inspecter: (dist, origine) => inspecterSeo(dist, origine),
     conforme: fichiersSeo(`${ORIGINE}/`),
     fautif: fichiersSeo(`${ETRANGERE}/`),
+    /* Le seul objet de ce verificateur qui peut manquer sans faute est la population
+       `og/*.png` : la sortie conforme n en porte aucune, et rend deja `0`. */
+    objetVide: fichiersSeo(`${ORIGINE}/`),
     motifAnomalie: /hors du site/i,
   },
   {
@@ -153,6 +171,8 @@ const VERIFICATEURS: {
     inspecter: async (dist) => inspecterStylesEnLigne(dist),
     conforme: { 'index.html': page('', '<p>x</p>') },
     fautif: { 'index.html': page('<style>p{color:red}</style>', '<p>x</p>') },
+    // Une page sans bloc <style> ni attribut style= : zero style juge, et c est conforme.
+    objetVide: { 'index.html': page('', '<p>aucun style en ligne</p>') },
     motifAnomalie: /bloc <style>/i,
   },
 ];
@@ -270,4 +290,236 @@ test('couverture : tout scripts/verifier-*.mjs figure dans le tableau des six', 
     declares,
     'un verificateur echappe a la convention : ajoute-le au tableau de ce fichier',
   );
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+ * LA CLASSE INVERSE, ET ELLE EST PIRE : `dist/` EXISTE ET NE CONTIENT AUCUNE PAGE.
+ *
+ * CE QUI S EST MESURE LE 2026-08-10, apres le commit 64614b7 et AVANT ce correctif, en
+ * lancant `node scripts/verifier-<v>.mjs <repertoire vide>` sur chacun des six :
+ *
+ *   sortie          -> 0  « ✔ 0 page(s) HTML, 0 fichier(s), 0.0 Kio : aucun JavaScript servi… »
+ *   images          -> 0  « ✔ 0 image(s) sur 0 page(s) : dimensions explicites… »
+ *   liens           -> 0  « ✔ 0 lien(s) interne(s) sur 0 route(s) : tous aboutissent dans dist/. »
+ *   origine-medias  -> 0  « ✔ 0 reference(s) d image sur 0 page(s) : toutes servies par le site… »
+ *   seo             -> 1  « sitemap index absent : sitemap-index.xml (§5.2…) »
+ *   styles-en-ligne -> 2  « aucune page HTML dans <dist> : la garde n a rien inspecte. »
+ *
+ * QUATRE COCHES VERTES SUR RIEN DU TOUT. Ce n est plus « un rouge qui se trompe de cause »
+ * — la classe fermee par 64614b7, ou personne n etait trompe sur le fond : ici une absence
+ * TOTALE de contenu produit le signal du succes. Et contrairement au defaut precedent, il
+ * n est PAS inerte pour l integration continue : le job `sortie` de
+ * `.github/workflows/gardes-du-code.yml` aplatit tout code non nul par `|| echec=1`, mais
+ * il n aplatit pas un zero. Un `dist/` vide passait la CI en vert sur quatre des six.
+ *
+ * OU LA FRONTIERE EST PLACEE, ET POURQUOI — c est la seule question de ce correctif.
+ * Un `dist/` vide est une INCAPACITE (code 2), pas une anomalie (code 1) :
+ *
+ *   1. AUCUN des six ne sait qu un build a eu lieu. Ils recoivent un CHEMIN
+ *      (`process.argv[2]`, defaut `apps/web/dist`) et n observent jamais la construction.
+ *      Un repertoire est vide parce que rien n a ete construit, parce que l artefact
+ *      d integration continue n a pas ete restaure, parce qu un pas de nettoyage l a
+ *      recree, ou parce que ce n est pas le bon chemin. Rendre `1` — « le build a produit
+ *      du vide » — serait une INFERENCE sans preuve, servie comme un verdict sur le SITE :
+ *      exactement la faute de cause que ce depot a deja fermee deux fois (800a978, 64614b7).
+ *   2. `dist/` ABSENT et `dist/` VIDE sont le MEME etat de connaissance : zero page jugee.
+ *      L absent rend deja `2`. Faire dependre le code de l existence d un inode, et non de
+ *      ce qui a ete juge, ferait dire au meme constat deux choses differentes.
+ *   3. Le critere de la convention est le GESTE (`scripts/issues.mjs`) : `1` envoie corriger
+ *      le site, `2` envoie corriger l environnement. Personne, devant un `dist/` vide, ne
+ *      part editer un composant.
+ *   4. `1` s accompagne d une liste de « N manquement(s) » du site. Il n y en a aucun : le
+ *      rendre obligerait a FABRIQUER un manquement dont le site n est pas coupable.
+ *   5. Le choix ne coute rien a la CI (1 et 2 y sont aplatis sur le meme rouge) et rapporte
+ *      tout au lecteur en ligne de commande — recette, `queue-run`, poste d Aymeric.
+ *
+ * CE QUE LA FRONTIERE NE DOIT PAS EMPORTER, et que la famille 8 tient : un objet
+ * LEGITIMEMENT vide sur des pages REELLES (aucune image, aucun lien, aucun style) reste
+ * VERT. Declencher sur « zero image trouvee » plutot que sur « zero page inspectee »
+ * rendrait ces gardes rouges en permanence, et une preuve rouge en permanence est une
+ * preuve morte — desarmee dans la semaine.
+ * ═══════════════════════════════════════════════════════════════════════════════════════ */
+
+/** Un `dist/` qui EXISTE et ne contient rien du tout. */
+function distVide(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'echo-dist-vide-'));
+}
+
+// ── Famille 6 : `dist/` existe et est VIDE -> VERIFICATION IMPOSSIBLE, sur les six ────
+
+for (const v of VERIFICATEURS) {
+  test(`${v.nom} : un dist/ present mais VIDE est une INCAPACITE, jamais un vert`, async () => {
+    const vide = distVide();
+    assert.equal(fs.existsSync(vide), true, 'le repertoire doit EXISTER : c est tout le sujet');
+    assert.deepEqual(fs.readdirSync(vide), []);
+
+    const rapport = await v.inspecter(vide, ORIGINE);
+    assert.equal(rapport.issue, ISSUES.VERIFICATION_IMPOSSIBLE);
+    /* Le message doit NOMMER le corpus vide et le chemin : un `2` muet renvoie chercher
+       dans le mauvais objet aussi surement qu un `1`. */
+    assert.equal(rapport.manquements.length, 1);
+    assert.match(rapport.manquements[0], /aucune page HTML/i);
+    assert.ok(rapport.manquements[0].includes(vide));
+
+    const cli = enLigneDeCommande(v.script, vide, ORIGINE);
+    assert.equal(cli.status, ISSUES.VERIFICATION_IMPOSSIBLE, cli.stderr);
+    assert.match(cli.stderr, /VERIFICATION IMPOSSIBLE/i);
+    assert.doesNotMatch(cli.stdout, /✔/);
+
+    fs.rmSync(vide, { recursive: true, force: true });
+  });
+}
+
+// ── Famille 7 : `dist/` non vide mais SANS UNE SEULE PAGE -> meme incapacite ──────────
+
+for (const v of VERIFICATEURS) {
+  test(`${v.nom} : une sortie sans une seule page HTML est une INCAPACITE`, async () => {
+    /* Le cas le plus discret des deux : la sortie a des octets — un reste d assets, un
+       flux, une feuille de style — donc elle n a pas l air vide. Elle l est pour la garde. */
+    const dist = distFactice({ '_astro/style.css': 'p{}', 'rss.xml': '<rss version="2.0"/>' });
+    const rapport = await v.inspecter(dist, ORIGINE);
+    assert.equal(rapport.issue, ISSUES.VERIFICATION_IMPOSSIBLE);
+    assert.match(rapport.manquements[0], /aucune page HTML/i);
+    // Le message COMPTE ce qu il a trouve : « vide » et « 2 fichiers, aucun en .html »
+    // n envoient pas au meme endroit.
+    assert.match(rapport.manquements[0], /2 fichier/);
+
+    const cli = enLigneDeCommande(v.script, dist, ORIGINE);
+    assert.equal(cli.status, ISSUES.VERIFICATION_IMPOSSIBLE, cli.stderr);
+    fs.rmSync(dist, { recursive: true, force: true });
+  });
+}
+
+// ── Famille 8 : LE PIEGE SYMETRIQUE — un objet legitimement vide reste VERT ───────────
+
+for (const v of VERIFICATEURS) {
+  test(`${v.nom} : zero objet a juger sur des pages REELLES reste CONFORME`, async () => {
+    const dist = distFactice(v.objetVide);
+    const rapport = await v.inspecter(dist, ORIGINE);
+    assert.deepEqual(rapport.manquements, []);
+    assert.equal(
+      rapport.issue,
+      ISSUES.CONFORME,
+      'le correctif d incapacite ne doit pas rougir sur une absence LEGITIME',
+    );
+
+    const cli = enLigneDeCommande(v.script, dist, ORIGINE);
+    assert.equal(cli.status, ISSUES.CONFORME, cli.stderr);
+    assert.match(cli.stdout, /✔/);
+    fs.rmSync(dist, { recursive: true, force: true });
+  });
+}
+
+test('le piege symetrique, compteur par compteur : zero n est pas une faute', () => {
+  /* UNE SEULE page, sans image, sans lien, sans style, sans media. Les quatre compteurs
+     tombent a zero EN MEME TEMPS, et les cinq verificateurs concernes restent verts : ce
+     qui declenche l incapacite est « zero PAGE inspectee », jamais « zero trouvaille ». */
+  const dist = distFactice({ 'index.html': page('', '<p>une page, et rien a juger</p>') });
+
+  const images = inspecterImages(dist);
+  assert.equal(images.issue, ISSUES.CONFORME);
+  assert.equal(images.images, 0);
+  assert.equal(images.pages, 1);
+
+  const liens = inspecterLiens(dist, ORIGINE);
+  assert.equal(liens.issue, ISSUES.CONFORME);
+  assert.equal(liens.liens, 0);
+
+  const medias = inspecterOrigineMedias(dist, ORIGINE);
+  assert.equal(medias.issue, ISSUES.CONFORME);
+  assert.equal(medias.references, 0);
+  assert.equal(medias.pages, 1);
+
+  const styles = inspecterStylesEnLigne(dist);
+  assert.equal(styles.issue, ISSUES.CONFORME);
+  assert.equal(styles.blocs, 0);
+  assert.equal(styles.attributs, 0);
+
+  const sortie = inspecterSortie(dist);
+  assert.equal(sortie.issue, ISSUES.CONFORME);
+  assert.equal(sortie.pages, 1);
+
+  fs.rmSync(dist, { recursive: true, force: true });
+});
+
+// ── Famille 9 : le message du corpus vide a UN SEUL domicile ──────────────────────────
+
+test('les six importent le message du corpus vide, aucun ne le recopie', () => {
+  for (const v of VERIFICATEURS) {
+    const source = fs.readFileSync(path.join(RACINE, 'scripts', v.script), 'utf8');
+    assert.match(
+      source,
+      /manquementCorpusVide/,
+      `${v.nom} n appelle pas manquementCorpusVide de ./issues.mjs`,
+    );
+    /* Deux redactions de la meme incapacite finiraient par diverger, et le jour ou elles
+       divergent, un lecteur croit avoir affaire a deux etats differents. */
+    assert.doesNotMatch(
+      source.replace(/manquementCorpusVide/g, ''),
+      /aucune page HTML dans/,
+      `${v.nom} recopie le message au lieu de l importer`,
+    );
+  }
+});
+
+// ── Famille 10 : la frontiere exacte — l incapacite n EFFACE PAS une trouvaille ───────
+
+/* CE QUE LA PREMIERE ECRITURE DE CE CORRECTIF AVAIT CASSE, et qui a impose la regle
+   definitive. Placer le controle de corpus vide EN TETE des six faisait tomber six tests
+   de `garde-sortie.test.ts` : un `dist/` portant `_worker.js`, `app.js` ou `server/` et
+   AUCUNE page devenait « verification impossible », alors que le verificateur avait
+   parfaitement juge et parfaitement trouve. C etait le miroir exact du defaut qu on ferme
+   — « voici le defaut, nomme » degrade en « je n ai pas su regarder ».
+
+   LA REGLE EST DONC : NE JAMAIS RENDRE `0` SUR UN CORPUS VIDE. Le code de l ANOMALIE ne
+   bouge pas, et `verifier-sortie` est le seul des six concerne, parce qu il est le seul
+   dont une partie du jugement — fichiers JavaScript servis, marqueurs de sortie serveur —
+   se lit sur l ARBORESCENCE et reste vraie sans une seule page. */
+
+test('sortie : un manquement REEL sans aucune page reste une ANOMALIE, jamais une incapacite', () => {
+  for (const fautif of [
+    { '_worker.js': 'export default {}' },
+    { 'app.js': 'alert(1)' },
+    { 'server/entree.txt': 'x' },
+  ]) {
+    const dist = distFactice(fautif);
+    assert.equal(
+      fs.readdirSync(dist).length > 0 && !fs.existsSync(path.join(dist, 'index.html')),
+      true,
+    );
+
+    const rapport = inspecterSortie(dist);
+    assert.equal(rapport.pages, 0, 'le jeu ne porte volontairement aucune page');
+    assert.equal(rapport.issue, ISSUES.ANOMALIE, JSON.stringify(rapport.manquements));
+    assert.doesNotMatch(rapport.manquements.join('\n'), /aucune page HTML/i);
+
+    const cli = enLigneDeCommande('verifier-sortie.mjs', dist, ORIGINE);
+    assert.equal(cli.status, ISSUES.ANOMALIE, cli.stderr);
+    fs.rmSync(dist, { recursive: true, force: true });
+  }
+});
+
+test('seo : sur une sortie vide, le sitemap manquant n est plus accuse a la place du build', async () => {
+  /* Le seul des quatre a ne pas rendre un vert sur ce cas : il rendait `1`, « sitemap index
+     absent : sitemap-index.xml (§5.2) » — un code et un message qui envoyaient corriger le
+     SEO d un site dont aucune page n avait ete construite. Contrairement a `sortie`, AUCUN
+     controle de ce fichier n est independant du corpus : tous decrivent la surface des
+     pages produites. Sur zero page, « le sitemap manque » n est pas une trouvaille, c est
+     « rien n a ete construit » deguise en defaut de site. */
+  const vide = distVide();
+  const rapport = await inspecterSeo(vide, ORIGINE);
+  assert.equal(rapport.issue, ISSUES.VERIFICATION_IMPOSSIBLE);
+  assert.doesNotMatch(rapport.manquements.join('\n'), /sitemap index absent/i);
+  fs.rmSync(vide, { recursive: true, force: true });
+});
+
+test('manquementCorpusVide nomme le chemin, et distingue le vide du sans-HTML', () => {
+  const vide = manquementCorpusVide('/chemin/dist', 0);
+  assert.match(vide, /aucune page HTML dans/);
+  assert.ok(vide.includes('/chemin/dist'));
+  assert.match(vide, /vide/i);
+
+  const sansHtml = manquementCorpusVide('/chemin/dist', 7);
+  assert.match(sansHtml, /7 fichier/);
+  assert.doesNotMatch(sansHtml, /le repertoire est vide/i);
 });

@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ISSUES } from './issues.mjs';
+import { ISSUES, manquementCorpusVide } from './issues.mjs';
 
 /**
  * L exception `/recherche`, bornee au plus juste.
@@ -84,6 +84,7 @@ export function inspecterSortie(dist) {
     absolu: f,
     relatif: path.relative(dist, f).split(path.sep).join('/'),
   }));
+  const pagesHtml = tous.filter((f) => f.relatif.endsWith('.html'));
 
   const manquements = [];
 
@@ -117,10 +118,39 @@ export function inspecterSortie(dist) {
     }
   }
 
+  /* SECONDE INCAPACITE, ET ELLE EST PIRE QUE L ABSENCE : `dist/` existe et ne porte pas
+     une seule page. Jusqu au 2026-08-10 ce cas rendait
+     « ✔ 0 page(s) HTML, 0 fichier(s), 0.0 Kio : aucun JavaScript servi » et le code `0` —
+     une absence TOTALE de contenu produisant le signal du succes, que l integration
+     continue n aplatit PAS (elle n aplatit que le non-nul).
+
+     POURQUOI CE CONTROLE EST ICI, ET NON EN TETE COMME CHEZ LES CINQ AUTRES. Ce fichier est
+     le seul des six dont une partie du jugement ne vient PAS des pages : « aucun fichier
+     JavaScript servi » et « aucun marqueur de sortie serveur » se lisent sur l arborescence,
+     et restent vrais sans une seule page. Un `dist/` qui porte `_worker.js` et zero page a
+     donc bel et bien ete juge, et il a trouve : rendre `2` la-dessus DETRUIRAIT une
+     trouvaille reelle — « voici le defaut, nomme » deviendrait « je n ai pas su regarder »,
+     le miroir exact du defaut qu on ferme ici. L incapacite ne se declare donc que si rien
+     n a ete inspecte ET rien n a ete trouve. La regle exacte du correctif est : NE JAMAIS
+     RENDRE `0` SUR UN CORPUS VIDE — le code de l anomalie, lui, ne bouge pas.
+
+     Declencheur : « zero PAGE inspectee », jamais « zero trouvaille ». L argument du `2`
+     plutot que du `1` vit dans `./issues.mjs`, avec le message ; ni l un ni l autre n est
+     recopie ici. */
+  if (manquements.length === 0 && pagesHtml.length === 0) {
+    return {
+      manquements: [manquementCorpusVide(dist, tous.length)],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      pages: 0,
+      fichiers: tous.length,
+      octets: 0,
+    };
+  }
+
   return {
     manquements,
     issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
-    pages: tous.filter((f) => f.relatif.endsWith('.html')).length,
+    pages: pagesHtml.length,
     fichiers: tous.length,
     octets: tous.reduce((total, f) => total + fs.statSync(f.absolu).size, 0),
   };

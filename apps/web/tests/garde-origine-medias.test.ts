@@ -179,11 +179,22 @@ test('le manquement nomme la page ET la reference, sinon il est inexploitable a 
 });
 
 test('les fichiers qui ne sont pas du HTML sont ignores', () => {
+  /* LA PAGE HTML DE CE JEU N EST PAS DECORATIVE. Jusqu au 2026-08-10 ce test n en portait
+     aucune : il constatait « aucun manquement » sur un corpus de ZERO page, c est-a-dire le
+     vert que ce depot corrige — un `rss.xml` ignore et une sortie entierement vide rendaient
+     le meme verdict, et le test ne pouvait pas les distinguer. La page ci-dessous rend le
+     corpus reel ; l intention est inchangee : le `<img>` du flux n est pas inspecte, meme
+     quand il pointe un hote etranger. */
   const rapport = inspecterOrigineMedias(
-    dist({ 'rss.xml': '<img src="https://ailleurs.invalid/a.svg">' }),
+    dist({
+      'index.html': page('', '<p>une page reelle, sans media</p>'),
+      'rss.xml': '<img src="https://ailleurs.invalid/a.svg">',
+    }),
     ORIGINE,
   );
   assert.deepEqual(rapport.manquements, []);
+  assert.equal(rapport.references, 0);
+  assert.equal(rapport.pages, 1);
 });
 
 test('une sortie absente est un manquement, pas un silence vert', () => {

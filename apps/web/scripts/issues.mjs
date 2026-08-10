@@ -23,6 +23,49 @@
 export const ISSUES = { CONFORME: 0, ANOMALIE: 1, VERIFICATION_IMPOSSIBLE: 2 };
 
 /**
+ * Le manquement d une garde dont le CORPUS EST VIDE : `dist/` existe, et ne contient
+ * aucune page HTML.
+ *
+ * POURQUOI C EST UNE INCAPACITE (`2`) ET NON UNE ANOMALIE (`1`), decide le 2026-08-10.
+ * La question n a rien d evident — « le repertoire existe, donc quelque chose l a cree,
+ * donc le build a produit du vide, donc c est un defaut » se tient. Elle est tranchee
+ * ainsi pour quatre raisons :
+ *
+ *   1. AUCUN verificateur ne sait qu un build a eu lieu. Chacun recoit un CHEMIN et
+ *      n observe jamais la construction. Un repertoire est vide parce que rien n a ete
+ *      construit, parce qu un artefact n a pas ete restaure, parce qu un nettoyage l a
+ *      recree — ou parce que ce n est pas le bon chemin. Rendre `1` servirait une
+ *      inference sans preuve sous la forme d un verdict sur le SITE.
+ *   2. `dist/` absent et `dist/` vide sont le MEME etat de connaissance : zero page
+ *      jugee. L absent rend deja `2` ; faire dependre le code de l existence d un inode
+ *      plutot que de ce qui a ete juge ferait dire au meme constat deux choses.
+ *   3. Le critere de la convention est le GESTE : `1` envoie corriger le site, `2` envoie
+ *      corriger l environnement. Devant une sortie vide, le geste est le second.
+ *   4. `1` s accompagne d une liste de manquements du site. Il n y en a aucun — le rendre
+ *      obligerait a fabriquer une faute dont le site n est pas coupable.
+ *
+ * CE QU IL NE FAUT SURTOUT PAS EN DEDUIRE : le declencheur est « zero PAGE inspectee »,
+ * jamais « zero trouvaille ». Une page sans image, sans lien ou sans style est
+ * legitimement conforme ; rougir dessus rendrait ces gardes rouges en permanence, et une
+ * preuve rouge en permanence est une preuve morte.
+ *
+ * @param {string} dist Le chemin inspecte — il est NOMME, un `2` muet renvoie chercher
+ *   dans le mauvais objet aussi surement qu un `1`.
+ * @param {number} fichiers Le nombre de fichiers trouves : « le repertoire est vide » et
+ *   « 61 fichiers, aucun en .html » n envoient pas au meme endroit.
+ */
+export function manquementCorpusVide(dist, fichiers) {
+  return (
+    `aucune page HTML dans ${dist} : la garde n a rien inspecte ` +
+    (fichiers === 0
+      ? '(le repertoire est vide).'
+      : `(${fichiers} fichier(s) presents, aucun en .html).`) +
+    ' Un vert sur zero page ne prouve rien — soit la construction n a rien produit,' +
+    ' soit ce n est pas le chemin de la sortie.'
+  );
+}
+
+/**
  * L erreur qu une garde de build leve quand elle n a PAS PU verifier.
  *
  * Elle est SEPAREE du message d anomalie de chaque garde, et deliberement : « 44

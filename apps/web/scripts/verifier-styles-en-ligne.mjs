@@ -40,7 +40,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ISSUES } from './issues.mjs';
+import { ISSUES, manquementCorpusVide } from './issues.mjs';
 
 /** La directive citee dans un refus : c est elle qui bloque, dans le navigateur. */
 const DIRECTIVE = "style-src 'self'";
@@ -191,6 +191,26 @@ export function inspecterStylesEnLigne(dist) {
   }
 
   const tous = fichiersDe(dist).map((f) => path.relative(dist, f).split(path.sep).join('/'));
+
+  /* Zero page inspectee n est pas une preuve, c est une garde branchee sur le vide — le
+     mode d echec le plus discret d un controle : il rend vert sans avoir rien regarde.
+     CE CAS EST UNE INCAPACITE, pas un manquement du site. Ce verificateur etait le seul des
+     six a voir le cas et a en sortir en `2` ; ce qui change le 2026-08-10, c est que les
+     cinq autres l ont rejoint, que le CONTROLE PRECEDE desormais la lecture des styles
+     — il l annoncait deja, il la suivait — et que le MESSAGE n est plus redige ici mais
+     importe de `./issues.mjs`, seul domicile : deux redactions de la meme incapacite
+     finissent par diverger. Le declencheur reste « zero PAGE inspectee », jamais « zero
+     style trouve » : une page sans bloc `<style>` est exactement ce que la garde exige. */
+  if (!tous.some((relatif) => relatif.endsWith('.html'))) {
+    return {
+      manquements: [manquementCorpusVide(dist, tous.length)],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      pages: 0,
+      blocs: 0,
+      attributs: 0,
+    };
+  }
+
   const manquements = [];
   let pages = 0;
   let blocs = 0;
@@ -210,26 +230,6 @@ export function inspecterStylesEnLigne(dist) {
       attributs += 1;
       manquements.push(manquementAttribut(relatif, balise, valeur));
     }
-  }
-
-  /* Zero page inspectee n est pas une preuve, c est une garde branchee sur le vide — le
-     mode d echec le plus discret d un controle : il rend vert sans avoir rien regarde.
-     CE CAS EST UNE INCAPACITE, pas un manquement du site, et c est le SECOND endroit de ce
-     fichier ou la distinction se joue : ce verificateur etait le seul des six a voir le cas,
-     son message le nommait deja correctement — et il le rendait avec le code d une anomalie,
-     donc en envoyant corriger un site qui n a peut-etre rien. Il sort desormais en `2`, et
-     ce retour precede celui des styles : sur une sortie vide il n y a rien a juger. */
-  if (pages === 0) {
-    return {
-      manquements: [
-        `aucune page HTML dans ${dist} : la garde n a rien inspecte. ` +
-          'Un vert sur zero page ne prouve rien — verifier le chemin de la sortie.',
-      ],
-      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
-      pages,
-      blocs,
-      attributs,
-    };
   }
 
   return {

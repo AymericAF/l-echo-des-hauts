@@ -30,7 +30,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ISSUES } from './issues.mjs';
+import { ISSUES, manquementCorpusVide } from './issues.mjs';
 import { lireOrigine } from './origine.mjs';
 
 /** Protocoles qui ne designent pas une page du site. */
@@ -107,6 +107,21 @@ export function inspecterLiens(dist, origine) {
   }
 
   const tous = fichiersDe(dist).map((f) => path.relative(dist, f).split(path.sep).join('/'));
+
+  /* SECONDE INCAPACITE : `dist/` existe et ne porte pas une seule page. Jusqu au
+     2026-08-10 ce cas rendait « ✔ 0 lien(s) interne(s) sur 0 route(s) : tous aboutissent
+     dans dist/ » et le code `0` — une affirmation universelle sur l ensemble vide, servie
+     comme une preuve. Le declencheur est « zero PAGE inspectee », JAMAIS « zero lien
+     trouve » : une page sans `<a>` ni `<link>` reste conforme. Argument : `./issues.mjs`. */
+  if (!tous.some((relatif) => relatif.endsWith('.html'))) {
+    return {
+      manquements: [manquementCorpusVide(dist, tous.length)],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      ...rien,
+      fichiers: tous.length,
+    };
+  }
+
   const routes = new Set();
   for (const relatif of tous) {
     const route = routeDuFichier(relatif);

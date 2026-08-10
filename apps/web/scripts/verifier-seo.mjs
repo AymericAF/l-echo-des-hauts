@@ -53,7 +53,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 
 import { TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
-import { ISSUES } from './issues.mjs';
+import { ISSUES, manquementCorpusVide } from './issues.mjs';
 import { lireOrigine } from './origine.mjs';
 import { normaliser, routeDuFichier } from './verifier-liens.mjs';
 
@@ -279,6 +279,22 @@ export async function inspecterSeo(dist, origine) {
   }
 
   const relatifs = fichiersDe(dist).map((f) => path.relative(dist, f).split(path.sep).join('/'));
+
+  /* SECONDE INCAPACITE : `dist/` existe et ne porte pas une seule page. Ce fichier etait
+     le seul des quatre a ne pas rendre un vert sur ce cas — il rendait `1`, « sitemap
+     index absent : sitemap-index.xml (§5.2) », ce qui est pire qu inutile : le code et le
+     message envoyaient corriger le SEO d un site dont aucune page n avait ete construite.
+     C est la faute de cause deja fermee deux fois ici (800a978, 64614b7), et elle se
+     referme au meme endroit que les trois verts. Le declencheur est « zero PAGE
+     inspectee », jamais « zero URL au sitemap ». Argument et message : `./issues.mjs`. */
+  if (!relatifs.some((relatif) => relatif.endsWith('.html'))) {
+    return {
+      ...vide,
+      manquements: [manquementCorpusVide(dist, relatifs.length)],
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+    };
+  }
+
   const routes = new Set();
   for (const relatif of relatifs) {
     const route = routeDuFichier(relatif);

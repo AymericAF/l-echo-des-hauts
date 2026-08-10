@@ -1,0 +1,20 @@
+---
+/**
+ * `/recherche` (§4.2, §5.4). SEULE page du site autorisee a charger du JavaScript — la
+ * garde T-09 l exempte par son chemin EXACT (`recherche/index.html`), jamais par son
+ * sous-arbre. Une page enfant `/recherche/avancee` serait refusee par le build.
+ */
+import Base from '../layouts/Base.astro';
+import PageRecherche from '../components/pages/PageRecherche.astro';
+import { libelles } from '../lib/i18n/libelles.ts';
+
+const mots = libelles('fr');
+---
+
+<Base
+  titre={mots.recherche}
+  description={mots.rechercheIntro}
+  page={{ genre: 'statique', locale: 'fr', nom: 'recherche' }}
+>
+  <PageRecherche locale="fr" />
+</Base>

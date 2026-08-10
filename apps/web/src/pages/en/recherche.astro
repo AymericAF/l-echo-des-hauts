@@ -1,0 +1,24 @@
+---
+/**
+ * `/en/recherche` (§4.2, §5.4). Le miroir anglais de la seule page a JavaScript. Son
+ * chemin exact `en/recherche/index.html` est la seconde et derniere entree de l exemption
+ * de la garde T-09.
+ *
+ * Le segment reste `recherche` et ne se traduit pas : les chemins statiques du §4.2 sont
+ * les memes dans les deux locales (`cheminStatique`), a l inverse des slugs d entites,
+ * localises d office (A-06).
+ */
+import Base from '../../layouts/Base.astro';
+import PageRecherche from '../../components/pages/PageRecherche.astro';
+import { libelles } from '../../lib/i18n/libelles.ts';
+
+const mots = libelles('en');
+---
+
+<Base
+  titre={mots.recherche}
+  description={mots.rechercheIntro}
+  page={{ genre: 'statique', locale: 'en', nom: 'recherche' }}
+>
+  <PageRecherche locale="en" />
+</Base>

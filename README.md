@@ -24,11 +24,43 @@ ensemble de fichiers.
 apps/
   cms/    Strapi 5 — modèle de données, back-office, webhook de publication
   web/    Astro — site public, généré au build depuis l'API Strapi
+outils/   déclencheur des gardes au commit
 ```
 
 Les deux applications sont indépendantes : chacune a son `package.json`, ses dépendances et son
 cycle de vie. Il n'y a **pas** d'outil de monorepo (ni workspaces npm, ni Turborepo) — on installe
 et on lance chaque application depuis son propre dossier.
+
+## Les tests se lancent tout seuls — deux étages
+
+Les 33 fichiers de test des deux applications (566 tests) **ne dépendent plus de la mémoire de
+qui commite**. Une garde qu'il faut penser à lancer ne garde rien.
+
+- **`.githooks/commit-msg`** — local, immédiat, **ciblé**. Il n'écrit rien dans
+  `.githooks/pre-commit`, qui appartient au lot commun de détection de secrets propagé sur
+  d'autres dépôts : c'est un hook git **distinct**, qui tourne **après** lui. Un commit hors
+  `apps/…` ne paie **rien** (pré-filtre en `sh`, aucun démarrage de `node`). Sinon,
+  `outils/gardes-au-commit.js` matérialise le **contenu indexé** — jamais la copie de travail —
+  et ne lance que les tests dont une entrée est dans le commit.
+  **Il faut l'activer une fois par clone** : `git config core.hooksPath .githooks`.
+- **`.github/workflows/gardes-du-code.yml`** — GitHub Actions, tardif, **exhaustif**. Il lance
+  **tout** à chaque `push`, parce que le hook local se contourne d'un `--no-verify`, n'existe pas
+  dans un clone frais tant que `core.hooksPath` n'y est pas posé, et ne voit pas un fichier
+  qu'aucun test n'atteint.
+
+La règle « quel fichier déclenche quel test » ne s'écrit pas à la main : elle se **dérive** du
+graphe d'imports lu dans l'index. Seuls les fichiers qu'un test lit *par chemin* sans les importer
+sont déclarés, dans la table `LECTURES` d'`outils/gardes-au-commit.js`.
+
+**Ce qui n'est pas dans le dispositif, et pourquoi** : `apps/web/scripts/verifier-*` et `preuve-*`
+lisent un `dist/` réellement construit ou sortent sur le réseau. Les câbler ici les rendrait
+rouges en permanence faute d'infrastructure — et un dispositif toujours rouge n'est plus lu. Leur
+place est la recette, sur l'environnement en ligne.
+
+**Coût mesuré le 2026-08-10** (poste Windows, Git for Windows) — ajouté au `git commit` :
+commit hors `apps/` **~0,2 s**, aucun `node` lancé ; un fichier de test ciblé **~0,9 s** ;
+4 tests sur 8 **~1,1 s** ; les 33 fichiers **~3,0 s**. Les suites complètes, à chaud :
+`apps/web` 485 tests en ~1,8 s, `apps/cms` 81 tests en ~1,0 s.
 
 ## Prérequis
 

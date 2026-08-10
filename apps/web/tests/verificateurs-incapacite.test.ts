@@ -1,4 +1,11 @@
 /**
+ * ILS SONT SEPT DEPUIS LE 2026-08-11, ET NON PLUS SIX. `verifier-cascade-titres.mjs` a
+ * rejoint le tableau avec la garde du meme nom (defaut `heading-order`, campagne du
+ * 2026-08-10). Le texte ci-dessous CONSERVE son chiffre : il rapporte une mesure datee du
+ * 2026-08-10, qui portait bien sur six fichiers, et la reecrire ferait mentir la mesure.
+ * Le nombre reel se lit dans `VERIFICATEURS`, et la garde de couverture le tient — c est
+ * exactement ce qu elle a fait le 2026-08-11, en refusant le septieme non declare.
+ *
  * LES SIX VERIFICATEURS DISTINGUENT UNE INCAPACITE D UNE ANOMALIE — tous les six, et
  * partout dans leur propre code.
  *
@@ -46,6 +53,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { ISSUES, manquementCorpusVide } from '../scripts/issues.mjs';
+import { inspecterCascadeTitres } from '../scripts/verifier-cascade-titres.mjs';
 import { inspecterImages } from '../scripts/verifier-images.mjs';
 import { inspecterLiens } from '../scripts/verifier-liens.mjs';
 import { inspecterOrigineMedias } from '../scripts/verifier-origine-medias.mjs';
@@ -182,6 +190,17 @@ const VERIFICATEURS: {
     objetVide: { 'index.html': page('', '<p>aucun style en ligne</p>') },
     motifAnomalie: /bloc <style>/i,
   },
+  {
+    nom: 'cascade-titres',
+    script: 'verifier-cascade-titres.mjs',
+    inspecter: async (dist) => inspecterCascadeTitres(dist),
+    conforme: { 'index.html': page('', '<h1>a</h1><h2>b</h2><h3>c</h3>') },
+    // Le defaut MESURE le 2026-08-10, dans sa forme exacte : un h4 pose apres un h2.
+    fautif: { 'index.html': page('', '<h1>a</h1><h2>b</h2><h4>c</h4>') },
+    // Une page sans un seul titre : zero cascade jugee, et pourtant rien de fautif.
+    objetVide: { 'index.html': page('', '<p>aucun titre sur cette page</p>') },
+    motifAnomalie: /niveau\(x\) saute\(s\)/i,
+  },
 ];
 
 /** Lance le script en ligne de commande, exactement comme la recette le ferait. */
@@ -276,7 +295,7 @@ test('styles-en-ligne : zero page inspectee est une INCAPACITE, pas un manquemen
 
 // ── Famille 5 : la convention est IMPORTEE, jamais recopiee ───────────────────────────
 
-test('les six importent la convention du module dedie, aucun ne la redefinit', () => {
+test('tous importent la convention du module dedie, aucun ne la redefinit', () => {
   for (const v of VERIFICATEURS) {
     const source = fs.readFileSync(path.join(RACINE, 'scripts', v.script), 'utf8');
     assert.match(source, /from '\.\/issues\.mjs'/, `${v.nom} n importe pas ./issues.mjs`);
@@ -314,7 +333,7 @@ test('les six importent la convention du module dedie, aucun ne la redefinit', (
  */
 const HORS_TABLEAU = ['verifier-en-tetes.mjs', 'verifier-surface-publique.mjs'];
 
-test('couverture : tout scripts/verifier-*.mjs figure dans le tableau des six', () => {
+test('couverture : tout scripts/verifier-*.mjs figure dans le tableau', () => {
   const surDisque = fs
     .readdirSync(path.join(RACINE, 'scripts'))
     .filter((f) => /^verifier-.+\.mjs$/.test(f))
@@ -493,7 +512,7 @@ test('le piege symetrique, compteur par compteur : zero n est pas une faute', ()
 
 // ── Famille 9 : le message du corpus vide a UN SEUL domicile ──────────────────────────
 
-test('les six importent le message du corpus vide, aucun ne le recopie', () => {
+test('tous importent le message du corpus vide, aucun ne le recopie', () => {
   for (const v of VERIFICATEURS) {
     const source = fs.readFileSync(path.join(RACINE, 'scripts', v.script), 'utf8');
     assert.match(

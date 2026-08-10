@@ -6,6 +6,35 @@
  * sommaire — un encadre est un aparte, pas une etape de lecture. `RichTexte` recoit donc
  * `niveauMin={4}` et aucune ancre.
  *
+ * POURQUOI LE `titre` N EST PLUS UN TITRE DU TOUT (2026-08-11, tache 952429ea).
+ *
+ * Mesure : la campagne axe-core du 2026-08-10 n a trouve qu UNE regle violee sur tout le
+ * site, et l a trouvee 68 fois — `heading-order`, sur 34 URL (27 fr + 7 en), un noeud par
+ * page, toujours `<h4 class="bloc-encadre__titre">` pose juste apres un `<h2>`. Un niveau
+ * saute, et depuis que le corpus est passe a 48 articles, celui que le §3 du protocole
+ * designe pour la porte P2 porte lui aussi un encadre : la porte se joue dessus.
+ *
+ * Le reflexe — remonter ce `h4` en `h3` — DEFAIT A-21 au lieu du defaut : l arbitrage pose
+ * un PLAFOND de prominence (« h4 ou plus bas », §3.4 du modele), et rien au-dessus. Et
+ * comme le titre precedent est un `h2` de bloc texte, il n existe AUCUN niveau a la fois
+ * <= h4 et >= h2+1 : le correctif ne pouvait pas etre un changement de niveau.
+ *
+ * Ce qui est prescrit, et ce qui ne l est pas — verifie avant de toucher au rendu. §3.4
+ * du modele de donnees attache le plafond aux « titres SAISIS DANS `contenu` » ; la ligne
+ * `titre` de son tableau, elle, ne porte que « optionnel » et ne prescrit aucun rendu.
+ * Le niveau de CE champ-la est donc libre — le `h4` etait une extension d A-21, faite ici.
+ *
+ * Le champ `titre` sort donc du fil des titres : c est l ETIQUETTE de l aparte, pas une
+ * etape de lecture (l argument meme d A-21, qui l exclut du sommaire pour cette raison).
+ * Il devient le NOM ACCESSIBLE de l `<aside>` : la boite reste annoncee et atteignable
+ * comme region complementaire, ce que le `h4` apportait, sans peser sur la hierarchie.
+ * L apparence, elle, ne bouge pas d un pixel — la CSS ci-dessous reprend ce que la feuille
+ * de base donnait au `h4` (police de titre, graisse, interligne, marge, `text-wrap`).
+ *
+ * Ce qui reste tenu par ailleurs : `integrations/garde-cascade-titres.mjs` fait ECHOUER le
+ * build sur tout niveau saute, ou qu il naisse — y compris un titre saisi dans `contenu`,
+ * que ce fichier ne peut pas corriger.
+ *
  * La variante ne se distingue pas QUE par la couleur : chaque encadre porte un intitule
  * de nature en texte, reserve aux lecteurs d ecran. §9 exige zero avertissement
  * axe-core, et « ne pas vehiculer une information par la seule couleur » en fait partie.
@@ -26,9 +55,12 @@ const NATURE = {
 const { bloc } = Astro.props;
 ---
 
-<aside class:list={['bloc', 'bloc-encadre', `bloc-encadre--${bloc.variante}`]}>
+<aside
+  class:list={['bloc', 'bloc-encadre', `bloc-encadre--${bloc.variante}`]}
+  aria-label={bloc.titre ?? undefined}
+>
   <p class="hors-ecran">{NATURE[bloc.variante]}</p>
-  {bloc.titre && <h4 class="bloc-encadre__titre">{bloc.titre}</h4>}
+  {bloc.titre && <p class="bloc-encadre__titre">{bloc.titre}</p>}
   <RichTexte noeuds={bloc.contenu} niveauMin={4} />
 </aside>
 
@@ -47,8 +79,19 @@ const { bloc } = Astro.props;
     margin-bottom: 0;
   }
 
+  /**
+   * L APPARENCE DU `h4`, SUR UN `<p>`. Les quatre premieres declarations ne sont pas
+   * decoratives : elles reprennent une a une ce que la feuille de base donnait a `h1..h6`
+   * (police de titre, interligne, marge, `text-wrap`) et ce que le navigateur donnait a un
+   * `h4` (graisse forte). Les retirer changerait le rendu d une correction qui ne doit
+   * rien changer d autre que la hierarchie des titres.
+   */
   .bloc-encadre__titre {
-    margin-top: 0;
+    margin: 0 0 var(--espace-3);
+    font-family: var(--police-titre);
+    font-weight: var(--graisse-forte);
+    line-height: var(--interligne-titre);
+    text-wrap: balance;
     font-size: var(--taille-m);
   }
 

@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import { loadEnv } from 'vite';
 
+import gardeCascadeTitres from './integrations/garde-cascade-titres.mjs';
 import gardeImages from './integrations/garde-images.mjs';
 import gardeLiens from './integrations/garde-liens.mjs';
 import gardeOrigineMedias from './integrations/garde-origine-medias.mjs';
@@ -44,6 +45,7 @@ export default defineConfig({
     gardeLiens(),
     gardeSeo(),
     gardeStylesEnLigne(),
+    gardeCascadeTitres(),
   ],
   output: 'static',
   site: process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr',

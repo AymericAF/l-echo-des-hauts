@@ -236,8 +236,18 @@ jobs:
         # ci-dessous les imprime DANS CE JOURNAL : qui recompte « 9 contre 7 »
         # trouve la reponse la ou il recompte, pas dans un commentaire.
         #
-        # `|| echec=1` plutot qu'un arret au premier rouge : on veut la liste
-        # complete des manquements en une execution, pas un jeu de piste.
+        # ON NE S'ARRETE PAS AU PREMIER ROUGE : on veut la liste complete des
+        # manquements en une execution, pas un jeu de piste. La boucle capture donc
+        # le code au lieu de le jeter (`code=0` puis `... || code=$?`), et le trie.
+        #
+        # POURQUOI TRIER (2026-08-11, tache 794ad120 ; mode operatoire au §4 de
+        # `docs/ci-incapacite-vs-anomalie.md` du depot prive). L'ancienne forme
+        # `npm run ... || echec=1` JETAIT le code : un `1` (a juge, c'est rouge) et
+        # un `2` (n'a PAS pu juger) devenaient le meme echec. Or les verificateurs
+        # savent rendre `2`, et le seul lecteur automatique de cette distinction
+        # etait precisement ce job, qui l'aplatissait. Aplatis, ils envoient
+        # chercher dans le MAUVAIS OBJET : `1` = corriger le SITE, `2` = corriger
+        # l'ENVIRONNEMENT.
         run: |
           node scripts/verificateurs-de-sortie.mjs --pourquoi
           liste="$(node scripts/verificateurs-de-sortie.mjs)"
@@ -246,11 +256,41 @@ jobs:
             exit 1
           fi
           echec=0
+          anomalies=""
+          incapacites=""
           for v in $liste; do
             echo "::group::verifier:$v"
-            npm run --silent "verifier:$v" || echec=1
+            # `set -e` EST ACTIF (le shell par defaut d'un `run:` est `bash -e {0}`).
+            # Ecrire `npm run ...; code=$?` avorterait le job AVANT l'affectation.
+            # La forme `code=0` puis `... || code=$?` place la commande dans un
+            # compound : `-e` ne se declenche pas, et `code` est toujours defini.
+            code=0
+            npm run --silent "verifier:$v" || code=$?
+            # `::endgroup::` AVANT le `case` : sinon la sortie du verificateur reste
+            # repliee dans un groupe que le `::error::` ne rouvre pas.
             echo "::endgroup::"
+            case "$code" in
+              0) ;;
+              2) incapacites="$incapacites $v"; echec=1 ;;
+              *) anomalies="$anomalies $v";     echec=1 ;;
+            esac
           done
+
+          # LE VERDICT NE BOUGE PAS. Toute issue non nulle, incapacite COMPRISE, fait
+          # echouer le job : `echec=1` dans les deux branches non nulles. Ce qui change
+          # est ce que ce journal DIT. Un build qui n a rien produit ne passe pas sous
+          # pretexte qu on a su le nommer.
+          if [ -n "$incapacites" ]; then
+            echo "::error title=Verification impossible::N ONT PAS PU JUGER (code 2) :$incapacites"
+            echo "N ONT PAS PU JUGER — code 2, il manquait de quoi juger. Corriger l ENVIRONNEMENT :$incapacites"
+          fi
+          if [ -n "$anomalies" ]; then
+            echo "::error title=Anomalie::ONT JUGE ET TROUVE (code 1) :$anomalies"
+            echo "ONT JUGE, ET TROUVE — code 1. Corriger le SITE :$anomalies"
+          fi
+          if [ "$echec" = 0 ]; then
+            echo "OK : $(echo "$liste" | wc -w) verificateur(s), tous conformes (code 0)."
+          fi
           exit $echec
 
       - name: Bornes de pagination et bascule FR/EN, sur un second build reel

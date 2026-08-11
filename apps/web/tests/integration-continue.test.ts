@@ -172,6 +172,135 @@ test('la boucle rougit si la derivation rend du vide', () => {
   );
 });
 
+// ── 3 bis. La boucle DIT « n a pas pu juger », au lieu de le jeter ────────────────────
+
+/**
+ * DEFAUT DU 2026-08-11 (tache 794ad120 ; mode operatoire au §4 de
+ * `docs/ci-incapacite-vs-anomalie.md`, depot prive). La boucle faisait
+ * `npm run --silent "verifier:$v" || echec=1` : le `|| echec=1` JETAIT le code. Un `1`
+ * (a juge, c est rouge -> corriger le SITE) et un `2` (n a PAS pu juger -> corriger l
+ * ENVIRONNEMENT) devenaient le meme echec, dans un groupe replie qui ne portait que le nom
+ * du verificateur. Les neuf verificateurs savent rendre `2` (`tests/verificateurs-incapacite`)
+ * et le SEUL lecteur automatique de cette distinction dans le depot etait ce job — celui-la
+ * meme qui l aplatissait. Le cout n est pas theorique : aplatis, les deux codes envoient
+ * chercher dans le mauvais objet.
+ *
+ * CE QUE CES TESTS TIENNENT, et ce qu ils ne tiennent pas. Ils lisent une DECLARATION (le
+ * `.yml`) : ils prouvent que la boucle capture, trie et nomme, et que le verdict n a pas
+ * bouge. Ils ne prouvent PAS que le journal d un runner reel affiche la distinction — cela,
+ * seule une execution sur GitHub Actions le prouve.
+ */
+function boucleDesVerificateurs(): string {
+  /* Le pas entier, du `echec=0` a son `exit`. Isoler le fragment plutot que de chercher
+     dans 10 Kio de YAML : une assertion qui matche AILLEURS dans le fichier serait verte
+     sur un pas qui, lui, aurait regresse.
+
+     FINS DE LIGNE NORMALISEES : le depot stocke en LF, mais `core.autocrlf=true` rend un
+     arbre de travail en CRLF sur le poste Windows d Aymeric. Sans cette normalisation, ces
+     assertions seraient VERTES sur le runner Linux et ROUGES chez lui, pour une cause qui
+     n a rien a voir avec ce qu elles gardent.
+
+     LES COMMENTAIRES SONT RETIRES, et ce n est pas de l esthetique : mesure du 2026-08-11,
+     en deplacant volontairement `::endgroup::` APRES le `case`, ces tests sont restes VERTS.
+     La cause : le commentaire qui explique le piege CITE `::endgroup::` au-dessus du `case`,
+     et satisfaisait a lui seul l assertion de position. Un test qu une PROSE peut rendre
+     vert ne garde rien. Ce qui est asserte ici est donc le CODE, jamais sa documentation. */
+  const yml = workflow().replace(/\r\n/g, '\n');
+  const debut = yml.indexOf('\n          echec=0\n');
+  assert.ok(debut > 0, 'le pas des verificateurs ne porte plus de compteur `echec` : relire le §4');
+  const fin = yml.indexOf('exit $echec', debut);
+  assert.ok(fin > debut, 'le pas des verificateurs ne se termine plus par `exit $echec`');
+  return yml
+    .slice(debut, fin + 'exit $echec'.length)
+    .split('\n')
+    .filter((ligne) => !/^\s*#/.test(ligne))
+    .join('\n');
+}
+
+test('la boucle CAPTURE le code de sortie, elle ne le jette pas', () => {
+  const boucle = boucleDesVerificateurs();
+  assert.ok(
+    /npm run --silent "verifier:\$v" \|\| code=\$\?/.test(boucle),
+    'la boucle ne capture plus le code : sans `|| code=$?`, un 1 et un 2 redeviennent le ' +
+      'meme echec, et la distinction que les neuf verificateurs produisent est perdue',
+  );
+  assert.ok(
+    !/npm run[^\n]*\|\| *echec=1/.test(boucle),
+    'la forme fautive du 2026-08-11 est revenue : `npm run ... || echec=1` JETTE le code',
+  );
+});
+
+test('le code se capture SANS declencher `set -e`', () => {
+  /* Le shell par defaut d un `run:` est `bash -e {0}` : `npm run ...; code=$?` avorterait
+     le job AVANT l affectation. C est precisement pourquoi l original faisait `|| echec=1`.
+     Seule la forme `code=0` puis `... || code=$?` survit a `-e`. */
+  const boucle = boucleDesVerificateurs();
+  assert.ok(
+    /\n\s*code=0\n/.test(boucle),
+    '`code` doit etre initialise a 0 avant l appel : sinon il garde la valeur du tour ' +
+      'precedent quand `npm run` reussit',
+  );
+  assert.ok(
+    !/npm run[^\n]*\n\s*code=\$\?/.test(boucle),
+    '`npm run ...` suivi de `code=$?` sur la ligne suivante : `set -e` avorte le job AVANT ' +
+      "l affectation. Utiliser `|| code=$?`, qui place l appel dans un compound",
+  );
+});
+
+test('le groupe est REFERME avant le tri, sinon les messages restent replies', () => {
+  const boucle = boucleDesVerificateurs();
+  const endgroup = boucle.indexOf('::endgroup::');
+  const tri = boucle.indexOf('case "$code"');
+  assert.ok(endgroup > 0 && tri > 0, 'la boucle ne referme plus son groupe, ou ne trie plus');
+  assert.ok(
+    endgroup < tri,
+    'le `case` s execute AVANT le `::endgroup::` : les messages s afficheraient dans un ' +
+      'groupe replie, que le `::error::` ne rouvre pas. Le journal redeviendrait illisible',
+  );
+});
+
+test('les deux natures sont NOMMEES, chacune avec le geste qu elle commande', () => {
+  const boucle = boucleDesVerificateurs();
+  /* Nommer le code sans nommer le geste ne repare rien : le lecteur du journal doit savoir
+     OU chercher — l environnement pour un 2, le site pour un 1. */
+  assert.ok(
+    /N ONT PAS PU JUGER[^\n]*code 2/.test(boucle) && /ENVIRONNEMENT/.test(boucle),
+    'le journal ne nomme plus l incapacite (code 2) ni le geste qu elle commande ' +
+      '(corriger l ENVIRONNEMENT)',
+  );
+  assert.ok(
+    /ONT JUGE[^\n]*code 1/.test(boucle) && /SITE/.test(boucle),
+    'le journal ne nomme plus l anomalie (code 1) ni le geste qu elle commande ' +
+      '(corriger le SITE)',
+  );
+  assert.ok(
+    /::error title=/.test(boucle),
+    'sans annotation `::error`, la distinction n apparait que dans le corps du journal et ' +
+      'pas dans le resume du run',
+  );
+});
+
+test('LE VERDICT NE BOUGE PAS : une incapacite fait toujours echouer le job', () => {
+  /* La contrainte dure du correctif. Un journal correct sur un job VERT serait un echec du
+     correctif, pas un succes partiel : un build qui n a rien produit ne passe pas sous
+     pretexte qu on a su le nommer. */
+  const boucle = boucleDesVerificateurs();
+  const branches = [...boucle.matchAll(/^\s*(?:2\)|\*\))(.+)$/gm)].map(([, corps]) => corps);
+  assert.equal(branches.length, 2, 'le tri ne porte plus exactement deux branches non nulles');
+  for (const corps of branches) {
+    assert.match(
+      corps,
+      /echec=1/,
+      `une branche non nulle du tri ne leve plus l echec : « ${corps.trim()} » — la CI ` +
+        'passerait au VERT sur un verificateur rouge',
+    );
+  }
+  assert.ok(
+    /\n\s*exit \$echec\s*$/.test(boucle),
+    'le pas ne sort plus sur le compteur `echec` : le verdict cesserait de suivre la boucle',
+  );
+});
+
 test('aucun intitule du workflow ne COMPTE les verificateurs', () => {
   /* « les six verificateurs » a survecu a l arrivee du septieme, huit mois avant que
      quiconque recompte. Un intitule qui porte un nombre est un intitule qui mentira. */

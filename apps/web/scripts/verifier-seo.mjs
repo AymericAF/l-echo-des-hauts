@@ -41,6 +41,13 @@
  *      etaient vides et UNE SEULE a rougi. Ce qu on mesure est desormais la HAUTEUR des
  *      glyphes, qui ne depend pas de la longueur du titre — cf. `HAUTEUR_MINIMALE_GLYPHES`
  *      et sa derivation chiffree.
+ *
+ *      DEUX JAMBES DEPUIS LE 2026-08-11, et la premiere ne suffisait pas. Le seuil absolu
+ *      a ete FRANCHI par un tofu de 21 px (run 31534444682) : la garde acceptait l image,
+ *      et comme l etat du rasteriseur est propre au PROCESSUS, c est un build entier de
+ *      vignettes vides qui passait. Le seuil ne peut pas etre releve pour autant — le
+ *      plancher legitime est a 22 px. La seconde jambe (`sonderRasteriseur`) mesure donc
+ *      la PROPORTIONNALITE de l encre au corps demande, que le tofu ne peut pas imiter.
  *   8. **100 % des pages indexables portent un JSON-LD lisible** (§5.1, et le critere
  *      chiffre du §1). Chaque bloc est PARSE, son `@context` schema.org exige, ses noeuds
  *      typologiquement verifies, et les URL qu il affirme joignables confrontees a
@@ -59,7 +66,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import sharp from 'sharp';
 
-import { TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
+import { dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
 import { ISSUES, manquementCorpusVide } from './issues.mjs';
 import { lireOrigine } from './origine.mjs';
 import { normaliser, routeDuFichier } from './verifier-liens.mjs';
@@ -151,6 +158,126 @@ const ENCRE_PAR_RANGEE = 2;
  * plus petit que la moitie de son plus petit corps, ce qui est un defaut du gabarit.
  */
 export const HAUTEUR_MINIMALE_GLYPHES = 20;
+
+/* ------------------------------------------------------------------------------------
+   LA SONDE DU RASTERISEUR — la seconde jambe du controle 7, et pourquoi il en fallait une.
+
+   CE QUE LE SEUIL ABSOLU CI-DESSUS NE PEUT PAS FAIRE. Il compare une hauteur d encre a une
+   constante. Or la hauteur du « tofu » — le rectangle de remplacement dessine quand aucune
+   fonte ne resout — n est ni deterministe ni bornee : mesure le 2026-08-11, elle vaut 0, 12
+   ou 13 px la plupart du temps, mais elle est montee a 18 px sur le poste Windows et a
+   21 px sur le runner GitHub (run 31534444682, tentative 1). A 21 px, elle FRANCHIT le
+   seuil de 20 : la garde accepte l image. Et comme cet etat est propre au PROCESSUS (60
+   rasterisations dans un meme processus rendent toutes la meme valeur), ce n est pas une
+   image qui passe, ce sont les 42 d un build entier.
+
+   Le seuil ne peut pas non plus etre releve pour couvrir 21 px : le plancher legitime est
+   la hauteur d x d un titre sans capitale, sans accent et sans jambage au plus petit
+   palier, soit 22 px a 44. Les deux populations se touchent. AUCUNE constante ne les
+   separe — c est la meme classe d erreur que l ecart-type d avant, sur une autre grandeur.
+
+   CE QUE CETTE SONDE MESURE A LA PLACE, et qui separe par CONSTRUCTION. Un texte reellement
+   dessine a une hauteur d encre PROPORTIONNELLE au corps demande ; un tofu a une taille
+   fixe, sans rapport avec le corps. On rasterise donc le meme mot de reference a deux
+   paliers — le plus grand et le plus petit de `TAILLES_TITRE` — et on exige que le rapport
+   des deux hauteurs SUIVE le rapport des corps. Mesure du 2026-08-11 :
+
+     avec fontes  : 1,478 aux 5 tirages (rapport theorique 66/44 = 1,5) ;
+     sans fonte   : 0 a 1,083 sur 25 processus distincts.
+
+   Le fosse est franc et il ne depend PAS de la taille du tofu : un tofu de 21 px rend
+   21/21, un tofu de 12 px rend 12/12. Le second critere (`SONDE_PART_DU_CORPS`) ferme le
+   cas residuel ou les deux paliers ne tirent pas la meme taille de tofu.
+
+   CE QU ELLE NE PROUVE PAS. Elle mesure le rasteriseur DU PROCESSUS QUI L EXECUTE. Appelee
+   depuis le build (`integrations/garde-seo.mjs`), c est exactement celui qui a produit les
+   images — c est la que sa valeur est maximale. Lancee a la main sur un `dist/` deja
+   construit, elle parle de la machine de recette et non de celle du build : le controle
+   par image ci-dessus reste donc necessaire, et les deux jambes ne se remplacent pas.
+   ------------------------------------------------------------------------------------ */
+
+/** Le mot de la sonde : une capitale, une hauteur d x, un jambage — les trois etages. */
+export const SONDE_MOT = 'Enjeux';
+
+/** Rapport minimal exige entre les hauteurs d encre des deux paliers (theorique : 1,5). */
+export const SONDE_RATIO_MINIMAL = 1.25;
+
+/** Part du corps que l encre du grand palier doit atteindre, capitale et jambage compris. */
+export const SONDE_PART_DU_CORPS = 0.6;
+
+const GABARIT_SONDE = {
+  rubrique: 'Territoire',
+  auteur: 'Noelle Vasseur',
+  nomSite: 'L Echo des Hauts',
+  couleurAccent: null,
+};
+
+/**
+ * Le titre de sonde qui tombe sur `corpsVise` — CHERCHE, jamais ecrit en dur.
+ *
+ * Le nombre de mots qui fait descendre d un palier depend du modele de chasse du gabarit :
+ * l ecrire ici en ferait une seconde source de verite, fausse des que le modele change.
+ */
+export function titreDeSonde(corpsVise) {
+  for (let mots = 1; mots <= 400; mots += 1) {
+    const titre = Array.from({ length: mots }, () => SONDE_MOT).join(' ');
+    if (dispositionOg({ ...GABARIT_SONDE, titre }).tailleTitre === corpsVise) return titre;
+  }
+  return null;
+}
+
+/**
+ * Rasterise la sonde aux deux paliers extremes et rend les deux hauteurs et leur rapport.
+ *
+ * Rend `null` quand une des deux images est illisible : confondre « illisible » et « pas
+ * de glyphes » enverrait chercher la mauvaise cause (meme regle que `mesurerBandeTitre`).
+ */
+export async function sonderRasteriseur() {
+  const grandCorps = Math.max(...TAILLES_TITRE);
+  const petitCorps = Math.min(...TAILLES_TITRE);
+  const mesures = [];
+  for (const corps of [grandCorps, petitCorps]) {
+    const titre = titreDeSonde(corps);
+    if (titre === null) return null;
+    const png = await sharp(Buffer.from(svgOg({ ...GABARIT_SONDE, titre }))).png().toBuffer();
+    const mesure = await mesurerBandeTitre(png);
+    if (mesure === null) return null;
+    mesures.push({ corps, hauteur: mesure.hauteurGlyphes });
+  }
+  const [grand, petit] = mesures;
+  return { grand, petit, ratio: petit.hauteur === 0 ? 0 : grand.hauteur / petit.hauteur };
+}
+
+/**
+ * Le verdict de la sonde, PUR et exporte pour etre teste sans rasteriseur.
+ *
+ * Rend la liste des manquements — vide quand le rasteriseur dessine vraiment.
+ */
+export function verdictSonde(sonde) {
+  if (sonde === null) {
+    return ['sonde du rasteriseur illisible : sharp n a pas pu decoder ses deux images'];
+  }
+  const manques = [];
+  const plancher = Math.round(sonde.grand.corps * SONDE_PART_DU_CORPS);
+  if (sonde.grand.hauteur < plancher) {
+    manques.push(
+      `sonde du rasteriseur : au corps ${sonde.grand.corps}, l encre du mot « ${SONDE_MOT} » ne fait que ` +
+        `${sonde.grand.hauteur} px de haut (< ${plancher} = ${SONDE_PART_DU_CORPS} x le corps) — les glyphes ` +
+        'ne sont PAS dessines au corps demande. Cause la plus probable : aucune fonte installee dans cet ' +
+        'environnement (sharp embarque fontconfig, pas de fontes).',
+    );
+  }
+  if (sonde.ratio < SONDE_RATIO_MINIMAL) {
+    manques.push(
+      `sonde du rasteriseur : la hauteur d encre ne SUIT PAS le corps — ${sonde.grand.hauteur} px au corps ` +
+        `${sonde.grand.corps} contre ${sonde.petit.hauteur} px au corps ${sonde.petit.corps}, soit un rapport ` +
+        `de ${sonde.ratio.toFixed(2)} la ou les corps sont dans un rapport de ` +
+        `${(sonde.grand.corps / sonde.petit.corps).toFixed(2)} (minimum exige ${SONDE_RATIO_MINIMAL}). Un texte ` +
+        'dessine grandit avec son corps ; un rectangle de remplacement garde sa taille quel que soit le corps.',
+    );
+  }
+  return manques;
+}
 
 function fichiersDe(dossier) {
   const trouves = [];
@@ -309,6 +436,8 @@ export function urlsDuGraphe(valeur, trouvees = new Set()) {
  */
 export async function mesurerBandeTitre(fichier) {
   try {
+    /* `fichier` est un chemin OU les octets d un PNG — la sonde du controle 7 mesure une
+       image qu elle vient de produire et qui n a aucune raison de toucher le disque. */
     const { width, height } = await sharp(fichier).metadata();
     if (!width || !height) return null;
     const haut = Math.round(height * BANDE_TITRE.haut);
@@ -579,6 +708,18 @@ export async function inspecterSeo(dist, origine) {
           'le rasteriseur remplace chaque caractere par un rectangle d une douzaine de pixels.',
       );
     }
+  }
+
+  /* 7 bis. LA SONDE DU RASTERISEUR. Le seuil absolu ci-dessus a ete FRANCHI par un tofu de
+     21 px le 2026-08-11 : il ne suffit pas, et il ne peut pas etre releve sans mordre sur
+     le plancher legitime (22 px). La sonde tranche sur une grandeur que le tofu ne peut pas
+     imiter — la PROPORTIONNALITE de l encre au corps demande. Cf. son en-tete.
+
+     Elle ne tourne que s il y a au moins une image OG a juger : sans image generee, il n y
+     a rien a dire du rasteriseur, et la faire tourner quand meme ferait rougir un `dist/`
+     qui ne demande rien a personne. */
+  if (imagesOg > 0) {
+    manquements.push(...verdictSonde(await sonderRasteriseur()));
   }
 
   /* --- 8. Les donnees structurees du §5.1, EXERCEES AU POINT DE LECTURE -------------

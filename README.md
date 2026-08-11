@@ -215,6 +215,24 @@ Une instance Strapi fraîchement installée se repeuple par cette seule commande
 `fr` (par défaut) et `en` sont posées au démarrage par `src/locales.ts`, la création d'une locale
 n'étant pas exposée sur l'API de contenu.
 
+**Ce maillon-là est exercé sur l'artefact du canal réel depuis le 2026-08-12** (tâche `f30fc73e`) —
+il ne l'était qu'en local jusque-là, et c'était un trou : la locale `fr` de `echoback.ayfiweb.fr` a
+été créée **à la main** le 2026-08-06 à 22:06 UTC, soit ~14 h **avant** que `src/locales.ts` n'existe
+(commit `c2474e2`), et son nom sur l'instance le prouve — « French (fr) », le libellé du sélecteur
+ISO de l'admin, là où `assurerLocales` écrit « Francais (fr) ». Preuve : l'image que Coolify a
+construite pour l'application `echo-strapi` (`ydaghuigfanqwdof0nru2ysk`, tag `3c430ab`) démarrée
+contre une **base PostgreSQL jetable et vide**, sur le VPS, sans toucher à la production —
+`fr` créée avec le nom déclaré, `plugin_i18n_default_locale` posé sur `"fr"`, relu en base.
+
+**Et le passage du bootstrap se CONSTATE désormais, même quand il n'a rien à faire.** Il ne
+journalisait que s'il avait créé une locale ou posé le défaut : sur une instance déjà conforme il
+n'écrivait **aucune ligne**, si bien qu'« il a tourné sans rien changer » et « il n'a jamais tourné »
+rendaient la même sortie. Mesure du 2026-08-12 sur le conteneur de production : **0** ligne
+`[locales]` sur 4 717, pour un unique `Strapi started successfully`, alors que le code **était** dans
+l'image. Une ligne part maintenant à chaque démarrage, dans les quatre états — et elle signale un
+nom divergent **sans renommer**, une écriture non demandée sur une instance en service n'étant pas
+à la charge d'un bootstrap.
+
 Deux sous-commandes n'écrivent rien :
 
 ```bash

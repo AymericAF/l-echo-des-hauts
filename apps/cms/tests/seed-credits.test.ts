@@ -33,7 +33,7 @@ import {
 /* ------------------------------------------------------------------ */
 
 test('un credit au format, sans modifications, est accepte', () => {
-  const verdict = verifierFormatCredit('Œuvre du projet — Œuvre du projet');
+  const verdict = verifierFormatCredit('Œuvre du projet — CC0 1.0');
   assert.equal(verdict.conforme, true);
 });
 
@@ -108,8 +108,10 @@ test('une licence sans attribution obligatoire n exige PAS de troisieme segment'
 });
 
 test('le separateur est le tiret cadratin entoure d espaces, pas un tiret court', () => {
-  assert.equal(verifierFormatCredit('Œuvre du projet - Œuvre du projet').conforme, false);
-  assert.equal(verifierFormatCredit('Œuvre du projet–Œuvre du projet').conforme, false);
+  // La licence est admise dans les deux cas : ce qui doit faire echouer ici est
+  // le SEPARATEUR et lui seul, sinon le test passerait pour la mauvaise raison.
+  assert.equal(verifierFormatCredit('Œuvre du projet - CC0 1.0').conforme, false);
+  assert.equal(verifierFormatCredit('Œuvre du projet–CC0 1.0').conforme, false);
 });
 
 /* ------------------------------------------------------------------ */
@@ -133,10 +135,10 @@ function capturer(fn: () => unknown): Error {
 
 test('composerCredit rend une chaine qui passe sa propre garde', () => {
   const credit = composerCredit(
-    { ayantDroit: 'Œuvre du projet', licence: 'Œuvre du projet' },
+    { ayantDroit: 'Œuvre du projet', licence: 'CC0 1.0' },
     'auteurs/x.svg'
   );
-  assert.equal(credit, 'Œuvre du projet — Œuvre du projet');
+  assert.equal(credit, 'Œuvre du projet — CC0 1.0');
   assert.equal(verifierFormatCredit(credit).conforme, true);
 });
 
@@ -180,5 +182,67 @@ test('la liste blanche est celle du §6.2 / D.3, et elle ne contient aucune lice
   }
   assert.ok(LICENCES_ADMISES.includes('CC BY 4.0' as never));
   assert.ok(LICENCES_ADMISES.includes('CC0 1.0' as never));
-  assert.ok(LICENCES_ADMISES.includes('Œuvre du projet' as never));
+});
+
+/* ------------------------------------------------------------------ */
+/* « Œuvre du projet » N EST PLUS UNE LICENCE — decision 887d2cfd,      */
+/* branche A, approuvee par Aymeric le 2026-08-11.                      */
+/*                                                                      */
+/* Ce qui est retire est un STATUT qui se faisait passer pour une        */
+/* licence. Depuis que le §13 point 4 est tranche (decision 90276751,    */
+/* CC0 1.0), tout media entrant au corpus porte une licence formelle :   */
+/* accepter encore « Œuvre du projet » en second segment laissait la     */
+/* porte ouverte a la ligne tautologique « Œuvre du projet — Œuvre du    */
+/* projet », qui ne credite rien et que la garde de format laissait      */
+/* passer sans broncher.                                                 */
+/*                                                                      */
+/* CE QUE CE RETRAIT NE TOUCHE PAS, et c est tout l enjeu : la liste     */
+/* blanche n est opposee qu au SECOND segment. « Œuvre du projet » reste */
+/* l AYANT DROIT des 94 medias du corpus — premier segment, controle sur */
+/* son seul caractere non vide. Les tests ci-dessous exercent les deux   */
+/* sens : ce qui doit desormais etre REFUSE, et ce qui doit rester       */
+/* ACCEPTE au caractere pres.                                            */
+/* ------------------------------------------------------------------ */
+
+test('« Œuvre du projet » ne figure PLUS en liste blanche des licences', () => {
+  assert.equal(
+    LICENCES_ADMISES.includes('Œuvre du projet' as never),
+    false,
+    'le statut d ayant droit n est pas un identifiant de licence publiable ' +
+      '(decision 887d2cfd, branche A)'
+  );
+});
+
+test('un credit qui annonce « Œuvre du projet » en LICENCE est REFUSE, motif a l appui', () => {
+  const verdict = verifierFormatCredit('Œuvre du projet — Œuvre du projet');
+  assert.equal(verdict.conforme, false, 'la ligne tautologique doit etre refusee');
+  // Le motif doit CITER la valeur lue et dire d ou vient le refus, sinon il
+  // oblige a rouvrir le cadrage pour savoir quoi corriger.
+  assert.match(verdict.motif, /Œuvre du projet/);
+  assert.match(verdict.motif, /liste blanche|admise/i);
+});
+
+test('composerCredit refuse « Œuvre du projet » en licence EN NOMMANT LE MEDIA', () => {
+  const erreur = capturer(() =>
+    composerCredit(
+      { ayantDroit: 'Œuvre du projet', licence: 'Œuvre du projet' },
+      'couvertures/A05.svg'
+    )
+  );
+  // Un refus qui ne dit pas sur quel fichier il porte oblige a chercher sur 94
+  // entrees : c est ce qui fait desarmer une garde.
+  assert.match(erreur.message, /couvertures\/A05\.svg/, 'le refus doit NOMMER le media');
+  assert.match(erreur.message, /Œuvre du projet/);
+  assert.match(erreur.message, /liste blanche/i);
+});
+
+test('LE CAS NORMAL EST INTACT — « Œuvre du projet » reste l AYANT DROIT des 94 medias', () => {
+  // C est exactement la ligne que portent les 94 medias du corpus reel, et
+  // celle qui est PUBLIEE sous les cinq portraits d auteur.
+  const credit = composerCredit(
+    { ayantDroit: 'Œuvre du projet', licence: 'CC0 1.0' },
+    'auteurs/theo-brissac.svg'
+  );
+  assert.equal(credit, 'Œuvre du projet — CC0 1.0');
+  assert.equal(verifierFormatCredit(credit).conforme, true);
 });

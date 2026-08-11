@@ -3,7 +3,7 @@
   "info": {
     "displayName": "Encadre",
     "icon": "exclamation-triangle",
-    "description": "Encart lateral. Ses titres sont rendus en h4 minimum et exclus du sommaire (A-21)."
+    "description": "Encart lateral. Les titres saisis dans contenu sont rendus en h4 au plus et exclus du sommaire (A-21). Le champ titre n est pas un titre HTML : c est l etiquette de l encart, rendue hors du fil des titres (modele-donnees.md §3.4)."
   },
   "options": {},
   "attributes": {

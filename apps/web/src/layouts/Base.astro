@@ -112,13 +112,16 @@ const imageGeneree: ImagePartage | null =
         url: cheminImageOg(locale, article.slug),
         largeur: DIMENSION_OG.largeur,
         hauteur: DIMENSION_OG.hauteur,
-        alternative: texteAlternatifOg({
-          titre: article.titre,
-          rubrique: article.categorie.nom,
-          auteur: article.auteur.nom,
-          nomSite: configuration?.nomSite ?? '',
-          couleurAccent: article.categorie.couleurAccent,
-        }),
+        alternative: texteAlternatifOg(
+          {
+            titre: article.titre,
+            rubrique: article.categorie.nom,
+            auteur: article.auteur.nom,
+            nomSite: configuration?.nomSite ?? '',
+            couleurAccent: article.categorie.couleurAccent,
+          },
+          locale,
+        ),
         mime: 'image/png',
       };
 

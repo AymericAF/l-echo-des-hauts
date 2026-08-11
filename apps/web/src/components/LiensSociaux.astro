@@ -23,19 +23,30 @@
  * Zero JavaScript : ce ne sont que des `<a>` et des `<svg>` inline. Aucune requete reseau
  * n en sort — c est ce que « inline » achete, et ce qu une police d icones aurait coute.
  */
-import type { LienSocial } from '../lib/domaine.ts';
-import { LIBELLES, glypheDe } from '../lib/glyphes-sociaux.ts';
+import type { LienSocial, Locale } from '../lib/domaine.ts';
+import { glypheDe, libelleDePlateforme } from '../lib/glyphes-sociaux.ts';
 
 interface Props {
   liens: readonly LienSocial[];
+  /**
+   * Le nom accessible du bloc. Il vient de l APPELANT, et sa nature differe selon lui :
+   * pour un auteur c est son nom (une donnee, qui ne se traduit pas) ; pour le pied de
+   * page c est un libelle d interface, qui doit venir du dictionnaire de la locale.
+   */
   intitule: string;
+  /**
+   * La langue de la PAGE. Elle n est pas decorative : sept des huit noms de plateforme
+   * sont des marques invariantes, mais `site` est un nom commun qui doit se traduire —
+   * et c est le nom ACCESSIBLE du lien, donc ce qu entend un lecteur d ecran.
+   */
+  locale: Locale;
 }
 
-const { liens, intitule } = Astro.props;
+const { liens, intitule, locale } = Astro.props;
 
 const rendus = liens.map((lien) => ({
   lien,
-  libelle: LIBELLES[lien.plateforme],
+  libelle: libelleDePlateforme(lien.plateforme, locale),
   glyphe: glypheDe(lien.plateforme),
 }));
 ---

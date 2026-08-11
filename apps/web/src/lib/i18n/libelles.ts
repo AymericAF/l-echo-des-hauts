@@ -66,6 +66,39 @@ export interface Libelles {
   readonly fluxRss: string;
   readonly mediaFictifTitre: string;
   readonly mediaFictifTexte: string;
+  /**
+   * Etiquette accessible du bloc de reseaux du PIED DE PAGE (§3.8). Elle n a rien a voir
+   * avec celle des reseaux d un AUTEUR, qui est le nom de l auteur — donc une donnee.
+   *
+   * ⚠️ Le francais est repris AU CARACTERE PRES de ce qui etait rendu, sans accent :
+   * c est le libelle qu Aymeric a valide verbatim le 2026-08-10 (tache de controle
+   * `051f77e2` — « c est bien mon LinkedIn, et le libelle me va »). Le passer a
+   * « Réseaux du journal » serait une correction orthographique defendable, mais elle
+   * changerait la sortie FRANCAISE d une chaine ratifiee la veille : elle se propose,
+   * elle ne se prend pas au passage d un correctif d anglais.
+   */
+  readonly reseauxDuJournal: string;
+  /**
+   * Le nom affichable de la plateforme `site` — la SEULE des huit de l enum `Plateforme`
+   * qui soit un nom commun. Les sept autres sont des marques deposees : elles ne se
+   * traduisent pas, et vivent dans `glyphes-sociaux.ts` avec leurs glyphes.
+   */
+  readonly plateformeSite: string;
+  readonly voirLaVideoSur: (fournisseur: string) => string;
+  readonly voirLaVideo: string;
+  /** Texte accessible du lien video : il est ENTENDU, pas seulement lu (A-04). */
+  readonly ouvreNouvelOnglet: string;
+  /** La signature du texte alternatif de l image de partage (§5.3). */
+  readonly parAuteur: (auteur: string) => string;
+  /**
+   * Le bandeau de diagnostic affiche quand le Single Type `Configuration` est vide.
+   *
+   * Il ne devrait jamais atteindre un lecteur — mais s il l atteint, c est bien A LUI
+   * qu il parle, sur la page qu il a demandee : il se traduit donc comme le reste. Il
+   * s affichait en francais sur les pages anglaises du banc, ce qui est exactement la
+   * facon dont ce defaut se decouvre.
+   */
+  readonly configurationAbsente: (singleType: string) => string;
 }
 
 const FR: Libelles = {
@@ -121,6 +154,14 @@ const FR: Libelles = {
   mediaFictifTitre: 'Un média fictif',
   mediaFictifTexte:
     "L’Écho des Hauts est un média fictif. Ce site est un démonstrateur technique : sa ligne éditoriale, ses articles, ses auteurs et les événements qu’il relate sont inventés. Aucun contenu publié ici ne rapporte de faits réels, et ce site ne constitue en aucun cas un service de presse en ligne.",
+  reseauxDuJournal: 'Reseaux du journal',
+  plateformeSite: 'Site web',
+  voirLaVideoSur: (fournisseur) => `Voir la video sur ${fournisseur}`,
+  voirLaVideo: 'Voir la video',
+  ouvreNouvelOnglet: '(s ouvre dans un nouvel onglet)',
+  parAuteur: (auteur) => `par ${auteur}`,
+  configurationAbsente: (singleType) =>
+    `Configuration Strapi absente : le Single Type « ${singleType} » n a aucune entree. Nom du site, logo et description ne peuvent pas etre affiches.`,
 };
 
 const EN: Libelles = {
@@ -176,6 +217,17 @@ const EN: Libelles = {
   mediaFictifTitre: 'A fictional publication',
   mediaFictifTexte:
     'L’Écho des Hauts is a fictional news outlet. This site is a technical demonstrator: its editorial line, its articles, its journalists and the events it reports are invented. Nothing published here reports real facts, and this site is in no way an online press service.',
+  /* CHOIX EDITORIAL, a trancher par Aymeric s il ne convient pas : « Reseaux du journal »
+     annonce les comptes de la REDACTION. Le rendu anglais dit la meme chose, sans reprendre
+     « journal » — le mot anglais le plus proche (« newspaper ») designe l objet papier. */
+  reseauxDuJournal: 'Follow the newsroom',
+  plateformeSite: 'Website',
+  voirLaVideoSur: (fournisseur) => `Watch the video on ${fournisseur}`,
+  voirLaVideo: 'Watch the video',
+  ouvreNouvelOnglet: '(opens in a new tab)',
+  parAuteur: (auteur) => `by ${auteur}`,
+  configurationAbsente: (singleType) =>
+    `Strapi configuration missing: the « ${singleType} » Single Type has no entry. Site name, logo and description cannot be displayed.`,
 };
 
 export const LIBELLES: Record<Locale, Libelles> = { fr: FR, en: EN };

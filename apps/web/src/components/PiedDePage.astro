@@ -38,7 +38,15 @@ const mots = libelles(locale);
       )
     }
 
-    {configuration && <LiensSociaux liens={configuration.reseaux} intitule="Reseaux du journal" />}
+    {
+      configuration && (
+        <LiensSociaux
+          liens={configuration.reseaux}
+          intitule={mots.reseauxDuJournal}
+          locale={locale}
+        />
+      )
+    }
 
     <p class="pied__fiction"><strong>{mots.mediaFictifTitre}</strong> — {mots.mediaFictifTexte}</p>
 

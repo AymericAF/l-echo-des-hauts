@@ -47,6 +47,44 @@ test('la mention de media fictif existe dans les deux locales et nomme le journa
   }
 });
 
+/**
+ * LES QUATRE CHAINES RAPATRIEES LE 2026-08-11 (tache `ba63557e`).
+ *
+ * Elles vivaient en dur dans des composants et des modules, donc HORS de ce dictionnaire :
+ * l etiquette du bloc de reseaux du pied de page, le nom affichable de la plateforme
+ * `site`, le libelle du lien video et sa mention d ouverture, et le « par » du texte
+ * alternatif de l image de partage. Aucune n avait de contrepartie anglaise, parce
+ * qu aucune n avait de domicile ou en ecrire une.
+ *
+ * Ce qui les rendait invisibles : les pages anglaises ne servaient pas le bloc concerne.
+ * Rendre le bloc (commit `e9dc7c0`) n a rien casse, il a montre ce qui dormait.
+ */
+test('les chaines rapatriees du pied de page ont une contrepartie anglaise', () => {
+  assert.equal(libelles('fr').reseauxDuJournal, 'Reseaux du journal');
+  assert.notEqual(libelles('en').reseauxDuJournal, libelles('fr').reseauxDuJournal);
+  assert.doesNotMatch(libelles('en').reseauxDuJournal, /journal/i);
+
+  assert.equal(libelles('fr').plateformeSite, 'Site web');
+  assert.equal(libelles('en').plateformeSite, 'Website');
+});
+
+test('le libelle du lien video et sa mention d onglet sont localises', () => {
+  assert.equal(libelles('fr').voirLaVideoSur('YouTube'), 'Voir la video sur YouTube');
+  assert.equal(libelles('en').voirLaVideoSur('YouTube'), 'Watch the video on YouTube');
+  assert.equal(libelles('fr').voirLaVideo, 'Voir la video');
+  assert.equal(libelles('en').voirLaVideo, 'Watch the video');
+
+  /* La mention est du TEXTE ACCESSIBLE : un lecteur d ecran anglophone l entend telle
+     quelle. C est le cout precis que la tache nomme — pas un defaut cosmetique. */
+  assert.equal(libelles('fr').ouvreNouvelOnglet, '(s ouvre dans un nouvel onglet)');
+  assert.equal(libelles('en').ouvreNouvelOnglet, '(opens in a new tab)');
+});
+
+test('la signature du texte alternatif de l image de partage est localisee', () => {
+  assert.equal(libelles('fr').parAuteur('Camille Ferrand'), 'par Camille Ferrand');
+  assert.equal(libelles('en').parAuteur('Camille Ferrand'), 'by Camille Ferrand');
+});
+
 test('les phrases d ossature different reellement entre FR et EN', () => {
   const aComparer = [
     'allerAuContenu',
@@ -55,6 +93,9 @@ test('les phrases d ossature different reellement entre FR et EN', () => {
     'aLaUne',
     'dernieresPublications',
     'titre404',
+    'reseauxDuJournal',
+    'plateformeSite',
+    'ouvreNouvelOnglet',
   ] as const;
   for (const cle of aComparer) {
     assert.notEqual(

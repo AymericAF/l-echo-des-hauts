@@ -108,7 +108,11 @@ const carteProritaire = hero === null && tranche.numero === 1 ? 0 : null;
   {auteur?.photo?.legende && <p class="index__credit">{auteur.photo.legende}</p>}
 
   {auteur?.bio && <div class="index__bio"><RichTexte noeuds={auteur.bio} /></div>}
-  {auteur && auteur.reseaux.length > 0 && <LiensSociaux liens={auteur.reseaux} intitule={auteur.nom} />}
+  {
+    auteur && auteur.reseaux.length > 0 && (
+      <LiensSociaux liens={auteur.reseaux} intitule={auteur.nom} locale={locale} />
+    )
+  }
 
   {
     dossier?.introduction && (

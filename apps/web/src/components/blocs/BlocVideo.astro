@@ -28,17 +28,26 @@
  * absente, ce composant degrade donc directement vers le lien textuel — le comportement
  * final prevu par T-02, sans son maillon intermediaire.
  */
-import type { BlocVideo } from '../../lib/domaine.ts';
+import type { BlocVideo, Locale } from '../../lib/domaine.ts';
 import { urlMedia } from '../../lib/media.ts';
 import { nomFournisseurVideo } from '../../lib/article/video.ts';
+import { libelles } from '../../lib/i18n/libelles.ts';
 
 interface Props {
   bloc: BlocVideo;
+  /**
+   * La langue de la page. Le libelle du lien et la mention d ouverture etaient ecrits
+   * ici, en francais, et sortaient donc en francais sur les pages anglaises — dont la
+   * mention, qui est du texte ACCESSIBLE : un lecteur d ecran anglophone l entendait
+   * telle quelle (tache `ba63557e`).
+   */
+  locale: Locale;
 }
 
-const { bloc } = Astro.props;
+const { bloc, locale } = Astro.props;
+const mots = libelles(locale);
 const fournisseur = nomFournisseurVideo(bloc.url);
-const libelle = fournisseur ? `Voir la video sur ${fournisseur}` : 'Voir la video';
+const libelle = fournisseur ? mots.voirLaVideoSur(fournisseur) : mots.voirLaVideo;
 ---
 
 <figure class="bloc bloc-video">
@@ -57,7 +66,7 @@ const libelle = fournisseur ? `Voir la video sur ${fournisseur}` : 'Voir la vide
       )
     }
     <span class="bloc-video__libelle">
-      {libelle}<span class="hors-ecran"> (s ouvre dans un nouvel onglet)</span>
+      {libelle}<span class="hors-ecran"> {mots.ouvreNouvelOnglet}</span>
     </span>
   </a>
   {bloc.legende && <figcaption>{bloc.legende}</figcaption>}

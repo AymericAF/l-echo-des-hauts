@@ -25,6 +25,7 @@
  */
 import type { Configuration, Locale } from '../lib/domaine.ts';
 import { urlMedia } from '../lib/media.ts';
+import { libelles } from '../lib/i18n/libelles.ts';
 import { cheminAccueil } from '../lib/routes/chemins.ts';
 import type { Contrepartie } from '../lib/routes/contrepartie.ts';
 import type { Registre } from '../lib/routes/registre.ts';
@@ -41,15 +42,15 @@ interface Props {
 
 const { configuration, locale, registre, bascule } = Astro.props;
 const accueil = cheminAccueil(locale);
+const mots = libelles(locale);
+/** Le nom du Single Type de Strapi — un identifiant du modele, jamais un mot a traduire. */
+const SINGLE_TYPE = 'Configuration';
 ---
 
 <header class="en-tete">
   {
     configuration === null ? (
-      <p class="bandeau-gabarit">
-        Configuration Strapi absente : le Single Type <code>Configuration</code> n a
-        aucune entree. Nom du site, logo et description ne peuvent pas etre affiches.
-      </p>
+      <p class="bandeau-gabarit">{mots.configurationAbsente(SINGLE_TYPE)}</p>
     ) : (
       <div class="en-tete__interieur">
         <a class="en-tete__marque" href={accueil}>

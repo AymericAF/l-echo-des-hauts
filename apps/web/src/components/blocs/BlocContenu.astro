@@ -24,7 +24,7 @@
  * branche morte pour autant — c est ce qui empeche un `undefined` de traverser
  * silencieusement jusqu a un trou dans la page.
  */
-import type { Bloc } from '../../lib/domaine.ts';
+import type { Bloc, Locale } from '../../lib/domaine.ts';
 import BlocTexte from './BlocTexte.astro';
 import BlocCitation from './BlocCitation.astro';
 import BlocGalerie from './BlocGalerie.astro';
@@ -38,6 +38,16 @@ interface Props {
   bloc: Bloc;
   /** Ancres du sommaire du bloc (§4.5) — n a de sens que pour `bloc.texte`. */
   ancres?: readonly (string | null)[];
+  /**
+   * La langue de la page, transmise a TOUS les rendus.
+   *
+   * Elle n a de destinataire aujourd hui que `bloc.video`, seul des huit a porter du
+   * texte qui lui soit propre — les sept autres ne rendent que de la donnee. Elle est
+   * quand meme passee a tous : un repartiteur qui ne transmet qu a ceux qui en ont
+   * besoin oblige a se souvenir de le rebrancher le jour ou un neuvieme bloc porte un
+   * libelle, et c est exactement la forme d oubli que cette tache corrige.
+   */
+  locale: Locale;
 }
 
 const RENDUS = {
@@ -51,7 +61,7 @@ const RENDUS = {
   'bloc.chiffres-cles': BlocChiffresCles,
 } satisfies Record<Bloc['type'], unknown>;
 
-const { bloc, ancres } = Astro.props;
+const { bloc, ancres, locale } = Astro.props;
 const Rendu = RENDUS[bloc.type] as typeof BlocTexte | undefined;
 
 if (Rendu === undefined) {
@@ -63,4 +73,4 @@ if (Rendu === undefined) {
 }
 ---
 
-<Rendu bloc={bloc as never} ancres={ancres} />
+<Rendu bloc={bloc as never} ancres={ancres} locale={locale} />

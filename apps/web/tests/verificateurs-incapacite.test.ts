@@ -55,6 +55,7 @@ import { test } from 'node:test';
 import { ISSUES, manquementCorpusVide } from '../scripts/issues.mjs';
 import { inspecterCascadeTitres } from '../scripts/verifier-cascade-titres.mjs';
 import { inspecterImages } from '../scripts/verifier-images.mjs';
+import { inspecterLangue } from '../scripts/verifier-langue.mjs';
 import { inspecterLiens } from '../scripts/verifier-liens.mjs';
 import { inspecterOrigineMedias } from '../scripts/verifier-origine-medias.mjs';
 import { inspecterSeo } from '../scripts/verifier-seo.mjs';
@@ -77,6 +78,11 @@ function distFactice(fichiers: Record<string, string>): string {
 
 function page(tete: string, corps: string): string {
   return `<!doctype html><html lang="fr"><head><title>t</title>${tete}</head><body>${corps}</body></html>`;
+}
+
+/** Comme `page`, mais la LANGUE du document est choisie : c est l objet de `verifier-langue`. */
+function pageLangue(lang: string, corps: string): string {
+  return `<!doctype html><html lang="${lang}"><head><title>t</title></head><body>${corps}</body></html>`;
 }
 
 /** Le squelette SEO minimal qui passe au vert, avec la `<loc>` qu on lui donne. */
@@ -145,6 +151,19 @@ const VERIFICATEURS: {
     // Une page sans une seule <img> : zero image jugee, et pourtant rien de fautif.
     objetVide: { 'index.html': page('', '<p>aucune image sur cette page</p>') },
     motifAnomalie: /dimensions non explicites/i,
+  },
+  {
+    nom: 'langue',
+    script: 'verifier-langue.mjs',
+    inspecter: async (dist) => inspecterLangue(dist),
+    conforme: { 'en/index.html': pageLangue('en', '<nav aria-label="Follow the newsroom"></nav>') },
+    /* Le defaut fondateur, tel qu il sortait le 2026-08-10 : une etiquette d accessibilite
+       francaise dans le pied de page d une page declaree anglaise. */
+    fautif: { 'en/index.html': pageLangue('en', '<nav aria-label="Reseaux du journal"></nav>') },
+    // Une page reelle qui ne porte AUCUNE chaine du dictionnaire : rien a juger, et
+    // pourtant rien de fautif — c est le cas d une page de corpus pur.
+    objetVide: { 'en/index.html': pageLangue('en', '<p>only corpus text here</p>') },
+    motifAnomalie: /mauvaise langue|Reseaux du journal/i,
   },
   {
     nom: 'liens',

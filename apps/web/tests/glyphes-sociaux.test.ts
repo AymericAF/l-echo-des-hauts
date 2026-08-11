@@ -20,14 +20,64 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import type { Locale } from '../src/lib/domaine.ts';
 import { PLATEFORMES } from '../src/lib/domaine.ts';
-import { GLYPHES, LIBELLES, RAISONS_SANS_GLYPHE, glypheDe } from '../src/lib/glyphes-sociaux.ts';
+import {
+  GLYPHES,
+  MARQUES,
+  RAISONS_SANS_GLYPHE,
+  glypheDe,
+  libelleDePlateforme,
+} from '../src/lib/glyphes-sociaux.ts';
+import { LIBELLES, libelles } from '../src/lib/i18n/libelles.ts';
 
-test('chaque plateforme de l enum porte un libelle affichable', () => {
-  for (const plateforme of PLATEFORMES) {
-    assert.equal(typeof LIBELLES[plateforme], 'string', plateforme);
-    assert.ok(LIBELLES[plateforme].length > 0, plateforme);
+/** Les locales du site, DERIVEES du dictionnaire — jamais une seconde liste a tenir. */
+const LOCALES = Object.keys(LIBELLES) as Locale[];
+
+test('chaque plateforme de l enum porte un libelle affichable, dans chaque locale', () => {
+  for (const locale of LOCALES) {
+    for (const plateforme of PLATEFORMES) {
+      const libelle = libelleDePlateforme(plateforme, locale);
+      assert.equal(typeof libelle, 'string', `${locale}/${plateforme}`);
+      assert.ok(libelle.length > 0, `${locale}/${plateforme}`);
+    }
   }
+});
+
+/**
+ * LE CRITERE N EST PAS « c est du texte », C EST « est-ce que cela s adresse au lecteur ».
+ *
+ * Sept des huit plateformes sont des MARQUES DEPOSEES : « LinkedIn » se dit LinkedIn en
+ * anglais, et les chartes citees dans `GLYPHES` interdisent d ailleurs d en modifier la
+ * denomination. La huitieme, `site`, est un NOM COMMUN — « Site web » — et c est la seule
+ * qui doive changer de langue. Le 2026-08-10, elle sortait en francais sur les pages
+ * anglaises, dans le nom accessible d un lien du pied de page.
+ */
+test('les marques ne se traduisent pas, le nom commun si', () => {
+  for (const locale of LOCALES) {
+    for (const plateforme of Object.keys(MARQUES) as (keyof typeof MARQUES)[]) {
+      assert.equal(
+        libelleDePlateforme(plateforme, locale),
+        MARQUES[plateforme],
+        `${plateforme} est une marque : elle ne doit pas varier avec la locale`,
+      );
+    }
+  }
+
+  assert.equal(libelleDePlateforme('site', 'fr'), 'Site web');
+  assert.equal(libelleDePlateforme('site', 'en'), 'Website');
+  for (const locale of LOCALES) {
+    assert.equal(libelleDePlateforme('site', locale), libelles(locale).plateformeSite);
+  }
+});
+
+test('le registre des marques ne recouvre pas le nom commun, et couvre tout le reste', () => {
+  /* Une plateforme qui ne serait ni une marque declaree ici, ni le nom commun `site`,
+     rendrait `undefined` dans le nom accessible d un lien — un lien vide au lecteur
+     d ecran. La reunion doit donc couvrir l enum, exactement. */
+  const couvertes = [...Object.keys(MARQUES), 'site'].sort();
+  assert.deepEqual(couvertes, [...PLATEFORMES].sort());
+  assert.equal(Object.prototype.hasOwnProperty.call(MARQUES, 'site'), false);
 });
 
 test('chaque plateforme a SOIT un glyphe SOIT une raison de ne pas en avoir, jamais ni l un ni l autre', () => {

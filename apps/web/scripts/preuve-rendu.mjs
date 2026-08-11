@@ -9,6 +9,23 @@
  * script ne la remplace pas : il ajoute le constat par TYPE DE BLOC, que la garde ne
  * peut pas faire — elle sait dire « aucun script », pas « les huit blocs sont la ».
  *
+ * IL CONSTRUIT PAR LA PORTE DE LA PRODUCTION, ET PAS PAR UNE PLUS ETROITE (2026-08-11,
+ * tache 08f04f58). Il lancait `npx astro build` ; Coolify lance `npm run build`, soit
+ * `astro build && node scripts/index-pagefind.mjs`. Le second maillon indexe la sortie
+ * PUIS la re-inspecte — c est ce qui etend la garde T-09 aux octets que Pagefind ecrit
+ * APRES le build, le seul endroit du site qui echappait a son regard. Mesure du
+ * 2026-08-11 : apres `npm run preuve:rendu`, `dist/pagefind/` N EXISTAIT PAS, et la ligne
+ * « N page(s) indexee(s) par Pagefind » n apparaissait QUE dans le journal du deploiement.
+ * Une regression de l indexation, un Pagefind qui deposerait un octet hors de son dossier,
+ * une exemption de chemin qui deriverait : rien n aurait rougi avant la PRODUCTION.
+ *
+ * POURQUOI CETTE BRANCHE PLUTOT QU UN PAS D INDEXATION AJOUTE A L INTEGRATION CONTINUE :
+ * elle ferme aussi le trou pour qui lance `preuve:rendu` A LA MAIN — recette, poste,
+ * `queue-run` — c est-a-dire pour tous les lecteurs qui ne regardent pas un journal
+ * GitHub. Le seul argument contraire etait le cout, et il ne tient pas devant la mesure :
+ * sur les 24 pages des fixtures, l indexation coute 0,25 s a chaud et 1,3 s a froid,
+ * contre 3,3 s pour le build seul.
+ *
  * `npm run preuve:rendu`. La sortie va dans `dist/`, comme un build normal.
  */
 import { spawn } from 'node:child_process';
@@ -112,7 +129,7 @@ exigerBanc('preuve de rendu sur fixtures', fixturesDuBanc([...LOCALES_SITE]));
 const serveur = await demarrerServeurFixtures();
 console.log(`\n▸ Strapi de substitution : ${serveur.url} (fixtures de tests/fixtures/)\n`);
 
-const code = await lancer('npx', ['astro', 'build'], {
+const code = await lancer('npm', ['run', 'build'], {
   ECHO_STRAPI_URL: serveur.url,
   ECHO_STRAPI_API_TOKEN_READONLY: 'jeton-de-fixture',
   ECHO_SITE_URL: 'https://echo.ayfiweb.fr',

@@ -23,8 +23,12 @@
 # secondes se fait contourner en une semaine, et on perd tout, y compris ce qui
 # marchait. Un commit qui ne touche aucune application ne doit donc RIEN payer :
 # sans ce filtre, chaque commit paierait un demarrage de node pour n'avoir rien
-# a faire. Le filtre ne cite AUCUN nom de module : il reconnait la FORME
-# `apps/<application>/…`. La regle precise « quel fichier declenche quel test »
+# a faire. Le filtre ne cite AUCUN nom de module : il reconnait les FORMES
+# `apps/<application>/…` et `.github/workflows/…`. La seconde a ete ajoutee le
+# 2026-08-11 (tache b903aa06) : un test d'`apps/web` tient desormais des
+# invariants du workflow lui-meme — que le job `sortie` relance TOUS les
+# verificateurs non exemptes — et un commit qui ne toucherait que le workflow
+# n'aurait rien lance. La regle precise « quel fichier declenche quel test »
 # vit a UN SEUL endroit, `outils/gardes-au-commit.js`, et elle s'y DERIVE du
 # graphe d'imports plutot que de s'y ecrire : deux listes de noms finiraient par
 # diverger, et une entree oubliee serait un trou silencieux.
@@ -44,7 +48,7 @@ repo="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 touches="$(git diff --cached --name-only --diff-filter=ACMRD)"
 
-if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.githooks/commit-msg|outils/gardes-au-commit\.js)$'; then
+if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.github/workflows/.+|\.githooks/commit-msg|outils/gardes-au-commit\.js)$'; then
     echo "gardes du code : aucune application gardee dans ce commit — 0 test lance" >&2
     exit 0
 fi

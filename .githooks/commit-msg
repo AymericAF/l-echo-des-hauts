@@ -48,9 +48,27 @@ repo="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 touches="$(git diff --cached --name-only --diff-filter=ACMRD)"
 
-if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.github/workflows/.+|\.githooks/commit-msg|outils/gardes-au-commit\.js)$'; then
-    echo "gardes du code : aucune application gardee dans ce commit — 0 test lance" >&2
-    exit 0
+# UN INDEX QUI N AJOUTE RIEN N EST PAS UN COMMIT VIDE (2026-08-11, tache abf9a6c2).
+# `git commit --amend` sans rien reindexer laisse `git diff --cached` VIDE : l arbre a
+# commiter est deja celui de HEAD. Le filtre ci-dessous n y voyait alors aucun fichier sous
+# garde et sortait proprement a zero — en imprimant « aucune application gardee dans ce
+# commit » sur un commit qui, lui, en changeait bel et bien une. Reproduit le 2026-08-11 :
+# une faute posee dans HEAD par la plomberie, puis `git commit --amend --no-edit`, et git
+# annoncait « 1 file changed » juste sous la phrase du crochet qui disait le contraire.
+# Succes et incapacite rendaient la meme sortie.
+#
+# CE FILTRE NE PEUT RIEN CONCLURE DE CE CAS, et c est la seule chose a corriger ici : il ne
+# sait pas contre quel parent le futur commit se juge (HEAD pour un commit ordinaire, HEAD^
+# pour un amendement), et rien de ce que git expose a `commit-msg` ne le lui dit — mesure du
+# 2026-08-11 : arguments « [.git/COMMIT_EDITMSG] [] [] » et environnement identiques dans les
+# deux cas. Il passe donc la main. La regle continue de vivre a UN SEUL endroit,
+# `outils/gardes-au-commit.js`, qui a le temoin et le parent sous la main ; le cout de ce
+# renvoi est un demarrage de node (~0,1 s) sur les seuls commits sans rien de neuf a l index.
+if [ -n "$touches" ]; then
+    if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.github/workflows/.+|\.githooks/commit-msg|outils/gardes-au-commit\.js)$'; then
+        echo "gardes du code : aucune application gardee dans ce commit — 0 test lance" >&2
+        exit 0
+    fi
 fi
 
 if command -v node >/dev/null 2>&1; then

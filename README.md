@@ -43,6 +43,46 @@ qui commite**. Une garde qu'il faut penser à lancer ne garde rien.
   `outils/gardes-au-commit.js` matérialise le **contenu indexé** — jamais la copie de travail —
   et ne lance que les tests dont une entrée est dans le commit.
   **Il faut l'activer une fois par clone** : `git config core.hooksPath .githooks`.
+
+### `git commit --amend` ne passe plus au travers
+
+Jusqu'au 2026-08-11, **un amendement sans rien réindexer laissait l'index vide** : le pré-filtre
+n'y voyait aucun fichier sous garde, sortait à zéro, et imprimait « aucune application gardée dans
+ce commit » — sur un commit dont git annonçait, deux lignes plus bas, « 1 file changed ». Le contenu
+amendé n'avait jamais été jugé, et **rien ne le disait**. C'est le mode d'échec le plus cher : une
+incapacité qui rend la même sortie qu'un succès.
+
+Ce que git expose à ce moment-là ne permet pas de le détecter — **mesuré**, pas supposé :
+`commit-msg` reçoit les mêmes arguments (`[.git/COMMIT_EDITMSG] [] []`) et le même environnement
+qu'un commit ordinaire ; `prepare-commit-msg` distingue bien `--amend`, **sauf avec `-m`**, où il
+annonce `message` comme n'importe quel commit. La question à laquelle git ne répond pas est
+d'ailleurs une autre : *ce contenu a-t-il déjà été jugé ?*
+
+Le déclencheur y répond donc lui-même. Après chaque exécution **verte**, il consigne l'empreinte de
+l'arbre certifié dans `<git-dir>/gardes-au-commit-vu` (local, jamais versionné) :
+
+| Geste | Ce qui est jugé | Coût mesuré le 2026-08-11 (poste Windows, 7 passages) |
+|---|---|---|
+| amendement de **message seul** | rien : l'arbre est déjà certifié | médiane **0,89 s** contre **0,79 s** avant le correctif, soit **+0,1 s** — un démarrage de `node`, et **0 test lancé** |
+| amendement d'un contenu **jamais jugé** (historique antérieur au crochet, clone sans `core.hooksPath`, rebase, plomberie) | le **différentiel complet** du commit remplacé | le coût de ses tests — **8,7 s** dans le cas mesuré, qui touche le déclencheur lui-même et relance donc les 47 fichiers |
+| amendement qui **réindexe** un fichier | inchangé : ce que l'index ajoute | inchangé |
+
+La colonne du milieu est ce qui compte : le surcoût permanent est **un démarrage de `node` sur les
+seuls commits sans rien de neuf à l'index**. Le `git diff --cached` du pré-filtre, lui, était déjà
+payé avant — c'est le poste dominant de ce tableau, pas le correctif.
+
+Un témoin absent, périmé ou écrit par une autre session fait juger **plus** de fichiers, jamais
+moins : le déclencheur juge toujours l'arbre qui va être commité, donc un rouge y reste toujours un
+vrai rouge. `outils/gardes-au-commit.recette.mjs` (14 cas, dépôts jetables, vrais `git commit`) le
+**prouve en le cassant dans les deux sens** — l'amendement fautif est refusé en nommant le test,
+l'amendement de message ne lance rien.
+
+**Ce qui reste ouvert, et c'est délibéré** : le pré-filtre en `sh` sort à zéro — sans démarrer
+`node`, donc sans consulter le témoin — quand l'index ajoute quelque chose dont **rien** n'est sous
+garde. Un amendement qui réindexe un `README` par-dessus un contenu jamais jugé passe donc encore.
+Fermer ce cas coûterait un démarrage de `node` **à chaque commit de documentation**, et un crochet
+qui coûte se fait contourner — on perdrait alors aussi ce qui marche. La recette porte ce cas
+**écrit pour être vert** : le jour où il rougit, c'est que la décision a changé.
 - **`.github/workflows/gardes-du-code.yml`** — GitHub Actions, tardif, **exhaustif**. Il lance
   **tout** à chaque `push`, parce que le hook local se contourne d'un `--no-verify`, n'existe pas
   dans un clone frais tant que `core.hooksPath` n'y est pas posé, et ne voit pas un fichier

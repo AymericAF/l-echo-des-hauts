@@ -113,10 +113,28 @@ jobs:
           }
           echo "OK : .githooks/commit-msg 100755, et il appelle outils/gardes-au-commit.js"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Le declencheur lui-meme se lance sans erreur
         # Sur un arbre ou rien n'est indexe, il doit rendre 0 en n'ayant rien
         # lance. Un declencheur qui plante ici plante a chaque commit.
+        #
+        # CE PAS EST AUSSI UNE MESURE (2026-08-11) : appele a la main, hors de
+        # tout commit, le declencheur ne doit RIEN lancer. Depuis qu'un index
+        # sans rien de neuf ne vaut plus « rien a faire » — c'etait le trou de
+        # l'amendement — il faut qu'il distingue « pas de commit en cours » d'un
+        # amendement, sans quoi ce job lancerait des tests SANS `npm ci` et
+        # rougirait pour une cause qui n'est pas la sienne.
         run: node outils/gardes-au-commit.js
+
+      - name: La recette du declencheur — elle le prouve en le cassant, dans les deux sens
+        # 14 cas, depots jetables, vrais `git commit`. Elle tient les deux
+        # moities de la garde, et la seconde protege l'adoption autant que la
+        # premiere : un amendement qui porte un contenu jamais juge est REFUSE,
+        # et un amendement qui ne corrige qu'un message ne lance RIEN.
+        run: node outils/gardes-au-commit.recette.mjs
 
       - name: Aucun fichier de test n est absent du `npm test` de son application
         # Le `test` de package.json ENUMERE les fichiers. Un test ajoute dans

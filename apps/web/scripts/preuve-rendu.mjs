@@ -34,6 +34,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { articlesDuBanc, inspecterBlocs, TYPES } from './couverture-blocs.mjs';
+import { ISSUES } from './issues.mjs';
+import { inspecterMentionsRendues, resumeMentionsRendues } from './mentions-obligatoires.mjs';
 import { demarrerServeurFixtures, exigerBanc, fixturesDuBanc } from './serveur-fixtures.mjs';
 import { inspecterSortie, resume } from './verifier-sortie.mjs';
 import { prefixeLocale } from '../src/lib/routes/chemins.ts';
@@ -390,6 +392,27 @@ console.log(
     : `Liens de reseaux : ${ecartsSociaux.length} ecart(s).`,
 );
 
+/**
+ * LES MENTIONS LEGALES, lues DANS LA SORTIE et pas dans le champ qui les alimente.
+ *
+ * Pourquoi ici et pas seulement dans un test : depuis la decision `ed69d5bf` (branche A),
+ * le texte legal ne vit plus dans le composant mais dans `configuration.mentionsLegales`.
+ * Un test de source dirait « le composant rend un champ » et resterait VERT si le champ
+ * cessait d arriver, si `RichTexte` avalait un noeud, ou si la page anglaise retombait sur
+ * la Configuration francaise. Ce que la loi exige n est pas qu un composant lise un champ :
+ * c est que la mention SOIT SUR LA PAGE.
+ *
+ * `tests/mentions-legales.test.ts` tient l autre bout — le CHAMP seede et la FIXTURE
+ * portent les memes clauses. Les deux ensemble ferment la chaine : le texte publie est
+ * celui qui a ete relu, et il arrive entier jusqu au lecteur.
+ */
+const mentions = inspecterMentionsRendues(dist);
+console.log(
+  mentions.manquements.length === 0
+    ? `Mentions legales : ${resumeMentionsRendues(mentions)}`
+    : `Mentions legales : ${mentions.manquements.length} manquement(s) sur ${mentions.pages} page(s).`,
+);
+
 const pied = ecartsPiedDePage(dist);
 const comptePied = LOCALES.map((locale) => `${pied.inspectees[locale]} page(s) ${locale}`).join(', ');
 console.log(
@@ -408,6 +431,16 @@ if (ecartsSociaux.length > 0) {
   console.error('\n✖ Accessibilite des liens de reseaux :');
   for (const ecart of ecartsSociaux) console.error(`  - ${ecart}`);
   process.exit(1);
+}
+
+if (mentions.issue !== ISSUES.CONFORME) {
+  console.error(
+    mentions.issue === ISSUES.VERIFICATION_IMPOSSIBLE
+      ? '\n⛔ Mentions legales — VERIFICATION IMPOSSIBLE, aucune page n a ete jugee :'
+      : '\n✖ Mentions legales absentes de la page servie :',
+  );
+  for (const manquement of mentions.manquements) console.error(`  - ${manquement}`);
+  process.exit(mentions.issue);
 }
 
 if (pied.ecarts.length > 0) {

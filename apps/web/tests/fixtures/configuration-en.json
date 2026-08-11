@@ -103,11 +103,156 @@
     ],
     "mentionsLegales": [
       {
+        "type": "heading",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "What this site is"
+          }
+        ]
+      },
+      {
         "type": "paragraph",
         "children": [
           {
             "type": "text",
-            "text": "The Highland Echo is a fictional outlet."
+            "text": "\"The Highland Echo\" does not exist.",
+            "bold": true
+          },
+          {
+            "type": "text",
+            "text": " This site is a technical demonstrator: it shows what a local editorial magazine can be when it is served as pure static files, with no server rendering and no JavaScript. No real local outlet publishes these articles, and this site is in no way an online press service."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "The Hauts plateau, its 14 villages, its businesses, its associations and every figure quoted are "
+          },
+          {
+            "type": "text",
+            "text": "invented",
+            "bold": true
+          },
+          {
+            "type": "text",
+            "text": " for this demonstration. The five bylines are "
+          },
+          {
+            "type": "text",
+            "text": "characters",
+            "bold": true
+          },
+          {
+            "type": "text",
+            "text": ": their names, careers and biographies are fictional. No identifiable real person is named, quoted or photographed in the magazine's content, and no real company, authority or association appears in it."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "Images"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Every visual is a "
+          },
+          {
+            "type": "text",
+            "text": "work of the project",
+            "bold": true
+          },
+          {
+            "type": "text",
+            "text": ", generated or composed for this demonstrator. No image presents a real place as being the Hauts plateau."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "Publisher"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Monsieur Aymeric Filliot EI, 230 rue Eloi Morel, 80000 Amiens."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Publication director : Aymeric Filliot."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Contact : "
+          },
+          {
+            "type": "link",
+            "url": "mailto:contact@echo.ayfiweb.fr",
+            "children": [
+              {
+                "type": "text",
+                "text": "contact@echo.ayfiweb.fr"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Demonstrator built by Aymeric Filliot. The code is public; the content is fictional."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "Hosting"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Site hosted by HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023 Larnaca, Chypre."
           }
         ]
       }

@@ -2,11 +2,19 @@
 /**
  * `/en/mentions-legales` (§4.2). Meme portee que la version francaise, et meme
  * `noindex` — desormais derive de `src/lib/seo/indexation.ts` plutot qu ecrit ici.
+ *
+ * La Configuration ANGLAISE, et elle seule : `mentionsLegales` est un champ localise
+ * (`i18n.localized: true`). Retomber sur la francaise servirait un texte legal en francais
+ * sur une page anglaise — la classe de defaut exacte que `corpus-recette.mjs` a fermee le
+ * 2026-08-10 sur le pied de page.
  */
+import { getEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import PageMentions from '../../components/pages/PageMentions.astro';
+
+const configuration = (await getEntry('configurations', 'en'))?.data ?? null;
 ---
 
 <Base titre="Legal notice" page={{ genre: 'statique', locale: 'en', nom: 'mentions-legales' }}>
-  <PageMentions locale="en" />
+  <PageMentions locale="en" configuration={configuration} />
 </Base>

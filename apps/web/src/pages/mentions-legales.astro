@@ -6,11 +6,19 @@
  * politique d indexation vit dans `src/lib/seo/indexation.ts`, d ou le `<head>` ET le
  * sitemap la lisent (A-29 : une seule decision, deux points de lecture). L ecart avec la
  * table de volumetrie du protocole de mesure reste ouvert — decision `463b2551`.
+ *
+ * LA CONFIGURATION EST LUE ICI, PAS DANS LE COMPOSANT. C est la convention du depot — les
+ * routes lisent, les composants recoivent des props — et c est le seul lot du site ou le
+ * texte legal circule : le rendre visible dans la route plutot que cache dans un composant
+ * evite qu on le croie « en dur » une seconde fois (decision `ed69d5bf`, branche A).
  */
+import { getEntry } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import PageMentions from '../components/pages/PageMentions.astro';
+
+const configuration = (await getEntry('configurations', 'fr'))?.data ?? null;
 ---
 
 <Base titre="Mentions legales" page={{ genre: 'statique', locale: 'fr', nom: 'mentions-legales' }}>
-  <PageMentions locale="fr" />
+  <PageMentions locale="fr" configuration={configuration} />
 </Base>

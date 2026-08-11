@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { chargerCorpus } from '../scripts/seed/corpus.ts';
+import { FORMATS_DE_PARTAGE, chargerCorpus, exigerFormatDePartage } from '../scripts/seed/corpus.ts';
 import { SEPARATEUR, verifierFormatCredit } from '../scripts/seed/credits.ts';
 import { ErreurCorpus, MediaIntrouvable } from '../scripts/seed/erreurs.ts';
 
@@ -34,7 +34,7 @@ function ecrireCorpusMinimal(): string {
 
   ecrire('medias/couvertures/A05.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
   ecrire('medias/identite/logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
-  ecrire('medias/identite/partage.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  ecrire('medias/identite/partage.png', 'PNG factice');
   ecrire(
     'medias/manifeste.json',
     JSON.stringify({
@@ -49,7 +49,7 @@ function ecrireCorpusMinimal(): string {
         ayantDroit: 'Œuvre du projet',
         licence: 'Œuvre du projet',
       },
-      'identite/partage.svg': {
+      'identite/partage.png': {
         alternativeText: 'Partage',
         ayantDroit: 'Œuvre du projet',
         licence: 'Œuvre du projet',
@@ -90,7 +90,7 @@ function ecrireCorpusMinimal(): string {
     'configuration.json',
     JSON.stringify({
       logo: 'identite/logo.svg',
-      imagePartageDefaut: 'identite/partage.svg',
+      imagePartageDefaut: 'identite/partage.png',
       reseaux: [],
       fr: {
         nomSite: "L'Echo des Hauts",
@@ -476,4 +476,49 @@ test('la Configuration versionnee ne porte QU UN lien social, le LinkedIn d Ayme
   assert.deepEqual(corpus.configuration.reseaux, [
     { plateforme: 'linkedin', url: 'https://www.linkedin.com/in/aymeric-filliot-37442a17a/' },
   ]);
+});
+
+// --- l image de partage par defaut doit etre RASTERISEE par les plateformes -----------
+
+test("l image de partage par defaut en SVG est refusee — les plateformes l ignorent", () => {
+  /* LE DEFAUT DU 2026-08-11 (tache 9b173668), sur la donnee REELLE et non sur une fixture.
+     `imagePartageDefaut` pointait `identite/partage-defaut.svg` : accueil, rubriques,
+     auteurs et dossiers sortaient un `og:image:type` = `image/svg+xml`, releve tel quel
+     sur la production. Aucune balise ne manquait, le fichier existait, l URL resolvait —
+     et ces pages n avaient AUCUNE image de partage. */
+  const racine = ecrireCorpusMinimal();
+  fs.writeFileSync(path.join(racine, 'medias', 'identite', 'partage.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  const manifeste = JSON.parse(fs.readFileSync(path.join(racine, 'medias', 'manifeste.json'), 'utf8'));
+  manifeste['identite/partage.svg'] = manifeste['identite/partage.png'];
+  delete manifeste['identite/partage.png'];
+  fs.writeFileSync(path.join(racine, 'medias', 'manifeste.json'), JSON.stringify(manifeste));
+  const configuration = JSON.parse(fs.readFileSync(path.join(racine, 'configuration.json'), 'utf8'));
+  configuration.imagePartageDefaut = 'identite/partage.svg';
+  fs.writeFileSync(path.join(racine, 'configuration.json'), JSON.stringify(configuration));
+
+  assert.throws(() => chargerCorpus(racine), (erreur: unknown) => {
+    assert.ok(erreur instanceof ErreurCorpus);
+    assert.match((erreur as Error).message, /imagePartageDefaut/);
+    assert.match((erreur as Error).message, /\.svg/);
+    assert.match((erreur as Error).message, /RASTERISENT/);
+    return true;
+  });
+  fs.rmSync(racine, { recursive: true, force: true });
+});
+
+test('les formats acceptes sont ceux que les plateformes rendent, et rien d autre', () => {
+  assert.deepEqual(FORMATS_DE_PARTAGE, ['.png', '.jpg', '.jpeg', '.webp']);
+  for (const refuse of ['identite/x.svg', 'identite/x.avif', 'identite/x.gif', 'identite/x']) {
+    assert.throws(() => exigerFormatDePartage(refuse, 'configuration : imagePartageDefaut'), ErreurCorpus, refuse);
+  }
+  for (const accepte of ['identite/x.png', 'identite/x.JPG', 'identite/x.jpeg', 'identite/x.webp']) {
+    exigerFormatDePartage(accepte, 'configuration : imagePartageDefaut');
+  }
+});
+
+test('le corpus REEL du depot sert une carte de partage rasterisable', () => {
+  /* Le corpus de test ci-dessus est fabrique : il ne dirait rien de la donnee publiee.
+     Ce cas-ci lit `data/configuration.json`, celui que le seed televerse. */
+  const reel = chargerCorpus(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'));
+  exigerFormatDePartage(reel.configuration.imagePartageDefaut, 'configuration : imagePartageDefaut');
 });

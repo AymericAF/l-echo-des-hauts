@@ -2,7 +2,7 @@
   "logo": "identite/logo.svg",
   "logoSombre": "identite/logo-sombre.svg",
   "favicon": "identite/favicon.svg",
-  "imagePartageDefaut": "identite/partage-defaut.svg",
+  "imagePartageDefaut": "identite/partage-defaut.png",
   "reseaux": [
     { "plateforme": "linkedin", "url": "https://www.linkedin.com/in/aymeric-filliot-37442a17a/" }
   ],

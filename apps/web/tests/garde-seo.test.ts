@@ -367,7 +367,37 @@ test('un og:image du site qui ne resout pas est un manquement', async () => {
 
 test("un og:image herberge ailleurs (mediatheque Strapi) n est pas un manquement", async () => {
   const rapport = await inspecter({
+    'index.html': page('/', { ogImage: 'https://echoback.test/uploads/partage.png' }),
+  });
+  assert.deepEqual(rapport.manquements, []);
+});
+
+test('un og:image en SVG est un manquement — les plateformes ne le rasterisent pas', async () => {
+  /* LE DEFAUT DU 2026-08-11 (tache 9b173668). `imagePartageDefaut` etait un SVG, donc
+     l accueil, les rubriques, les auteurs et les dossiers servaient un `og:image` en
+     `image/svg+xml` — releve sur la production. La balise etait presente, le fichier
+     existait, l URL resolvait : les six premiers controles etaient verts, et ces pages
+     n avaient AUCUNE image de partage. */
+  const rapport = await inspecter({
+    'index.html': page('/', { ogImage: `${ORIGINE}/medias/partage-defaut.svg` }),
+    'medias/partage-defaut.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
+  });
+  assert.equal(rapport.manquements.length, 1, rapport.manquements.join(' | '));
+  assert.match(rapport.manquements[0], /\.svg/);
+  assert.match(rapport.manquements[0], /AUCUNE image de partage/);
+});
+
+test('le format se juge meme quand l image est HORS du site — ce que rasterise X ne depend pas de l hote', async () => {
+  const rapport = await inspecter({
     'index.html': page('/', { ogImage: 'https://echoback.test/uploads/partage.svg' }),
+  });
+  assert.equal(rapport.manquements.length, 1, rapport.manquements.join(' | '));
+  assert.match(rapport.manquements[0], /og:image est en \.svg/);
+});
+
+test('une URL de partage avec query ou ancre garde son format lisible', async () => {
+  const rapport = await inspecter({
+    'index.html': page('/', { ogImage: `${ORIGINE}/og/fr/a.png?v=2` }),
   });
   assert.deepEqual(rapport.manquements, []);
 });

@@ -7,7 +7,7 @@
  * decouvre jamais en test : une URL de sitemap absente du site ne casse aucune page, ne
  * fait rougir aucun build, et se manifeste des mois plus tard en Search Console.
  *
- * HUIT CONTROLES, chacun ferme une classe de defaut que rien d autre ne voit :
+ * NEUF CONTROLES, chacun ferme une classe de defaut que rien d autre ne voit :
  *
  *   1. **Chaque segment declare par l index existe.** Un index qui annonce un fichier
  *      absent est un sitemap mort ; le crawler abandonne le segment sans le dire.
@@ -23,9 +23,12 @@
  *      controle-la est le seul qui puisse detecter un segment OUBLIE.
  *   5. **Chaque lien de flux RSS resout.** Un flux est lu dans un agregateur, jamais
  *      dans le site : ses liens morts sont invisibles depuis le navigateur.
- *   6. **Chaque `og:image` / `twitter:image` du site resout, et chaque page porte ses
- *      balises de partage minimales.** Une carte de partage cassee ne se voit qu en
- *      partageant.
+ *   6. **Chaque `og:image` / `twitter:image` du site resout, EST DANS UN FORMAT QUE LES
+ *      PLATEFORMES RASTERISENT, et chaque page porte ses balises de partage minimales.**
+ *      Une carte de partage cassee ne se voit qu en partageant. Le format est le cas le
+ *      plus silencieux des trois : le 2026-08-11, l accueil, les rubriques, les auteurs et
+ *      les dossiers servaient un `og:image` en `image/svg+xml` — balise presente, fichier
+ *      present, URL qui resout, et AUCUNE image de partage chez Facebook, LinkedIn ni X.
  *   7. **Chaque image OG generee porte des GLYPHES A LA BONNE TAILLE dans sa bande de
  *      titre.** C est le controle le plus important du fichier. `sharp` embarque
  *      fontconfig mais aucune fonte : sur une image de construction sans police
@@ -48,13 +51,6 @@
  *      vignettes vides qui passait. Le seuil ne peut pas etre releve pour autant — le
  *      plancher legitime est a 22 px. La seconde jambe (`sonderRasteriseur`) mesure donc
  *      la PROPORTIONNALITE de l encre au corps demande, que le tofu ne peut pas imiter.
- *   9. **Aucune image OG ne laisse son titre DEBORDER de la zone de texte.** Le controle 7
- *      mesure la HAUTEUR de l encre ; la hauteur ne bouge pas d un pixel quand le texte
- *      sort par le cote. Mesure du 2026-08-11 : un titre en capitales au corps 66 poussait
- *      son encre jusqu a x = 1199 — le bord de l image —, et rien ne le voyait : ni les
- *      tests du gabarit, qui bornaient un COMPTE DE CARACTERES, ni cette garde. Le modele
- *      de chasse est corrige dans `src/lib/seo/gabarit-og.ts` ; ce controle-ci est le filet
- *      qui ne suppose rien d une pile de polices non mesuree.
  *   8. **100 % des pages indexables portent un JSON-LD lisible** (§5.1, et le critere
  *      chiffre du §1). Chaque bloc est PARSE, son `@context` schema.org exige, ses noeuds
  *      typologiquement verifies, et les URL qu il affirme joignables confrontees a
@@ -63,6 +59,13 @@
  *      Ce controle est le seul qui verrait un layout ayant cesse d appeler le calcul —
  *      le module de calcul, lui, resterait vert sur ses propres tests.
  *
+ *   9. **Aucune image OG ne laisse son titre DEBORDER de la zone de texte.** Le controle 7
+ *      mesure la HAUTEUR de l encre ; la hauteur ne bouge pas d un pixel quand le texte
+ *      sort par le cote. Mesure du 2026-08-11 : un titre en capitales au corps 66 poussait
+ *      son encre jusqu a x = 1199 — le bord de l image —, et rien ne le voyait : ni les
+ *      tests du gabarit, qui bornaient un COMPTE DE CARACTERES, ni cette garde. Le modele
+ *      de chasse est corrige dans `src/lib/seo/gabarit-og.ts` ; ce controle-ci est le filet
+ *      qui ne suppose rien d une pile de polices non mesuree.
  * `npm run verifier:seo` pour inspecter un `dist/` deja construit. Ce qui rend ces
  * clauses opposables en machine, c est `integrations/garde-seo.mjs`, qui appelle
  * `inspecterSeo` DEPUIS le build et le fait sortir en code non nul.
@@ -80,6 +83,20 @@ import { normaliser, routeDuFichier } from './verifier-liens.mjs';
 
 /** Les balises `<meta>` de partage qu on exige sur TOUTE page HTML. */
 const PARTAGE_OBLIGATOIRE = ['og:title', 'og:url', 'og:type', 'og:locale'];
+
+/**
+ * Les extensions d image qu une plateforme de partage RASTERISE reellement.
+ *
+ * Ce ne sont PAS les formats du site : le §5.3 impose l AVIF pour les images de contenu et
+ * le corpus de demonstration est en SVG d un bout a l autre. Les deux sont ignores par
+ * Facebook, LinkedIn et X sur une carte de partage — et c est le mode d echec le plus
+ * silencieux qui soit, puisque rien ne manque nulle part. La meme liste vit dans
+ * `apps/cms/scripts/seed/corpus.ts` (`FORMATS_DE_PARTAGE`), qui juge la DONNEE ; celle-ci
+ * juge la SORTIE. Les deux sont necessaires : les fixtures de l integration continue
+ * portent un JPEG la ou la donnee reelle portait un SVG, et aucun controle sur les seules
+ * fixtures n aurait vu le defaut de la production.
+ */
+const FORMATS_DE_PARTAGE = ['.png', '.jpg', '.jpeg', '.webp'];
 
 /**
  * Bande verticale ou le titre est dessine, en fraction de la hauteur de l image.
@@ -743,6 +760,18 @@ export async function inspecterSeo(dist, origine) {
            du silence : depuis T-01, `garde-origine-medias` la REFUSE, parce que la CSP
            servie la refuse aussi. C est ici que le defaut du 2026-08-08 s est glisse,
            quand ce `continue` couvrait un og:image vers le CMS. */
+        /* Le FORMAT se juge sur l URL declaree, y compris quand l image est hors du
+           site : ce que la plateforme rasterise ne depend pas de qui la sert. */
+        const chemin = valeur.split(/[?#]/)[0];
+        const extension = chemin.slice(chemin.lastIndexOf('.')).toLowerCase();
+        if (!FORMATS_DE_PARTAGE.includes(extension)) {
+          manquements.push(
+            `${relatif} : ${cle} est en ${extension || '(sans extension)'} — « ${valeur} ». Facebook, ` +
+              'LinkedIn et X ne rasterisent ni le SVG ni l AVIF : la page n a alors AUCUNE image de ' +
+              `partage, alors que la balise est presente et que le fichier existe. Formats rendus : ` +
+              `${FORMATS_DE_PARTAGE.join(', ')}.`,
+          );
+        }
         if (cible === null) continue;
         if (!resout(cible)) {
           manquements.push(`${relatif} : ${cle} pointe « ${cible} », absent de dist/`);

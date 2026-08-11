@@ -104,7 +104,27 @@ const LECTURES = {
     'apps/cms/tests/seed-code-sortie.test.ts': ['apps/cms/scripts/seed/', 'apps/cms/data/'],
     'apps/cms/tests/seed-corpus.test.ts': ['apps/cms/data/'],
     'apps/cms/tests/seed-idempotence.test.ts': ['apps/cms/data/'],
+    // CE TEST LIT UN FICHIER HORS DE TOUTE APPLICATION — le workflow lui-meme.
+    // Il tient deux invariants qui ne vivent que la : que le job `sortie`
+    // relance TOUS les `verifier:*` non exemptes (le trou du 2026-08-11 :
+    // `cascade-titres` etait hors d'une liste ecrite en dur), et que les scripts
+    // de preuve construisent par la porte de la production. Voir
+    // `SUPPORTS_HORS_APPLICATION` : sans lui, ce test rougirait sur une ABSENCE
+    // dans l'arbre temporaire, pas sur une regression.
+    'apps/web/tests/integration-continue.test.ts': [
+        '.github/workflows/gardes-du-code.yml',
+        'apps/web/scripts/',
+    ],
 };
+
+// ── Fichiers HORS APPLICATION qu un test lit par chemin ──────────────────────
+// L'arbre temporaire ne materialise que les applications (§3). Un test qui lit
+// un fichier du depot situe AILLEURS — un workflow, un reglage racine —
+// echouerait donc sur une absence, et un crochet qui rougit pour une raison qui
+// n'est pas la sienne se fait desactiver dans la semaine. Ces prefixes sont
+// poses dans l'arbre EN PLUS des applications. Ils declenchent deja par
+// `LECTURES` : cette liste ne dit pas QUAND lancer, elle dit QUOI POSER.
+const SUPPORTS_HORS_APPLICATION = ['.github/workflows/'];
 
 // Toucher le declenchement lui-meme relance TOUT : c'est la regle qui a bouge,
 // et une regle de declenchement qui ne s'exerce pas est une convention de plus.
@@ -195,9 +215,10 @@ let code = 0;
 try {
     let listeSuivie;
     try {
-        listeSuivie = git(['ls-files', '-z', '--'].concat(appsConcernees, appsSupport), {
-            encoding: 'buffer',
-        });
+        listeSuivie = git(
+            ['ls-files', '-z', '--'].concat(appsConcernees, appsSupport, SUPPORTS_HORS_APPLICATION),
+            { encoding: 'buffer' }
+        );
     } catch (e) {
         abandonner('git n a pas rendu la liste des fichiers suivis (' + e.message + ').');
     }

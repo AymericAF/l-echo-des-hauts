@@ -24,6 +24,21 @@
 #   - `sortie` juge la SORTIE D'UN BUILD REEL. C'est le seul etage qui voie ce
 #     que le lecteur verrait.
 #
+# ~~CETTE DERNIERE PHRASE A ETE FAUSSE DU 2026-08-10 AU 2026-08-11~~, et c'est
+# la forme d'erreur la plus chere : une affirmation fausse dans un commentaire
+# fait qu'on ne regarde plus. Depuis la fusion 1bbb1b8, `npm run build` vaut
+# `astro build && node scripts/index-pagefind.mjs` — Pagefind indexe la sortie
+# PUIS la re-inspecte, ce qui etend la garde T-09 aux octets ecrits APRES
+# `astro build`, le seul endroit du site qui echappait a son regard. Or
+# `preuve-rendu.mjs` lancait `npx astro build` : l'etage s'arretait au PREMIER
+# maillon. Mesure du 2026-08-11 : apres `npm run preuve:rendu`, `dist/pagefind/`
+# N'EXISTAIT PAS, et la ligne « N page(s) indexee(s) par Pagefind » n'apparaissait
+# QUE dans le journal du deploiement Coolify. **2026-08-11 (tache 08f04f58) :
+# `preuve-rendu.mjs` construit desormais par `npm run build`**, la porte meme de
+# la production — cout mesure de l'indexation sur les fixtures (24 pages) :
+# 0,25 s a chaud, 1,3 s a froid, contre 3,3 s pour le build seul. L'argument
+# « preuve:rendu doit rester rapide » ne tenait pas devant la mesure.
+#
 # CE QUE CE COMMENTAIRE A AFFIRME DE FAUX JUSQU'AU 2026-08-10, et qui a laisse
 # l'etage `sortie` inexistant : « les scripts verifier-* et preuve-* sortent sur
 # le reseau (site servi, instance Strapi) ». MESURE : sur les neuf scripts,
@@ -36,6 +51,16 @@
 # AUCUN n'a besoin d'infrastructure. La phrase decrivait une crainte, pas le
 # code — et un dispositif absent parce qu'on l'a cru impossible coute plus cher
 # qu'un dispositif rouge, parce que personne ne va verifier une absence.
+#
+# (MESURE DATEE, CONSERVEE TELLE QUELLE — elle portait sur les six `verifier-*`
+# d'alors, et la reecrire ferait mentir la mesure. Ils sont NEUF depuis le
+# 2026-08-11 : SEPT lisent `dist/` sur disque, et DEUX mesurent une reponse HTTP
+# — `verifier-en-tetes` celle de la production, `verifier-surface-publique`
+# celle de l'instance Strapi. Ces deux-la sont les exemptes du pas
+# « verificateurs de sortie » ci-dessous ; ils sont NOMMES ET JUSTIFIES dans
+# `apps/web/scripts/verificateurs-de-sortie.mjs`, et le pas imprime leur raison
+# a chaque execution. Le nombre reel ne s'ecrit plus nulle part : il se derive
+# de `package.json`.)
 #
 # CE QUI RESTE HORS DE PORTEE D'ICI, pour de vrai : tout ce qui se lit sur la
 # REPONSE SERVIE — en-tetes et CSP, compression et version HTTP negociees,
@@ -142,7 +167,7 @@ jobs:
         run: npm test
 
   sortie:
-    name: La sortie construite — un build reel, puis les six verificateurs
+    name: La sortie construite — un build reel, puis les verificateurs derives
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -172,23 +197,56 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Build reel sur fixtures, et les 8 types de blocs rendus
-        # `preuve:rendu` lance un `astro build` COMPLET contre le Strapi de
-        # substitution. Les sept integrations d'`astro.config.mjs` s'exercent DANS
-        # ce build et le font sortir en code non nul : c'est ici que la sortie est
-        # jugee pour de bon.
+        # `preuve:rendu` lance `npm run build` COMPLET contre le Strapi de
+        # substitution — donc `astro build` PUIS `scripts/index-pagefind.mjs`,
+        # la porte MEME de la production (2026-08-11, tache 08f04f58 ; il
+        # s'arretait avant au premier maillon, cf. l'en-tete de ce fichier).
+        # Les huit integrations d'`astro.config.mjs` s'exercent DANS ce build et
+        # le font sortir en code non nul, et l'indexation re-inspecte la sortie
+        # AUGMENTEE : c'est ici que la sortie est jugee pour de bon.
         run: npm run preuve:rendu
 
-      - name: Les six verificateurs, en ligne de commande, sur le dist/ produit
+      - name: La sortie construite porte bien l index de recherche
+        # MECANIQUE, ET PAS CONVENTIONNELLE. Revenir a `npx astro build` dans
+        # `preuve-rendu.mjs` ferait rougir `tests/integration-continue.test.ts` —
+        # mais un test se contourne, et le job resterait VERT sur une sortie sans
+        # index, exactement l'etat du 2026-08-11. Ce pas-la lit le repertoire
+        # PRODUIT : il ne peut pas etre satisfait par une declaration.
+        run: |
+          test -f dist/pagefind/pagefind.js || {
+            echo "ROUGE : dist/pagefind/pagefind.js absent — le build n a pas enchaine l indexation"
+            exit 1
+          }
+          echo "OK : $(ls dist/pagefind | wc -l) entree(s) dans dist/pagefind"
+
+      - name: Les verificateurs de sortie, en ligne de commande, sur le dist/ produit
         # REDONDANT AVEC LE BUILD ? Non, et c'est le point : le build ne les
         # exerce que TANT QU'ILS SONT BRANCHES dans `astro.config.mjs`. Retirer
         # une ligne de ce tableau rend le build vert sur une sortie fautive.
         # Ce pas lit la meme sortie par l'autre porte — celle de la recette — et
-        # ne depend d'aucun cablage. Cout mesure : ~105 ms de calcul a eux six.
+        # ne depend d'aucun cablage.
+        #
+        # LA LISTE NE S'ECRIT PLUS ICI (2026-08-11, tache b903aa06). Elle etait
+        # ecrite en dur — six noms — quand `package.json` en exposait NEUF :
+        # `verifier:cascade-titres` etait donc garde par son SEUL cablage, la
+        # chose precise que ce pas existe pour ne pas supposer. Ajouter le nom
+        # aurait ferme le cas et laisse la classe ouverte ; la liste se DERIVE
+        # desormais de `package.json`, moins des exemptions nommees et justifiees
+        # dans `apps/web/scripts/verificateurs-de-sortie.mjs`. Le `--pourquoi`
+        # ci-dessous les imprime DANS CE JOURNAL : qui recompte « 9 contre 7 »
+        # trouve la reponse la ou il recompte, pas dans un commentaire.
+        #
         # `|| echec=1` plutot qu'un arret au premier rouge : on veut la liste
         # complete des manquements en une execution, pas un jeu de piste.
         run: |
+          node scripts/verificateurs-de-sortie.mjs --pourquoi
+          liste="$(node scripts/verificateurs-de-sortie.mjs)"
+          if [ -z "$liste" ]; then
+            echo "ROUGE : la derivation n a rendu AUCUN verificateur — la boucle serait verte sur rien"
+            exit 1
+          fi
           echec=0
-          for v in sortie images liens origine-medias seo styles-en-ligne; do
+          for v in $liste; do
             echo "::group::verifier:$v"
             npm run --silent "verifier:$v" || echec=1
             echo "::endgroup::"

@@ -477,3 +477,123 @@ test('la Configuration versionnee ne porte QU UN lien social, le LinkedIn d Ayme
     { plateforme: 'linkedin', url: 'https://www.linkedin.com/in/aymeric-filliot-37442a17a/' },
   ]);
 });
+
+/* ------------------------------------------------------------------ */
+/* `decoratif: true` — une image qui ne dit rien le DECLARE            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Pourquoi ce champ existe (tache `face261a`).
+ *
+ * Le controle 5 du §11 du plan editorial exige un `alternativeText` NON VIDE sur
+ * chaque media, et cette garde le tenait. La regle est bonne par defaut et mauvaise
+ * dans un cas : une image DECORATIVE — qui ne porte aucune information que le texte
+ * voisin ne porte deja — doit sortir en `alt=""`. C est une forme reconnue, qu axe-core
+ * accepte, et qui dit a un lecteur d ecran de PASSER l image. La contraindre a porter
+ * une alternative produit l inverse du but : « Composition graphique evoquant un seau
+ * de traite », six fois de suite dans une galerie, est du bruit qui se fait lire.
+ *
+ * Ce que ce champ NE FAIT PAS : autoriser l oubli. Une alternative absente et une
+ * alternative volontairement vide ne doivent JAMAIS se ressembler — sinon la garde ne
+ * protege plus rien et « decoratif » devient la case qu on coche pour se taire. D ou
+ * les deux refus symetriques ci-dessous : `alternativeText` vide SANS `decoratif` reste
+ * une faute, et `decoratif: true` AVEC une alternative non vide en est une autre.
+ */
+test('chargerCorpus accepte un alternativeText vide quand `decoratif: true` est DECLARE', () => {
+  const racine = ecrireCorpusMinimal();
+  const chemin = path.join(racine, 'medias/manifeste.json');
+  const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+  manifeste['couvertures/A05.svg'].alternativeText = '';
+  manifeste['couvertures/A05.svg'].decoratif = true;
+  fs.writeFileSync(chemin, JSON.stringify(manifeste));
+
+  const corpus = chargerCorpus(racine);
+  const media = corpus.medias.find((m: any) => m.cle === 'couvertures/A05.svg');
+  assert.equal(media.alternativeText, '', 'ce qui part vers la mediatheque doit etre la chaine vide');
+  assert.equal(media.decoratif, true, 'la declaration doit voyager avec le media, pas se deviner');
+});
+
+test('chargerCorpus refuse un alternativeText vide SANS declaration `decoratif` (controle 5)', () => {
+  const racine = ecrireCorpusMinimal();
+  const chemin = path.join(racine, 'medias/manifeste.json');
+  const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+  manifeste['couvertures/A05.svg'].alternativeText = '';
+  fs.writeFileSync(chemin, JSON.stringify(manifeste));
+
+  assert.throws(
+    () => chargerCorpus(racine),
+    (e: unknown) => {
+      assert.ok(e instanceof ErreurCorpus);
+      assert.match((e as Error).message, /decoratif/, 'le message doit nommer la SEULE facon legitime de vider une alternative');
+      return true;
+    },
+  );
+});
+
+test('chargerCorpus refuse `decoratif: true` accompagne d une alternative NON vide', () => {
+  const racine = ecrireCorpusMinimal();
+  const chemin = path.join(racine, 'medias/manifeste.json');
+  const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+  manifeste['couvertures/A05.svg'].decoratif = true;
+  fs.writeFileSync(chemin, JSON.stringify(manifeste));
+
+  // Les deux se contredisent : ou l image porte une information, ou elle n en porte
+  // pas. Laisser passer les deux, c est laisser la sortie trancher au hasard.
+  assert.throws(() => chargerCorpus(racine), ErreurCorpus);
+});
+
+test('chargerCorpus refuse un `decoratif` qui ne soit pas le booleen `true`', () => {
+  for (const valeur of ['true', 1, {}, null]) {
+    const racine = ecrireCorpusMinimal();
+    const chemin = path.join(racine, 'medias/manifeste.json');
+    const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+    manifeste['couvertures/A05.svg'].alternativeText = '';
+    manifeste['couvertures/A05.svg'].decoratif = valeur;
+    fs.writeFileSync(chemin, JSON.stringify(manifeste));
+
+    assert.throws(
+      () => chargerCorpus(racine),
+      ErreurCorpus,
+      `« ${JSON.stringify(valeur)} » ne doit pas valoir declaration`,
+    );
+  }
+});
+
+test('chargerCorpus refuse `decoratif: false` — la case ne se coche que pour dire OUI', () => {
+  const racine = ecrireCorpusMinimal();
+  const chemin = path.join(racine, 'medias/manifeste.json');
+  const manifeste = JSON.parse(fs.readFileSync(chemin, 'utf8'));
+  manifeste['couvertures/A05.svg'].decoratif = false;
+  fs.writeFileSync(chemin, JSON.stringify(manifeste));
+
+  // Un `false` explicite est un bruit qui se met a diverger : le defaut EST
+  // « non decoratif », et un champ qui redit le defaut finit par le contredire.
+  assert.throws(() => chargerCorpus(racine), ErreurCorpus);
+});
+
+/* ------------------------------------------------------------------ */
+/* Le corpus REEL : ce qui est declare decoratif, et ce qui ne l est pas */
+/* ------------------------------------------------------------------ */
+
+test('les 22 medias de galerie du corpus reel sont declares decoratifs, et eux seuls', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const decoratifs = corpus.medias.filter((m: any) => m.decoratif).map((m: any) => m.cle).sort();
+  const galeries = corpus.medias.filter((m: any) => m.cle.startsWith('galeries/')).map((m: any) => m.cle).sort();
+
+  assert.equal(galeries.length, 22, 'le corpus porte 22 medias de galerie');
+  assert.deepEqual(decoratifs, galeries, 'aucun media hors galerie ne doit etre declare decoratif');
+  for (const m of corpus.medias) {
+    if (m.decoratif) assert.equal(m.alternativeText, '');
+    else assert.notEqual(m.alternativeText.trim(), '');
+  }
+});
+
+test('aucune alternative du corpus reel n OUVRE en nommant le genre graphique', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  // Le defaut de `face261a` : « Diagramme en barres du debit de la source… » nomme
+  // l objet, pas ce qu il dit. Le critere porte sur la TETE de la phrase — une forme
+  // citee en incise (« … lue sur un diagramme en barres ») n est pas visee.
+  const GENRE = /^(Diagramme|Courbes? d|Trois courbes|Cascade|Grille|Boucle|Frise|Trace |Profil |Elevation dessinee|Composition graphique|(Dix-huit|Dix|Vingt|Six|Quatorze|Trois|Quatre|Cinq|Neuf) (paires de barres|barres|series|lignes)|Trois series)/;
+  const fautifs = corpus.medias.filter((m: any) => GENRE.test(m.alternativeText)).map((m: any) => m.cle);
+  assert.deepEqual(fautifs, [], 'ces alternatives nomment leur forme au lieu de ce qu elles montrent');
+});

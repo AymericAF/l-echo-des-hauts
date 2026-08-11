@@ -30,6 +30,8 @@ export type MediaCorpus = {
   nom: string;
   chemin: string;
   alternativeText: string;
+  /** `true` quand l image ne porte AUCUNE information : elle sort en `alt=""`. Declare, jamais devine. */
+  decoratif: boolean;
   /** Ligne de credit COMPOSEE au format du §6.5, jamais ecrite a la main. */
   caption: string;
   ayantDroit: string;
@@ -150,12 +152,50 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
     const chemin = path.join(dossier, cle);
     if (!fs.existsSync(chemin)) throw new MediaIntrouvable(cle, chemin);
 
+    // UNE IMAGE QUI NE DIT RIEN LE DECLARE — elle ne se tait pas (tache `face261a`).
+    //
+    // Le controle 5 du §11 du plan editorial exige un `alternativeText` non vide sur
+    // chaque media. La regle est juste par defaut et fausse dans un cas : une image
+    // DECORATIVE, qui ne porte aucune information que le texte voisin ne porte deja,
+    // doit sortir en `alt=""`. C'est une forme reconnue — axe-core l'accepte, et elle
+    // dit a un lecteur d'ecran de PASSER l'image. La contraindre a porter une
+    // alternative produit l'inverse du but : « Composition graphique evoquant un seau
+    // de traite », quatre fois de suite dans une galerie, est du bruit qui se fait lire.
+    //
+    // Ce que ce champ ne fait PAS : autoriser l'oubli. Une alternative absente et une
+    // alternative volontairement vide ne doivent jamais se ressembler, sinon
+    // « decoratif » devient la case qu'on coche pour se taire. D'ou trois refus.
+    const decoratif = meta?.decoratif;
+    if (decoratif !== undefined && decoratif !== true) {
+      throw new ErreurCorpus(
+        `manifeste des medias, "${cle}" : \`decoratif\` ne vaut que le booleen \`true\`, recu ${JSON.stringify(decoratif)}.\n` +
+          `  Le defaut EST « non decoratif » : un champ qui redit le defaut finit par le contredire.\n` +
+          `  Pour une image qui porte une information, on n'ecrit rien.`
+      );
+    }
+
     const alternativeText = meta?.alternativeText;
-    if (typeof alternativeText !== 'string' || alternativeText.trim() === '') {
+    if (typeof alternativeText !== 'string') {
+      throw new ErreurCorpus(
+        `manifeste des medias, "${cle}" : alternativeText absent ou non textuel.\n` +
+          `  L'alternative textuelle vient de la mediatheque, jamais d'une legende (A-04).`
+      );
+    }
+    if (decoratif === true && alternativeText !== '') {
+      throw new ErreurCorpus(
+        `manifeste des medias, "${cle}" : \`decoratif: true\` et une alternative NON VIDE se contredisent.\n` +
+          `  Ou l'image porte une information — alors elle la dit et n'est pas decorative —,\n` +
+          `  ou elle n'en porte pas, et son \`alternativeText\` vaut "" exactement.\n` +
+          `  Recu ${JSON.stringify(alternativeText)}.`
+      );
+    }
+    if (decoratif !== true && alternativeText.trim() === '') {
       throw new ErreurCorpus(
         `manifeste des medias, "${cle}" : alternativeText vide.\n` +
           `  L'alternative textuelle vient de la mediatheque, jamais d'une legende (A-04),\n` +
-          `  et le controle 5 du plan editorial l'exige non vide sur chaque media.`
+          `  et le controle 5 du plan editorial l'exige non vide sur chaque media.\n` +
+          `  La SEULE facon legitime de vider une alternative est de declarer\n` +
+          `  \`"decoratif": true\` a cote — une declaration, pas un oubli.`
       );
     }
 
@@ -205,6 +245,7 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
       nom,
       chemin,
       alternativeText,
+      decoratif: decoratif === true,
       caption,
       ayantDroit: String(meta.ayantDroit).trim(),
       // Plus de valeur par defaut : `composerCredit` vient de refuser une

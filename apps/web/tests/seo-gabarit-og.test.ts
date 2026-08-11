@@ -14,10 +14,13 @@ import { test } from 'node:test';
 
 import {
   CADRE_OG,
+  CHASSE_DEFAUT,
+  MARGE_OG,
   MAX_LIGNES_TITRE,
   cheminImageOg,
   decouperEnLignes,
   dispositionOg,
+  largeurEm,
   svgOg,
   texteAlternatifOg,
   type GabaritOg,
@@ -45,28 +48,42 @@ test('un titre court tient sur une seule ligne, intacte', () => {
   assert.deepEqual(decouperEnLignes('Eau et foret', 30, 4), ['Eau et foret']);
 });
 
+/* Le budget est une LARGEUR EN EM depuis le 2026-08-11, plus un compte de caracteres :
+   c'est ce changement qui empeche un titre en capitales de deborder. Ces trois cas
+   verifient donc la largeur estimee de chaque ligne, jamais sa longueur. */
 test('le decoupage se fait sur les espaces, sans perdre ni dupliquer un mot', () => {
   const texte = 'Le plateau se reboise trente ans apres la deprise agricole';
-  const lignes = decouperEnLignes(texte, 20, 4);
+  const lignes = decouperEnLignes(texte, 12, 4);
   assert.equal(lignes.join(' '), texte);
-  for (const ligne of lignes) assert.ok(ligne.length <= 20, `ligne trop large : « ${ligne} »`);
+  for (const ligne of lignes) assert.ok(largeurEm(ligne) <= 12, `ligne trop large : « ${ligne} »`);
 });
 
 test('un mot plus long que le budget est coupe plutot que de deborder', () => {
-  const lignes = decouperEnLignes('anticonstitutionnellement', 10, 4);
-  for (const ligne of lignes) assert.ok(ligne.length <= 10, `ligne trop large : « ${ligne} »`);
+  const lignes = decouperEnLignes('anticonstitutionnellement', 5, 4);
+  for (const ligne of lignes) assert.ok(largeurEm(ligne) <= 5, `ligne trop large : « ${ligne} »`);
   assert.ok(lignes.length > 1);
 });
 
+test('un mot en CAPITALES plus large que le budget est coupe lui aussi', () => {
+  /* Le meme mot en capitales est ~40 % plus large : avec un budget en caracteres, il
+     passait pour identique et debordait. */
+  const lignes = decouperEnLignes('ANTICONSTITUTIONNELLEMENT', 5, 4);
+  for (const ligne of lignes) assert.ok(largeurEm(ligne) <= 5, `ligne trop large : « ${ligne} »`);
+  assert.ok(
+    lignes.length > decouperEnLignes('anticonstitutionnellement', 5, 4).length,
+    'les capitales doivent occuper plus de lignes que les bas de casse, a budget egal',
+  );
+});
+
 test('au-dela du nombre de lignes autorise, la derniere porte une ellipse', () => {
-  const lignes = decouperEnLignes(TITRE_TRES_LONG, 25, 3);
+  const lignes = decouperEnLignes(TITRE_TRES_LONG, 13, 3);
   assert.equal(lignes.length, 3);
   assert.ok(lignes[2].endsWith('…'), `derniere ligne : « ${lignes[2]} »`);
-  for (const ligne of lignes) assert.ok(ligne.length <= 25, `ligne trop large : « ${ligne} »`);
+  for (const ligne of lignes) assert.ok(largeurEm(ligne) <= 13, `ligne trop large : « ${ligne} »`);
 });
 
 test('le decoupage ne rend jamais de ligne vide ni d espace en bord de ligne', () => {
-  for (const largeur of [8, 12, 20, 33, 60]) {
+  for (const largeur of [4, 6, 11, 18, 33]) {
     for (const ligne of decouperEnLignes(TITRE_TRES_LONG, largeur, 4)) {
       assert.notEqual(ligne.trim(), '');
       assert.equal(ligne, ligne.trim());
@@ -125,8 +142,8 @@ test('chaque ligne respecte le budget de largeur de la taille retenue', () => {
   const disposition = dispositionOg(gabarit({ titre: TITRE_TRES_LONG }));
   for (const ligne of disposition.lignes) {
     assert.ok(
-      ligne.texte.length <= disposition.caracteresParLigne,
-      `« ${ligne.texte} » (${ligne.texte.length}) depasse ${disposition.caracteresParLigne}`,
+      largeurEm(ligne.texte) <= disposition.budgetEm,
+      `« ${ligne.texte} » (${largeurEm(ligne.texte).toFixed(2)} em) depasse ${disposition.budgetEm.toFixed(2)} em`,
     );
   }
 });
@@ -193,4 +210,72 @@ test("le texte de remplacement decrit ce que l image montre, pas le fichier", ()
   assert.ok(alt.includes('Territoire'));
   assert.ok(alt.includes('Noelle Vasseur'));
   assert.ok(!alt.includes('.png'));
+});
+
+// --- la largeur du texte est ESTIMEE par caractere, pas par un facteur moyen --------
+
+/**
+ * LE DEFAUT DU 2026-08-11 (tache 5e8f0fb7). La largeur d une ligne etait bornee en
+ * NOMBRE DE CARACTERES, a partir d une chasse moyenne unique de 0,54 em — la moyenne
+ * d une phrase francaise en bas de casse. Les capitales chassent bien plus large : mesure
+ * sur la pile de polices du gabarit, la moyenne d une phrase tout en capitales est de
+ * ~0,70 em, soit 30 % de plus que le budget. Consequence mesuree sur l image rasterisee :
+ * un titre en capitales au corps 66 poussait son encre jusqu a x = 1199 — LE BORD DE
+ * L IMAGE, 71 px au-dela de la marge droite. L en-tete du module promettait pourtant
+ * « couper un peu tot, JAMAIS deborder ».
+ */
+const CAPITALES = 'LE BUDGET 2027 DE LA COMMUNAUTE DES HAUTS EN DEBAT';
+
+test('la chasse est comptee CARACTERE PAR CARACTERE : une capitale coute plus qu une bas-de-casse', () => {
+  assert.ok(
+    largeurEm('MMMM') > largeurEm('iiii') * 2,
+    `M=${largeurEm('MMMM')} i=${largeurEm('iiii')} : un modele a chasse unique les rendrait egaux`,
+  );
+  assert.ok(largeurEm('E') > largeurEm('e'), 'une capitale doit couter plus que sa bas-de-casse');
+});
+
+test('un caractere hors table est compte au plus large, jamais au plus etroit', () => {
+  assert.equal(largeurEm('字'), CHASSE_DEFAUT);
+  assert.ok(CHASSE_DEFAUT >= largeurEm('W'), 'le defaut doit majorer le caractere le plus large de la table');
+});
+
+test('largeurEm est additive et compte les espaces', () => {
+  assert.ok(Math.abs(largeurEm('ab') + largeurEm('c') - largeurEm('abc')) < 1e-9);
+  assert.ok(largeurEm('a b') > largeurEm('ab'), 'un espace occupe de la place');
+});
+
+test('un titre EN CAPITALES tient dans le budget de largeur, comme un titre en bas de casse', () => {
+  for (const titre of [CAPITALES, 'MMMMMMMMMMMMMMMMMMMMMMMMMMMMM', 'ŒUVRES ET ÆTHER : WWW']) {
+    const disposition = dispositionOg(gabarit({ titre }));
+    for (const ligne of disposition.lignes) {
+      assert.ok(
+        largeurEm(ligne.texte) <= disposition.budgetEm,
+        `« ${ligne.texte} » : ${largeurEm(ligne.texte).toFixed(2)} em > budget ` +
+          `${disposition.budgetEm.toFixed(2)} em au corps ${disposition.tailleTitre}`,
+      );
+    }
+  }
+});
+
+test('aucune ligne ne sort de la zone de texte, capitales comprises — en PIXELS estimes', () => {
+  const droiteMax = CADRE_OG.largeur - MARGE_OG;
+  for (const titre of [CAPITALES, 'MMMMMMMMMMMMMMMMMMMMMMMMMMMMM', TITRE_TRES_LONG.toLocaleUpperCase('fr')]) {
+    const disposition = dispositionOg(gabarit({ titre }));
+    for (const ligne of disposition.lignes) {
+      const droite = ligne.x + largeurEm(ligne.texte) * disposition.tailleTitre;
+      assert.ok(droite <= droiteMax, `« ${ligne.texte} » finit a ${Math.round(droite)} px (max ${droiteMax})`);
+    }
+  }
+});
+
+test('un titre en bas de casse se coupe EXACTEMENT comme avant — la correction ne hache rien', () => {
+  /* La correction ne doit pas se payer par des titres reels hachees : sur une phrase
+     francaise ordinaire, le modele par caractere doit rendre le meme decoupage que
+     l ancien facteur moyen unique de 0,54 em (budget de 29 caracteres au corps 66). */
+  const disposition = dispositionOg(gabarit({ titre: 'Le plateau se reboise, trente ans apres la deprise' }));
+  assert.equal(disposition.tailleTitre, 66);
+  assert.deepEqual(
+    disposition.lignes.map((ligne) => ligne.texte),
+    ['Le plateau se reboise, trente', 'ans apres la deprise'],
+  );
 });

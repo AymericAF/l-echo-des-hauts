@@ -48,6 +48,13 @@
  *      vignettes vides qui passait. Le seuil ne peut pas etre releve pour autant — le
  *      plancher legitime est a 22 px. La seconde jambe (`sonderRasteriseur`) mesure donc
  *      la PROPORTIONNALITE de l encre au corps demande, que le tofu ne peut pas imiter.
+ *   9. **Aucune image OG ne laisse son titre DEBORDER de la zone de texte.** Le controle 7
+ *      mesure la HAUTEUR de l encre ; la hauteur ne bouge pas d un pixel quand le texte
+ *      sort par le cote. Mesure du 2026-08-11 : un titre en capitales au corps 66 poussait
+ *      son encre jusqu a x = 1199 — le bord de l image —, et rien ne le voyait : ni les
+ *      tests du gabarit, qui bornaient un COMPTE DE CARACTERES, ni cette garde. Le modele
+ *      de chasse est corrige dans `src/lib/seo/gabarit-og.ts` ; ce controle-ci est le filet
+ *      qui ne suppose rien d une pile de polices non mesuree.
  *   8. **100 % des pages indexables portent un JSON-LD lisible** (§5.1, et le critere
  *      chiffre du §1). Chaque bloc est PARSE, son `@context` schema.org exige, ses noeuds
  *      typologiquement verifies, et les URL qu il affirme joignables confrontees a
@@ -66,7 +73,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import sharp from 'sharp';
 
-import { dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
+import { CADRE_OG, MARGE_OG, dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
 import { ISSUES, manquementCorpusVide } from './issues.mjs';
 import { lireOrigine } from './origine.mjs';
 import { normaliser, routeDuFichier } from './verifier-liens.mjs';
@@ -158,6 +165,45 @@ const ENCRE_PAR_RANGEE = 2;
  * plus petit que la moitie de son plus petit corps, ce qui est un defaut du gabarit.
  */
 export const HAUTEUR_MINIMALE_GLYPHES = 20;
+
+/**
+ * Tolerance, en pixels, sur les bords de la zone de texte (controle 9).
+ *
+ * L anticrenelage depose quelques pixels delaves au-dela du trace, et le calage d une
+ * ligne de base varie d une fonte a l autre. Trois pixels absorbent cela sans rien laisser
+ * passer d un debordement reel : celui mesure le 2026-08-11 faisait 71 px.
+ */
+export const TOLERANCE_DEBORDEMENT = 3;
+
+/**
+ * Les bords de l encre d une image OG sortent-ils de la zone de texte du gabarit ?
+ *
+ * PURE, ET EXPORTEE POUR ETRE TESTEE. Rend la liste des manquements, vide quand tout tient.
+ * Une bande vierge (`droite === -1`) n est PAS un debordement — c est le controle 7 qui la
+ * juge, et deux controles qui accusent la meme image de deux choses envoient chercher deux
+ * causes.
+ */
+export function verdictDebordement(relatif, mesure) {
+  if (mesure.droite === -1) return [];
+  const droiteMax = CADRE_OG.largeur - MARGE_OG;
+  const manques = [];
+  if (mesure.droite > droiteMax + TOLERANCE_DEBORDEMENT) {
+    manques.push(
+      `${relatif} : le titre DEBORDE de ${mesure.droite - droiteMax} px a droite — son encre va ` +
+        `jusqu a x = ${mesure.droite}, la zone de texte s arrete a ${droiteMax}` +
+        (mesure.droite >= CADRE_OG.largeur - 1 ? ' et l image au bord a ' + CADRE_OG.largeur : '') +
+        '. Le decoupage en lignes ESTIME la largeur du texte (`largeurEm`) : cette estimation ' +
+        'est plus etroite que ce que la pile de polices de cet environnement dessine reellement.',
+    );
+  }
+  if (mesure.gauche < MARGE_OG - TOLERANCE_DEBORDEMENT) {
+    manques.push(
+      `${relatif} : le titre deborde de ${MARGE_OG - mesure.gauche} px a gauche — son encre commence ` +
+        `a x = ${mesure.gauche}, la marge du gabarit est a ${MARGE_OG}.`,
+    );
+  }
+  return manques;
+}
 
 /* ------------------------------------------------------------------------------------
    LA SONDE DU RASTERISEUR — la seconde jambe du controle 7, et pourquoi il en fallait une.
@@ -412,14 +458,20 @@ export function urlsDuGraphe(valeur, trouvees = new Set()) {
 }
 
 /**
- * Les deux grandeurs de la bande de titre d une image : la hauteur des glyphes dessines,
- * sur laquelle la garde DECIDE, et l ecart-type des pixels, qu elle ne fait que rapporter.
+ * Les grandeurs de la bande de titre d une image : la hauteur des glyphes dessines, sur
+ * laquelle la garde DECIDE, l etendue horizontale de l encre, sur laquelle elle decide
+ * aussi (controle 9), et l ecart-type des pixels, qu elle ne fait que rapporter.
  *
  *   `hauteurGlyphes` : hauteur, en pixels, du plus haut bloc de rangees CONTIGUES portant
  *     de l encre. Sur un titre de plusieurs lignes, c est la hauteur d UNE ligne — les
  *     lignes sont separees par l interligne, donc par des rangees vierges. La grandeur ne
  *     depend ni du nombre de lignes ni de la longueur du titre : seulement de la taille a
  *     laquelle les glyphes ont ete rendus. C est exactement ce qu on veut savoir.
+ *
+ *   `gauche` / `droite` : colonnes extremes portant de l encre, en pixels depuis le bord
+ *     GAUCHE DE L IMAGE. La bande ne contient que le titre — le filet d accent et le pied
+ *     de page sont hors bande —, ce sont donc bien les bords du TEXTE. `droite` vaut -1
+ *     quand la bande est vierge.
  *
  *   `ecartType` : conserve dans le message d echec, comme contexte de diagnostic. Il ne
  *     decide RIEN, et le test « l ecart-type ne separe pas les deux populations » de
@@ -458,10 +510,16 @@ export async function mesurerBandeTitre(fichier) {
 
     let hauteurGlyphes = 0;
     let bloc = 0;
+    let gauche = width;
+    let droite = -1;
     for (let y = 0; y < hauteurBande; y += 1) {
       let encre = 0;
       for (let x = 0; x < width; x += 1) {
-        if (pixels[y * width + x] < SEUIL_ENCRE) encre += 1;
+        if (pixels[y * width + x] < SEUIL_ENCRE) {
+          encre += 1;
+          if (x < gauche) gauche = x;
+          if (x > droite) droite = x;
+        }
       }
       if (encre >= ENCRE_PAR_RANGEE) {
         bloc += 1;
@@ -471,7 +529,12 @@ export async function mesurerBandeTitre(fichier) {
       }
     }
 
-    return { hauteurGlyphes, ecartType: Math.sqrt(ecarts / pixels.length) };
+    return {
+      hauteurGlyphes,
+      gauche: droite === -1 ? -1 : gauche,
+      droite,
+      ecartType: Math.sqrt(ecarts / pixels.length),
+    };
   } catch {
     return null;
   }
@@ -708,6 +771,10 @@ export async function inspecterSeo(dist, origine) {
           'le rasteriseur remplace chaque caractere par un rectangle d une douzaine de pixels.',
       );
     }
+
+    /* 9. LE DEBORDEMENT. Meme mesure, autre axe : la hauteur ne bouge pas d un pixel quand
+       le texte sort par le cote. Cf. `verdictDebordement`. */
+    manquements.push(...verdictDebordement(relatif, mesure));
   }
 
   /* 7 bis. LA SONDE DU RASTERISEUR. Le seuil absolu ci-dessus a ete FRANCHI par un tofu de

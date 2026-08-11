@@ -33,9 +33,11 @@ import {
   sonderRasteriseur,
   titreDeSonde,
   urlsDuGraphe,
+  verdictDebordement,
   verdictSonde,
+  TOLERANCE_DEBORDEMENT,
 } from '../scripts/verifier-seo.mjs';
-import { CADRE_OG, dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
+import { CADRE_OG, MARGE_OG, dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
 
 const ORIGINE = 'https://echo.test';
 
@@ -443,6 +445,63 @@ test('une image OG illisible est signalee comme telle, pas comme sans glyphes', 
   const rapport = await inspecter({ 'og/fr/a.png': Buffer.from('ceci n est pas un PNG') });
   assert.equal(rapport.manquements.length, 1);
   assert.match(rapport.manquements[0], /image illisible/);
+});
+
+// --- controle 9 : le titre ne deborde pas de la zone de texte ---------------------
+
+/** Le titre en capitales du defaut du 2026-08-11 : il sortait jusqu au bord de l image. */
+const TITRE_CAPITALES = 'LE BUDGET 2027 DE LA COMMUNAUTE DES HAUTS EN DEBAT';
+
+/**
+ * Le gabarit reel, mais dont les lignes de titre sont dessinees SANS decoupage — l etat
+ * exact que produisait le modele de chasse unique de 0,54 em. Fabrique en dur plutot qu en
+ * revenant a l ancien modele : un banc doit rendre le meme verdict sur toutes les machines.
+ */
+function pngDebordant(titre: string): Promise<Buffer> {
+  const svg = svgOg({ ...GABARIT, titre })
+    .replace(/^ {2}<text[^>]*font-family="Georgia[^>]*>.*?<\/text>$/gm, '')
+    .replace(
+      '</svg>',
+      `  <text x="72" y="330" font-family="Georgia, serif" font-size="66" font-weight="700" ` +
+        `fill="#1b1a17">${titre}</text>\n</svg>`,
+    );
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+test('une image OG dont le titre sort de la zone de texte est un manquement', async () => {
+  const rapport = await inspecter({ 'og/fr/a.png': await pngDebordant(TITRE_CAPITALES) });
+  assert.equal(rapport.manquements.length, 1, rapport.manquements.join(' | '));
+  assert.match(rapport.manquements[0], /DEBORDE/);
+  assert.match(rapport.manquements[0], /a droite/);
+});
+
+test('le debordement se mesure sur l ENCRE, pas sur le nombre de caracteres', async () => {
+  const mesure = await mesurer(await pngDebordant(TITRE_CAPITALES));
+  assert.ok(
+    mesure!.droite > CADRE_OG.largeur - MARGE_OG,
+    `bord droit de l encre : ${mesure!.droite} (zone de texte : ${CADRE_OG.largeur - MARGE_OG})`,
+  );
+  /* Le temoin qui compte : la HAUTEUR, elle, est parfaitement normale. C est pourquoi le
+     controle 7 ne pouvait pas voir ce defaut. */
+  assert.ok(mesure!.hauteurGlyphes >= HAUTEUR_MINIMALE_GLYPHES, `hauteur : ${mesure!.hauteurGlyphes}`);
+});
+
+test('le meme titre en capitales, mis en page par le gabarit, ne deborde plus', async () => {
+  for (const titre of [TITRE_CAPITALES, 'MMMMMMMMMMMMMMMMMMMMMMMMMMMMM', TITRE_LE_PLUS_LONG]) {
+    const rapport = await inspecter({ 'og/fr/a.png': await pngDuTitre(titre) });
+    assert.deepEqual(rapport.manquements, [], `titre : ${titre.slice(0, 40)}`);
+  }
+});
+
+test('une bande de titre vierge n est PAS accusee de debordement — c est le controle 7 qui la juge', () => {
+  assert.deepEqual(verdictDebordement('og/fr/a.png', { hauteurGlyphes: 0, gauche: -1, droite: -1, ecartType: 0 }), []);
+});
+
+test('l anticrenelage ne fait pas rougir : la tolerance est nommee, pas devinee', () => {
+  const droiteMax = CADRE_OG.largeur - MARGE_OG;
+  const limite = { hauteurGlyphes: 65, gauche: MARGE_OG, droite: droiteMax + TOLERANCE_DEBORDEMENT, ecartType: 40 };
+  assert.deepEqual(verdictDebordement('og/fr/a.png', limite), []);
+  assert.equal(verdictDebordement('og/fr/a.png', { ...limite, droite: limite.droite + 1 }).length, 1);
 });
 
 // --- controle 7 bis : la sonde du rasteriseur ------------------------------------

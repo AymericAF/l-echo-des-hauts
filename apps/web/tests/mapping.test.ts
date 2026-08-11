@@ -23,7 +23,7 @@ import {
   mapperDossier,
   mapperConfiguration,
 } from '../src/lib/strapi/mapping.ts';
-import { ChampManquantError } from '../src/lib/strapi/erreurs.ts';
+import { ChampManquantError, ValeurInattendueError } from '../src/lib/strapi/erreurs.ts';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 
@@ -463,4 +463,126 @@ test('un champ requis passe a null est refuse, la ou un optionnel a null est acc
   const autre = articleComplet();
   autre.legendeCouverture = null;
   assert.equal(mapperArticle(autre).legendeCouverture, null);
+});
+
+// ---------------------------------------------------------------------------
+// Une chaine faite de BLANCS est vide a l ecran, et doit l etre pour le mapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Le defaut que ces cas ferment (decouvert le 2026-08-11) : `texteRequis` ne refusait
+ * que `valeur.length === 0`. Une chaine d espaces, de tabulations ou d une espace
+ * insecable la traversait sans un mot — et sortait en `<h1>` visuellement vide, en
+ * `<title>` vide, en `headline` vide dans le JSON-LD, avec un build VERT. C est
+ * exactement le mode d echec que `erreurs.ts` dit fermer (« le build reste vert et le
+ * site ment »), sur la moitie des champs qu il couvre.
+ *
+ * Le critere n est PAS « ce que `trim()` enleve ». Deux raisons de ne pas s y fier :
+ *   1. `trim()` suit la grammaire `WhiteSpace` d ECMAScript — elle couvre bien U+00A0
+ *      (mesure du 2026-08-11, Node 24), mais la faire dependre d une regle de langage
+ *      quand ce qu on juge est un RENDU est un raccourci qui se paiera ;
+ *   2. elle laisse passer les caracteres de LARGEUR NULLE — U+200B, U+200C, U+2060 ne
+ *      sont pas de la categorie Zs, `trim()` ne les enleve pas, et ils n affichent
+ *      pourtant RIEN. Un titre a "​" est aussi vide a l ecran qu un titre a " ".
+ * D ou l alphabet explicite de `lecture.ts`, teste caractere par caractere ci-dessous.
+ */
+const BLANCS: ReadonlyArray<readonly [string, string]> = [
+  ['trois espaces ordinaires', '   '],
+  ['une tabulation', '\t'],
+  ['un saut de ligne', '\n'],
+  ['une espace INSECABLE U+00A0', ' '],
+  ['une espace insecable etroite U+202F', ' '],
+  ['une espace cadratin U+2000', ' '],
+  ['une espace ideographique U+3000', '　'],
+  ['une espace de largeur NULLE U+200B', '​'],
+  ['un liant de largeur nulle U+2060', '⁠'],
+  ['une marque d ordre d octets U+FEFF', '﻿'],
+  ['un melange espace + insecable + tabulation', '  \t'],
+];
+
+/**
+ * Les champs que `texteRequis` gouverne et qui SORTENT a l ecran ou dans une balise.
+ * Chacun est atteint par son mapper reel : ce qui est prouve ici est la chaine complete
+ * reponse Strapi → entite de domaine, pas le comportement isole d une fonction.
+ */
+const CHAMPS_TEXTE_REQUIS: ReadonlyArray<{
+  readonly intitule: string;
+  readonly poser: (valeur: string) => () => unknown;
+}> = [
+  { intitule: 'article.titre', poser: (v) => () => { const b = articleComplet(); b.titre = v; return mapperArticle(b); } },
+  { intitule: 'article.chapo', poser: (v) => () => { const b = articleComplet(); b.chapo = v; return mapperArticle(b); } },
+  { intitule: 'article.auteur.nom', poser: (v) => () => { const b = articleComplet(); b.auteur.nom = v; return mapperArticle(b); } },
+  { intitule: 'article.categorie.nom', poser: (v) => () => { const b = articleComplet(); b.categorie.nom = v; return mapperArticle(b); } },
+  { intitule: 'article.tags[0].nom', poser: (v) => () => { const b = articleComplet(); b.tags[0].nom = v; return mapperArticle(b); } },
+  { intitule: 'article.dossier.titre', poser: (v) => () => { const b = articleComplet(); b.dossier.titre = v; return mapperArticle(b); } },
+  { intitule: 'article.articlesLies[0].titre', poser: (v) => () => { const b = articleComplet(); b.articlesLies[0].titre = v; return mapperArticle(b); } },
+  { intitule: 'article.articlesLies[0].chapo', poser: (v) => () => { const b = articleComplet(); b.articlesLies[0].chapo = v; return mapperArticle(b); } },
+  { intitule: 'bloc.citation.texte', poser: (v) => () => { const b = articleComplet(); b.contenu[1].texte = v; return mapperArticle(b); } },
+  { intitule: 'bloc.video.url', poser: (v) => () => { const b = articleComplet(); b.contenu[4].url = v; return mapperArticle(b); } },
+  { intitule: 'bloc.chiffres-cles.valeur', poser: (v) => () => { const b = articleComplet(); b.contenu[7].entrees[0].valeur = v; return mapperArticle(b); } },
+  { intitule: 'bloc.chiffres-cles.libelle', poser: (v) => () => { const b = articleComplet(); b.contenu[7].entrees[0].libelle = v; return mapperArticle(b); } },
+  { intitule: 'auteur.nom', poser: (v) => () => { const b = copie(AUTEURS.data[0]); b.nom = v; return mapperAuteur(b); } },
+  { intitule: 'categorie.nom', poser: (v) => () => { const b = copie(CATEGORIES.data[0]); b.nom = v; return mapperCategorie(b); } },
+  { intitule: 'tag.nom', poser: (v) => () => { const b = copie(TAGS.data[0]); b.nom = v; return mapperTag(b); } },
+  { intitule: 'dossier.titre', poser: (v) => () => { const b = copie(DOSSIERS.data[0]); b.titre = v; return mapperDossier(b); } },
+  { intitule: 'configuration.nomSite', poser: (v) => () => { const b = copie(CONFIGURATION.data); b.nomSite = v; return mapperConfiguration(b); } },
+  { intitule: 'configuration.descriptionDefaut', poser: (v) => () => { const b = copie(CONFIGURATION.data); b.descriptionDefaut = v; return mapperConfiguration(b); } },
+  { intitule: 'partage.lien-social.url', poser: (v) => () => { const b = copie(CONFIGURATION.data); b.reseaux[0].url = v; return mapperConfiguration(b); } },
+];
+
+for (const { intitule, poser } of CHAMPS_TEXTE_REQUIS) {
+  for (const [nomDuBlanc, blanc] of BLANCS) {
+    test(`« ${intitule} » rempli de ${nomDuBlanc} est REFUSE`, () => {
+      assert.throws(poser(blanc), ValeurInattendueError);
+    });
+  }
+}
+
+test('l erreur NOMME le champ fautif, pas seulement le fait qu il soit vide', () => {
+  const brut = articleComplet();
+  brut.titre = ' ';
+  assert.throws(
+    () => mapperArticle(brut),
+    (erreur: unknown) => {
+      assert.ok(erreur instanceof ValeurInattendueError);
+      assert.equal(erreur.chemin, 'article.titre', 'le chemin doit designer le champ fautif');
+      assert.match(erreur.message, /article\.titre/);
+      return true;
+    },
+  );
+});
+
+test('un blanc invisible se laisse LIRE dans le message, jamais devine', () => {
+  const brut = articleComplet();
+  brut.titre = '  \t';
+  try {
+    mapperArticle(brut);
+    assert.fail('le mapping aurait du lever');
+  } catch (erreur) {
+    assert.ok(erreur instanceof ValeurInattendueError);
+    // Un message qui rendrait « chaine non vide attendue, recu "  " » laisserait le
+    // lecteur compter des pixels. Les points de code sont echappes.
+    assert.match(erreur.message, /u00a0/i, 'l espace insecable doit apparaitre echappe');
+    assert.match(erreur.message, /blancs?|invisible/i, 'le message doit dire POURQUOI c est refuse');
+  }
+});
+
+test('les espaces INTERNES restent legitimes — la garde ne touche pas au contenu reel', () => {
+  const brut = articleComplet();
+  // Espaces ordinaires, espace insecable avant un « : » et dans un nombre : de la
+  // typographie francaise correcte, pas un champ vide.
+  brut.titre = 'Le viaduc : 18 000 jours de travaux';
+  assert.equal(mapperArticle(brut).titre, 'Le viaduc : 18 000 jours de travaux');
+
+  const bordure = articleComplet();
+  // Un blanc de BORDURE sur une valeur reelle n est pas un champ vide : on refuse le
+  // champ vide, on ne se met pas a normaliser le contenu d autrui.
+  bordure.chapo = '  Un chapo bien reel.  ';
+  assert.equal(mapperArticle(bordure).chapo, '  Un chapo bien reel.  ');
+});
+
+test('un optionnel rempli de blancs n est PAS remonte en erreur (il n a rien a garantir)', () => {
+  const brut = articleComplet();
+  brut.legendeCouverture = '   ';
+  assert.doesNotThrow(() => mapperArticle(brut));
 });

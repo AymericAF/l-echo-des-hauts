@@ -586,3 +586,114 @@ test('un optionnel rempli de blancs n est PAS remonte en erreur (il n a rien a g
   brut.legendeCouverture = '   ';
   assert.doesNotThrow(() => mapperArticle(brut));
 });
+
+// ---------------------------------------------------------------------------
+// Un OPTIONNEL rempli de blancs vaut ABSENT, jamais une valeur
+// ---------------------------------------------------------------------------
+
+/**
+ * Le defaut que ces cas ferment (tache `63012582`, mesure du 2026-08-11) :
+ * `texteOptionnel` ne ramenait a `null` que la chaine STRICTEMENT vide. Un
+ * `alternativeText` a `"   "` la traversait, et le rendu servait `alt="   "`.
+ *
+ * Ce n est pas le meme defaut que celui de `texteRequis`, et c est pour ca qu il
+ * survit a sa correction : un `<h1>` vide se VOIT a l ecran, un `alt` fait de blancs
+ * ne se voit nulle part. Pire, il PASSE les gardes : axe-core exige un `alt` non nul,
+ * il en trouve un — trois espaces sont une alternative textuelle a ses yeux. La garde
+ * reste verte sur une image qui n a plus aucune alternative. C est exactement la
+ * symetrie de « graphique en barres » (tache `face261a`) : une alternative PRESENTE
+ * et INUTILE, la ou `alt=""` aurait au moins la valeur d une DECLARATION.
+ *
+ * Branche retenue : NORMALISER en absent, pas refuser. Trois raisons, dans l ordre.
+ *
+ *  1. `texteOptionnel` normalise DEJA : `''` rend `null` depuis l origine. Ce qui est
+ *     etendu ici est l alphabet du vide, pas la nature de la fonction. `texteRequis`,
+ *     lui, refuse et ne normalise jamais — les deux contrats different par
+ *     construction, il n y a donc aucune asymetrie a justifier.
+ *  2. Un champ optionnel a le DROIT d etre absent. Rougir un build entier parce qu un
+ *     editeur a laisse une espace dans une legende ferait payer a la publication le
+ *     prix d une coquille, sur un champ dont le schema dit qu il peut ne rien valoir.
+ *  3. `null` est precisement ce qui declenche le repli documente de chaque
+ *     consommateur : `alt=""` (image decorative, forme reconnue par axe-core),
+ *     `<figcaption>` non emis, `metaTitre` retombant sur le titre, canonique
+ *     recalculee. Rendre la chaine de blancs, au contraire, force chaque consommateur
+ *     a servir un attribut ou une balise qui ne porte rien.
+ *
+ * Ce que cette branche COUTE, et qu il faut ecrire plutot que taire : la lecture
+ * cesse de distinguer « champ laisse vide » de « champ rempli de blancs par erreur ».
+ * Un defaut de saisie devient donc indiscernable d une absence voulue. Ce trou n est
+ * pas laisse ouvert, il est ferme A L ECRITURE par la garde de corpus du seed, qui
+ * refuse un `alternativeText` blanc sur le meme alphabet (`apps/cms/scripts/seed/
+ * corpus.ts`). Refuser a l entree, etre honnete a la sortie.
+ */
+const CHAMPS_TEXTE_OPTIONNEL: ReadonlyArray<{
+  readonly intitule: string;
+  readonly poser: (valeur: string) => unknown;
+}> = [
+  { intitule: 'article.imageCouverture.alternativeText', poser: (v) => { const b = articleComplet(); b.imageCouverture.alternativeText = v; return mapperArticle(b).imageCouverture.alternative; } },
+  { intitule: 'article.imageCouverture.caption', poser: (v) => { const b = articleComplet(); b.imageCouverture.caption = v; return mapperArticle(b).imageCouverture.legende; } },
+  { intitule: 'article.legendeCouverture', poser: (v) => { const b = articleComplet(); b.legendeCouverture = v; return mapperArticle(b).legendeCouverture; } },
+  { intitule: 'article.seo.metaTitre', poser: (v) => { const b = articleComplet(); b.seo.metaTitre = v; return mapperArticle(b).seo!.metaTitre; } },
+  { intitule: 'article.seo.metaDescription', poser: (v) => { const b = articleComplet(); b.seo.metaDescription = v; return mapperArticle(b).seo!.metaDescription; } },
+  { intitule: 'article.seo.canonique', poser: (v) => { const b = articleComplet(); b.seo.canonique = v; return mapperArticle(b).seo!.canonique; } },
+  { intitule: 'bloc.citation.auteurCitation', poser: (v) => { const b = articleComplet(); b.contenu[1].auteurCitation = v; return (mapperArticle(b).contenu[1] as any).auteurCitation; } },
+  { intitule: 'bloc.citation.source', poser: (v) => { const b = articleComplet(); b.contenu[1].source = v; return (mapperArticle(b).contenu[1] as any).source; } },
+  { intitule: 'bloc.galerie.legende', poser: (v) => { const b = articleComplet(); b.contenu[2].legende = v; return (mapperArticle(b).contenu[2] as any).legende; } },
+  { intitule: 'bloc.galerie.images[0].alternativeText', poser: (v) => { const b = articleComplet(); b.contenu[2].images[0].alternativeText = v; return (mapperArticle(b).contenu[2] as any).images[0].alternative; } },
+  { intitule: 'bloc.encadre.titre', poser: (v) => { const b = articleComplet(); b.contenu[3].titre = v; return (mapperArticle(b).contenu[3] as any).titre; } },
+  { intitule: 'bloc.video.legende', poser: (v) => { const b = articleComplet(); b.contenu[4].legende = v; return (mapperArticle(b).contenu[4] as any).legende; } },
+  { intitule: 'bloc.image-legendee.image.alternativeText', poser: (v) => { const b = articleComplet(); b.contenu[5].image.alternativeText = v; return (mapperArticle(b).contenu[5] as any).image.alternative; } },
+  { intitule: 'bloc.image-legendee.legende', poser: (v) => { const b = articleComplet(); b.contenu[5].legende = v; return (mapperArticle(b).contenu[5] as any).legende; } },
+  { intitule: 'bloc.image-legendee.credit', poser: (v) => { const b = articleComplet(); b.contenu[5].credit = v; return (mapperArticle(b).contenu[5] as any).credit; } },
+  { intitule: 'bloc.chiffres-cles.entrees[0].unite', poser: (v) => { const b = articleComplet(); b.contenu[7].entrees[0].unite = v; return (mapperArticle(b).contenu[7] as any).entrees[0].unite; } },
+  { intitule: 'auteur.fonction', poser: (v) => { const b = copie(AUTEURS.data[0]); b.fonction = v; return mapperAuteur(b).fonction; } },
+  { intitule: 'auteur.photo.alternativeText', poser: (v) => { const b = copie(AUTEURS.data[0]); b.photo.alternativeText = v; return mapperAuteur(b).photo!.alternative; } },
+  { intitule: 'categorie.description', poser: (v) => { const b = copie(CATEGORIES.data[0]); b.description = v; return mapperCategorie(b).description; } },
+  { intitule: 'dossier.dateOuverture', poser: (v) => { const b = copie(DOSSIERS.data[0]); b.dateOuverture = v; return mapperDossier(b).dateOuverture; } },
+];
+
+for (const { intitule, poser } of CHAMPS_TEXTE_OPTIONNEL) {
+  for (const [nomDuBlanc, blanc] of BLANCS) {
+    test(`« ${intitule} » rempli de ${nomDuBlanc} vaut ABSENT`, () => {
+      assert.equal(
+        poser(blanc),
+        null,
+        'un optionnel qui n affiche rien doit valoir null, sinon il sort tel quel dans l attribut',
+      );
+    });
+  }
+}
+
+test('un optionnel rempli de blancs ne LEVE toujours pas — il n a rien a garantir', () => {
+  for (const [, blanc] of BLANCS) {
+    const brut = articleComplet();
+    brut.imageCouverture.alternativeText = blanc;
+    assert.doesNotThrow(() => mapperArticle(brut));
+  }
+});
+
+test('la chaine strictement vide vaut toujours ABSENT — le comportement d origine est conserve', () => {
+  const brut = articleComplet();
+  brut.imageCouverture.alternativeText = '';
+  assert.equal(mapperArticle(brut).imageCouverture.alternative, null);
+});
+
+test('un optionnel PORTEUR n est ni vide ni normalise — blancs de bordure compris', () => {
+  const brut = articleComplet();
+  // Une alternative reelle, encadree de blancs : la valeur sort telle quelle. Refuser
+  // le vide et reecrire le contenu d autrui sont deux gestes differents ; le second
+  // n appartient pas a la lecture.
+  brut.imageCouverture.alternativeText = '  Le viaduc dans la brume  ';
+  assert.equal(mapperArticle(brut).imageCouverture.alternative, '  Le viaduc dans la brume  ');
+
+  const insecable = articleComplet();
+  // Une espace INSECABLE au milieu d une valeur reelle est de la typographie, pas du vide.
+  insecable.contenu[7].entrees[0].unite = '%\u00a0HT';
+  assert.equal((mapperArticle(insecable).contenu[7] as any).entrees[0].unite, '%\u00a0HT');
+});
+
+test('un optionnel de type non-chaine reste une RUPTURE, la normalisation ne l avale pas', () => {
+  const brut = articleComplet();
+  brut.imageCouverture.alternativeText = 42;
+  assert.throws(() => mapperArticle(brut), ValeurInattendueError);
+});

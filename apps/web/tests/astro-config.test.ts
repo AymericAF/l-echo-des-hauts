@@ -52,8 +52,29 @@ const DOSSIER_INTEGRATIONS = path.join(RACINE, 'integrations');
 /** Les roles reconnus. Un `ROLE_SORTIE` absent vaut « aucune contrainte d ordre ». */
 const DEPOSE = 'depose-des-octets';
 const VERIFIE = 'verifie-que-les-references-aboutissent';
+const JUGE = 'juge-tous-les-octets-servis';
 const LIBRE = 'sans-contrainte-d-ordre';
-const ROLES = new Set([DEPOSE, VERIFIE, LIBRE]);
+const ROLES = new Set([DEPOSE, VERIFIE, JUGE, LIBRE]);
+
+/**
+ * LES DEUX ROLES QUI EXIGENT QUE LES ECRITURES SOIENT FINIES — et ils ne l exigent pas
+ * pour la meme raison, d ou deux valeurs plutot qu une.
+ *
+ *   - `VERIFIE` suit une REFERENCE : « ce que la page nomme existe-t-il dans dist/ ? ».
+ *     Passe trop tot, il rougit sur un site SAIN (les octets ne sont pas encore la).
+ *   - `JUGE` dresse l INVENTAIRE des fichiers servis : « y a-t-il ici quelque chose
+ *     d interdit ? ». Passe trop tot, il rend VERT sur un site FAUTIF — le mode d echec
+ *     inverse, et le plus cher, parce que rien ne le signale.
+ *
+ * Le second n existait pas jusqu au 2026-08-11 (tache 5bf5c24b), et son absence n etait
+ * pas un oubli de vocabulaire : `garde-t09` se declarait `sans-contrainte-d-ordre` en
+ * raisonnant « il ne suit aucune reference, donc rien ne l oblige a suivre un depot ».
+ * Le raisonnement etait faux et il a ete REPRODUIT — un media `temoin-5bf5c24b.js` depose
+ * apres son passage, garde VERTE, fichier bel et bien servi. Confondre les deux roles
+ * aurait cache cette difference de mode d echec ; ne pas nommer le second l a laissee
+ * entiere.
+ */
+const APRES_LES_DEPOTS = new Set([VERIFIE, JUGE]);
 
 type Livree = { fichier: string; nom: string; role: string | null };
 
@@ -163,21 +184,22 @@ test('un role declare est un role connu — une faute de frappe ne neutralise pa
   );
 });
 
-test('un depot d octets precede toute garde qui verifie qu une reference aboutit', async () => {
+test('un depot d octets precede toute garde dont le verdict porte sur la sortie deposee', async () => {
   const livrees = await integrationsLivrees();
   const role = new Map(livrees.map((l) => [l.nom, l]));
   const ordre = branchees();
 
   const rangs = new Map(ordre.map((nom, rang) => [nom, rang]));
   const depots = ordre.filter((nom) => role.get(nom)?.role === DEPOSE);
-  const verificateurs = ordre.filter((nom) => role.get(nom)?.role === VERIFIE);
+  const dependants = ordre.filter((nom) => APRES_LES_DEPOTS.has(role.get(nom)?.role as string));
 
   const fautes: string[] = [];
   for (const depot of depots) {
-    for (const verificateur of verificateurs) {
-      if ((rangs.get(verificateur) as number) < (rangs.get(depot) as number)) {
+    for (const dependant of dependants) {
+      if ((rangs.get(dependant) as number) < (rangs.get(depot) as number)) {
         fautes.push(
-          `${verificateur} (position ${(rangs.get(verificateur) as number) + 1}) s execute AVANT ` +
+          `${dependant} (position ${(rangs.get(dependant) as number) + 1}, ` +
+            `${role.get(dependant)?.role}) s execute AVANT ` +
             `${depot} (position ${(rangs.get(depot) as number) + 1})`,
         );
       }
@@ -190,9 +212,11 @@ test('un depot d octets precede toute garde qui verifie qu une reference aboutit
     'astro.config.mjs : ordre des integrations FAUX.\n' +
       fautes.map((f) => `  - ${f}`).join('\n') +
       '\n  Toutes accrochent `astro:build:done`, ou Astro les appelle dans l ordre du' +
-      '\n  tableau. Une garde qui verifie qu une reference aboutit dans dist/ doit passer' +
-      '\n  APRES l integration qui y depose les octets, sinon elle rougit sur un site SAIN' +
-      '\n  — et on la desactive pour une cause qui n existe pas.' +
+      '\n  tableau. Une garde dont le verdict porte sur la sortie DEPOSEE doit passer' +
+      '\n  APRES l integration qui y ecrit les octets — et les deux roles concernes n ont' +
+      '\n  pas le meme mode d echec :' +
+      `\n    - « ${VERIFIE} » rougit sur un site SAIN (les octets manquent encore) ;` +
+      `\n    - « ${JUGE} » rend VERT sur un site FAUTIF (l inventaire est incomplet).` +
       '\n  Le role de chaque module est declare par son export `ROLE_SORTIE`.',
   );
 });

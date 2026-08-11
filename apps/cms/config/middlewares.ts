@@ -26,6 +26,11 @@ const config: Core.Config.Middlewares = [
   'strapi::session',
   'strapi::favicon',
   'strapi::public',
+  // Le role Public ne lit que du publie, et c'est ce middleware qui le tient —
+  // la permission `find` de Strapi emporte `?status=draft`, sans granularite.
+  // APRES `strapi::query`, qui pose l'accesseur qs sur lequel il ecrit.
+  // Voir `src/middlewares/statut-publie.ts` (decision 7106948b, branche A).
+  'global::statut-publie',
 ];
 
 export default config;

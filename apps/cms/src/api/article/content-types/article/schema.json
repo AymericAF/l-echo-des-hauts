@@ -29,7 +29,8 @@
     "slug": {
       "type": "uid",
       "targetField": "titre",
-      "required": true
+      "required": true,
+      "minLength": 1
     },
     "chapo": {
       "type": "text",

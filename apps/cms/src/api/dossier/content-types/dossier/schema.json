@@ -28,7 +28,8 @@
     "slug": {
       "type": "uid",
       "targetField": "titre",
-      "required": true
+      "required": true,
+      "minLength": 1
     },
     "introduction": {
       "type": "blocks",

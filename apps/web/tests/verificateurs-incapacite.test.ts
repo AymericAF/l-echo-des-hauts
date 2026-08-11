@@ -53,6 +53,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { ISSUES, manquementCorpusVide } from '../scripts/issues.mjs';
+import { inspecterAlternatives } from '../scripts/verifier-alternatives.mjs';
 import { inspecterCascadeTitres } from '../scripts/verifier-cascade-titres.mjs';
 import { inspecterImages } from '../scripts/verifier-images.mjs';
 import { inspecterLiens } from '../scripts/verifier-liens.mjs';
@@ -200,6 +201,22 @@ const VERIFICATEURS: {
     // Une page sans un seul titre : zero cascade jugee, et pourtant rien de fautif.
     objetVide: { 'index.html': page('', '<p>aucun titre sur cette page</p>') },
     motifAnomalie: /niveau\(x\) saute\(s\)/i,
+  },
+  {
+    nom: 'alternatives',
+    script: 'verifier-alternatives.mjs',
+    /* LE MANIFESTE N EST PAS PASSE ICI, et c est volontaire : le second argument de ce
+       tableau est une ORIGINE. Ce verificateur prend le sien en option NOMMEE
+       (`--manifeste=`) et retombe sur celui du depot — sans quoi l origine serait lue
+       comme un chemin de manifeste, et les trois sens rendraient 2 au lieu de 0 et 1. */
+    inspecter: async (dist) => inspecterAlternatives(dist),
+    conforme: { 'index.html': page('', '<img src="/a.svg" alt="un viaduc">') },
+    /* Le defaut le plus simple de son objet, et celui qu aucune autre garde ne voit :
+       une image sans le moindre attribut `alt`. */
+    fautif: { 'index.html': page('', '<img src="/a.svg">') },
+    // Une page sans une seule <img> : zero alternative jugee, et pourtant rien de fautif.
+    objetVide: { 'index.html': page('', '<p>aucune image sur cette page</p>') },
+    motifAnomalie: /attribut alt absent/i,
   },
 ];
 

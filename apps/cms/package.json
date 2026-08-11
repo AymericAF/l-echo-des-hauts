@@ -16,7 +16,7 @@
     "seed": "node scripts/seed/index.ts",
     "seed:verifier": "node scripts/seed/index.ts --verifier",
     "seed:comptage": "node scripts/seed/index.ts --comptage",
-    "test": "node --test tests/modele-donnees.test.ts tests/articles-lies.test.ts tests/locales.test.ts tests/seed-markdown.test.ts tests/seed-rapprochement.test.ts tests/seed-credits.test.ts tests/seed-corpus.test.ts tests/seed-idempotence.test.ts tests/seed-code-sortie.test.ts"
+    "test": "node --test tests/modele-donnees.test.ts tests/articles-lies.test.ts tests/locales.test.ts tests/seed-markdown.test.ts tests/seed-rapprochement.test.ts tests/seed-credits.test.ts tests/seed-corpus.test.ts tests/seed-idempotence.test.ts tests/seed-code-sortie.test.ts tests/seed-jeton-duree.test.ts"
   },
   "dependencies": {
     "@strapi/database": "5.51.1",

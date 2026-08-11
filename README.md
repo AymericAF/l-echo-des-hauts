@@ -198,13 +198,17 @@ images avec leur manifeste. Le script `seed` le charge dans Strapi par l'API RES
 ```bash
 cd apps/cms
 export SEED_STRAPI_URL=http://localhost:1337      # défaut si non renseignée
-export SEED_STRAPI_TOKEN=<jeton API full-access>  # PAS le jeton du build
+export SEED_STRAPI_TOKEN=<jeton API full-access, à DURÉE LIMITÉE>  # PAS le jeton du build (lecture seule)
 npm run seed
 ```
 
 Le jeton se crée dans l'admin Strapi : **Settings → API Tokens → Create new API Token**, avec
-*Token type* = **Full access**. Ce n'est **pas** le jeton du site public, qui est en **lecture
-seule** — le seed écrit, le build ne fait que lire.
+*Name* = un nom dédié à cet usage (celui en vigueur : `seed-corpus-editorial`), *Token type* =
+**Full access** et *Token duration* = **30 days** — ⚠️ jamais `Unlimited` : un jeton plein accès
+sans expiration survit à qui l'a créé. Il s'inscrit à la **matrice des secrets** du dépôt de
+documentation (§13 du runbook de provisionnement), qui porte sa date d'expiration — elle n'est
+pas recopiée ici, deux copies divergeraient à la première rotation. Ce n'est **pas** le jeton du
+site public, qui est en **lecture seule** — le seed écrit, le build ne fait que lire.
 
 Le script est **rejouable** : le rapprochement se fait sur le **slug**, par locale, et sur le
 **nom de fichier** pour les médias. Deux exécutions consécutives donnent le même comptage en base.

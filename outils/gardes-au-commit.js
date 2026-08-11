@@ -102,6 +102,19 @@ const LECTURES = {
     'apps/web/tests/garde-surface-publique.test.ts': ['apps/cms/src/api/'],
     'apps/cms/tests/modele-donnees.test.ts': ['apps/cms/src/api/', 'apps/cms/src/components/'],
     'apps/cms/tests/seed-code-sortie.test.ts': ['apps/cms/scripts/seed/', 'apps/cms/data/'],
+    // CE TEST LIT LES DEUX README, dont celui de la RACINE — hors de toute
+    // application. Il tient la regle « le jeton d'amorcage est a duree limitee,
+    // jamais Unlimited » aux SIX endroits ou ce depot prescrit le jeton, et
+    // deux de ces endroits sont des fichiers Markdown qu'aucun import ne peut
+    // atteindre. Voir `SUPPORTS_HORS_APPLICATION` pour la racine : sans lui, le
+    // test rougirait sur une ABSENCE dans l'arbre temporaire, pas sur une
+    // regression — et un crochet qui rougit pour une raison qui n'est pas la
+    // sienne se fait desactiver dans la semaine.
+    'apps/cms/tests/seed-jeton-duree.test.ts': [
+        'apps/cms/scripts/seed/',
+        'apps/cms/README.md',
+        'README.md',
+    ],
     'apps/cms/tests/seed-corpus.test.ts': ['apps/cms/data/'],
     'apps/cms/tests/seed-idempotence.test.ts': ['apps/cms/data/'],
     // CE TEST LIT UN FICHIER HORS DE TOUTE APPLICATION — le workflow lui-meme.
@@ -124,7 +137,7 @@ const LECTURES = {
 // n'est pas la sienne se fait desactiver dans la semaine. Ces prefixes sont
 // poses dans l'arbre EN PLUS des applications. Ils declenchent deja par
 // `LECTURES` : cette liste ne dit pas QUAND lancer, elle dit QUOI POSER.
-const SUPPORTS_HORS_APPLICATION = ['.github/workflows/'];
+const SUPPORTS_HORS_APPLICATION = ['.github/workflows/', 'README.md'];
 
 // Toucher le declenchement lui-meme relance TOUT : c'est la regle qui a bouge,
 // et une regle de declenchement qui ne s'exerce pas est une convention de plus.

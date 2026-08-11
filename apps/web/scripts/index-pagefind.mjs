@@ -92,6 +92,12 @@ export async function indexer(dist) {
     });
     if (erreursEcriture?.length) throw echec('Pagefind n a pas ecrit son index :', erreursEcriture);
 
+    /* DEFAUT VOLONTAIRE (preuve en cassant, tache 08f04f58) : un octet de JavaScript
+       depose HORS de `pagefind/`, exactement ce qu une version de Pagefind pourrait faire
+       en changeant de disposition. Personne ne le voyait avant que preuve:rendu emprunte
+       la porte de la production. */
+    (await import('node:fs')).writeFileSync(path.join(dist, 'mouchard.js'), 'console.log(1)');
+
     return { pages };
   } finally {
     await close();

@@ -14,6 +14,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
+import { origineDuBuild } from '../scripts/origine.mjs';
 import { inspecterLiens, resumeLiens } from '../scripts/verifier-liens.mjs';
 
 const NOM = 'garde-liens';
@@ -43,14 +44,29 @@ function echec(manquements) {
 
 /** @returns {import('astro').AstroIntegration} */
 export default function gardeLiens() {
+  /**
+   * L origine de la configuration RESOLUE, capturee au seul hook qui l expose.
+   *
+   * CETTE GARDE-CI EST CELLE QUI SE TAISAIT, et c est pour elle que la correction compte
+   * le plus. En relisant `process.env.ECHO_SITE_URL`, elle ne rougissait pas sous
+   * `--site https://autre-origine.test` : elle imprimait sa coche habituelle et sortait
+   * en 0, sur `2990 lien(s) interne(s)` au lieu de `3587` — les 597 liens absolus vers
+   * l origine reelle du build ayant cesse d etre reconnus comme internes, donc etant
+   * sortis de la garde sans un mot. Succes et incapacite rendaient la meme sortie.
+   */
+  let siteResolu;
+
   return {
     name: NOM,
     hooks: {
+      'astro:config:done': ({ config }) => {
+        siteResolu = config.site;
+      },
       'astro:build:done': ({ dir, logger }) => {
         // `fileURLToPath`, jamais `dir.pathname` : sous Windows ce dernier rend
         // `/C:/Users/...`, que `fs` ne trouve pas — la garde inspecterait une sortie
         // « absente » au lieu de la vraie.
-        const origine = process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
+        const origine = origineDuBuild(siteResolu, 'https://echo.ayfiweb.fr');
         const rapport = inspecterLiens(fileURLToPath(dir), origine);
         /* UNE INCAPACITE N EST PAS UNE ANOMALIE, et les deux messages n envoient pas au
            meme endroit : « lien mort » envoie corriger le registre des routes, «

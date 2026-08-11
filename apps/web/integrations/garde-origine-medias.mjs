@@ -19,6 +19,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
+import { origineDuBuild } from '../scripts/origine.mjs';
 import { inspecterOrigineMedias, resumeOrigineMedias } from '../scripts/verifier-origine-medias.mjs';
 
 const NOM = 'garde-origine-medias';
@@ -52,14 +53,27 @@ function echec(manquements) {
 
 /** @returns {import('astro').AstroIntegration} */
 export default function gardeOrigineMedias() {
+  /**
+   * L origine de la configuration RESOLUE, capturee au seul hook qui l expose. Elle
+   * remplace la relecture de `process.env.ECHO_SITE_URL`, qui faisait juger cette garde
+   * contre une reference que le producteur n avait pas utilisee : sous
+   * `--site https://autre-origine.test`, elle accusait 238 references d image d etre
+   * « hors du site » alors qu elles portaient l origine donnee au build. La chaine de
+   * repli est celle du producteur ; l argumentaire complet est dans `scripts/origine.mjs`.
+   */
+  let siteResolu;
+
   return {
     name: NOM,
     hooks: {
+      'astro:config:done': ({ config }) => {
+        siteResolu = config.site;
+      },
       'astro:build:done': ({ dir, logger }) => {
         // `fileURLToPath`, jamais `dir.pathname` : sous Windows ce dernier rend
         // `/C:/Users/...`, que `fs` ne trouve pas — la garde inspecterait une sortie
         // « absente » au lieu de la vraie, et rendrait vert sur zero image lue.
-        const origine = process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
+        const origine = origineDuBuild(siteResolu, 'https://echo.ayfiweb.fr');
         const rapport = inspecterOrigineMedias(fileURLToPath(dir), origine);
         if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
           throw erreurVerificationImpossible(NOM, rapport.manquements);

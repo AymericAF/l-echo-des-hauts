@@ -12,6 +12,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
+import { origineDuBuild } from '../scripts/origine.mjs';
 import { inspecterSeo, resumeSeo } from '../scripts/verifier-seo.mjs';
 
 const NOM = 'garde-seo';
@@ -41,14 +42,27 @@ function echec(manquements) {
 
 /** @returns {import('astro').AstroIntegration} */
 export default function gardeSeo() {
+  /**
+   * L origine de la configuration RESOLUE, capturee au seul hook qui l expose. En
+   * relisant `process.env.ECHO_SITE_URL`, cette garde produisait sous
+   * `--site https://autre-origine.test` 121 manquements dont aucun n existait : 6
+   * segments de sitemap « hors du site », puis les 115 pages indexables declarees
+   * absentes d un sitemap qui ne se reconnaissait plus lui-meme. Argumentaire complet et
+   * mesure dans `scripts/origine.mjs`.
+   */
+  let siteResolu;
+
   return {
     name: NOM,
     hooks: {
+      'astro:config:done': ({ config }) => {
+        siteResolu = config.site;
+      },
       'astro:build:done': async ({ dir, logger }) => {
         // `fileURLToPath`, jamais `dir.pathname` : sous Windows ce dernier rend
         // `/C:/Users/...`, que `fs` ne trouve pas — la garde inspecterait une sortie
         // « absente » au lieu de la vraie.
-        const origine = process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
+        const origine = origineDuBuild(siteResolu, 'https://echo.ayfiweb.fr');
         const rapport = await inspecterSeo(fileURLToPath(dir), origine);
         if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
           throw erreurVerificationImpossible(NOM, rapport.manquements);

@@ -140,6 +140,24 @@ en revanche, grande ouverte : `node scripts/verifier-*.mjs [dist] [origine]` et
 `null`/`undefined`, jamais la chaîne vide). C'est-à-dire **la seconde porte du job `sortie`**,
 celle qui juge un `dist/` déjà construit — la porte de la recette.
 
+**Le paragraphe ci-dessus reste vrai pour l'origine _illisible_ — et un second défaut de la même
+famille, lui, était bel et bien joignable par `astro build`. Mesuré le 2026-08-11.** Les trois
+gardes lisaient `process.env.ECHO_SITE_URL`, or **l'environnement n'est pas la configuration** :
+`--site` est une option **publique** d'Astro, elle gagne sur le fichier de configuration donc sur
+la variable qui l'alimente, et elle ne demande aucune manipulation d'environnement. Sous
+`ECHO_SITE_URL=https://echo.ayfiweb.fr astro build --site https://autre-origine.test`, le
+producteur émet correctement `https://autre-origine.test/`, et **les trois gardes jugent contre
+une référence que le producteur n'a pas utilisée** — chacune à sa façon, ce qui est le point :
+`garde-origine-medias` fait échouer le build sur **238** fausses accusations, `garde-seo` sur
+**121**, et `garde-liens` **rend vert** en imprimant sa coche sur `2990 lien(s) interne(s)` au
+lieu de `3587` — 597 liens absolus sortis de la garde **sans un mot**. Deux accusent à tort, ce
+qui se voit ; la troisième se **désarme** en affichant le signe de la conformité. Les trois lisent
+désormais la configuration **résolue** (`astro:config:done`), par la même chaîne de repli que le
+producteur (`scripts/origine.mjs`, `origineDuBuild()`). L'invariant est tenu par
+`tests/origine-des-gardes.test.ts`, qui exerce les **deux sens** : plus de fausse alerte sous une
+origine divergente, et une référence **réellement** fautive — hôte tiers, octets absents, lien
+mort, `<loc>` sans page — toujours attrapée.
+
 **Pas dans le crochet local, et c'est mesuré** : les vérificateurs coûtent ~105 ms à eux six, mais
 le **build** coûte 3,3 s (17 pages) à 4,9 s (52 pages) — contre 0,2 à 3,0 s pour le crochet entier
 aujourd'hui. Un crochet à plusieurs secondes se fait contourner, après quoi on perd aussi ce qui

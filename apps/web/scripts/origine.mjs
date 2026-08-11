@@ -69,6 +69,57 @@ export function decrire(origine) {
 }
 
 /**
+ * L ORIGINE CONTRE LAQUELLE UNE GARDE DE BUILD DOIT JUGER — celle de la configuration
+ * RESOLUE par Astro, jamais celle de l environnement.
+ *
+ * CE QU ELLE REMPLACE, et ce qui s est mesure le 2026-08-11 avant de l ecrire. Les trois
+ * gardes de `integrations/` portaient chacune leur copie de :
+ *
+ *     const origine = process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
+ *
+ * L environnement N EST PAS la configuration. Astro resout `site` a partir de plusieurs
+ * sources, et `--site` — une option PUBLIQUE, qui ne demande aucune manipulation
+ * d environnement — GAGNE sur le fichier de configuration, donc sur la variable qui
+ * l alimente. Mesure sur `ECHO_SITE_URL=https://echo.ayfiweb.fr npx astro build --site
+ * https://autre-origine.test`, ou le producteur emet bien `https://autre-origine.test/` :
+ *
+ *   - `garde-origine-medias` : le build ECHOUE sur 238 references d image accusees
+ *     d etre « hors du site », alors qu elles portent l origine donnee au build ;
+ *   - `garde-seo`            : le build ECHOUE sur 121 manquements — 6 segments de
+ *     sitemap « hors du site » et les 115 pages indexables declarees absentes d un
+ *     sitemap devenu etranger a ses propres yeux ;
+ *   - `garde-liens`          : VERT, code 0, meme coche — `2990 lien(s) interne(s)` au
+ *     lieu de `3587`. 597 liens absolus retires de la garde SANS UN MOT.
+ *
+ * Les trois ne se comportaient donc pas pareil, et la troisieme est la pire : deux
+ * accusent a tort, ce qui se voit ; la derniere se DESARME en affichant le signe de la
+ * conformite. C est la forme deja fermee chez les six verificateurs (commit 800a978) —
+ * succes et incapacite rendant la meme sortie.
+ *
+ * LA CHAINE DE REPLI EST CELLE DU PRODUCTEUR, a l identique
+ * (`src/lib/seo/origine-site.ts` : `site?.href ?? process.env.ECHO_SITE_URL ?? repli`) :
+ * c est ce qui garantit que garde et producteur jugent la MEME valeur quelle que soit la
+ * source qui l a fournie. En diverger, meme « en mieux », reouvrirait le defaut.
+ *
+ * LE SLASH FINAL NE COMPTE PAS ICI, et c est mesure plutot que suppose : Astro rend
+ * `config.site` en CHAINE, sans slash final ajoute (`"https://autre-origine.test"`),
+ * quand le producteur lit `Astro.site.href`, qui en porte un. Les trois inspecteurs ne
+ * consomment cette valeur que par `lireOrigine().hote`, c est-a-dire `new URL(x).origin`,
+ * qui ampute chemin et slash. Les deux formes y sont donc rigoureusement equivalentes —
+ * ce qui ne serait PLUS vrai pour un appelant qui la concatenerait.
+ *
+ * @param {string|undefined} siteResolu `config.site` du hook `astro:config:done`.
+ * @param {string} repli L origine par defaut, quand ni la configuration ni la variable
+ *   ne la portent. Passee par l appelant tant que les huit copies de cette chaine n ont
+ *   pas de domicile commun (cf. `ORIGINE_PAR_DEFAUT` de `src/lib/seo/origine-site.ts`).
+ * @returns {string} La valeur BRUTE, a passer telle quelle a `lireOrigine()` : une
+ *   origine illisible doit se DECLARER chez l inspecteur, jamais etre remplacee ici.
+ */
+export function origineDuBuild(siteResolu, repli) {
+  return siteResolu ?? process.env.ECHO_SITE_URL ?? repli;
+}
+
+/**
  * @typedef {{lisible: true, issue: 0, hote: string}
  *          |{lisible: false, issue: 2, manquement: string}} LectureOrigine
  */

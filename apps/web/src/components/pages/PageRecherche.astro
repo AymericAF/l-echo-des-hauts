@@ -1,0 +1,288 @@
+---
+/**
+ * `/recherche` — la seule page du site autorisee a charger du JavaScript (§5.4, §0 des
+ * arbitrages techniques). Tout ce qui suit est ecrit sous cette contrainte.
+ *
+ * TROIS DECISIONS DE FORME, chacune imposee par la garde T-09 et pas par le gout :
+ *
+ * 1. **Le script est `is:inline`, et il le restera.** Un `<script>` Astro ordinaire est
+ *    pris en charge par Vite : au-dela du seuil d inlining, il EMET UN CHUNK dans
+ *    `_astro/`. Or `_astro/` est servi a TOUTES les pages du site — la garde le refuse
+ *    donc meme quand le chunk vient de `/recherche` (`scripts/verifier-sortie.mjs`, et
+ *    le test « FUITE — un bundle partage `_astro/` reste refuse meme si /recherche
+ *    existe »). `is:inline` est la seule forme dont on sache qu elle n emet rien : Astro
+ *    recopie le contenu tel quel, sans passer par le bundler. Ne pas retirer l attribut,
+ *    meme si le script grossit ; c est precisement en grossissant qu il deviendrait un
+ *    chunk.
+ *
+ * 2. **Le bundle Pagefind est charge par une URL, jamais par un import resolu.** Il
+ *    n existe pas pendant `astro build` : il est depose apres, par
+ *    `scripts/index-pagefind.mjs`. Un `import` que Vite tenterait de resoudre echouerait
+ *    le build, et un import « externalise » redeviendrait un chunk. L URL vit dans
+ *    `src/lib/seo/recherche.ts`, seul point ou elle peut etre confrontee a l exemption
+ *    de la garde.
+ *
+ * 3. **Aucun libelle n est ecrit dans le script.** Ils sont poses en attributs `data-*`
+ *    sur le conteneur, lus a l execution. C est ce qui permet a la meme ligne de code de
+ *    servir `/recherche` et `/en/recherche` sans dupliquer le script par locale — et
+ *    c est ce qui garde les textes visibles dans `src/lib/i18n/libelles.ts`, ou le test
+ *    de parite FR/EN les voit.
+ *
+ * SANS JAVASCRIPT, la page reste une page : le champ est la, il indique honnetement
+ * qu il ne peut rien faire, et la navigation par rubriques est proposee en repli. Un
+ * champ de recherche mort et muet serait le pire des deux mondes.
+ */
+import type { Locale } from '../../lib/domaine.ts';
+import { libelles } from '../../lib/i18n/libelles.ts';
+import { cheminAccueil } from '../../lib/routes/chemins.ts';
+import { CHEMIN_BUNDLE_PAGEFIND } from '../../lib/seo/recherche.ts';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const mots = libelles(locale);
+---
+
+<div
+  class="recherche"
+  data-recherche
+  data-bundle={CHEMIN_BUNDLE_PAGEFIND}
+  data-libelle-chargement={mots.rechercheChargement}
+  data-libelle-vide={mots.rechercheAucunResultat}
+  data-libelle-erreur={mots.rechercheErreur}
+  data-libelle-compte-un={mots.rechercheUnResultat}
+  data-libelle-compte-n={mots.rechercheNResultats('%n')}
+>
+  <h1>{mots.rechercheTitre}</h1>
+  <p class="recherche__intro">{mots.rechercheIntro}</p>
+
+  <form class="recherche__formulaire" role="search" data-formulaire>
+    <label class="recherche__label" for="recherche-champ">{mots.rechercheLabel}</label>
+    <input
+      class="recherche__champ"
+      id="recherche-champ"
+      type="search"
+      name="q"
+      autocomplete="off"
+      spellcheck="false"
+      placeholder={mots.recherchePlaceholder}
+      data-champ
+    />
+  </form>
+
+  <p class="recherche__statut" data-statut aria-live="polite" role="status"></p>
+
+  <ul class="recherche__resultats" data-resultats></ul>
+
+  <noscript>
+    <p class="recherche__repli">{mots.rechercheSansJs}</p>
+    <p><a href={cheminAccueil(locale)}>{mots.retourAccueil}</a></p>
+  </noscript>
+</div>
+
+<script is:inline type="module">
+  /*
+   * Interface de recherche — la SEULE ligne de JavaScript servie par ce site (§5.4).
+   *
+   * `is:inline` : voir l en-tete du composant. Retirer cet attribut ferait emettre un
+   * chunk dans `_astro/`, servi a toutes les pages, et le build echouerait (garde T-09).
+   *
+   * Le bundle Pagefind est importe dynamiquement depuis l URL portee par le conteneur :
+   * il n existe qu apres le post-build, et aucun bundler ne doit tenter de le resoudre.
+   */
+  const zone = document.querySelector('[data-recherche]');
+  if (zone) {
+    const champ = zone.querySelector('[data-champ]');
+    const statut = zone.querySelector('[data-statut]');
+    const sortie = zone.querySelector('[data-resultats]');
+    const formulaire = zone.querySelector('[data-formulaire]');
+    const RESULTATS_MAX = 20;
+
+    const libelle = (nom) => zone.getAttribute(`data-libelle-${nom}`) ?? '';
+    const compte = (n) =>
+      n === 1 ? libelle('compte-un') : libelle('compte-n').replace('%n', String(n));
+
+    let moteur = null;
+    let generation = 0;
+
+    /* Une seule instanciation, partagee par toutes les frappes. Pagefind lit la langue
+       dans `<html lang>` : c est ce qui fait que /en/recherche interroge l index anglais
+       sans qu aucune valeur ne soit recopiee ici. */
+    async function charger() {
+      if (moteur === null) {
+        moteur = import(zone.getAttribute('data-bundle')).then(async (module) => {
+          await module.init();
+          return module;
+        });
+      }
+      return moteur;
+    }
+
+    function vider() {
+      sortie.replaceChildren();
+    }
+
+    function rendre(entrees) {
+      const fragments = entrees.map((entree) => {
+        const item = document.createElement('li');
+        item.className = 'recherche__resultat';
+
+        const lien = document.createElement('a');
+        lien.href = entree.url;
+        lien.textContent = entree.meta?.title || entree.url;
+        item.appendChild(lien);
+
+        if (entree.excerpt) {
+          const extrait = document.createElement('p');
+          extrait.className = 'recherche__extrait';
+          /* `excerpt` porte le balisage de surlignage de Pagefind (`<mark>`), et lui
+             seul : il est produit a partir du texte que NOUS avons indexe, jamais d une
+             saisie exterieure. */
+          extrait.innerHTML = entree.excerpt;
+          item.appendChild(extrait);
+        }
+        return item;
+      });
+      sortie.replaceChildren(...fragments);
+    }
+
+    async function chercher(requete) {
+      const mien = ++generation;
+      if (requete.trim() === '') {
+        statut.textContent = '';
+        vider();
+        return;
+      }
+
+      statut.textContent = libelle('chargement');
+      try {
+        const module = await charger();
+        const reponse = await module.search(requete);
+        if (mien !== generation) return; // une frappe plus recente a pris la main
+
+        const entrees = await Promise.all(
+          reponse.results.slice(0, RESULTATS_MAX).map((resultat) => resultat.data()),
+        );
+        if (mien !== generation) return;
+
+        if (entrees.length === 0) {
+          statut.textContent = libelle('vide');
+          vider();
+          return;
+        }
+        statut.textContent = compte(reponse.results.length);
+        rendre(entrees);
+      } catch (erreur) {
+        if (mien !== generation) return;
+        statut.textContent = libelle('erreur');
+        vider();
+        console.error('[recherche]', erreur);
+      }
+    }
+
+    /* La requete vit dans l URL : un resultat de recherche se partage et se recharge.
+       T-05 rappelle que la bascule FR/EN ne peut PAS la transporter — le lien est
+       calcule au build, la requete vit a l execution. */
+    function synchroniserUrl(requete) {
+      const url = new URL(window.location.href);
+      if (requete.trim() === '') url.searchParams.delete('q');
+      else url.searchParams.set('q', requete);
+      window.history.replaceState(null, '', url);
+    }
+
+    let minuterie = 0;
+    champ.addEventListener('input', () => {
+      window.clearTimeout(minuterie);
+      minuterie = window.setTimeout(() => {
+        synchroniserUrl(champ.value);
+        chercher(champ.value);
+      }, 180);
+    });
+
+    formulaire.addEventListener('submit', (evenement) => {
+      evenement.preventDefault();
+      window.clearTimeout(minuterie);
+      synchroniserUrl(champ.value);
+      chercher(champ.value);
+    });
+
+    const initiale = new URL(window.location.href).searchParams.get('q');
+    if (initiale) {
+      champ.value = initiale;
+      chercher(initiale);
+    }
+  }
+</script>
+
+<style>
+  .recherche__intro {
+    color: var(--couleur-texte-doux);
+    max-width: 60ch;
+  }
+
+  .recherche__formulaire {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-1);
+    margin-block: var(--espace-4);
+    max-width: 40rem;
+  }
+
+  .recherche__label {
+    font-size: var(--taille-s);
+    font-weight: 600;
+  }
+
+  .recherche__champ {
+    font: inherit;
+    padding: var(--espace-2);
+    border: 2px solid var(--couleur-bordure);
+    border-radius: 2px;
+    background: var(--couleur-fond);
+    color: var(--couleur-texte);
+  }
+
+  .recherche__champ:focus-visible {
+    outline: 2px solid var(--couleur-accent);
+    outline-offset: 2px;
+  }
+
+  .recherche__statut {
+    font-size: var(--taille-s);
+    color: var(--couleur-texte-doux);
+    min-height: 1.5em;
+  }
+
+  .recherche__resultats {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-4);
+  }
+
+  .recherche__resultat a {
+    font-size: var(--taille-m);
+    font-weight: 600;
+    color: var(--couleur-texte);
+  }
+
+  .recherche__extrait {
+    margin-block-start: var(--espace-1);
+    color: var(--couleur-texte-doux);
+    max-width: 70ch;
+  }
+
+  .recherche__extrait :global(mark) {
+    background: var(--couleur-accent);
+    color: var(--couleur-fond);
+    padding-inline: 0.15em;
+  }
+
+  .recherche__repli {
+    max-width: 60ch;
+  }
+</style>

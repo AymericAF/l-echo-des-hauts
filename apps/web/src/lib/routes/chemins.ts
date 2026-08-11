@@ -30,7 +30,13 @@ export type Famille = (typeof FAMILLES)[number];
  */
 export const FAMILLES_PAGINEES: readonly Famille[] = ['categorie', 'tag'];
 
-export const PAGES_STATIQUES = ['a-propos', 'mentions-legales', '404'] as const;
+/**
+ * `recherche` y figure au meme titre que les autres : c est une page du §4.2, emise
+ * dans les deux locales, portee au sitemap et pointee par la bascule FR/EN. Ce qui la
+ * distingue — elle est la seule autorisee a charger du JavaScript (§5.4) — ne se lit ni
+ * ici ni dans le registre : cela se joue dans son gabarit et dans la garde T-09.
+ */
+export const PAGES_STATIQUES = ['a-propos', 'mentions-legales', 'recherche', '404'] as const;
 export type PageStatique = (typeof PAGES_STATIQUES)[number];
 
 export function prefixeLocale(locale: Locale): string {

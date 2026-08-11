@@ -44,6 +44,22 @@ export interface Libelles {
   readonly versLangue: (langue: string) => string;
   readonly traductionAbsente: string;
   readonly nomLangue: Record<Locale, string>;
+  readonly recherche: string;
+  readonly rechercheTitre: string;
+  readonly rechercheIntro: string;
+  readonly rechercheLabel: string;
+  readonly recherchePlaceholder: string;
+  readonly rechercheChargement: string;
+  readonly rechercheAucunResultat: string;
+  readonly rechercheErreur: string;
+  readonly rechercheUnResultat: string;
+  /**
+   * Appele au BUILD avec le gabarit `'%n'`, jamais avec un nombre : le compteur est
+   * substitue a l execution, dans la page (`PageRecherche.astro`). D ou le type elargi —
+   * il est la pour que le gabarit passe, pas par tolerance.
+   */
+  readonly rechercheNResultats: (nombre: number | string) => string;
+  readonly rechercheSansJs: string;
   readonly titre404: string;
   readonly texte404: string;
   readonly retourAccueil: string;
@@ -83,6 +99,20 @@ const FR: Libelles = {
   versLangue: (langue) => `Lire en ${langue}`,
   traductionAbsente: "cette page n'est pas disponible en anglais",
   nomLangue: { fr: 'français', en: 'anglais' },
+  recherche: 'Recherche',
+  rechercheTitre: 'Rechercher dans L’Écho des Hauts',
+  rechercheIntro:
+    'La recherche porte sur le texte intégral des articles publiés, dans la langue de cette page. Les résultats s’affichent au fil de la saisie.',
+  rechercheLabel: 'Votre recherche',
+  recherchePlaceholder: 'Un mot, un nom, un lieu…',
+  rechercheChargement: 'Recherche en cours…',
+  rechercheAucunResultat: 'Aucun article ne correspond à cette recherche.',
+  rechercheErreur:
+    'La recherche est momentanément indisponible. Vous pouvez parcourir les rubriques depuis le menu.',
+  rechercheUnResultat: '1 article trouvé',
+  rechercheNResultats: (nombre) => `${nombre} articles trouvés`,
+  rechercheSansJs:
+    'La recherche a besoin de JavaScript pour interroger son index. C’est la seule page du site dans ce cas : tout le reste fonctionne sans. Vous pouvez parcourir les rubriques depuis le menu.',
   titre404: 'Cette page n’existe pas',
   texte404:
     "L’adresse demandée ne correspond à aucune page de L’Écho des Hauts. Le lien qui vous a mené ici est peut-être ancien, ou l’article a changé d’adresse.",
@@ -124,6 +154,20 @@ const EN: Libelles = {
   versLangue: (langue) => `Read in ${langue}`,
   traductionAbsente: 'this page is not available in French',
   nomLangue: { fr: 'French', en: 'English' },
+  recherche: 'Search',
+  rechercheTitre: 'Search L’Écho des Hauts',
+  rechercheIntro:
+    'The search covers the full text of published articles, in the language of this page. Results appear as you type.',
+  rechercheLabel: 'Your search',
+  recherchePlaceholder: 'A word, a name, a place…',
+  rechercheChargement: 'Searching…',
+  rechercheAucunResultat: 'No article matches this search.',
+  rechercheErreur:
+    'Search is temporarily unavailable. You can browse the sections from the menu.',
+  rechercheUnResultat: '1 article found',
+  rechercheNResultats: (nombre) => `${nombre} articles found`,
+  rechercheSansJs:
+    'Search needs JavaScript to query its index. This is the only page on the site in that situation: everything else works without it. You can browse the sections from the menu.',
   titre404: 'This page does not exist',
   texte404:
     'The address you requested does not match any page of L’Écho des Hauts. The link that brought you here may be outdated, or the article may have moved.',

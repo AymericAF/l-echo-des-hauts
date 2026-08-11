@@ -318,10 +318,15 @@ export const ROUTES_ATTENDUES = {
     '/404',
     '/a-propos',
     '/mentions-legales',
+    // §5.4 — la page de recherche est une page statique comme les autres pour le
+    // registre ; ce qui la distingue (elle charge du JavaScript) se joue dans son
+    // gabarit et dans la garde T-09, pas dans les routes emises.
+    '/recherche',
     '/en',
     '/en/404',
     '/en/a-propos',
     '/en/mentions-legales',
+    '/en/recherche',
 
     // 13 articles → 2 pages ; la page 2 ne porte qu un article.
     '/categorie/rubrique-treize',

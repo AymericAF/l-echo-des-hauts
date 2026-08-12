@@ -180,7 +180,7 @@ un pas du workflow. La population n'y est pas écrite : ce sont les **exemptés*
 | `verifier:seo` (§5.2, §4.5) | sitemaps, flux, métas, PNG OG | une `<loc>` morte, une page indexable hors sitemap, une **vignette OG sans glyphes** | ~66 ms |
 | `verifier:styles-en-ligne` (§5.5) | le HTML émis | un bloc `<style>` ou un `style=` que `style-src 'self'` refuse — la page répond 200 et rend autre chose | ~9 ms |
 | `verifier:en-tetes` (§5.5) | la **réponse servie** par `echo.ayfiweb.fr` | la disparition des en-têtes de sécurité — arrivée le 2026-08-10, sans **aucun** signal : build vert, `200` partout, images et styles affichés, politique absente | ~1 s |
-| `preuve:rendu` | un build sur fixtures | que chaque page article rend les blocs que le banc lui pose, **les 8 types y compris**, et **dans chaque locale** — ce qu'aucune garde ne sait dire | 3,3 s |
+| `preuve:rendu` | un build sur fixtures **ou sur l'instance réelle** (`-- --reel`) | que chaque page article rend les blocs que sa source lui pose, **les 8 types y compris**, et **dans chaque locale** — ce qu'aucune garde ne sait dire | 3,3 s (banc) · 27 s (instance) |
 | `preuve:pagination` | un build sur corpus de recette | les **bornes** que le corpus éditorial n'atteint pas : page 2, catégorie à exactement 12, article non traduit | 4,9 s |
 | `preuve:encre-og` | le gabarit rastérisé deux fois | que le seuil de la garde OG **sépare encore** les deux populations (avec fontes / sans aucune fonte) | 1,5 s |
 
@@ -201,6 +201,31 @@ Le défaut reste `tests/fixtures/` : les preuves existantes ne changent pas de c
 qui manquait n'était pas seulement le paramètre — les messages d'incapacité écrivaient
 `tests/fixtures/<nom>.json` **quel que soit** le banc consulté, donc envoyaient chercher un
 fichier absent là où il existe. Ils nomment maintenant le dossier réellement lu.
+
+**`preuve:rendu` sait viser deux cibles, et le choix est explicite** (2026-08-12, tâche
+`7b96216a`). Jusqu'à cette date la cible était **écrite en dur** : la surcouche d'environnement du
+banc était appliquée **après** `process.env`, si bien qu'un `ECHO_STRAPI_URL=https://echoback…`
+posé dans le shell était écrasé sans un mot — mesure avant correctif, le run démarrait quand même
+`http://127.0.0.1:54860` et rendait **24 pages de fixtures, vertes**. Le critère « les 8 types de
+blocs » ne pouvait donc s'exercer que sur des données écrites à la main, c'est-à-dire sur le seul
+terrain où il ne risquait pas d'échouer.
+
+```
+npm run preuve:rendu                      # le BANC — hors ligne, sans jeton. Le défaut, inchangé.
+npm run preuve:rendu -- --reel            # l'INSTANCE réelle (ECHO_STRAPI_URL + jeton de lecture)
+PREUVE_CIBLE=instance npm run preuve:rendu
+```
+
+La précédence **n'a pas été inversée** : cela aurait fermé un piège en ouvrant son symétrique, pire
+parce que silencieux — un `ECHO_STRAPI_URL` qui traîne ferait viser l'instance à un run qui se croit
+sur fixtures. C'est la **cible** qui se choisit, et la surcouche qui s'en **dérive**. Un mot de cible
+non reconnu (`PREUVE_CIBLE=distan`) est **refusé en `2`**, jamais replié sur le banc. Et l'attendu
+suit la cible : blocs posés, Configuration de référence et portraits viennent de la source choisie,
+jamais des fixtures quand on vise l'instance.
+
+⚠️ **En mode instance, `bloc.video` rend `2` et c'est le verdict juste** : le corpus réel n'exerce
+que **7 des 8** types — trou d'énumération **assumé** par l'avenant **A5** du 2026-08-10. `2` envoie
+corriger le corpus, `1` enverrait chercher une régression de rendu qui n'existe pas.
 
 Les six vérificateurs sont **déjà branchés dans le build** comme intégrations Astro : un défaut de
 sortie fait échouer `astro build`, donc le déploiement Coolify. Le job les relance **aussi en
@@ -343,6 +368,24 @@ depuis le dépôt** en cas de perte.
 Une instance Strapi fraîchement installée se repeuple par cette seule commande : les locales
 `fr` (par défaut) et `en` sont posées au démarrage par `src/locales.ts`, la création d'une locale
 n'étant pas exposée sur l'API de contenu.
+
+**Ce maillon-là est exercé sur l'artefact du canal réel depuis le 2026-08-12** (tâche `f30fc73e`) —
+il ne l'était qu'en local jusque-là, et c'était un trou : la locale `fr` de `echoback.ayfiweb.fr` a
+été créée **à la main** le 2026-08-06 à 22:06 UTC, soit ~14 h **avant** que `src/locales.ts` n'existe
+(commit `c2474e2`), et son nom sur l'instance le prouve — « French (fr) », le libellé du sélecteur
+ISO de l'admin, là où `assurerLocales` écrit « Francais (fr) ». Preuve : l'image que Coolify a
+construite pour l'application `echo-strapi` (`ydaghuigfanqwdof0nru2ysk`, tag `3c430ab`) démarrée
+contre une **base PostgreSQL jetable et vide**, sur le VPS, sans toucher à la production —
+`fr` créée avec le nom déclaré, `plugin_i18n_default_locale` posé sur `"fr"`, relu en base.
+
+**Et le passage du bootstrap se CONSTATE désormais, même quand il n'a rien à faire.** Il ne
+journalisait que s'il avait créé une locale ou posé le défaut : sur une instance déjà conforme il
+n'écrivait **aucune ligne**, si bien qu'« il a tourné sans rien changer » et « il n'a jamais tourné »
+rendaient la même sortie. Mesure du 2026-08-12 sur le conteneur de production : **0** ligne
+`[locales]` sur 4 717, pour un unique `Strapi started successfully`, alors que le code **était** dans
+l'image. Une ligne part maintenant à chaque démarrage, dans les quatre états — et elle signale un
+nom divergent **sans renommer**, une écriture non demandée sur une instance en service n'étant pas
+à la charge d'un bootstrap.
 
 Deux sous-commandes n'écrivent rien :
 

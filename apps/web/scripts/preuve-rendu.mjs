@@ -26,22 +26,42 @@
  * sur les 24 pages des fixtures, l indexation coute 0,25 s a chaud et 1,3 s a froid,
  * contre 3,3 s pour le build seul.
  *
- * `npm run preuve:rendu`. La sortie va dans `dist/`, comme un build normal.
+ * DEUX CIBLES, ET LE CHOIX EST EXPLICITE (2026-08-12, tache 7b96216a) :
+ *
+ *   npm run preuve:rendu              -> le BANC, hors ligne, sans jeton. Le defaut.
+ *   npm run preuve:rendu -- --reel    -> l INSTANCE REELLE (`ECHO_STRAPI_URL`).
+ *   PREUVE_CIBLE=instance npm run preuve:rendu
+ *
+ * Jusqu au 2026-08-12 la cible etait ECRITE EN DUR : la surcouche d environnement du
+ * banc etait appliquee APRES `process.env`, donc un `ECHO_STRAPI_URL=https://echoback…`
+ * pose dans le shell etait ECRASE sans un mot. Mesure avant correction : le run
+ * demarrait quand meme `http://127.0.0.1:54860` et rendait 24 pages de fixtures, VERT.
+ * La preuve du critere « les huit types de blocs » ne pouvait donc s exercer que sur des
+ * donnees ecrites a la main — le seul terrain ou elle ne risquait pas d echouer.
+ * D ou vient la surcouche et pourquoi elle n est PAS inversee : `scripts/cible-preuve.mjs`.
+ *
+ * L ATTENDU SUIT LA CIBLE, TOUJOURS. Les blocs poses, la Configuration de reference et
+ * les portraits des auteurs viennent de la source CHOISIE, jamais des fixtures quand on
+ * vise l instance : comparer un rendu d instance a un attendu de banc rougirait sur la
+ * difference des deux corpus, pas sur un defaut du site.
+ *
+ * La sortie va dans `dist/`, comme un build normal — dans les deux modes. Le journal
+ * nomme la cible en tete ET en pied, pour qu un `dist/` ne se lise jamais sans savoir
+ * d ou il vient.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { CIBLES, cibleDemandee, sourcePourCible } from './cible-preuve.mjs';
 import { articlesDuBanc, inspecterBlocs, TYPES } from './couverture-blocs.mjs';
-import { ORIGINE_PAR_DEFAUT } from './origine.mjs';
-import { demarrerServeurFixtures, exigerBanc, fixturesDuBanc } from './serveur-fixtures.mjs';
+import { ISSUES } from './issues.mjs';
 import { inspecterSortie, resume } from './verifier-sortie.mjs';
 import { prefixeLocale } from '../src/lib/routes/chemins.ts';
 import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
 
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FIXTURES = path.join(RACINE, 'tests', 'fixtures');
 
 /**
  * LES LOCALES NE SONT PLUS ECRITES DANS CE FICHIER.
@@ -66,6 +86,15 @@ function dossierLocale(locale) {
   return prefixe === '' ? '' : `${prefixe.slice(1)}/`;
 }
 
+/**
+ * La locale de REFERENCE : celle que le site sert SANS prefixe d URL.
+ *
+ * Elle se DERIVE de `prefixeLocale`, jamais ecrite `'fr'` : le controle du pied de page
+ * compare toute page a la Configuration de cette locale-la, et un `'fr'` en dur ferait
+ * comparer a une locale qui n est plus la reference le jour ou le registre change.
+ */
+const LOCALE_REFERENCE = LOCALES.find((locale) => dossierLocale(locale) === '') ?? LOCALES[0];
+
 /** La locale qu un fichier de `dist/` sert, deduite de son prefixe de dossier. */
 function localeDuFichier(relatif) {
   for (const locale of LOCALES) {
@@ -89,20 +118,19 @@ function lancer(commande, arguments_, env) {
 }
 
 /**
- * Le banc, locale par locale : ce que la fixture d articles de chacune POSE.
+ * Ce que la SOURCE pose, locale par locale : les blocs de chaque article.
  *
- * Une locale du site sans fixture rend `null` — le controle l accuse alors elle, et pas
- * le site : un banc muet ne prouve pas qu une page ne rend rien.
+ * Une locale dont la source ne rend aucun article rend `null` — le controle accuse
+ * alors la SOURCE, et pas le site : un corpus muet ne prouve pas qu une page ne rend
+ * rien. C est vrai du banc (fixture absente) comme de l instance (locale non peuplee).
  */
-function bancParLocale() {
-  const banc = {};
+async function posesParLocale(source) {
+  const poses = {};
   for (const locale of LOCALES) {
-    const fichier = path.join(FIXTURES, `articles-${locale}.json`);
-    banc[locale] = fs.existsSync(fichier)
-      ? articlesDuBanc(locale, JSON.parse(fs.readFileSync(fichier, 'utf8')))
-      : null;
+    const entrees = await source.articles(locale);
+    poses[locale] = entrees === null ? null : articlesDuBanc(locale, { data: entrees });
   }
-  return banc;
+  return poses;
 }
 
 /**
@@ -117,25 +145,39 @@ function lirePage(dist, route) {
 }
 
 /**
- * LE BANC EST EXIGE AVANT LE BUILD.
+ * LA CIBLE EST CHOISIE AVANT LE BUILD, ET ELLE EST DITE.
  *
- * Les controles ci-dessous savent deja accuser le banc plutot que le site, mais ils ne le
- * font qu APRES un build de plusieurs secondes, et chacun a sa maniere. Exiger les douze
- * fixtures ici rend la meme absence sous une seule forme, avec le nom du fichier et le
- * code 2 (VERIFICATION IMPOSSIBLE) : « je n ai rien pu verifier » cesse de ressembler a
- * « une borne n est pas tenue ».
+ * Un refus (drapeau inconnu, mot de cible non reconnu, drapeau et variable qui se
+ * contredisent) sort en 2 sans rien construire. Il ne retombe JAMAIS sur le banc : un
+ * repli silencieux rendrait un vert de banc pour un vert d instance.
  */
-exigerBanc('preuve de rendu sur fixtures', fixturesDuBanc([...LOCALES_SITE]));
+const choix = cibleDemandee(process.argv.slice(2), process.env);
+if (choix.refus !== undefined) {
+  console.error(`\nVERIFICATION IMPOSSIBLE — cible de la preuve de rendu\n  - ${choix.refus}\n`);
+  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
 
-const serveur = await demarrerServeurFixtures();
-console.log(`\n▸ Strapi de substitution : ${serveur.url} (fixtures de tests/fixtures/)\n`);
+const source = sourcePourCible(choix.cible, [...LOCALES_SITE], process.env);
 
-const code = await lancer('npm', ['run', 'build'], {
-  ECHO_STRAPI_URL: serveur.url,
-  ECHO_STRAPI_API_TOKEN_READONLY: 'jeton-de-fixture',
-  ECHO_SITE_URL: ORIGINE_PAR_DEFAUT,
-});
-await serveur.arreter();
+/**
+ * LA SOURCE EST EXIGEE AVANT LE BUILD.
+ *
+ * Les controles ci-dessous savent deja accuser la source plutot que le site, mais ils ne
+ * le font qu APRES un build de plusieurs secondes, et chacun a sa maniere. Exiger de quoi
+ * juger ici rend la meme absence sous une seule forme, avec le nom du fichier ou de la
+ * variable et le code 2 (VERIFICATION IMPOSSIBLE) : « je n ai rien pu verifier » cesse de
+ * ressembler a « une borne n est pas tenue ».
+ */
+const ouverture = await source.ouvrir();
+if (ouverture.incapacite !== undefined) {
+  console.error(`\n${ouverture.incapacite}\n`);
+  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
+
+console.log(`\n▸ Cible : ${source.libelle} — choisie par ${choix.origine}\n`);
+
+const code = await lancer('npm', ['run', 'build'], ouverture.surcouche);
+await ouverture.fermer();
 
 if (code !== 0) {
   console.error(`\n✖ Le build a echoue (code ${code}).`);
@@ -148,14 +190,18 @@ const rapport = inspecterSortie(dist);
 console.log('\n─────────────  PREUVE DE RENDU  ─────────────\n');
 console.log(`Sortie : ${resume(rapport)}`);
 
-const blocs = inspecterBlocs(bancParLocale(), (route) => lirePage(dist, route));
+const blocs = inspecterBlocs(
+  await posesParLocale(source),
+  (route) => lirePage(dist, route),
+  source.poseur,
+);
 for (const locale of LOCALES) {
   const compte = blocs.inspectees[locale];
   console.log(
     compte === undefined
       ? `  [${locale}] locale non inspectee`
       : `  [${locale}] ${compte.pages} page(s) article, ${compte.typesExerces}/${TYPES.length} ` +
-          `types exerces par le banc, ${compte.pagesCompletes} page(s) rendant les ${TYPES.length}`,
+          `types exerces par ${source.poseur}, ${compte.pagesCompletes} page(s) rendant les ${TYPES.length}`,
   );
 }
 
@@ -239,12 +285,13 @@ function urlsDuPied(html) {
   return { pied: true, nomme, urls };
 }
 
-function ecartsPiedDePage(dist) {
-  /** La locale de REFERENCE, et elle seule — cf. l encadre ci-dessus. */
-  const attendu = JSON.parse(
-    fs.readFileSync(path.join(FIXTURES, 'configuration-fr.json'), 'utf8'),
-  ).data.reseaux.map((r) => r.url);
-
+/**
+ * @param {string} dist
+ * @param {string[]} attendu Les URL de reseaux de la Configuration de la locale de
+ *   REFERENCE, lues dans la SOURCE (fixture ou instance) — cf. l encadre ci-dessus.
+ *   L attendu ne vient jamais de `dist/`, quelle que soit la cible.
+ */
+function ecartsPiedDePage(dist, attendu) {
   const ecarts = [];
   const inspectees = Object.fromEntries(LOCALES.map((locale) => [locale, 0]));
 
@@ -325,19 +372,28 @@ function texteHtml(fragment) {
  * `caption` de mediatheque. Ne lire que `auteurs-fr.json` laissait `/en/auteur/…` hors de
  * toute garde — meme classe de defaut que le pied de page anglais, meme correction.
  */
-function ecartsCreditPortrait(dist) {
+/**
+ * @param {string} dist
+ * @param {Record<string, null | Array<{slug: string, photo: null | {caption: string}}>>} auteursParLocale
+ *   Ce que la SOURCE rend pour chaque locale du site ; `null` quand elle n en rend
+ *   aucun — le controle accuse alors la source, jamais la page.
+ */
+function ecartsCreditPortrait(dist, auteursParLocale) {
   const ecarts = [];
   let controles = 0;
 
   for (const locale of LOCALES) {
-    const fichier = path.join(FIXTURES, `auteurs-${locale}.json`);
-    if (!fs.existsSync(fichier)) {
-      ecarts.push(`auteurs-${locale}.json absent : la page auteur « ${locale} » n est gardee par rien`);
+    const auteurs = auteursParLocale[locale];
+    if (auteurs === null || auteurs === undefined) {
+      ecarts.push(
+        `aucun auteur rendu par ${source.poseur} en « ${locale} » : la page auteur de cette ` +
+          'locale n est gardee par rien',
+      );
       continue;
     }
     const prefixe = dossierLocale(locale);
 
-    for (const auteur of JSON.parse(fs.readFileSync(fichier, 'utf8')).data) {
+    for (const auteur of auteurs) {
       const route = `/${prefixe}auteur/${auteur.slug}`;
       const page = path.join(dist, `${prefixe}auteur`, auteur.slug, 'index.html');
       if (!fs.existsSync(page)) {
@@ -348,7 +404,10 @@ function ecartsCreditPortrait(dist) {
       const positionImage = html.indexOf('index__portrait');
       const credit = /<p[^>]*class="[^"]*index__credit[^"]*"[^>]*>([\s\S]*?)<\/p>/.exec(html);
 
-      if (auteur.photo === null) {
+      /* `== null` couvre `null` ET `undefined` : la fixture ecrit `photo: null`, l API
+         d une instance OMET la cle quand la relation est vide. Les distinguer ferait
+         planter le controle sur `auteur.photo.caption` au lieu de rendre son verdict. */
+      if (auteur.photo == null) {
         if (credit !== null) ecarts.push(`${route} : credit rendu sans portrait`);
         continue;
       }
@@ -377,7 +436,31 @@ function ecartsCreditPortrait(dist) {
   return { ecarts, controles };
 }
 
-const credits = ecartsCreditPortrait(dist);
+/**
+ * LES DONNEES DE REFERENCE VIENNENT DE LA SOURCE, PAS DE `dist/`.
+ *
+ * Rappel de ce que la mesure du 2026-08-10 a etabli : un controle qui derive son attendu
+ * de ce qu il controle ne controle rien. La Configuration de reference et la liste des
+ * auteurs sont donc relues a la source (banc OU instance), jamais dans la sortie qu on
+ * vient de construire.
+ */
+const auteursParLocale = Object.fromEntries(
+  await Promise.all(LOCALES.map(async (locale) => [locale, await source.auteurs(locale)])),
+);
+
+const configurationReference = await source.configuration(LOCALE_REFERENCE);
+if (configurationReference == null || !Array.isArray(configurationReference.reseaux)) {
+  console.error(
+    `\nVERIFICATION IMPOSSIBLE — preuve de rendu (${source.libelle})\n` +
+      `  - ${source.poseur} ne rend aucune Configuration « ${LOCALE_REFERENCE} », ou aucune liste\n` +
+      '    de reseaux : le pied de page n a plus d attendu, et le comparer a lui-meme ne\n' +
+      '    prouverait rien.\n',
+  );
+  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
+const reseauxDeReference = configurationReference.reseaux.map((reseau) => reseau.url);
+
+const credits = ecartsCreditPortrait(dist, auteursParLocale);
 console.log(
   credits.ecarts.length === 0
     ? `Credit du portrait : ${credits.controles} page(s) auteur, caption de la mediatheque rendu sous l image.`
@@ -391,7 +474,7 @@ console.log(
     : `Liens de reseaux : ${ecartsSociaux.length} ecart(s).`,
 );
 
-const pied = ecartsPiedDePage(dist);
+const pied = ecartsPiedDePage(dist, reseauxDeReference);
 const comptePied = LOCALES.map((locale) => `${pied.inspectees[locale]} page(s) ${locale}`).join(', ');
 console.log(
   pied.ecarts.length === 0
@@ -427,27 +510,39 @@ if (credits.ecarts.length > 0 || credits.controles === 0) {
 }
 
 /**
- * LE BANC D ABORD, LE SITE ENSUITE — et jamais l inverse.
+ * LA SOURCE D ABORD, LE SITE ENSUITE — et jamais l inverse.
  *
- * Un banc qui n exercerait pas les huit types dans une locale ferait rougir un site
- * sain : la page ne peut pas rendre un bloc que la fixture ne lui donne pas. Rendre ce
+ * Un corpus qui n exercerait pas les huit types dans une locale ferait rougir un site
+ * sain : la page ne peut pas rendre un bloc que la source ne lui donne pas. Rendre ce
  * verdict-la EN PREMIER, et sous son propre intitule, evite de partir chercher un defaut
  * de rendu la ou il n y en a pas.
+ *
+ * ET IL SORT EN 2, PAS EN 1 (2026-08-12). `1` envoie corriger LE SITE, `2` envoie
+ * corriger CE AVEC QUOI ON JUGE — c est la convention de `issues.mjs`, et le message
+ * dit deja « ce controle ne peut RIEN dire de ces types ». La distinction n a rien de
+ * theorique depuis que la cible « instance » existe : le corpus reel n exerce que 7 des
+ * 8 types, `bloc.video` etant un TROU D ENUMERATION ASSUME par l avenant A5 du
+ * 2026-08-10 (aucune video a licence maitrisee, les 8 composants restent implementes).
+ * Rendre `1` la-dessus enverrait chercher une regression de rendu qui n existe pas.
  */
 if (blocs.banc.length > 0) {
-  console.error('\n✖ LE BANC, pas le site — ces types ne sont exerces nulle part :');
+  console.error(`\n✖ ${source.poseur.toUpperCase()}, PAS LE SITE — ces types ne sont exerces nulle part :`);
   for (const ecart of blocs.banc) console.error(`  - ${ecart}`);
-  process.exit(1);
+  console.error(
+    `\n  VERIFICATION IMPOSSIBLE sur ces types (code ${ISSUES.VERIFICATION_IMPOSSIBLE}) : le site` +
+      ' n est pas mis en cause, c est le corpus qui ne permet pas de conclure.\n',
+  );
+  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
 }
 
 if (blocs.site.length > 0) {
   console.error('\n✖ Types de blocs rendus, locale par locale :');
   for (const ecart of blocs.site) console.error(`  - ${ecart}`);
-  process.exit(1);
+  process.exit(ISSUES.ANOMALIE);
 }
 
 console.log(
-  `\n✔ Dans chacune des ${LOCALES.length} locales (${LOCALES.join(', ')}), chaque page article ` +
-    `rend exactement les blocs que le banc lui pose, les ${TYPES.length} types y compris — ` +
-    'et aucun JavaScript n est servi.\n',
+  `\n✔ [${source.libelle}] Dans chacune des ${LOCALES.length} locales (${LOCALES.join(', ')}), ` +
+    `chaque page article rend exactement les blocs que ${source.poseur} lui pose, les ` +
+    `${TYPES.length} types y compris — et aucun JavaScript n est servi.\n`,
 );

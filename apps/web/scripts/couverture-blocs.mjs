@@ -78,8 +78,14 @@ export function articlesDuBanc(locale, donnees) {
  *        `null` pour une locale du site dont la fixture d articles n existe pas.
  * @param {(route: string) => string | null} lire
  *        Le HTML de la page servie a cette route, ou `null` si la sortie ne la porte pas.
+ * @param {string} [poseur]
+ *        Comment NOMMER ce qui pose les blocs, dans les messages de la famille `banc`.
+ *        Depuis le 2026-08-12 la preuve sait viser l instance reelle : ecrire « banc »
+ *        en dur ferait dire « banc « fr » : aucun article n exerce bloc.video » a un run
+ *        qui vient d interroger `echoback.ayfiweb.fr`, et enverrait chercher une fixture
+ *        qui n a rien a voir. Le defaut reste « banc » : c est la cible par defaut.
  */
-export function inspecterBlocs(bancParLocale, lire) {
+export function inspecterBlocs(bancParLocale, lire, poseur = 'le banc') {
   const banc = [];
   const site = [];
   const inspectees = {};
@@ -98,7 +104,7 @@ export function inspecterBlocs(bancParLocale, lire) {
 
     if (articles === null) {
       banc.push(
-        `banc « ${locale} » : aucune fixture d articles — le rendu des blocs de cette locale ` +
+        `${poseur} « ${locale} » : aucun article rendu — le rendu des blocs de cette locale ` +
           'n est garde par rien',
       );
       continue;
@@ -110,7 +116,7 @@ export function inspecterBlocs(bancParLocale, lire) {
     const absentsDuBanc = TYPES.filter((type) => !exerces.has(type));
     if (absentsDuBanc.length > 0) {
       banc.push(
-        `banc « ${locale} » : aucun article n exerce ${absentsDuBanc.join(', ')} — ce controle ` +
+        `${poseur} « ${locale} » : aucun article n exerce ${absentsDuBanc.join(', ')} — ce controle ` +
           'ne peut RIEN dire de ces types dans cette locale',
       );
     }
@@ -118,7 +124,7 @@ export function inspecterBlocs(bancParLocale, lire) {
     const inconnus = [...exerces].filter((type) => !TYPES.includes(type));
     if (inconnus.length > 0) {
       banc.push(
-        `banc « ${locale} » : type de bloc sans signature ${inconnus.join(', ')} — soit le §3.6 ` +
+        `${poseur} « ${locale} » : type de bloc sans signature ${inconnus.join(', ')} — soit le §3.6 ` +
           'a bouge, soit la fixture invente un composant',
       );
     }
@@ -137,12 +143,12 @@ export function inspecterBlocs(bancParLocale, lire) {
       for (const type of TYPES) {
         if (poses.has(type) && !rendus.has(type)) {
           site.push(
-            `[${locale}] ${article.route} : le banc pose « ${type} », la page rendue ne le porte pas`,
+            `[${locale}] ${article.route} : ${poseur} pose « ${type} », la page rendue ne le porte pas`,
           );
         }
         if (!poses.has(type) && rendus.has(type)) {
           site.push(
-            `[${locale}] ${article.route} : la page rend « ${type} » que le banc ne pose pas`,
+            `[${locale}] ${article.route} : la page rend « ${type} » que ${poseur} ne pose pas`,
           );
         }
       }

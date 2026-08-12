@@ -29,6 +29,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { configurationRecette, corpusRecette, entreesDuCorpus, ROUTES_ATTENDUES } from './corpus-recette.mjs';
+import { indexer, manquementsDepot, resumeIndex } from './index-pagefind.mjs';
+import { commandesDeJugement, incapacitesDuJugement, verdictDuJugement } from './juger-sortie.mjs';
 import { exigerBanc, ISSUES, servirMedia } from './serveur-fixtures.mjs';
 import { inspecterLiens } from './verifier-liens.mjs';
 import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
@@ -215,6 +217,74 @@ if (code !== 0) {
   process.exit(code);
 }
 
+// --- la sortie de recette est jugee comme la vraie (2026-08-12, tache da329cb3) ----
+//
+// CE QUI MANQUAIT, ET POURQUOI CA COMPTE. Ce corpus existe pour exercer ce que le corpus
+// editorial n atteint pas : une page 2, une categorie a douze pile, un article non
+// traduit, une rubrique sans contrepartie anglaise, la 404. Il etait construit, puis
+// juge sur ses BORNES seulement — plus les liens morts. Releve du 2026-08-12 :
+// `dist-recette/pagefind/` n existait pas, et aucun des sept verificateurs derives n y
+// etait lance. Un defaut qui ne se serait manifeste QUE sur une de ces pages passait donc
+// au travers de tout le dispositif, y compris de la contrainte opposable « aucun
+// JavaScript hors /recherche ».
+//
+// L INDEX EST DEPOSE D ABORD, LES VERIFICATEURS JUGENT ENSUITE — l ordre de la
+// production. `npm run build` enchaine `astro build` PUIS `index-pagefind.mjs`, dont la
+// seconde moitie re-inspecte la sortie AUGMENTEE : c est le seul endroit du site ou du
+// JavaScript peut entrer apres la garde T-09. Juger avant l index reviendrait a juger une
+// sortie qui n est pas celle qu on sert.
+//
+// POURQUOI PAR IMPORT ET NON PAR `npm run build`. Ce script construit avec `--outDir`,
+// que `npm run build` ne sait pas transmettre (`index-pagefind.mjs` prend son chemin en
+// argument, pas de `--outDir`). L exemption reste donc ecrite dans
+// `tests/integration-continue.test.ts` — mais elle ne couvre plus que la PORTE du build :
+// le maillon d indexation, lui, est desormais exerce ici, par import direct.
+
+const jugements = [];
+
+console.log('\n─────────────  INDEX DE RECHERCHE, SUR LE CORPUS DE RECETTE  ─────────────\n');
+try {
+  const { pages } = await indexer(SORTIE);
+  const manquementsIndex = manquementsDepot(SORTIE);
+  if (manquementsIndex.length > 0) {
+    console.error(`\n✖ ${manquementsIndex.length} manquement(s) APRES depot de l index de recherche :`);
+    for (const manquement of manquementsIndex) console.error(`  - ${manquement}`);
+    jugements.push({ nom: 'index-de-recherche', code: ISSUES.ANOMALIE });
+  } else {
+    console.log(`✔ ${resumeIndex(SORTIE, pages)}`);
+    jugements.push({ nom: 'index-de-recherche', code: ISSUES.CONFORME });
+  }
+} catch (erreur) {
+  // Pagefind qui ne trouve rien a indexer, ou qui n ecrit pas : la preuve n a pas eu lieu
+  // sur ce maillon. C est une INCAPACITE — le geste est de rendre la sortie indexable,
+  // pas de chercher un defaut de pagination.
+  console.error(`\n⛔ ${erreur.message}`);
+  jugements.push({ nom: 'index-de-recherche', code: ISSUES.VERIFICATION_IMPOSSIBLE });
+}
+
+console.log('\n─────────────  VERIFICATEURS DE SORTIE, SUR LE CORPUS DE RECETTE  ─────────────\n');
+const commandes = commandesDeJugement(
+  JSON.parse(fs.readFileSync(path.join(RACINE, 'package.json'), 'utf8')),
+  SORTIE,
+  ORIGINE,
+);
+const aveugle = incapacitesDuJugement(commandes, RACINE);
+if (aveugle.length > 0) {
+  // La derivation ne sait pas dire QUI doit juger : rien n a ete regarde.
+  for (const ecart of aveugle) console.error(`  - ${ecart}`);
+  jugements.push({ nom: 'verificateurs-de-sortie', code: ISSUES.VERIFICATION_IMPOSSIBLE });
+} else {
+  const resultats = [];
+  for (const commande of commandes) {
+    // Aucun arret au premier rouge : on veut la liste complete en une execution. C est la
+    // meme raison qui a fait sauter la serie des pas du job `sortie` (tache 772ac0ac).
+    resultats.push({ nom: commande.nom, code: await lancer('node', commande.arguments) });
+  }
+  const rendu = verdictDuJugement(resultats);
+  for (const ligne of rendu.lignes) (rendu.issue === ISSUES.CONFORME ? console.log : console.error)(`  ${ligne}`);
+  jugements.push({ nom: 'verificateurs-de-sortie', code: rendu.issue });
+}
+
 const routes = routesEmises(SORTIE);
 
 console.log('\n─────────────  BORNES DE PAGINATION  ─────────────\n');
@@ -370,12 +440,37 @@ verifier(
 
 console.log(`\n${constats.join('\n')}`);
 
+/**
+ * UN SEUL VERDICT, RENDU A LA FIN — et pas un `process.exit` des la premiere trouvaille.
+ *
+ * Sortir sur les bornes ferait sauter le compte rendu du jugement de la sortie, et
+ * inversement : on corrigerait une trouvaille, on relancerait, et on decouvrirait la
+ * suivante. C est exactement le defaut que la tache 772ac0ac corrige au niveau du job
+ * d integration continue ; le reproduire ici serait le refaire d un cran plus bas.
+ *
+ * L INCAPACITE PRIME, comme dans `juger-sortie.mjs` : tant qu on ne sait pas ce qui a ete
+ * regarde, un `1` enverrait corriger le site sur une preuve qui n a pas eu lieu.
+ */
 if (echecs.length > 0) {
   console.error(`\n✖ ${echecs.length} borne(s) non tenue(s) :`);
   for (const echec of echecs) console.error(`  - ${echec}`);
+}
+jugements.push({ nom: 'bornes-et-bascule', code: echecs.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME });
+
+const incapables = jugements.filter((j) => j.code === ISSUES.VERIFICATION_IMPOSSIBLE).map((j) => j.nom);
+const fautifs = jugements.filter((j) => j.code === ISSUES.ANOMALIE).map((j) => j.nom);
+
+if (incapables.length > 0) {
+  console.error(`\n⛔ VERIFICATION IMPOSSIBLE — rien n a ete prouve par : ${incapables.join(', ')}`);
+  if (fautifs.length > 0) console.error(`   (anomalies relevees par ailleurs : ${fautifs.join(', ')})`);
+  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
+if (fautifs.length > 0) {
+  console.error(`\n✖ La preuve a eu lieu, et a trouve : ${fautifs.join(', ')}`);
   process.exit(ISSUES.ANOMALIE);
 }
 
 console.log(
-  `\n✔ ${constats.length} constats verts : bornes de pagination et bascule FR/EN prouvees sur ${routes.size} routes reellement emises.\n`,
+  `\n✔ ${constats.length} constats verts : bornes de pagination et bascule FR/EN prouvees sur ${routes.size} routes reellement emises,` +
+    ` sur une sortie INDEXEE puis soumise aux ${commandes.length} verificateurs de sortie.\n`,
 );

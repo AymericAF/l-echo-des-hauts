@@ -6,6 +6,7 @@ import gardeCascadeTitres from './integrations/garde-cascade-titres.mjs';
 import gardeImages from './integrations/garde-images.mjs';
 import gardeLiens from './integrations/garde-liens.mjs';
 import gardeOrigineMedias from './integrations/garde-origine-medias.mjs';
+import gardeRepartiteur from './integrations/garde-repartiteur.mjs';
 import gardeSeo from './integrations/garde-seo.mjs';
 import gardeStylesEnLigne from './integrations/garde-styles-en-ligne.mjs';
 import gardeT09 from './integrations/garde-t09.mjs';
@@ -38,6 +39,15 @@ for (const [cle, valeur] of Object.entries(env)) {
  */
 export default defineConfig({
   integrations: [
+    /**
+     * `gardeRepartiteur` EN PREMIER, et son hook est `astro:config:done` — le plus tot du
+     * build. Elle ne lit aucune sortie : elle confronte trois SOURCES (l union `Bloc`, la
+     * table `RENDUS`, le `switch` du mapping) et refuse avant qu une page ne soit rendue.
+     * Un neuvieme type de bloc sans son composant s arretait jusqu ici a `npm test` — que
+     * le build de Coolify ne lance PAS (plan Nixpacks : `npm ci` puis `npm run build`,
+     * releve au journal de deploiement du 2026-08-12).
+     */
+    gardeRepartiteur(),
     gardeT09(),
     mediasLocaux(),
     gardeImages(),

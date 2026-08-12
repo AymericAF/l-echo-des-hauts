@@ -274,6 +274,36 @@ test('Annexe B : aucun champ calcule au build n est stocke', () => {
   }
 });
 
+/**
+ * La `description` d un component est la SEULE phrase que l administrateur lit dans le
+ * Content-Type Builder : elle n a aucun lecteur en aval qui la corrigerait. Celle de
+ * `bloc.encadre` a porte jusqu au 2026-08-11 « Ses titres sont rendus en h4 minimum et
+ * exclus du sommaire (A-21) » — generique, donc lue comme couvrant le CHAMP `titre`, alors
+ * que `BlocEncadre.astro` ne rend AUCUN `h1`-`h6` pour ce champ. Ce test garde la
+ * distinction plutot que la formulation : il n impose aucune redaction, il exige que les
+ * deux objets soient nommes separement et que la generalite ne revienne pas.
+ */
+test('bloc.encadre : la description distingue les titres de `contenu` du CHAMP `titre`', () => {
+  const d: string = lireJson(cheminComponent('bloc.encadre')).info.description ?? '';
+
+  assert.ok(
+    /contenu/.test(d),
+    'la description doit dire a QUOI le plafond h4 s applique : les titres saisis dans `contenu`'
+  );
+  assert.ok(
+    /titre/.test(d) && /pas un titre HTML|n est pas un titre/i.test(d),
+    'la description doit dire que le CHAMP `titre` n est pas un titre HTML'
+  );
+  assert.ok(
+    !/ses titres sont rendus/i.test(d),
+    'formulation generique interdite : elle se lit comme couvrant le champ `titre`, et c est faux'
+  );
+  assert.ok(
+    /A-21/.test(d),
+    'la description POINTE l arbitrage plutot que de le recopier'
+  );
+});
+
 test('A-39 : aucun champ de pierre tombale (URL morte, 410) dans le modele', () => {
   const s = lireJson(cheminSchema('article'));
   for (const champ of Object.keys(s.attributes)) {

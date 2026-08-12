@@ -24,7 +24,7 @@
     "preuve:rendu": "node scripts/preuve-rendu.mjs",
     "verifier:liens": "node scripts/verifier-liens.mjs",
     "preuve:pagination": "node scripts/preuve-pagination.mjs",
-    "preuve:pagination-corpus": "node scripts/preuve-pagination-corpus.mjs",
+    "recette:pagination-corpus": "node scripts/preuve-pagination-corpus.mjs",
     "verifier:seo": "node scripts/verifier-seo.mjs",
     "preuve:encre-og": "node scripts/preuve-encre-og.mjs"
   },

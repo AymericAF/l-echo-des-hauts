@@ -2,100 +2,81 @@
 /**
  * `/mentions-legales` et `/en/mentions-legales` (§4.2).
  *
- * La page portait deja, en francais, la mention de media fictif, l editeur et
- * l hebergeur. Trois choses changent ici, et une seule est de fond :
+ * IL N Y A PLUS QU UNE SOURCE, ET C EST LE CHAMP STRAPI — arbitrage d Aymeric du
+ * 2026-08-11, decision `ed69d5bf`, branche A : « le champ Strapi fait foi ».
  *
- *   1. **Elle passe par le layout** — elle etait un document HTML autonome, sans
- *      en-tete ni pied de page. Elle n avait donc ni navigation, ni bascule FR/EN, ce
- *      qui la sortait du miroir anglais « complet » exige par le §4.2.
- *   2. **Elle existe en anglais.** Meme contenu, meme portee.
- *   3. **Le `noindex` est CONSERVE** — decision du commit `d369449`, non renversee ici :
- *      ce lot livre des routes, il n arbitre pas la politique d indexation d une page
- *      legale. Note pour le rapport : la table de volumetrie de `docs/protocole-mesure.md`
- *      compte `/mentions-legales` parmi les pages du sitemap, ce qui suppose l inverse.
- *      L ecart est signale, pas tranche ici.
+ * CE QUI PRECEDAIT, ET POURQUOI C ETAIT INTENABLE. Ce composant ecrivait EN DUR l editeur,
+ * le directeur de la publication, le contact et l hebergeur, pendant que le champ
+ * `configuration.mentionsLegales` — REQUIS par le mapping (`blocksRequis`), demande au
+ * populate, seede dans les DEUX locales — n etait rendu par AUCUN composant. Deux textes
+ * legaux pour un seul site, et la comparaison mot a mot n a trouve AUCUN segment commun :
+ * la clause « ce site ne constitue en aucun cas un service de presse en ligne » n existait
+ * que dans le dur, la provenance des images (risque R5 du brief) et la clause « aucune
+ * personne reelle identifiable n est nommee » que dans le champ — et cette derniere
+ * n etait donc SERVIE NULLE PART.
  *
- * Le bloc « A VERIFIER SUR LA FACTURE » sur l entite juridique Hostinger est repris tel
- * quel : il n a pas ete leve.
+ * Le champ porte desormais les huit clauses, recopiees mot a mot. Ce composant ne fait
+ * plus que le rendre. Ce qu on gagne, au-dela de la source unique : la redaction legale se
+ * corrige dans le back-office, sans commit ni build — ce que ce demonstrateur est
+ * precisement cense prouver.
+ *
+ * LA DATE DE DERNIERE MISE A JOUR RESTE ICI, ET CE N EST PAS UN OUBLI. L option A posait
+ * deux branches — la date dans le texte du champ, ou calculee sur `configuration.updatedAt`
+ * (qui bouge a chaque enregistrement, meme cosmetique). Le `result` de la decision ne
+ * tranche pas ce point : le comportement en place est donc CONSERVE plutot que choisi en
+ * silence, et le point est remonte a Aymeric. `tests/mentions-legales.test.ts` exige
+ * symetriquement qu aucune date ne vive dans le champ — deux dates finiraient par diverger.
+ *
+ * IL LEVE PLUTOT QUE DE SERVIR UNE PAGE MUETTE. Une Configuration absente rendrait un
+ * titre, une date, et AUCUNE mention legale : une page qui a l air d une page. Succes et
+ * echec rendraient la meme sortie, sur la seule page du site dont l absence de contenu
+ * engage la raison sociale de l editeur. Le build echoue, et c est le point.
+ *
+ * Le `noindex` est CONSERVE (commit `d369449`), et il ne s ecrit plus ici : il vit dans
+ * `src/lib/seo/indexation.ts`, d ou le `<head>` et le sitemap le lisent (A-29).
  */
-import type { Locale } from '../../lib/domaine.ts';
-import { libelles } from '../../lib/i18n/libelles.ts';
+import type { Configuration, Locale } from '../../lib/domaine.ts';
+import RichTexte from '../RichTexte.astro';
 
 interface Props {
   locale: Locale;
+  /** Le Single Type `Configuration` de la locale — la SEULE source du texte legal. */
+  configuration: Configuration | null;
 }
 
-const { locale } = Astro.props;
-const mots = libelles(locale);
+const { locale, configuration } = Astro.props;
 
-/** Date de derniere mise a jour du texte legal lui-meme, pas du build. */
-const derniereMiseAJour = '2026-08-07';
+/**
+ * Date de derniere mise a jour du TEXTE LEGAL lui-meme, pas du build.
+ *
+ * Elle bouge quand le texte bouge, et jamais autrement — c est ce qui la distingue de
+ * `configuration.updatedAt`. Portee au 2026-08-11 : c est le jour ou le texte a ete
+ * ramene a une source unique et complete (decision `ed69d5bf`).
+ */
+const derniereMiseAJour = '2026-08-11';
 
 const TEXTES = {
-  fr: {
-    titre: 'Mentions légales',
-    editeurTitre: 'Éditeur',
-    directeur: 'Directeur de la publication',
-    contact: 'Contact',
-    hebergementTitre: 'Hébergement',
-    hebergeur: 'Site hébergé par',
-    majTitre: 'Dernière mise à jour',
-    /* Le PAYS se traduit ; la raison sociale et la rue, non — ce sont des noms propres
-       qui identifient une entite juridique, et les alterer rendrait la mention fausse.
-       « Chypre » sortait tel quel sur la page anglaise (tache `ba63557e`). */
-    pays: 'Chypre',
-  },
-  en: {
-    titre: 'Legal notice',
-    editeurTitre: 'Publisher',
-    directeur: 'Publication director',
-    contact: 'Contact',
-    hebergementTitre: 'Hosting',
-    hebergeur: 'Site hosted by',
-    majTitre: 'Last updated',
-    pays: 'Cyprus',
-  },
+  fr: { titre: 'Mentions légales', majTitre: 'Dernière mise à jour' },
+  en: { titre: 'Legal notice', majTitre: 'Last updated' },
 }[locale];
+
+if (!configuration || configuration.mentionsLegales.length === 0) {
+  throw new Error(
+    `[PageMentions] Aucun texte legal a rendre pour la locale « ${locale} » : ` +
+      `${configuration === null ? 'la Configuration est absente' : 'le champ mentionsLegales est vide'}.\n` +
+      '  La page serait servie avec son titre, sa date, et AUCUNE mention legale — une page\n' +
+      '  qui a l air d une page. Le build echoue plutot que de publier ce vide-la : les\n' +
+      '  mentions legales engagent la raison sociale de l editeur (LCEN art. 6 III).\n' +
+      '  Ceci n est PAS un defaut de redaction : verifier que le Single Type Configuration\n' +
+      '  est publie dans cette locale et que le populate remonte bien `mentionsLegales`.',
+  );
+}
 ---
 
 <div class="mentions">
   <h1>{TEXTES.titre}</h1>
 
-  <section class="mentions__avertissement" aria-labelledby="media-fictif">
-    <h2 id="media-fictif">{mots.mediaFictifTitre}</h2>
-    <p><strong>{mots.mediaFictifTexte}</strong></p>
-  </section>
-
-  <section>
-    <h2>{TEXTES.editeurTitre}</h2>
-    <p>
-      Monsieur Aymeric Filliot EI, 230 rue Eloi Morel, 80000 Amiens.<br />
-      {TEXTES.directeur} : Aymeric Filliot.<br />
-      {TEXTES.contact} :{' '}
-      <a href="mailto:contact@echo.ayfiweb.fr">contact@echo.ayfiweb.fr</a>
-    </p>
-  </section>
-
-  <section>
-    <h2>{TEXTES.hebergementTitre}</h2>
-    <p>
-      {/* NE PAS recopier o2switch depuis aymeric-filliot.fr : ce site n'est pas
-          heberge au meme endroit. L'Echo des Hauts tourne sur le VPS Hostinger
-          (Coolify), cf. runbook de provisionnement.
-
-          A VERIFIER SUR LA FACTURE : Hostinger a DEUX entites juridiques.
-            - HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023 Larnaca,
-              Chypre — c'est celle que recopient la plupart des mentions legales
-              francaises, valeur retenue ici par defaut.
-            - HOSTINGER operations, UAB, Svitrigailos g. 34, LT-03230 Vilnius,
-              Lituanie — creee le 28/04/2023, son objet social couvre l'hebergement
-              et l'infrastructure de calcul.
-          Laquelle facture le VPS n'a pas pu etre etabli depuis des sources
-          publiques. Confronter a la facture ou au contrat, et corriger si besoin. */}
-      {TEXTES.hebergeur} HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023
-      Larnaca, {TEXTES.pays}.
-    </p>
-  </section>
+  <RichTexte noeuds={configuration.mentionsLegales} />
 
   <p class="mentions__maj">
     <small>{TEXTES.majTitre} : {derniereMiseAJour}</small>
@@ -105,14 +86,6 @@ const TEXTES = {
 <style>
   .mentions {
     max-width: var(--largeur-lecture);
-  }
-
-  .mentions__avertissement {
-    padding: var(--espace-4) var(--espace-6);
-    margin-block: var(--espace-6);
-    background: var(--couleur-fond-doux);
-    border-left: 4px solid var(--couleur-accent);
-    border-radius: var(--rayon-s);
   }
 
   .mentions__maj {

@@ -320,18 +320,18 @@ const SANS_LANGUE = /^[\s\p{P}\p{S}\d]*$/u;
  * pourquoi la chaine ne se traduit PAS. « C est plus simple » n en est pas une.
  */
 const LITTERAUX_ADMIS: Record<string, string> = {
-  'Monsieur Aymeric Filliot EI, 230 rue Eloi Morel, 80000 Amiens.':
-    "RAISON SOCIALE ET ADRESSE de l editeur (mentions legales) : un nom propre qui identifie " +
-    "une entite juridique ne se traduit pas — le traduire rendrait la mention fausse. Le PAYS, " +
-    'lui, est passe par la table de locale (`TEXTES.pays`).',
-  ': Aymeric Filliot.':
-    'NOM PROPRE du directeur de la publication (mentions legales) — le deux-points qui le ' +
-    "precede vient du libelle localise qui l introduit, il fait partie du noeud de texte.",
-  'HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023 Larnaca,':
-    "RAISON SOCIALE ET ADRESSE de l hebergeur (mentions legales) : meme raison que l editeur. " +
-    'Seul le pays qui la suit est localise.',
-  'contact@echo.ayfiweb.fr':
-    'ADRESSE ELECTRONIQUE — elle est identique dans toutes les langues.',
+  /* VIDE DEPUIS LE TRAIN DU 2026-08-12, et c est la garde ci-dessous qui l a exige.
+     Les quatre entrees d ici — raison sociale et adresse de l editeur, nom du directeur
+     de la publication, adresse de l hebergeur, adresse electronique — vivaient toutes EN
+     DUR dans `PageMentions.astro`. `p2/wt-f866e743` a ramene ce texte a une source unique,
+     le champ `configuration.mentionsLegales` : plus aucun gabarit ne les porte.
+
+     Les laisser aurait elargi le trou en silence, ce que le cas « aucun ne survit a sa
+     disparition » interdit precisement : le jour ou un composant reprend l une de ces
+     chaines, elle serait entree par une porte restee ouverte pour un texte qui avait
+     demenage. Le texte legal n est pas moins garde pour autant — il l est ailleurs et
+     mieux, par `scripts/mentions-obligatoires.mjs`, qui l exige DANS LA SORTIE, aux deux
+     locales, plutot que de tolerer sa presence dans un gabarit. */
 };
 
 /** Le gabarit d un composant `.astro` : ce qui suit le second `---`. */

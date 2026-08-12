@@ -62,7 +62,160 @@
       { "type": "paragraph", "children": [{ "type": "text", "text": "Demonstrateur technique. Media fictif." }] }
     ],
     "mentionsLegales": [
-      { "type": "paragraph", "children": [{ "type": "text", "text": "L Echo des Hauts est un media fictif." }] }
+      {
+        "type": "heading",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "Nature du site"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "« L'Écho des Hauts » n'existe pas.",
+            "bold": true
+          },
+          {
+            "type": "text",
+            "text": " Ce site est un démonstrateur technique : il montre ce qu'un magazine éditorial local peut être quand il est servi en pur statique, sans rendu serveur et sans JavaScript. Aucun média local réel ne publie ces articles, et ce site ne constitue en aucun cas un service de presse en ligne."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Le plateau des Hauts, ses 14 communes, ses entreprises, ses associations et tous les chiffres cités sont "
+          },
+          {
+            "type": "text",
+            "text": "inventés",
+            "bold": true
+          },
+          {
+            "type": "text",
+            "text": " pour cette démonstration. Les cinq signatures de la rédaction sont des "
+          },
+          {
+            "type": "text",
+            "text": "personnages",
+            "bold": true
+          },
+          {
+            "type": "text",
+            "text": " : leurs noms, parcours et biographies sont fictifs. Aucune personne réelle identifiable n'est nommée, citée ni photographiée dans le contenu du magazine, et aucune entreprise, collectivité ou association réelle n'y est mise en scène."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "Images"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Tous les visuels sont des "
+          },
+          {
+            "type": "text",
+            "text": "œuvres du projet",
+            "bold": true
+          },
+          {
+            "type": "text",
+            "text": ", générées ou composées pour ce démonstrateur. Aucune image ne présente un lieu réel comme étant le plateau des Hauts."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "Éditeur"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Monsieur Aymeric Filliot EI, 230 rue Eloi Morel, 80000 Amiens."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Directeur de la publication : Aymeric Filliot."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Contact : "
+          },
+          {
+            "type": "link",
+            "url": "mailto:contact@echo.ayfiweb.fr",
+            "children": [
+              {
+                "type": "text",
+                "text": "contact@echo.ayfiweb.fr"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Démonstrateur réalisé par Aymeric Filliot. Le code est public ; le contenu est fictif."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "level": 2,
+        "children": [
+          {
+            "type": "text",
+            "text": "Hébergement"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Site hébergé par HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023 Larnaca, Chypre."
+          }
+        ]
+      }
     ]
   },
   "meta": {}

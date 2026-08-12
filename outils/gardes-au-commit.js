@@ -124,6 +124,13 @@ const LECTURES = {
     ],
     'apps/cms/tests/seed-corpus.test.ts': ['apps/cms/data/'],
     'apps/cms/tests/seed-idempotence.test.ts': ['apps/cms/data/'],
+    'apps/cms/tests/garde-medias-corpus-reel.test.ts': ['apps/cms/data/'],
+    'apps/cms/tests/repartition-6-4.test.ts': ['apps/cms/data/'],
+    // `CREDITS.md` est PRODUIT depuis le corpus (plan editorial §6.7). Les deux
+    // sens comptent : toucher le corpus doit rejouer la comparaison, et toucher
+    // `CREDITS.md` a la main aussi — c'est le seul moment ou une divergence peut
+    // naitre, et elle ne se verrait nulle part ailleurs.
+    'apps/cms/tests/seed-registre.test.ts': ['apps/cms/data/', 'CREDITS.md'],
     // CE TEST LIT UN FICHIER HORS DE TOUTE APPLICATION — le workflow lui-meme.
     // Il tient deux invariants qui ne vivent que la : que le job `sortie`
     // relance TOUS les `verifier:*` non exemptes (le trou du 2026-08-11 :
@@ -144,7 +151,7 @@ const LECTURES = {
 // n'est pas la sienne se fait desactiver dans la semaine. Ces prefixes sont
 // poses dans l'arbre EN PLUS des applications. Ils declenchent deja par
 // `LECTURES` : cette liste ne dit pas QUAND lancer, elle dit QUOI POSER.
-const SUPPORTS_HORS_APPLICATION = ['.github/workflows/', 'README.md'];
+const SUPPORTS_HORS_APPLICATION = ['.github/workflows/', 'README.md', 'CREDITS.md'];
 
 // Toucher le declenchement lui-meme relance TOUT : c'est la regle qui a bouge,
 // et une regle de declenchement qui ne s'exerce pas est une convention de plus.

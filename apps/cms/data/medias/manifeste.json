@@ -562,5 +562,53 @@
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Releve du planning du centre de sante, redessine"
+  },
+  "heros/rubrique-territoire.svg": {
+    "alternativeText": "Bandeau de courbes de niveau du plateau, traversees par cinq emprises parcellaires au trace vert",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B2 ; geometrie generee a graine fixe, aucun fond de plan reel"
+  },
+  "heros/rubrique-vies-d-ici.svg": {
+    "alternativeText": "Bandeau de courbes de terrain rouges, semees de cinq enclos qui figurent des hameaux",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B2 ; geometrie generee a graine fixe"
+  },
+  "heros/rubrique-economie-locale.svg": {
+    "alternativeText": "Bandeau de fac-simile d'un tableau comptable a quatre colonnes et cinq lignes chiffrees",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B4 ; document entierement reconstitue, aucun scan"
+  },
+  "heros/rubrique-culture-patrimoine.svg": {
+    "alternativeText": "Bandeau de fac-simile d'une fiche d'inventaire a trois colonnes, cinq entrees renseignees",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B4 ; document entierement reconstitue"
+  },
+  "heros/rubrique-grand-air.svg": {
+    "alternativeText": "Bandeau de courbes de niveau bleues d'un bassin versant, avec cinq perimetres releves",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B2 ; geometrie generee a graine fixe"
+  },
+  "heros/rubrique-la-vie-publique.svg": {
+    "alternativeText": "Bandeau de fac-simile d'un extrait de deliberation a cinq colonnes de vote",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B4 ; document entierement reconstitue"
+  },
+  "heros/dossier-l-eau-du-plateau.svg": {
+    "alternativeText": "Bandeau d'une courbe de debit en aire bleue, du captage a la coupure, cinq points releves",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B1 ; serie inventee, tracee a graine fixe"
+  },
+  "heros/dossier-ce-qui-reste-de-la-filature.svg": {
+    "alternativeText": "Bandeau de fac-simile d'une page de registre d'atelier a six colonnes",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B4 ; document entierement reconstitue"
   }
 }

@@ -12,6 +12,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
+import { ORIGINE_PAR_DEFAUT } from '../scripts/origine.mjs';
 import { inspecterSeo, resumeSeo } from '../scripts/verifier-seo.mjs';
 
 const NOM = 'garde-seo';
@@ -48,7 +49,7 @@ export default function gardeSeo() {
         // `fileURLToPath`, jamais `dir.pathname` : sous Windows ce dernier rend
         // `/C:/Users/...`, que `fs` ne trouve pas — la garde inspecterait une sortie
         // « absente » au lieu de la vraie.
-        const origine = process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
+        const origine = process.env.ECHO_SITE_URL ?? ORIGINE_PAR_DEFAUT;
         const rapport = await inspecterSeo(fileURLToPath(dir), origine);
         if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
           throw erreurVerificationImpossible(NOM, rapport.manquements);

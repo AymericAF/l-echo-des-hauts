@@ -31,7 +31,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ISSUES, manquementCorpusVide } from './issues.mjs';
-import { lireOrigine } from './origine.mjs';
+import { lireOrigine, ORIGINE_PAR_DEFAUT } from './origine.mjs';
 
 /** Protocoles qui ne designent pas une page du site. */
 const HORS_PERIMETRE = /^(mailto:|tel:|javascript:|data:|#)/i;
@@ -194,7 +194,7 @@ export function resumeLiens(rapport) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const racine = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
   const dist = process.argv[2] ?? path.join(racine, 'dist');
-  const origine = process.argv[3] ?? process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr';
+  const origine = process.argv[3] ?? process.env.ECHO_SITE_URL ?? ORIGINE_PAR_DEFAUT;
   const rapport = inspecterLiens(dist, origine);
   if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
     console.error('⛔ VERIFICATION IMPOSSIBLE — aucun lien n a ete juge :');

@@ -10,6 +10,7 @@ import gardeSeo from './integrations/garde-seo.mjs';
 import gardeStylesEnLigne from './integrations/garde-styles-en-ligne.mjs';
 import gardeT09 from './integrations/garde-t09.mjs';
 import mediasLocaux from './integrations/medias-locaux.mjs';
+import { ORIGINE_PAR_DEFAUT } from './scripts/origine.mjs';
 
 /**
  * `output: 'static'` INTEGRAL, et aucun adaptateur (§4.1 : « aucune route serveur »).
@@ -48,7 +49,7 @@ export default defineConfig({
     gardeCascadeTitres(),
   ],
   output: 'static',
-  site: process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr',
+  site: process.env.ECHO_SITE_URL ?? ORIGINE_PAR_DEFAUT,
   build: {
     // Une URL sans slash final est plus simple a comparer au registre des routes emises (T-04).
     format: 'directory',

@@ -29,13 +29,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { configurationRecette, corpusRecette, entreesDuCorpus, ROUTES_ATTENDUES } from './corpus-recette.mjs';
+import { ORIGINE_PAR_DEFAUT } from './origine.mjs';
 import { exigerBanc, ISSUES, servirMedia } from './serveur-fixtures.mjs';
 import { inspecterLiens } from './verifier-liens.mjs';
 import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
 
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SORTIE = path.join(RACINE, 'dist-recette');
-const ORIGINE = 'https://echo.ayfiweb.fr';
+const ORIGINE = ORIGINE_PAR_DEFAUT;
 
 /**
  * LE BANC EST EXIGE AVANT LE BUILD — trois issues, et non deux.

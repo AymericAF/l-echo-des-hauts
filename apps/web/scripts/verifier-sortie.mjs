@@ -31,10 +31,117 @@ import { ISSUES, manquementCorpusVide } from './issues.mjs';
  *   - exempter `_astro/` parce que la recherche s en sert ouvrirait le JavaScript a TOUT
  *     le site : ce repertoire porte les bundles partages, il est servi a toutes les pages.
  *     C est le vecteur de fuite le plus probable, et il reste ferme.
- * Le JavaScript legal est celui de Pagefind (§5.4), qui vit dans son propre repertoire.
+ * ~~Le JavaScript legal est celui de Pagefind (§5.4), qui vit dans son propre repertoire.~~
+ * **2026-08-12 (tache cf33a689) : « qui vit dans son propre repertoire » ne suffisait pas.**
+ * Le JavaScript legal est celui que ces pages-ci CHARGENT — cf. `atteignablesPagefind`.
  */
 const PAGES_EXEMPTEES = new Set(['recherche/index.html', 'en/recherche/index.html']);
-const JS_EXEMPTE = /^(en\/)?pagefind\/[^/]+\.(js|mjs|cjs)$/;
+
+/**
+ * LE REPERTOIRE DE PAGEFIND — a plat, jamais un sous-arbre. Le `(en/)?` est defensif : le
+ * build n en depose qu un seul, `pagefind/`, mais la borne doit tenir si cela change.
+ */
+const REPERTOIRE_PAGEFIND = /^(en\/)?pagefind\/[^/]+$/;
+const EST_SCRIPT = /\.(js|mjs|cjs)$/;
+const EST_FEUILLE = /\.css$/;
+
+/**
+ * L EXEMPTION DE /recherche N EST PLUS UN MOTIF DE CHEMIN : c est l ATTEIGNABILITE.
+ *
+ * CE QUI ETAIT ECRIT ICI JUSQU AU 2026-08-12, et ce que ca laissait passer :
+ *
+ *     const JS_EXEMPTE = /^(en\/)?pagefind\/[^/]+\.(js|mjs|cjs)$/;
+ *
+ * Tout `.js` pose a plat sous `pagefind/` passait — quel qu il soit, et quel que soit leur
+ * nombre. Mesure sur la sortie reellement indexee (24 pages) : Pagefind y deposait NEUF
+ * fichiers `.js`/`.css`, la page n en chargeait que DEUX (`pagefind.js`, nomme par son
+ * `data-bundle`, et `pagefind-worker.js` que le premier demarre). Les sept autres —
+ * 419 831 octets, 410,0 Kio — etaient servis publiquement et charges par rien, sur un site
+ * dont la contrainte dure du §1 est « zero JavaScript servi hors /recherche ». Le pire
+ * n etait pas le poids : `pagefind-highlight.js` est le seul a fabriquer une feuille de
+ * style a l execution, soit exactement l injection dont l absence fonde la decision
+ * « `style-src` : rien a ouvrir ». Il suffisait d une ligne pour le charger.
+ *
+ * POURQUOI PAS UNE LISTE DE NOMS ATTENDUS. Elle fermerait le cas et perimerait au premier
+ * renommage — Pagefind versionne ses bundles — apres quoi la garde se corrige en ajoutant
+ * un nom, c est-a-dire jamais. Le critere reste donc un MOTIF, mais un motif qui porte sur
+ * la bonne chose : un script servi sous `pagefind/` est legal s il est ATTEINT depuis une
+ * page exemptee, directement (son adresse est ecrite dans le HTML) ou par la chaine des
+ * references entre bundles. Renommer un bundle charge ne casse rien, la reference suit ;
+ * deposer un bundle que rien ne charge est refuse, quel que soit son nom.
+ *
+ * CE QUE CETTE LECTURE NE VOIT PAS, et il faut l ecrire : une reference construite a
+ * l execution par une URL CALCULEE. C est le cas des donnees de l index
+ * (`pagefind-entry.json`, `wasm.*.pagefind`, `*.pf_meta`, `index/`, `fragment/`) — mais
+ * aucune n est un script ni une feuille, donc aucune n est jugee ici ni retiree ailleurs.
+ * Pour les bundles eux-memes, Pagefind ecrit ses adresses en clair (mesure : `pagefind.js`
+ * porte le litteral `pagefind-worker.js`), et une version qui cesserait de le faire ferait
+ * ROUGIR la garde plutot que passer — le sens sur lequel une garde a le droit de se tromper.
+ */
+function estSousPagefind(relatif) {
+  return REPERTOIRE_PAGEFIND.test(relatif);
+}
+
+/**
+ * Les fichiers de `pagefind/` ATTEINTS depuis les pages exemptees, cloture comprise.
+ *
+ * @param {{absolu: string, relatif: string}[]} tous
+ * @returns {Set<string>} chemins relatifs atteignables
+ */
+function atteignablesPagefind(tous) {
+  const sousPagefind = tous.filter((f) => estSousPagefind(f.relatif));
+  if (sousPagefind.length === 0) return new Set();
+
+  const atteints = new Set();
+  const aExplorer = [];
+
+  /* Une adresse est reconnue par son SUFFIXE de chemin : `/pagefind/pagefind.js`,
+     `pagefind/pagefind.js`, `./pagefind.js` depuis un bundle voisin, ou le simple nom de
+     fichier dans un gabarit (`${basePath}pagefind-worker.js`). On compare donc le texte au
+     nom de fichier ET au chemin relatif — jamais l inverse, qui ferait d une sous-chaine
+     commune une reference. */
+  const cite = (texte, fichier) => {
+    const nom = fichier.relatif.slice(fichier.relatif.lastIndexOf('/') + 1);
+    return texte.includes(fichier.relatif) || texte.includes(nom);
+  };
+
+  const marquer = (fichier) => {
+    if (atteints.has(fichier.relatif)) return;
+    atteints.add(fichier.relatif);
+    if (EST_SCRIPT.test(fichier.relatif)) aExplorer.push(fichier);
+  };
+
+  /* 1. LES ENTREES, ET SEULEMENT DEPUIS LES PAGES EXEMPTEES. Une page ORDINAIRE qui
+        nommerait un bundle ne le legalise pas : ce serait la fuite exacte — Pagefind sait
+        injecter son interface dans les pages qu il indexe, et la contrainte tomberait sur
+        tout le site sans qu un seul fichier bouge. */
+  for (const page of tous) {
+    if (!PAGES_EXEMPTEES.has(page.relatif)) continue;
+    const html = fs.readFileSync(page.absolu, 'utf8');
+    for (const fichier of sousPagefind) if (cite(html, fichier)) marquer(fichier);
+  }
+
+  // 2. LA CLOTURE : ce qu un bundle atteint charge a son tour.
+  while (aExplorer.length > 0) {
+    const courant = aExplorer.pop();
+    const source = fs.readFileSync(courant.absolu, 'utf8');
+    for (const fichier of sousPagefind) {
+      if (fichier.relatif === courant.relatif) continue;
+      if (cite(source, fichier)) marquer(fichier);
+    }
+  }
+
+  return atteints;
+}
+
+/**
+ * CE QUI FABRIQUE UNE FEUILLE DE STYLE A L EXECUTION — les trois facons, pas seulement la
+ * premiere.
+ *
+ * Ce controle ne porte que sur les bundles ATTEINTS : un bundle mort est deja refuse pour
+ * une autre raison, et l accuser deux fois ferait croire la seconde garde exercee.
+ */
+const INJECTE_DU_STYLE = /createElement\(\s*['"`]style['"`]\s*\)|insertRule\s*\(|adoptedStyleSheets/;
 
 /** Marqueurs d une sortie serveur a la racine de `dist/` (§4.1 : aucune route serveur). */
 const MARQUEURS_SERVEUR = ['_worker.js', 'server', 'functions', '_routes.json'];
@@ -183,6 +290,36 @@ function balisesOuvrantes(html) {
  * @param {string} dist Chemin du repertoire de sortie.
  * @returns {{manquements: string[], issue: number, pages: number, fichiers: number, octets: number}}
  */
+/**
+ * LES BUNDLES ET FEUILLES DE `pagefind/` QUE RIEN NE CHARGE, chemins relatifs tries.
+ *
+ * EXPORTE, et c est le point : `scripts/index-pagefind.mjs` s en sert pour les RETIRER de
+ * la sortie apres indexation. Le critere de ce qui doit disparaitre et le critere de ce que
+ * la garde refuse sont ainsi le MEME — deux copies d une meme regle divergent au premier
+ * changement, et l on servirait a nouveau ce qu on croit avoir retire.
+ *
+ * Les `.css` y figurent alors que la garde T-09 ne les juge pas : 63 Kio de feuilles mortes
+ * ne violent aucune contrainte, mais elles appartiennent au meme depot mort, et les laisser
+ * ferait croire le nettoyage fait.
+ *
+ * @param {string} dist
+ * @returns {string[]}
+ */
+export function bundlesPagefindNonCharges(dist) {
+  if (!fs.existsSync(dist)) return [];
+  const tous = fichiersDe(dist).map((f) => ({
+    absolu: f,
+    relatif: path.relative(dist, f).split(path.sep).join('/'),
+  }));
+  const atteints = atteignablesPagefind(tous);
+  return tous
+    .filter((f) => estSousPagefind(f.relatif))
+    .filter((f) => EST_SCRIPT.test(f.relatif) || EST_FEUILLE.test(f.relatif))
+    .filter((f) => !atteints.has(f.relatif))
+    .map((f) => f.relatif)
+    .sort();
+}
+
 export function inspecterSortie(dist) {
   if (!fs.existsSync(dist)) {
     /* UNE INCAPACITE N EST PAS UNE ANOMALIE. Jusqu au 2026-08-10 ce retour sortait en `1`,
@@ -208,11 +345,38 @@ export function inspecterSortie(dist) {
 
   const manquements = [];
 
-  // 1. Aucun fichier JavaScript servi, hors le bundle Pagefind de /recherche.
+  /* 1. Aucun fichier JavaScript servi, hors ce que la page /recherche CHARGE reellement.
+        L exemption porte sur l atteignabilite, jamais sur le repertoire : cf. le long
+        commentaire d `atteignablesPagefind`. */
+  const atteints = atteignablesPagefind(tous);
   for (const fichier of tous) {
-    if (!/\.(js|mjs|cjs)$/.test(fichier.relatif)) continue;
-    if (JS_EXEMPTE.test(fichier.relatif)) continue;
+    if (!EST_SCRIPT.test(fichier.relatif)) continue;
+    if (atteints.has(fichier.relatif)) continue;
+    if (estSousPagefind(fichier.relatif)) {
+      manquements.push(
+        `bundle Pagefind servi et charge par AUCUNE page : ${fichier.relatif} — ` +
+          "l exemption de /recherche porte sur ce que la page charge, pas sur le repertoire. " +
+          'Le retirer apres indexation (`scripts/index-pagefind.mjs`), ou le charger.',
+      );
+      continue;
+    }
     manquements.push(`fichier JavaScript servi : ${fichier.relatif}`);
+  }
+
+  /* 1 bis. UN BUNDLE CHARGE QUI FABRIQUE DU STYLE ROUVRE UNE DECISION FERMEE. La mesure
+     `eba89df5` a prouve qu aucune feuille n est injectee sur /recherche, et c est ce qui
+     fonde « `style-src` : rien a ouvrir ». Le jour ou un bundle charge se met a en poser
+     une, la page repond 200 et rend autre chose : la garde le dit ici plutot que de laisser
+     la decision se perimer en silence. */
+  for (const relatif of [...atteints].sort()) {
+    if (!EST_SCRIPT.test(relatif)) continue;
+    const fichier = tous.find((f) => f.relatif === relatif);
+    if (!INJECTE_DU_STYLE.test(fs.readFileSync(fichier.absolu, 'utf8'))) continue;
+    manquements.push(
+      `bundle Pagefind CHARGE qui fabrique une feuille de style a l execution : ${relatif} — ` +
+        "la decision « style-src : rien a ouvrir » (docs/csp-style-src-recherche.md) reposait " +
+        'sur son absence. Elle se rouvre : mesurer, puis trancher — ne pas taire ce constat.',
+    );
   }
 
   /* 2. Aucune balise <script> EXECUTABLE ni attribut d evenement inline, hors la page

@@ -34,6 +34,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { articlesDuBanc, inspecterBlocs, TYPES } from './couverture-blocs.mjs';
+import { ORIGINE_PAR_DEFAUT } from './origine.mjs';
 import { demarrerServeurFixtures, exigerBanc, fixturesDuBanc } from './serveur-fixtures.mjs';
 import { inspecterSortie, resume } from './verifier-sortie.mjs';
 import { prefixeLocale } from '../src/lib/routes/chemins.ts';
@@ -132,7 +133,7 @@ console.log(`\n▸ Strapi de substitution : ${serveur.url} (fixtures de tests/fi
 const code = await lancer('npm', ['run', 'build'], {
   ECHO_STRAPI_URL: serveur.url,
   ECHO_STRAPI_API_TOKEN_READONLY: 'jeton-de-fixture',
-  ECHO_SITE_URL: 'https://echo.ayfiweb.fr',
+  ECHO_SITE_URL: ORIGINE_PAR_DEFAUT,
 });
 await serveur.arreter();
 

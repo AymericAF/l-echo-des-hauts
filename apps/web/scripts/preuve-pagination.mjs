@@ -29,15 +29,16 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { configurationRecette, corpusRecette, entreesDuCorpus, ROUTES_ATTENDUES } from './corpus-recette.mjs';
-import { indexer, manquementsDepot, resumeIndex } from './index-pagefind.mjs';
+import { indexer, manquementsDepot, resumeIndex, retirerBundlesNonCharges } from './index-pagefind.mjs';
 import { commandesDeJugement, incapacitesDuJugement, verdictDuJugement } from './juger-sortie.mjs';
+import { ORIGINE_PAR_DEFAUT } from './origine.mjs';
 import { exigerBanc, ISSUES, servirMedia } from './serveur-fixtures.mjs';
 import { inspecterLiens } from './verifier-liens.mjs';
 import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
 
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SORTIE = path.join(RACINE, 'dist-recette');
-const ORIGINE = 'https://echo.ayfiweb.fr';
+const ORIGINE = ORIGINE_PAR_DEFAUT;
 
 /**
  * LE BANC EST EXIGE AVANT LE BUILD — trois issues, et non deux.
@@ -245,6 +246,21 @@ const jugements = [];
 console.log('\n─────────────  INDEX DE RECHERCHE, SUR LE CORPUS DE RECETTE  ─────────────\n');
 try {
   const { pages } = await indexer(SORTIE);
+  /* LE MEME RETRAIT QUE LA PRODUCTION, ET AVANT DE JUGER. `retirerBundlesNonCharges`
+     ne vivait que dans le bloc « usage en ligne de commande » d `index-pagefind.mjs`
+     (p2/wt-code-refacto) : `npm run build` en beneficiait, ce chemin-ci non. La recette
+     jugeait donc une sortie que la production ne deploierait JAMAIS, et la garde du
+     zero-JS (p2/la-garde-du-zero-js-juge-la-sortie-deposee) accusait a juste titre
+     4 bundles Pagefind charges par aucune page. Sans cet appel, la recette est plus
+     severe que le reel — le pire des ecarts, puisqu il fait douter d une sortie saine. */
+  const retires = retirerBundlesNonCharges(SORTIE);
+  if (retires.length > 0) {
+    const octets = retires.reduce((total, r) => total + r.octets, 0);
+    console.log(
+      `▸ ${retires.length} bundle(s) Pagefind charge(s) par aucune page, retire(s) ` +
+        `(${(octets / 1024).toFixed(1)} Kio) : ${retires.map((r) => r.relatif).join(', ')}`,
+    );
+  }
   const manquementsIndex = manquementsDepot(SORTIE);
   if (manquementsIndex.length > 0) {
     console.error(`\n✖ ${manquementsIndex.length} manquement(s) APRES depot de l index de recherche :`);

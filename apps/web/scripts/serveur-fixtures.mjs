@@ -18,7 +18,7 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ISSUES } from './issues.mjs';
 
@@ -77,6 +77,26 @@ function cheminFixture(nom, dossier = FIXTURES) {
   return path.join(dossier, `${nom}.json`);
 }
 
+/**
+ * LE CHEMIN TEL QU IL SE LIT DANS UN MESSAGE — celui du dossier REELLEMENT consulte.
+ *
+ * Jusqu au 2026-08-12, tous les messages d incapacite ecrivaient `tests/fixtures/<nom>.json`
+ * EN DUR, quel que soit le dossier passe en parametre. Sur un banc temoin, la sortie
+ * envoyait donc chercher un fichier absent dans le dossier ou il EXISTE : un message qui ne
+ * casse pas la commande, mais qui la fait MENTIR — et qui aurait fait conclure « la fixture
+ * est la, le banc va bien » a qui suivait l indication.
+ *
+ * Un dossier SOUS la racine du site se lit en relatif (`tests/fixtures/x.json`, la forme
+ * courte que tout le monde connait) ; un dossier au-dehors — un `mkdtemp`, un banc temoin —
+ * se lit en ABSOLU. Rendre un `../../..` relatif a la racine ne dirait a personne ou aller.
+ */
+export function cheminAffiche(nom, dossier = FIXTURES) {
+  const absolu = cheminFixture(nom, dossier);
+  const relatif = path.relative(RACINE, absolu);
+  const dedans = relatif !== '' && !relatif.startsWith('..') && !path.isAbsolute(relatif);
+  return (dedans ? relatif : absolu).split(path.sep).join('/');
+}
+
 export function existeFixture(nom, dossier = FIXTURES) {
   return fs.existsSync(cheminFixture(nom, dossier));
 }
@@ -103,11 +123,11 @@ export function absencesDeBanc(noms, dossier = FIXTURES) {
   return noms.filter((nom) => !existeFixture(nom, dossier));
 }
 
-/** Le texte de la 3e issue : ce qui manque, et ce qui n a PAS ete servi a la place. */
-export function messageVerificationImpossible(intitule, absentes) {
+/** Le texte de la 3e issue : ce qui manque, OU on l a cherche, et ce qui n a PAS ete servi. */
+export function messageVerificationImpossible(intitule, absentes, dossier = FIXTURES) {
   return [
     `VERIFICATION IMPOSSIBLE — ${intitule}`,
-    ...absentes.map((nom) => `  - donnee de banc absente : tests/fixtures/${nom}.json`),
+    ...absentes.map((nom) => `  - donnee de banc absente : ${cheminAffiche(nom, dossier)}`),
     'Aucune donnee d une autre locale, ni collection vide, n a ete servie a la place :',
     'le banc ne peut pas conclure, et ne pretend pas le contraire.',
   ].join('\n');
@@ -124,7 +144,7 @@ export function exigerBanc(intitule, noms, dossier = FIXTURES) {
   const absentes = absencesDeBanc(noms, dossier);
   if (absentes.length === 0) return;
   console.error('');
-  console.error(messageVerificationImpossible(intitule, absentes));
+  console.error(messageVerificationImpossible(intitule, absentes, dossier));
   console.error('');
   process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
 }
@@ -160,11 +180,25 @@ export function exigerBanc(intitule, noms, dossier = FIXTURES) {
 export function reponseDeFixture(chemin, locale, dossier = FIXTURES) {
   if (chemin !== 'configuration' && !COLLECTIONS.includes(chemin)) return { hors: true };
   const nom = `${chemin}-${locale}`;
-  if (!existeFixture(nom, dossier)) return { incapacite: `tests/fixtures/${nom}.json` };
+  /* `nom` est rendu A COTE du chemin, et ce n est pas une commodite : l appelant en avait
+     besoin pour composer son message, et le reconstituait par chirurgie de chaine
+     (`incapacite.replace(/^tests\/fixtures\//, '').replace(/\.json$/, '')`) — une regle de
+     nommage recopiee chez le lecteur, qui redevenait fausse des que le dossier bougeait. */
+  if (!existeFixture(nom, dossier)) return { incapacite: cheminAffiche(nom, dossier), nom };
   return { corps: lireFixture(nom, dossier) };
 }
 
-export function demarrerServeurFixtures(port = 0) {
+/**
+ * @param {number} port `0` laisse le systeme en choisir un libre.
+ * @param {string} dossier LE BANC SERVI. Il etait, jusqu au 2026-08-12, impossible a
+ *   donner : `reponseDeFixture` acceptait ce parametre depuis deux jours et personne ne le
+ *   lui passait, ce qui clouait le serveur sur `tests/fixtures/`. Consequence payee une
+ *   fois : pour reproduire un defaut sur un banc modifie, un run a du reecrire un serveur
+ *   dans son scratchpad — non versionne, donc non rejouable par le suivant, dans un projet
+ *   dont toutes les gardes se prouvent EN CASSANT. Le defaut reste `tests/fixtures/` : les
+ *   preuves existantes ne changent pas de corpus.
+ */
+export function demarrerServeurFixtures(port = 0, dossier = FIXTURES) {
   const serveur = http.createServer((requete, reponseHttp) => {
     const url = new URL(requete.url ?? '/', 'http://localhost');
 
@@ -172,7 +206,7 @@ export function demarrerServeurFixtures(port = 0) {
 
     const chemin = url.pathname.replace(/^\/api\//, '');
     const locale = url.searchParams.get('locale') ?? 'fr';
-    const { hors, incapacite, corps } = reponseDeFixture(chemin, locale);
+    const { hors, incapacite, nom, corps } = reponseDeFixture(chemin, locale, dossier);
 
     if (hors) {
       reponseHttp.writeHead(404, { 'content-type': 'application/json' });
@@ -184,9 +218,7 @@ export function demarrerServeurFixtures(port = 0) {
     // sait traiter et absorbe en silence. Ici rien n est connu — le banc est muet, et le
     // build doit s arreter en le NOMMANT plutot que de rendre un site ampute.
     if (incapacite) {
-      const message = messageVerificationImpossible(`banc de ${chemin} (${locale})`, [
-        incapacite.replace(/^tests\/fixtures\//, '').replace(/\.json$/, ''),
-      ]);
+      const message = messageVerificationImpossible(`banc de ${chemin} (${locale})`, [nom], dossier);
       console.error(`\n${message}\n`);
       reponseHttp.writeHead(500, { 'content-type': 'application/json' });
       reponseHttp.end(JSON.stringify({ error: { status: 500, name: 'BancIndisponible', message } }));
@@ -203,4 +235,39 @@ export function demarrerServeurFixtures(port = 0) {
       resoudre({ url: `http://127.0.0.1:${reel}`, arreter: () => new Promise((f) => serveur.close(f)) });
     });
   });
+}
+
+// --- Usage en ligne de commande -------------------------------------------------------
+/*
+ * `node scripts/serveur-fixtures.mjs [dossier] [port]`
+ *
+ * CE QUE CE BLOC REMPLACE, et pourquoi il vaut plus que sa taille. Le 2026-08-11, pour
+ * reproduire un defaut sur un banc modifie SANS muter le depot, un run a ecrit un serveur
+ * de vingt lignes dans son scratchpad, s en est servi, et l a perdu avec sa session. La
+ * preuve etait faite ; elle n etait pas REJOUABLE — et un projet dont chaque garde se
+ * prouve en cassant ne peut pas laisser le moyen de casser hors du depot.
+ *
+ * Le geste, desormais :
+ *
+ *   cp -r apps/web/tests/fixtures /tmp/banc-temoin   # puis on abime ce qu on veut voir
+ *   node apps/web/scripts/serveur-fixtures.mjs /tmp/banc-temoin
+ *   ECHO_STRAPI_URL=<l URL annoncee> ECHO_STRAPI_API_TOKEN_READONLY=jeton-de-fixture npm run build
+ *
+ * L URL est annoncee sur stdout, seule sur sa ligne : elle se lit a l oeil comme au script.
+ */
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const dossier = process.argv[2] ? path.resolve(process.argv[2]) : FIXTURES;
+  const port = process.argv[3] ? Number(process.argv[3]) : 0;
+
+  if (!fs.existsSync(dossier)) {
+    console.error(`\nVERIFICATION IMPOSSIBLE — banc introuvable : ${dossier}`);
+    console.error('Aucun repli sur tests/fixtures/ : servir un autre corpus que celui demande');
+    console.error("ferait passer un banc pour l autre, ce que ce serveur existe pour ne plus faire.\n");
+    process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+  }
+
+  const { url } = await demarrerServeurFixtures(port, dossier);
+  console.log(url);
+  console.error(`Strapi de substitution — banc : ${dossier}`);
+  console.error('Ctrl-C pour arreter.');
 }

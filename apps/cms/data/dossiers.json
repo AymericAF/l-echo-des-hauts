@@ -1,6 +1,7 @@
 [
   {
     "dateOuverture": "2026-03-16",
+    "imageHero": "heros/dossier-l-eau-du-plateau.svg",
     "fr": {
       "titre": "L'eau du plateau",
       "slug": "l-eau-du-plateau",
@@ -18,6 +19,7 @@
   },
   {
     "dateOuverture": "2026-05-11",
+    "imageHero": "heros/dossier-ce-qui-reste-de-la-filature.svg",
     "fr": {
       "titre": "Ce qui reste de la filature",
       "slug": "ce-qui-reste-de-la-filature",

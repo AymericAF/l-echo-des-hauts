@@ -50,6 +50,30 @@
 import { ISSUES } from './issues.mjs';
 
 /**
+ * LE REPLI QUAND `ECHO_SITE_URL` EST ABSENTE — absente, et non vide. UN SEUL DOMICILE.
+ *
+ * IL VIT ICI ET PAS AILLEURS, et le choix du fichier n est pas un gout de rangement. Ce
+ * module est le plus bas de la chaine : `.mjs` nu, sans dependance hors `./issues.mjs`,
+ * sans `astro:content` — donc importable par les TROIS contextes qui ont chacun recopie
+ * la chaine faute de pouvoir se parler (mesure du 2026-08-12, ces imports sont exerces) :
+ *
+ *   - `astro.config.mjs`, charge par le chargeur de configuration d Astro ;
+ *   - les `integrations/garde-*.mjs`, chargees dans le processus du build ;
+ *   - les `scripts/verifier-*.mjs` et `scripts/preuve-*.mjs`, lances par `node`.
+ *
+ * `src/lib/seo/origine-site.ts` — le PRODUCTEUR — la REEXPORTE : c est lui que le reste du
+ * site importe, et aucun de ses appelants ne bouge. C est l inverse du placement d avant,
+ * ou la constante etait declaree dans le `.ts` : un `.ts` de `src/` ne peut pas etre la
+ * source d `astro.config.mjs` sans lui imposer la compilation, ce qui est exactement la
+ * raison qui avait fait recopier la chaine huit fois.
+ *
+ * CE QU IL N EST PAS : l adresse de la production interrogee sur le reseau. Celle-la est
+ * `BASE_PAR_DEFAUT` (`verifier-en-tetes.mjs`), egale par coincidence et separee par
+ * necessite — cf. `tests/origine-domicile-unique.test.ts`, table `AUTRES_DOMICILES`.
+ */
+export const ORIGINE_PAR_DEFAUT = 'https://echo.ayfiweb.fr';
+
+/**
  * Nommer ce qui a ete recu — sans cela, on cherche un defaut de site la ou il y a un
  * defaut de variable.
  *
@@ -148,7 +172,7 @@ export function lireOrigine(origine) {
         `origine du site illisible : ${decrire(origine)}. La verification N A PAS EU LIEU — ` +
         'sans origine, aucun lien absolu ne peut etre reconnu comme interne, et tous ' +
         'seraient classes « externe, hors garde ». Renseigne `ECHO_SITE_URL` (ou le ' +
-        "troisieme argument) avec une URL absolue, par exemple `https://echo.ayfiweb.fr`.",
+        `troisieme argument) avec une URL absolue, par exemple \`${ORIGINE_PAR_DEFAUT}\`.`,
     };
   }
 

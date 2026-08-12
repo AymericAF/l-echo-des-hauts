@@ -119,8 +119,57 @@ parce que ce qu'il juge n'existe nulle part ailleurs que dans la réponse de la 
 en-têtes du §5.5 sont posés en labels Traefik sur l'application Coolify, et **n'ont aucun domicile
 dans ce dépôt**. Il n'est donc **ni branché dans le build ni dans le job `sortie`** : un
 vérificateur qui dépend d'un site en ligne rendrait le dispositif rouge sur une coupure réseau, et
-un rouge qui ne veut rien dire se fait ignorer. Il se lance à la main — et lui donner une cadence
-est un travail qui reste à faire.
+un rouge qui ne veut rien dire se fait ignorer. ~~Il se lance à la main — et lui donner une cadence
+est un travail qui reste à faire.~~
+
+**2026-08-12 — sa cadence est tranchée, et elle n'est pas ici** (tâche `5e568f4a`). Ce qu'a coûté la
+mesure vaut d'être écrit, parce que le raisonnement « il suffit de le brancher au build » se
+refait tout seul : **la production ne construit pas ce dépôt, elle construit `apps/web` seul**.
+Relevé en lecture seule sur la base Coolify du VPS et dans le journal du déploiement `371` (commit
+`c35e7d5`, celui qui sert) — application `echo-site`, `build_pack = nixpacks`,
+`base_directory = /apps/web`, `publish_directory = /dist`, commandes d'installation et de
+construction **vides**, donc le plan Nixpacks réellement exécuté : `npm ci`, puis `npm run build`.
+**`npm test` ne tourne nulle part sur ce chemin, et ce workflow non plus** : GitHub Actions et
+Coolify sont deux chemins qui ne se croisent pas.
+
+Le seul crochet qu'exécute la production est donc `npm run build`. Y brancher ce vérificateur-là
+ferait **deux** dégâts, pas un : au moment du build la bascule n'a pas eu lieu — le journal du `371`
+place la fin du build à `11:20:15` et le « Rolling update » **après** —, on mesurerait donc
+**l'ancien conteneur** en croyant mesurer le nouveau ; et une coupure réseau ferait **échouer un
+déploiement** sur un `2`, c'est-à-dire sur un verdict qui ne parle pas du site.
+
+**Sa cadence vit sur le porteur qui existe déjà**, dans le dépôt privé : `ops/echo-veille.sh` et ses
+contrôles `ops/veille.d/` (tâche `115b6646`). Son contrat est **mot pour mot** ce que ce
+vérificateur rend déjà — `0` conforme et le porteur reste muet, `1` divergence et la sortie standard
+*est* le message, `2` incapacité, jamais aplaties l'une sur l'autre. Il ne manque donc ni cadence,
+ni canal, ni distinction des trois issues : il manque **une enveloppe dans `checks.d/`**. Un second
+mécanisme périodique pour le même site serait un mécanisme de plus à maintenir, et c'est toujours le
+second qui meurt en silence.
+
+**Le seul point qui restait ouvert est fermé, mesuré le 2026-08-12** : le VPS **n'a pas Node**
+(`node: command not found`), mais il porte l'image de construction du site. Depuis l'hôte, sans rien
+installer :
+
+```bash
+img=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^<uuid-echo-site>:.*-build$' | head -1)
+docker run --rm --entrypoint node "$img" scripts/verifier-en-tetes.mjs [origine]
+```
+
+Prouvé **dans les deux sens, depuis le VPS, sans toucher à la production** : sur
+`https://echo.ayfiweb.fr` → **code 0**, une ligne de compte rendu, aucune erreur ; sur l'origine
+d'aperçu, qui ne sert aucune politique → **code 1**, *12 manquements* nommant chaque en-tête absent
+sur chacune des trois URL. ⚠️ Le nom de l'image porte le **SHA du commit déployé** : il change à
+chaque déploiement et Coolify finit par élaguer les anciennes — l'enveloppe doit **résoudre** le
+tag à chaque passage (jamais le figer) et rendre `2` si elle n'en trouve aucun, plutôt que de se
+taire.
+
+**Ce qui, dans ce dépôt, empêche désormais de le rebrancher au mauvais endroit** :
+`apps/web/tests/cadence-en-tetes.test.ts`. Il tient le **code de sortie** du processus (et pas
+seulement le verdict de la fonction, seule chose que `garde-en-tetes-securite.test.ts` exerçait) sur
+une origine de substitution servie en `127.0.0.1`, et il refuse toute apparition des vérificateurs
+qui sortent sur le réseau dans `npm run build`, dans les intégrations d'`astro.config.mjs` ou dans
+un pas du workflow. La population n'y est pas écrite : ce sont les **exemptés** de
+`scripts/verificateurs-de-sortie.mjs`, `verifier:surface-publique` compris.
 
 | Script | Ce qu'il lit | Ce qu'il attrape que les tests ne voient pas | Coût |
 |---|---|---|---|
@@ -134,6 +183,24 @@ est un travail qui reste à faire.
 | `preuve:rendu` | un build sur fixtures | que chaque page article rend les blocs que le banc lui pose, **les 8 types y compris**, et **dans chaque locale** — ce qu'aucune garde ne sait dire | 3,3 s |
 | `preuve:pagination` | un build sur corpus de recette | les **bornes** que le corpus éditorial n'atteint pas : page 2, catégorie à exactement 12, article non traduit | 4,9 s |
 | `preuve:encre-og` | le gabarit rastérisé deux fois | que le seuil de la garde OG **sépare encore** les deux populations (avec fontes / sans aucune fonte) | 1,5 s |
+
+**Le banc des preuves est déplaçable, et c'est ce qui les rend rejouables.** Les trois
+`preuve-*` construisent contre un Strapi de substitution servi depuis `tests/fixtures/`.
+Pour reproduire un défaut, il faut pouvoir servir un banc **abîmé exprès** sans muter le
+dépôt — et jusqu'au 2026-08-12 c'était impossible : `demarrerServeurFixtures()` ne savait
+pas recevoir de dossier, si bien qu'un run l'a réécrit dans son scratchpad, où il a disparu
+avec sa session. Le geste est désormais versionné :
+
+```bash
+cp -r apps/web/tests/fixtures /tmp/banc-temoin       # puis on abîme ce qu'on veut voir
+node apps/web/scripts/serveur-fixtures.mjs /tmp/banc-temoin   # l'URL sort sur stdout
+ECHO_STRAPI_URL=<url> ECHO_STRAPI_API_TOKEN_READONLY=jeton-de-fixture npm run build
+```
+
+Le défaut reste `tests/fixtures/` : les preuves existantes ne changent pas de corpus. ⚠ Ce
+qui manquait n'était pas seulement le paramètre — les messages d'incapacité écrivaient
+`tests/fixtures/<nom>.json` **quel que soit** le banc consulté, donc envoyaient chercher un
+fichier absent là où il existe. Ils nomment maintenant le dossier réellement lu.
 
 Les six vérificateurs sont **déjà branchés dans le build** comme intégrations Astro : un défaut de
 sortie fait échouer `astro build`, donc le déploiement Coolify. Le job les relance **aussi en

@@ -114,14 +114,27 @@ function dist(fichiers: Record<string, string>): string {
   return racine;
 }
 
-const PAGE_RECHERCHE = '<!DOCTYPE html><html lang="fr"><body><script type="module">1</script></body></html>';
+/**
+ * La page /recherche NOMME son bundle — c est ce que le build produit reellement
+ * (`data-bundle="/pagefind/pagefind.js"`, importe dynamiquement), et depuis le 2026-08-12
+ * c est ce qui rend le bundle legal : l exemption porte sur ce que la page charge, plus sur
+ * le repertoire ou il est range (tache cf33a689).
+ */
+const PAGE_RECHERCHE =
+  '<!DOCTYPE html><html lang="fr"><body><div data-bundle="/pagefind/pagefind.js"></div>' +
+  '<script type="module">import(zone.dataset.bundle)</script></body></html>';
 
 test('un depot Pagefind conforme ne remonte aucun manquement', () => {
+  /* `pagefind-ui.js` FIGURAIT ICI et le depot etait declare conforme : ce test encodait
+     exactement le trou que cf33a689 a mesure — 410 Kio de bundles servis publiquement et
+     charges par aucune page. Un depot conforme est desormais un depot ou tout ce qui est
+     servi est atteint ; le refus de `pagefind-ui.js` est exerce dans
+     `tests/pagefind-surface-servie.test.ts`. */
   const racine = dist({
     'index.html': '<!DOCTYPE html><html lang="fr"><body><p>Bonjour</p></body></html>',
     'recherche/index.html': PAGE_RECHERCHE,
-    'pagefind/pagefind.js': 'export{}',
-    'pagefind/pagefind-ui.js': 'export{}',
+    'pagefind/pagefind.js': 'const w = `${b}pagefind-worker.js`; new Worker(w);',
+    'pagefind/pagefind-worker.js': 'onmessage = () => {};',
     'pagefind/pagefind-entry.json': '{}',
     'pagefind/wasm.fr.pagefind': 'binaire',
     'pagefind/fragment/fr_abc.pf_fragment': 'binaire',
@@ -136,6 +149,8 @@ test('FUITE — un chunk Pagefind IMBRIQUE est refuse : l exemption porte sur de
   const racine = dist({
     'recherche/index.html': PAGE_RECHERCHE,
     'pagefind/pagefind.js': 'export{}',
+    /* Le chunk est NOMME par le bundle : il est donc atteint, et il reste refuse quand
+       meme — la borne « a plat, jamais un sous-arbre » ne depend pas de l atteignabilite. */
     'pagefind/interne/chunk.js': 'export{}',
   });
   const manquements = manquementsDepot(racine);
@@ -156,6 +171,7 @@ test('FUITE — une balise <script> injectee dans une page ORDINAIRE reste refus
   // la contrainte zero-JS tomberait sur tout le site sans qu aucun fichier ne bouge.
   const racine = dist({
     'index.html': '<!DOCTYPE html><html lang="fr"><body><script src="/pagefind/pagefind-ui.js"></script></body></html>',
+    'recherche/index.html': PAGE_RECHERCHE,
     'pagefind/pagefind.js': 'export{}',
   });
   assert.equal(manquementsDepot(racine).length, 1);

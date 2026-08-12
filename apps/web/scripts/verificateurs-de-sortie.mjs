@@ -28,6 +28,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { BASE_PAR_DEFAUT } from './verifier-en-tetes.mjs';
+
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
@@ -47,7 +49,7 @@ const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
  */
 export const EXEMPTES_DE_L_INTEGRATION_CONTINUE = {
   'en-tetes':
-    'il interroge la PRODUCTION (https://echo.ayfiweb.fr) : l integration continue n a pas ' +
+    `il interroge la PRODUCTION (${BASE_PAR_DEFAUT}) : l integration continue n a pas ` +
     'de site a interroger, et le brancher ici ferait rougir un commit pour l etat d un ' +
     'environnement qu aucun commit ne gouverne — les en-tetes vivent dans les labels ' +
     'Traefik de Coolify, hors du depot. Sa place est la recette (P3).',

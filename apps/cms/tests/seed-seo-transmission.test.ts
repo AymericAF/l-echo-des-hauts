@@ -17,6 +17,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { chargerCorpus } from '../scripts/seed/corpus.ts';
@@ -103,11 +105,44 @@ test('le corps envoye a Strapi porte la surcharge seo, sur les trois familles', 
   }
 });
 
+/**
+ * `imagePartage` est le SEUL champ que le corpus reel n exerce pas, et ce n est pas
+ * un oubli : deux gardes independantes du §6.7 l interdisent aujourd hui.
+ *
+ *   - la repartition du §6.4 fixe le nombre de medias du corpus (102 atteignables) ;
+ *     en ajouter un pour la demonstration ferait rougir `repartition-6-4.test.ts`,
+ *     qui refuse tout ecart au plan editorial sans arbitrage ecrit ;
+ *   - reutiliser `identite/partage-defaut.png` ferait rougir la garde « aucun media
+ *     n est employe deux fois dans deux familles differentes » — il sert deja de
+ *     repli de configuration.
+ *
+ * Surcharger ce champ sur des donnees reelles suppose donc de trancher la volumetrie
+ * media, ce qui est une decision editoriale et non un geste technique. En attendant,
+ * le CHEMIN est exerce ici, sur un corpus fabrique : ce qui doit etre prouve, c est
+ * que la cle de manifeste devient un ID de mediatheque — envoyee telle quelle, elle
+ * est refusee par Strapi, ou pire, ignoree.
+ */
 test('imagePartage part en ID de mediatheque, jamais en cle de manifeste', async () => {
-  const ecritures = await ecrituresDuCorpusReel();
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-seo-image-'));
+  const source = DATA_REEL;
+
+  /* Le corpus reel, recopie, puis UNE surcharge posee dessus : on exerce le chemin
+     sans toucher au corpus versionne ni a sa volumetrie. */
+  fs.cpSync(source, racine, { recursive: true });
+  const fichier = path.join(racine, 'articles', 'A01.fr.md');
+  const brut = fs.readFileSync(fichier, 'utf8').replace(/\r\n/g, '\n');
+  const enTete = JSON.parse(brut.match(/^---\n([\s\S]*?)\n---/)![1]);
+  enTete.seo = { ...enTete.seo, imagePartage: 'identite/partage-defaut.png' };
+  fs.writeFileSync(
+    fichier,
+    brut.replace(/^---\n[\s\S]*?\n---/, `---\n${JSON.stringify(enTete, null, 2)}\n---`)
+  );
+
+  const { client, ecritures } = clientMouchard();
+  await executerSeed(client, chargerCorpus(racine));
 
   const portantUneImage = ecritures.filter((e) => e.data.seo?.imagePartage !== undefined);
-  assert.ok(portantUneImage.length > 0, 'aucune surcharge ne porte d imagePartage a verifier');
+  assert.ok(portantUneImage.length > 0, 'la surcharge posee n a pas ete transmise');
 
   for (const e of portantUneImage) {
     assert.equal(

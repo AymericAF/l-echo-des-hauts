@@ -54,7 +54,10 @@ export function configurationRecette(locale, dossier = FIXTURES) {
   const nom = `configuration-${locale}`;
   if (!existeFixture(nom, dossier)) {
     throw new Error(
-      messageVerificationImpossible(`Configuration du corpus de recette (${locale})`, [nom]),
+      /* Le `dossier` est TRANSMIS : sans lui le message nommait `tests/fixtures/<nom>.json`
+         quel que soit le banc consulte, et envoyait chercher un fichier absent la ou il
+         existe (corrige le 2026-08-12, tache 66fc4e4c). */
+      messageVerificationImpossible(`Configuration du corpus de recette (${locale})`, [nom], dossier),
     );
   }
   const base = lireFixture(nom, dossier);

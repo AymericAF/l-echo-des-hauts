@@ -15,6 +15,14 @@ import { composerCredit, verifierFormatCredit, type SourceCredit } from './credi
 import { ErreurCorpus, MediaIntrouvable } from './erreurs.ts';
 import { lireArticle, markdownVersBlocks, type BlocBrut } from './markdown.ts';
 import { verifierUnicite } from './rapprochement.ts';
+import {
+  deriverVoie,
+  verifierPlacementVoieC,
+  verifierPortraitAuteur,
+  verifierSidecarVoieC,
+  type Placement,
+  type Voie,
+} from './voies.ts';
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -34,6 +42,20 @@ export type MediaCorpus = {
   caption: string;
   ayantDroit: string;
   licence: string;
+  /** Voie d'acquisition du §6.3 — DERIVEE de l'ayant droit, ou declaree. */
+  voie: Voie;
+  /**
+   * OU ce media est employe, releve sur l'emploi REEL dans le corpus et jamais
+   * sur son chemin de fichier. C'est ce qui rend les conditions 5 et 7 du §6.7
+   * opposables : un prefixe de dossier se renomme, un emploi non.
+   */
+  placements: Placement[];
+  /**
+   * QUELLES entrees l'emploient — la colonne « article(s) ou entite » du
+   * registre du §6.7. Elle se DERIVE d'ici : recopiee a la main, elle
+   * divergerait au premier article deplace.
+   */
+  emplois: string[];
 };
 
 /**
@@ -224,6 +246,15 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
     }
     nomsVus.set(nom, cle);
 
+    // La VOIE est derivee ici, avant tout emploi : sans elle, les conditions 5,
+    // 6 et 7 du §6.7 ne sont pas seulement absentes, elles sont INEXPRIMABLES.
+    let voie: Voie;
+    try {
+      voie = deriverVoie(meta, cle);
+    } catch (e) {
+      throw new ErreurCorpus((e as Error).message);
+    }
+
     const media: MediaCorpus = {
       cle,
       nom,
@@ -235,6 +266,9 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
       // licence absente ou hors liste blanche. Un defaut ici reintroduirait
       // une licence que personne n'a relevee (§6.8).
       licence: String(meta.licence).trim(),
+      voie,
+      placements: [],
+      emplois: [],
     };
     liste.push(media);
     parCle.set(cle, media);
@@ -330,19 +364,44 @@ function construireBloc(bloc: BlocBrut, contexte: string): Record<string, any> {
   }
 }
 
-/** Toutes les cles de media citees par une dynamic zone. */
-function clesMediaDe(contenu: Record<string, any>[]): string[] {
-  const cles: string[] = [];
-  const visiter = (v: any) => {
-    if (v == null) return;
-    if (Array.isArray(v)) return v.forEach(visiter);
-    if (typeof v === 'object') {
-      if (typeof v.__media === 'string') cles.push(v.__media);
-      else Object.values(v).forEach(visiter);
-    }
-  };
-  visiter(contenu);
-  return cles;
+/**
+ * Le placement que chaque bloc de la Dynamic Zone donne aux medias qu'il cite.
+ * Il se lit sur le `__component`, c'est-a-dire sur ce qui part reellement vers
+ * Strapi — pas sur le dossier du fichier.
+ */
+const PLACEMENT_PAR_BLOC: Record<string, Placement> = {
+  'bloc.galerie': 'galerie',
+  'bloc.image-legendee': 'image-legendee',
+  'bloc.video': 'video-vignette',
+};
+
+/** Toutes les cles de media citees par une dynamic zone, avec leur placement. */
+function renvoisMediaDe(contenu: Record<string, any>[]): { cle: string; placement: Placement }[] {
+  const renvois: { cle: string; placement: Placement }[] = [];
+  for (const bloc of contenu) {
+    const placement = PLACEMENT_PAR_BLOC[String(bloc?.__component ?? '')];
+    const visiter = (v: any) => {
+      if (v == null) return;
+      if (Array.isArray(v)) return v.forEach(visiter);
+      if (typeof v === 'object') {
+        if (typeof v.__media === 'string') {
+          if (placement === undefined) {
+            // Un bloc qui se met a porter un media sans que ce tableau le sache
+            // rendrait son placement INVISIBLE aux conditions 5 et 7 : la garde
+            // serait verte sur un placement qu'elle n'a pas vu.
+            throw new ErreurCorpus(
+              `le bloc \`${bloc?.__component}\` cite le media "${v.__media}" alors qu aucun ` +
+                `placement ne lui est associe.\n` +
+                `  Sans placement, les conditions 5 et 7 du §6.7 ne verraient pas cet emploi.`
+            );
+          }
+          renvois.push({ cle: v.__media, placement });
+        } else Object.values(v).forEach(visiter);
+      }
+    };
+    visiter(bloc);
+  }
+  return renvois;
 }
 
 /* ------------------------------------------------------------------ */
@@ -375,7 +434,8 @@ const LONGUEUR_META_DESCRIPTION = 160;
 function lireSeo(
   brut: unknown,
   contexte: string,
-  exigerMedia: (cle: string, contexte: string) => string
+  exigerMedia: (cle: string, contexte: string, placement: Placement, entite: string) => string,
+  entite: string
 ): SeoCorpus | undefined {
   if (brut === undefined || brut === null) return undefined;
   if (typeof brut !== 'object' || Array.isArray(brut)) {
@@ -430,7 +490,7 @@ function lireSeo(
     if (typeof imagePartage !== 'string') {
       throw new ErreurCorpus(`${contexte} : seo.imagePartage doit etre une cle du manifeste`);
     }
-    exigerMedia(imagePartage, `${contexte} : seo.imagePartage`);
+    exigerMedia(imagePartage, `${contexte} : seo.imagePartage`, 'partage-seo', entite);
     // Meme exigence que `imagePartageDefaut` : une carte de partage doit etre
     // rasterisable, sinon les plateformes n affichent aucune image sans qu aucun
     // fichier ne manque.
@@ -513,13 +573,16 @@ export function chargerCorpus(racine: string): Corpus {
 
   const { liste: medias, parCle: mediasParCle } = chargerMedias(racine);
   const mediasUtilises = new Set<string>();
-  const exigerMedia = (cle: string, contexte: string) => {
-    if (!mediasParCle.has(cle)) {
+  const exigerMedia = (cle: string, contexte: string, placement: Placement, entite: string) => {
+    const media = mediasParCle.get(cle);
+    if (!media) {
       throw new ErreurCorpus(
         `${contexte} : le media "${cle}" n'est pas au manifeste (data/medias/manifeste.json)`
       );
     }
     mediasUtilises.add(cle);
+    if (!media.placements.includes(placement)) media.placements.push(placement);
+    if (!media.emplois.includes(entite)) media.emplois.push(entite);
     return cle;
   };
 
@@ -552,12 +615,19 @@ export function chargerCorpus(racine: string): Corpus {
   for (const c of categories) {
     exigerTexte(c.fr?.nom, `Categorie ${c.fr?.slug} fr : nom`);
     if (c.en) exigerTexte(c.en.nom, `Categorie ${c.en.slug} en : nom`);
-    if (c.imageHero) exigerMedia(c.imageHero, `Categorie ${c.fr.slug}`);
+    if (c.imageHero) {
+      exigerMedia(c.imageHero, `Categorie ${c.fr.slug}`, 'hero-categorie', `Categorie/${c.fr.slug}`);
+    }
     refuserSeo(c, `Categorie ${c.fr?.slug} : seo hors locale`);
     for (const locale of LOCALES) {
       const localisee = c[locale];
       if (!localisee) continue;
-      localisee.seo = lireSeo(localisee.seo, `Categorie ${localisee.slug} ${locale}`, exigerMedia);
+      localisee.seo = lireSeo(
+        localisee.seo,
+        `Categorie ${localisee.slug} ${locale}`,
+        exigerMedia,
+        `Categorie/${localisee.slug}`
+      );
     }
   }
   for (const t of tags) {
@@ -569,7 +639,7 @@ export function chargerCorpus(racine: string): Corpus {
 
   const auteurs: AuteurCorpus[] = auteursBruts.map((a) => {
     exigerTexte(a.nom, `Auteur ${a.fr?.slug} : nom`);
-    if (a.photo) exigerMedia(a.photo, `Auteur ${a.fr.slug}`);
+    if (a.photo) exigerMedia(a.photo, `Auteur ${a.fr.slug}`, 'auteur-photo', `Auteur/${a.fr.slug}`);
     refuserSeo(a, `Auteur ${a.fr?.slug}`);
     for (const locale of LOCALES) refuserSeo(a[locale], `Auteur ${a.fr?.slug} ${locale}`);
     const localiser = (l: any) =>
@@ -584,13 +654,15 @@ export function chargerCorpus(racine: string): Corpus {
   });
 
   const dossiersLus: DossierCorpus[] = dossiers.map((d: any) => {
-    if (d.imageHero) exigerMedia(d.imageHero, `Dossier ${d.fr?.slug}`);
+    if (d.imageHero) {
+      exigerMedia(d.imageHero, `Dossier ${d.fr?.slug}`, 'hero-dossier', `Dossier/${d.fr?.slug}`);
+    }
     const localiser = (l: any) =>
       l && {
         titre: exigerTexte(l.titre, `Dossier ${l.slug} : titre`),
         slug: l.slug,
         introduction: l.introduction ? markdownVersBlocks(l.introduction) : undefined,
-        seo: lireSeo(l.seo, `Dossier ${l.slug}`, exigerMedia),
+        seo: lireSeo(l.seo, `Dossier ${l.slug}`, exigerMedia, `Dossier/${l.slug}`),
       };
     return {
       dateOuverture: d.dateOuverture,
@@ -627,8 +699,13 @@ export function chargerCorpus(racine: string): Corpus {
     }
 
     const contenu = blocs.map((b, i) => construireBloc(b, `${contexte} #${i + 1}`));
-    for (const cle of clesMediaDe(contenu)) exigerMedia(cle, contexte);
-    exigerMedia(exigerTexte(enTete.imageCouverture, `${contexte} : imageCouverture`), contexte);
+    for (const r of renvoisMediaDe(contenu)) exigerMedia(r.cle, contexte, r.placement, code);
+    exigerMedia(
+      exigerTexte(enTete.imageCouverture, `${contexte} : imageCouverture`),
+      contexte,
+      'couverture',
+      code
+    );
 
     const liees: string[] = enTete.articlesLies ?? [];
     if (liees.length > MAX_ARTICLES_LIES) {
@@ -651,7 +728,7 @@ export function chargerCorpus(racine: string): Corpus {
       imageCouverture: enTete.imageCouverture,
       legendeCouverture: enTete.legendeCouverture,
       contenu,
-      seo: lireSeo(enTete.seo, contexte, exigerMedia),
+      seo: lireSeo(enTete.seo, contexte, exigerMedia, `Article/${code} ${locale}`),
     };
 
     const existant = parCode.get(code) ?? ({ code } as ArticleCorpus);
@@ -717,11 +794,18 @@ export function chargerCorpus(racine: string): Corpus {
 
   const configuration: ConfigurationCorpus = lireJson(path.join(racine, 'configuration.json'));
   for (const champ of ['logo', 'imagePartageDefaut'] as const) {
-    exigerMedia(exigerTexte(configuration[champ], `configuration : ${champ} (requis)`), 'configuration');
+    exigerMedia(
+      exigerTexte(configuration[champ], `configuration : ${champ} (requis)`),
+      'configuration',
+      'configuration',
+      `Configuration/${champ}`
+    );
   }
   exigerFormatDePartage(configuration.imagePartageDefaut, 'configuration : imagePartageDefaut');
   for (const champ of ['logoSombre', 'favicon'] as const) {
-    if (configuration[champ]) exigerMedia(configuration[champ]!, 'configuration');
+    if (configuration[champ]) {
+      exigerMedia(configuration[champ]!, 'configuration', 'configuration', `Configuration/${champ}`);
+    }
   }
   const localiserConfig = (l: any, nom: string) =>
     l && {
@@ -747,6 +831,34 @@ export function chargerCorpus(racine: string): Corpus {
     throw new ErreurCorpus(
       `medias au manifeste mais utilises nulle part : ${orphelins.map((m) => m.cle).join(', ')}.\n` +
         `  Un media televersse sans emploi gonfle la mediatheque et fausse le comptage du controle 5.`
+    );
+  }
+
+  /* --- conditions 5, 6 et 7 de la garde du §6.7 --- */
+
+  // Elles se jugent ICI et pas dans `chargerMedias` : elles dependent du
+  // PLACEMENT, qui n'est connu qu'une fois tout le corpus parcouru. Un media
+  // n'est ni « une couverture » ni « un portrait » en soi — il l'est par
+  // l'emploi que le corpus en fait.
+  //
+  // On collecte TOUS les manquements avant de lever : rendre le premier
+  // transformerait une revue en jeu de piste, et c'est ce qui fait desarmer une
+  // garde.
+  const racineMedias = path.join(racine, 'medias');
+  const manquements: string[] = [];
+  for (const media of medias) {
+    for (const verdict of [
+      verifierPlacementVoieC(media.voie, media.placements, media.cle),
+      verifierSidecarVoieC(media.voie, media.cle, racineMedias, media.licence),
+      verifierPortraitAuteur(media.voie, media.licence, media.placements, media.cle, racineMedias),
+    ]) {
+      if (!verdict.conforme) manquements.push(verdict.motif);
+    }
+  }
+  if (manquements.length > 0) {
+    throw new ErreurCorpus(
+      `garde des medias (plan editorial §6.7) — ${manquements.length} manquement(s) :\n` +
+        manquements.map((m) => `  - ${m}`).join('\n')
     );
   }
 

@@ -94,7 +94,7 @@ jobs:
     name: Le declenchement local est versionne, executable et branche
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Le crochet est en 100755 dans l index, et il appelle son declencheur
         # Un crochet en 100644 est saute EN SILENCE hors Windows : le depot
@@ -150,9 +150,9 @@ jobs:
       matrix:
         app: [apps/web, apps/cms]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -173,9 +173,9 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm

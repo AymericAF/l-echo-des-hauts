@@ -423,7 +423,7 @@ test('un `caption` ecrit a la main est refuse — il serait une seconde copie de
   assert.match(message, /caption/);
 });
 
-test('les 94 medias VERSIONNES portent une ligne de credit au format, ayant droit et licence', () => {
+test('les 95 medias VERSIONNES portent une ligne de credit au format, ayant droit et licence', () => {
   const corpus = chargerCorpus(DATA_REEL);
   const horsFormat: string[] = [];
   for (const media of corpus.medias) {
@@ -432,7 +432,9 @@ test('les 94 medias VERSIONNES portent une ligne de credit au format, ayant droi
     if (media.ayantDroit.trim() === '') horsFormat.push(`${media.cle} : ayant droit vide`);
   }
   assert.deepEqual(horsFormat, []);
-  assert.equal(corpus.medias.length, 94);
+  // 95 depuis le 2026-08-12 : la carte de partage propre a A01, ajoutee pour que la
+  // surcharge `partage.seo.imagePartage` puisse SE DISTINGUER du repli au rendu.
+  assert.equal(corpus.medias.length, 95);
 });
 
 /* ------------------------------------------------------------------ */

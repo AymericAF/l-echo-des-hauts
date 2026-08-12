@@ -15,7 +15,7 @@
  *    du plan editorial existe pour attraper, et il se joue ICI.
  */
 import type { ClientStrapi, Parametres } from './client.ts';
-import type { Corpus, ArticleLocale } from './corpus.ts';
+import type { Corpus, ArticleLocale, SeoCorpus } from './corpus.ts';
 import { indexerParSlug, decider } from './rapprochement.ts';
 
 export type Comptage = {
@@ -47,6 +47,34 @@ function resoudreMedias<T>(valeur: T, ids: Map<string, number>): T {
     return sortie as unknown as T;
   }
   return valeur;
+}
+
+/**
+ * Le composant `partage.seo` tel que Strapi l attend, ou `undefined`.
+ *
+ * Deux details qui ne se voient pas a la relecture, et qui echouent en silence :
+ *
+ *   - `imagePartage` porte une CLE DE MANIFESTE dans le corpus et doit partir en
+ *     ID de mediatheque. Envoyee telle quelle, Strapi la refuse — ou l ignore.
+ *   - une surcharge dont AUCUN champ n est renseigne ne doit pas partir du tout.
+ *     Ecrire un composant vide creerait en base la ligne que A-07 interdit
+ *     precisement : celle qui fait croire, plus tard, a un choix editorial.
+ */
+function corpsSeo(
+  seo: SeoCorpus | undefined,
+  idsMedia: Map<string, number>
+): Record<string, any> | undefined {
+  if (seo === undefined) return undefined;
+
+  const corps = {
+    metaTitre: seo.metaTitre,
+    metaDescription: seo.metaDescription,
+    noindex: seo.noindex,
+    canonique: seo.canonique,
+    imagePartage: seo.imagePartage ? idsMedia.get(seo.imagePartage) : undefined,
+  };
+
+  return Object.values(corps).every((v) => v === undefined) ? undefined : corps;
 }
 
 export async function executerSeed(
@@ -163,6 +191,7 @@ export async function executerSeed(
       couleurAccent: c.couleurAccent,
       ordreAffichage: c.ordreAffichage,
       imageHero: c.imageHero ? idsMedia.get(c.imageHero) : undefined,
+      seo: corpsSeo(c[l]!.seo, idsMedia),
     }),
   });
   await ecrireFamille({
@@ -171,7 +200,12 @@ export async function executerSeed(
     entrees: corpus.categories,
     locale: 'en',
     documentIdConnus: idsCategorie,
-    corpsDe: (c, l) => ({ nom: c[l]!.nom, slug: c[l]!.slug, description: c[l]!.description }),
+    corpsDe: (c, l) => ({
+      nom: c[l]!.nom,
+      slug: c[l]!.slug,
+      description: c[l]!.description,
+      seo: corpsSeo(c[l]!.seo, idsMedia),
+    }),
   });
 
   /* --- tags --- */
@@ -227,6 +261,7 @@ export async function executerSeed(
       introduction: d[l]!.introduction,
       dateOuverture: d.dateOuverture,
       imageHero: d.imageHero ? idsMedia.get(d.imageHero) : undefined,
+      seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
   });
   await ecrireFamille({
@@ -235,7 +270,12 @@ export async function executerSeed(
     entrees: corpus.dossiers,
     locale: 'en',
     documentIdConnus: idsDossier,
-    corpsDe: (d, l) => ({ titre: d[l]!.titre, slug: d[l]!.slug, introduction: d[l]!.introduction }),
+    corpsDe: (d, l) => ({
+      titre: d[l]!.titre,
+      slug: d[l]!.slug,
+      introduction: d[l]!.introduction,
+      seo: corpsSeo(d[l]!.seo, idsMedia),
+    }),
   });
 
   /* ---------------------------------------------------------------- */
@@ -263,6 +303,7 @@ export async function executerSeed(
     dossier: art.dossier ? idsDossier.get(art.dossier) : undefined,
     datePublication: art.datePublication,
     aLaUne: art.aLaUne,
+    seo: corpsSeo(art.seo, idsMedia),
   });
 
   const paramsArticle: Parametres = { status: 'published' };

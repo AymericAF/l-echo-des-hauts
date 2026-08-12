@@ -562,5 +562,11 @@
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Releve du planning du centre de sante, redessine"
+  },
+  "partage/A01-col-des-trois-vents.png": {
+    "alternativeText": "Ligne de crete du col des Trois-Vents sur un aplat vert profond",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Carte de partage PROPRE a A01, distincte du repli : elle sert a prouver que la surcharge partage.seo.imagePartage sort bien dans le HTML, la ou identite/partage-defaut.png sort pour tout le reste. PNG 1200x630, trace deterministe"
   }
 }

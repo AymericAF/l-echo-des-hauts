@@ -5,12 +5,20 @@
     "fr": {
       "nom": "Territoire",
       "slug": "territoire",
-      "description": "Aménagement, urbanisme, eau, mobilité, énergie : ce qui se décide sur la carte avant de se voir sur le terrain. Les documents que personne ne lit, lus."
+      "description": "Aménagement, urbanisme, eau, mobilité, énergie : ce qui se décide sur la carte avant de se voir sur le terrain. Les documents que personne ne lit, lus.",
+      "seo": {
+        "metaTitre": "Territoire : ce qui se décide avant de se voir",
+        "metaDescription": "Aménagement, eau, mobilité, énergie sur le plateau des Hauts : les délibérations et les dossiers techniques qui engagent, lus ligne à ligne."
+      }
     },
     "en": {
       "nom": "Territory",
       "slug": "territory",
-      "description": "Planning, water, transport, energy: what gets decided on the map before it shows up on the ground. The documents nobody reads, read."
+      "description": "Planning, water, transport, energy: what gets decided on the map before it shows up on the ground. The documents nobody reads, read.",
+      "seo": {
+        "metaTitre": "Territory: decided before it becomes visible",
+        "metaDescription": "Planning, water, transport and energy on the Hauts plateau: the rulings and technical files that commit the area, read line by line."
+      }
     }
   },
   {

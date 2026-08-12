@@ -8,9 +8,12 @@
  * que le front consomme deja ; ecrit avant, il pose le contrat et casse quand la
  * source s en ecarte.
  *
- * Deux invariants, tenus par `lecture.ts` :
+ * Trois invariants, tenus par `lecture.ts` :
  *   1. une cle demandee par le populate DOIT exister — son absence leve ;
- *   2. `null` est une valeur legitime pour un optionnel, jamais pour un requis.
+ *   2. `null` est une valeur legitime pour un optionnel, jamais pour un requis ;
+ *   3. un `slug` est un SEGMENT D URL, pas une chaine quelconque (`slugRequis`, A-09) —
+ *      c est la garde de build du 2026-08-11, la seule qui tienne quel que soit le
+ *      chemin d ecriture, `minLength: 1` cote Strapi ne couvrant que l entity-validator.
  *
  * i18n : rien ici ne derive un slug d une autre locale. Strapi 5 localise d office
  * toute relation et tout `uid` (docs/modele-donnees.md, encadre A-06) ; les
@@ -52,6 +55,7 @@ import {
   nombreOptionnel,
   objetOptionnel,
   objetRequis,
+  slugRequis,
   texteOptionnel,
   texteRequis,
 } from './lecture.ts';
@@ -131,7 +135,7 @@ function localisations(source: unknown, chemin: string): Localisation[] {
       documentId: documentId(brut, ici),
       locale: locale(brut, ici),
       // Le slug de la contrepartie se LIT ; il ne se derive jamais du slug courant (T-05, piege 1).
-      slug: texteRequis(brut, 'slug', ici),
+      slug: slugRequis(brut, 'slug', ici),
     };
   });
 }
@@ -157,7 +161,7 @@ function referenceAuteur(source: unknown, chemin: string): ReferenceAuteur {
   return {
     documentId: documentId(brut, ici),
     nom: texteRequis(brut, 'nom', ici),
-    slug: texteRequis(brut, 'slug', ici),
+    slug: slugRequis(brut, 'slug', ici),
   };
 }
 
@@ -167,7 +171,7 @@ function referenceCategorie(source: unknown, chemin: string): ReferenceCategorie
   return {
     documentId: documentId(brut, ici),
     nom: texteRequis(brut, 'nom', ici),
-    slug: texteRequis(brut, 'slug', ici),
+    slug: slugRequis(brut, 'slug', ici),
     couleurAccent: couleurAccent(brut, ici),
   };
 }
@@ -178,7 +182,7 @@ function referencesTags(source: unknown, chemin: string): ReferenceTag[] {
     return {
       documentId: documentId(brut, ici),
       nom: texteRequis(brut, 'nom', ici),
-      slug: texteRequis(brut, 'slug', ici),
+      slug: slugRequis(brut, 'slug', ici),
     };
   });
 }
@@ -190,7 +194,7 @@ function referenceDossier(source: unknown, chemin: string): ReferenceDossier | n
   return {
     documentId: documentId(brut, ici),
     titre: texteRequis(brut, 'titre', ici),
-    slug: texteRequis(brut, 'slug', ici),
+    slug: slugRequis(brut, 'slug', ici),
   };
 }
 
@@ -202,7 +206,7 @@ function articlesLies(source: unknown, chemin: string): ReferenceArticle[] {
       return {
         documentId: documentId(brut, ici),
         titre: texteRequis(brut, 'titre', ici),
-        slug: texteRequis(brut, 'slug', ici),
+        slug: slugRequis(brut, 'slug', ici),
         chapo: texteRequis(brut, 'chapo', ici),
         imageCouverture: mediaRequis(brut, 'imageCouverture', ici),
       };
@@ -303,7 +307,7 @@ export function mapperArticle(brut: unknown): Article {
     documentId: documentId(brut, chemin),
     locale: locale(brut, chemin),
     titre: texteRequis(brut, 'titre', chemin),
-    slug: texteRequis(brut, 'slug', chemin),
+    slug: slugRequis(brut, 'slug', chemin),
     chapo: texteRequis(brut, 'chapo', chemin),
     contenu: listeRequise(brut, 'contenu', chemin).map((element, index) =>
       bloc(element, `${chemin}.contenu[${index}]`),
@@ -330,7 +334,7 @@ export function mapperAuteur(brut: unknown): Auteur {
     documentId: documentId(brut, chemin),
     locale: locale(brut, chemin),
     nom: texteRequis(brut, 'nom', chemin),
-    slug: texteRequis(brut, 'slug', chemin),
+    slug: slugRequis(brut, 'slug', chemin),
     fonction: texteOptionnel(brut, 'fonction', chemin),
     bio: blocksOptionnel(brut, 'bio', chemin) as NoeudRichTexte[] | null,
     photo: mediaOptionnel(brut, 'photo', chemin),
@@ -346,7 +350,7 @@ export function mapperCategorie(brut: unknown): Categorie {
     documentId: documentId(brut, chemin),
     locale: locale(brut, chemin),
     nom: texteRequis(brut, 'nom', chemin),
-    slug: texteRequis(brut, 'slug', chemin),
+    slug: slugRequis(brut, 'slug', chemin),
     description: texteOptionnel(brut, 'description', chemin),
     couleurAccent: couleurAccent(brut, chemin),
     imageHero: mediaOptionnel(brut, 'imageHero', chemin),
@@ -363,7 +367,7 @@ export function mapperTag(brut: unknown): Tag {
     documentId: documentId(brut, chemin),
     locale: locale(brut, chemin),
     nom: texteRequis(brut, 'nom', chemin),
-    slug: texteRequis(brut, 'slug', chemin),
+    slug: slugRequis(brut, 'slug', chemin),
     updatedAt: texteRequis(brut, 'updatedAt', chemin),
     localisations: localisations(brut, chemin),
   };
@@ -377,7 +381,7 @@ export function mapperDossier(brut: unknown): Dossier {
       return {
         documentId: documentId(element, ici),
         titre: texteRequis(element, 'titre', ici),
-        slug: texteRequis(element, 'slug', ici),
+        slug: slugRequis(element, 'slug', ici),
         datePublication: texteRequis(element, 'datePublication', ici),
       };
     })
@@ -388,7 +392,7 @@ export function mapperDossier(brut: unknown): Dossier {
     documentId: documentId(brut, chemin),
     locale: locale(brut, chemin),
     titre: texteRequis(brut, 'titre', chemin),
-    slug: texteRequis(brut, 'slug', chemin),
+    slug: slugRequis(brut, 'slug', chemin),
     introduction: blocksOptionnel(brut, 'introduction', chemin) as NoeudRichTexte[] | null,
     imageHero: mediaOptionnel(brut, 'imageHero', chemin),
     articles,

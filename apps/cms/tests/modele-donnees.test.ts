@@ -42,6 +42,7 @@ function verifierChamp(ctx: string, attendu: ChampSpec, reel: any) {
 
   const scalaires: (keyof ChampSpec)[] = [
     'maxLength',
+    'minLength',
     'min',
     'targetField',
     'regex',

@@ -17,6 +17,8 @@ export interface ChampSpec {
   type: string;
   required?: boolean;
   maxLength?: number;
+  /** A-09 : `required` porte sur la presence de la cle, jamais sur le vide — `minLength: 1` est ce qui refuse `""` sur un `uid`. */
+  minLength?: number;
   min?: number;
   default?: unknown;
   unique?: boolean;
@@ -68,7 +70,7 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
     i18n: true,
     attributes: {
       titre: { type: 'string', required: true, maxLength: 120, loc: true },
-      slug: { type: 'uid', targetField: 'titre', required: true, loc: 'force' },
+      slug: { type: 'uid', targetField: 'titre', required: true, minLength: 1, loc: 'force' },
       chapo: { type: 'text', required: true, maxLength: 300, loc: true },
       contenu: {
         type: 'dynamiczone',
@@ -139,7 +141,7 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
     i18n: true, // A-06
     attributes: {
       nom: { type: 'string', required: true, loc: false },
-      slug: { type: 'uid', targetField: 'nom', required: true, loc: 'force' }, // A-09
+      slug: { type: 'uid', targetField: 'nom', required: true, minLength: 1, loc: 'force' }, // A-09
       fonction: { type: 'string', loc: true },
       bio: { type: 'blocks', loc: true },
       photo: { type: 'media', multiple: false, allowedTypes: ['images'], loc: false },
@@ -169,7 +171,7 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
     i18n: true, // ecrit tel quel dans le PDF
     attributes: {
       nom: { type: 'string', required: true, loc: true },
-      slug: { type: 'uid', targetField: 'nom', required: true, loc: 'force' },
+      slug: { type: 'uid', targetField: 'nom', required: true, minLength: 1, loc: 'force' },
       description: { type: 'text', loc: true },
       couleurAccent: { type: 'string', regex: '^#[0-9a-fA-F]{6}$', loc: false }, // A-15
       imageHero: { type: 'media', multiple: false, loc: false },
@@ -188,7 +190,7 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
     i18n: true, // A-06
     attributes: {
       nom: { type: 'string', required: true, loc: true }, // A-17 : short
-      slug: { type: 'uid', targetField: 'nom', required: true, loc: 'force' },
+      slug: { type: 'uid', targetField: 'nom', required: true, minLength: 1, loc: 'force' },
     },
   },
 
@@ -202,7 +204,7 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
     i18n: true, // A-06
     attributes: {
       titre: { type: 'string', required: true, loc: true },
-      slug: { type: 'uid', targetField: 'titre', required: true, loc: 'force' },
+      slug: { type: 'uid', targetField: 'titre', required: true, minLength: 1, loc: 'force' },
       introduction: { type: 'blocks', loc: true },
       imageHero: { type: 'media', multiple: false, loc: false },
       articles: {

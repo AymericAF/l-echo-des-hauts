@@ -46,6 +46,44 @@ export function texteRequis(source: unknown, cle: string, chemin: string): strin
   return valeur;
 }
 
+/**
+ * L alphabet d un `uid` Strapi, PRIVE de la chaine vide — c est tout l ecart, et c est
+ * le defaut du 2026-08-10.
+ *
+ * Strapi valide ses `uid` contre `/^[A-Za-z0-9-_.~]*$/`. Le quantificateur `*` accepte
+ * `""`, et `required: true` ne porte que sur la presence de la cle : un `PUT` posant
+ * `slug:""` a donc ete accepte en `200` sur `echoback.ayfiweb.fr`, et l API a servi
+ * `["territory", ..., "outdoors", ""]`. Le `+` ci-dessous est la seule difference.
+ */
+const ALPHABET_SLUG = /^[A-Za-z0-9-_.~]+$/;
+
+/**
+ * Un `slug`, c est-a-dire un segment d URL — pas une chaine quelconque.
+ *
+ * Cette fonction existe parce que `texteRequis` ne disait qu une chose : « non vide ».
+ * Elle attrapait donc `""` par accident, sans jamais le nommer — et laissait passer
+ * `"   "`, `"deux mots"` ou un accent, qui produisent une URL tout aussi cassee. Une
+ * garde qui protege par effet de bord se perd au premier remaniement ; celle-ci declare
+ * sa regle, et `tests/garde-slug.test.ts` l exerce sur les treize portes d entree.
+ *
+ * Elle est la derniere barriere, et la seule qui ne depende pas du chemin d ecriture :
+ * `minLength: 1` (A-09, pose cote Strapi le 2026-08-11) ne s applique qu aux ecritures
+ * qui traversent l entity-validator — mesure le meme jour, un `strapi.db.query` ou un
+ * UPDATE SQL direct l ignore completement.
+ */
+export function slugRequis(source: unknown, cle: string, chemin: string): string {
+  const valeur = lire(source, cle, chemin);
+  if (typeof valeur !== 'string' || !ALPHABET_SLUG.test(valeur)) {
+    throw new ValeurInattendueError(
+      `${chemin}.${cle}`,
+      `slug inutilisable comme segment d URL — recu ${JSON.stringify(valeur)}, attendu ` +
+        `${ALPHABET_SLUG.source} (A-09). Vide, il produit une URL sans segment ou une ` +
+        'collision avec la page d index ; hors alphabet, une URL qui ne se resout pas',
+    );
+  }
+  return valeur;
+}
+
 export function texteOptionnel(source: unknown, cle: string, chemin: string): string | null {
   const valeur = lire(source, cle, chemin);
   if (valeur === null || valeur === '') return null;

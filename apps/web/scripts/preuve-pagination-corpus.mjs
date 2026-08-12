@@ -1,7 +1,24 @@
 /**
  * PREUVE de la pagination sur le CORPUS REEL, lue dans `dist/`.
  *
- *   npm run preuve:pagination-corpus
+ *   npm run recette:pagination-corpus
+ *
+ * POURQUOI `recette:` ET NON `preuve:`, ALORS QUE C EST UNE PREUVE. Dans ce depot le
+ * prefixe `preuve:` n est pas un genre litteraire : `journal-des-preuves.mjs` DERIVE de
+ * lui la population des pas que le job d integration continue doit avoir consignes, et
+ * l absence de l un est une incapacite du verdict. Declarer ce script en `preuve:` le
+ * ferait donc entrer en CI par la porte de derriere — mesure du 2026-08-12, le verdict
+ * l attendait aussitot ajoute, alors que le workflow ne le lance pas.
+ *
+ * Or il ne peut pas y entrer : il exige l API Strapi de PRODUCTION (`ECHO_STRAPI_URL`)
+ * et un `dist/` construit contre elle, deux choses que la CI n a pas. Et par decision
+ * d Aymeric du 2026-08-12, il reste hors CI bloquante — sans exemption ecrite a
+ * maintenir, puisqu une exemption est une convention de plus qui derive. Le prefixe dit
+ * donc la verite : instrument de recette, lance a la main contre l instance reelle.
+ *
+ * `tests/journal-des-preuves.test.ts` verrouille ce raisonnement par un mecanisme : tout
+ * script `preuve:*` non consigne par le workflow y est un echec. Le renommer en `preuve:`
+ * sans le cabler ne passera pas.
  *
  * POURQUOI CE SCRIPT EXISTE A COTE DE `preuve-pagination.mjs`, QUI NE BOUGE PAS.
  * Celui-la construit son propre corpus (`corpus-recette.mjs`), avec des attendus

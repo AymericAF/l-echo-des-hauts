@@ -143,6 +143,32 @@ export function sondesAttendues(surface) {
  * — `[[mauvais-nom-de-champ-produit-conclusion-fausse]]`. L endpoint reste un manquement :
  * il est ouvert. C est la QUALIFICATION qui change, pas le verdict.
  */
+/**
+ * Les entrees NON PUBLIEES d une reponse Strapi, collection ou type unique.
+ *
+ * C EST LE DISCRIMINANT DU MIDDLEWARE `global::statut-publie`, et il tient a une seule
+ * propriete : il impose `status=published` a l appelant sans credence, donc la reponse ne
+ * peut porter que des versions publiees. Une entree a `publishedAt: null` prouve que
+ * `?status=draft` a ete HONORE — c est la fuite du 2026-08-10, celle qui rendait un article
+ * non publie titre et corps compris a n importe qui.
+ *
+ * `undefined` (et non un tableau vide) quand le corps n est pas lisible : ne pas pouvoir
+ * juger n est pas juger conforme.
+ *
+ * @param {unknown} corps
+ * @returns {{id: unknown}[] | undefined}
+ */
+export function entreesNonPubliees(corps) {
+  if (!corps || typeof corps !== 'object' || !('data' in corps)) return undefined;
+  const donnees = corps.data;
+  if (donnees === null) return [];
+  const entrees = Array.isArray(donnees) ? donnees : [donnees];
+  if (entrees.some((e) => !e || typeof e !== 'object')) return undefined;
+  /* `publishedAt` ABSENT et `publishedAt: null` ne se confondent pas : le premier arrive sur
+     un type sans brouillon/publie (rien a conclure), le second est une version brouillon. */
+  return entrees.filter((e) => 'publishedAt' in e && e.publishedAt === null);
+}
+
 function manquementOuvert(sonde) {
   const geste =
     'Fermer `find`/`findOne` de ce type dans Settings → Users & Permissions → Roles → Public.';
@@ -167,6 +193,25 @@ function manquementOuvert(sonde) {
     `${sonde.chemin} → ${sonde.statut} SANS AUCUN JETON : le role Public sert cet endpoint. ` +
     `Le jeton ${VARIABLES_REQUISES.jeton} n y protege donc rien — ce qu il ouvre, tout le ` +
     `monde l a deja. ${geste}`
+  );
+}
+
+/**
+ * Le manquement d une reponse PUBLIQUE qui porte du non publie. C est LA fuite.
+ *
+ * Le compte est nomme : « il y a une fuite » sans son ampleur se discute, un nombre se
+ * corrige. Le geste, lui, n est plus « fermer la permission » mais « regarder le
+ * middleware » — sous la branche A, l ouverture est voulue, c est la protection qui manque.
+ */
+function manquementFuiteContenu(sonde, combien) {
+  return (
+    `${sonde.chemin} → 200 SANS AUCUN JETON, et la reponse porte ${combien} entree(s) non ` +
+    'publiee(s) (`publishedAt: null`) : c est une FUITE EDITORIALE. Un article non publie y est ' +
+    'lisible titre et corps compris par n importe qui. Le middleware `global::statut-publie` ' +
+    'doit imposer `status=published` a tout appelant sans credence — verifier qu il est bien ' +
+    'declare dans `apps/cms/config/middlewares.ts` ET que l instance a REDEMARRE avec. En ' +
+    'attendant la correction, refermer `find`/`findOne` de ce type dans Settings → Users & ' +
+    'Permissions → Roles → Public : la fermeture d urgence passe avant la comprehension.'
   );
 }
 
@@ -196,6 +241,8 @@ export function jugerSondes(sondes) {
     ouvertes: 0,
     brouillonsRefuses: 0,
     brouillonsReelsRefuses: 0,
+    servies: 0,
+    brouillonsServisProteges: 0,
   });
 
   if (!Array.isArray(sondes) || sondes.length === 0) {
@@ -212,6 +259,10 @@ export function jugerSondes(sondes) {
   let ouvertes = 0;
   let brouillonsRefuses = 0;
   let brouillonsReelsRefuses = 0;
+  /* Branche A : une sonde publique SERVIE dont le contenu est propre. `brouillonsServisProteges`
+     est le seul compte qui prouve le middleware — un refus, lui, ne prouve que la fermeture. */
+  let servies = 0;
+  let brouillonsServisProteges = 0;
 
   for (const sonde of sondes) {
     if (sonde.erreur) {
@@ -223,7 +274,28 @@ export function jugerSondes(sondes) {
 
     if (sonde.role === 'public') {
       if (sonde.statut === 200) {
-        manquements.push(manquementOuvert(sonde));
+        /* BRANCHE A (decision 7106948b) : l OUVERTURE n est plus le manquement, le BROUILLON
+           LISIBLE l est. La fuite se ferme par du code (`global::statut-publie`) et le role
+           Public reste ouvert conformement au §3.9. Juger le seul code HTTP rendait cet etat
+           IMMESURABLE : « 0 avec le role ouvert » etait inatteignable, et rouvrir les 11
+           permissions produisait une douzaine de manquements que le middleware travaille ou
+           non. C est desormais le CONTENU qui tranche. */
+        const nonPubliees = entreesNonPubliees(sonde.corps);
+        if (nonPubliees === undefined) {
+          incapacites.push(
+            `${sonde.chemin} (sans jeton) → 200, mais son corps n a pas pu etre lu : impossible ` +
+              'de distinguer une reponse protegee d une fuite. Un vert rendu ici serait un vert ' +
+              'obtenu sur rien.',
+          );
+          continue;
+        }
+        if (nonPubliees.length > 0) {
+          manquements.push(manquementFuiteContenu(sonde, nonPubliees.length));
+          continue;
+        }
+        servies += 1;
+        if (sonde.brouillon && sonde.brouillonsActifs) brouillonsServisProteges += 1;
+        verifies.push(`${sonde.chemin} servi (200), aucune entree non publiee`);
         continue;
       }
       if (!CODES_DE_REFUS.has(sonde.statut)) {
@@ -254,7 +326,7 @@ export function jugerSondes(sondes) {
   const chemins = [...new Set(sondes.map((s) => s.chemin))];
 
   if (incapacites.length > 0) {
-    return { manquements: incapacites, verifies, issue: ISSUES.VERIFICATION_IMPOSSIBLE, chemins, refusees, ouvertes, brouillonsRefuses, brouillonsReelsRefuses };
+    return { manquements: incapacites, verifies, issue: ISSUES.VERIFICATION_IMPOSSIBLE, chemins, refusees, ouvertes, brouillonsRefuses, brouillonsReelsRefuses, servies, brouillonsServisProteges };
   }
 
   /* LE VERT NE S OBTIENT PAS SANS AVOIR INTERROGE UN BROUILLON — ET UN VRAI. C est le
@@ -263,25 +335,29 @@ export function jugerSondes(sondes) {
      l etape 21, refait. Et un lot de six sondes `?status=draft` toutes posees sur des types
      sans brouillon/publie afficherait un compte rassurant pour une couverture nulle — le
      meme defaut sous un deguisement plus difficile a voir. */
-  if (manquements.length === 0 && (brouillonsRefuses === 0 || brouillonsReelsRefuses === 0)) {
+  /* LE CRITERE EST EXERCE PAR L UN OU L AUTRE DES DEUX ETATS, jamais par aucun. Sous la
+     branche B le brouillon etait REFUSE ; sous la branche A il est SERVI et son contenu
+     verifie propre. Les deux prouvent quelque chose — la fermeture pour l un, le middleware
+     pour l autre — mais zero des deux ne prouve rien, et c est cela seul qui doit bloquer. */
+  const brouillonReelExerce = brouillonsReelsRefuses > 0 || brouillonsServisProteges > 0;
+  const comptes = { chemins, refusees, ouvertes, brouillonsRefuses, brouillonsReelsRefuses, servies, brouillonsServisProteges };
+
+  if (manquements.length === 0 && !brouillonReelExerce) {
     return {
       manquements: [
-        brouillonsRefuses === 0
-          ? 'aucune sonde de brouillon (`?status=draft`) n a ete refusee : le critere le plus ' +
-            'grave de cette garde n a pas ete exerce. Un vert obtenu sans lui ne dit rien des ' +
-            'articles non publies, qui sont precisement ce qui a fuite le 2026-08-10.'
-          : `${brouillonsRefuses} sonde(s) de brouillon refusee(s), mais AUCUNE sur un type qui ` +
-            'porte reellement le couple brouillon/publie (`draftAndPublish`) : sur les autres, ' +
-            '`?status=draft` est inerte et son refus ne prouve rien du contenu non publie. Le ' +
-            'compte est rassurant, la couverture est nulle.',
+        brouillonsRefuses === 0 && servies === 0
+          ? 'aucune sonde de brouillon (`?status=draft`) n a ete ni refusee ni servie : le critere ' +
+            'le plus grave de cette garde n a pas ete exerce. Un vert obtenu sans lui ne dit rien ' +
+            'des articles non publies, qui sont precisement ce qui a fuite le 2026-08-10.'
+          : 'aucune sonde de brouillon sur un type qui porte reellement le couple ' +
+            'brouillon/publie (`draftAndPublish`) n a ete exercee — ni refusee, ni servie avec un ' +
+            'contenu verifie. Sur les autres types `?status=draft` est inerte : ni son refus ni ' +
+            'sa reponse ne prouvent quoi que ce soit du contenu non publie. Le compte est ' +
+            'rassurant, la couverture est nulle.',
       ],
       verifies,
       issue: ISSUES.VERIFICATION_IMPOSSIBLE,
-      chemins,
-      refusees,
-      ouvertes,
-      brouillonsRefuses,
-      brouillonsReelsRefuses,
+      ...comptes,
     };
   }
 
@@ -289,11 +365,7 @@ export function jugerSondes(sondes) {
     manquements,
     verifies,
     issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
-    chemins,
-    refusees,
-    ouvertes,
-    brouillonsRefuses,
-    brouillonsReelsRefuses,
+    ...comptes,
   };
 }
 
@@ -306,11 +378,19 @@ export function jugerSondes(sondes) {
  * comptes, et le compte de brouillons a part.
  */
 export function resumeSurface(rapport) {
+  /* LES DEUX VERTS NE DISENT PAS LA MEME CHOSE, et c est tout l objet de ce compte. Un 0
+     obtenu avec le role FERME ne prouve que la fermeture ; un 0 obtenu avec le role OUVERT
+     et des brouillons servis dont le contenu est propre prouve que le middleware travaille.
+     Sans ce chiffre les deux etats se lisent identiquement — et c est en croyant les
+     distinguer qu on rouvre une surface publique pour rien. */
+  const servis =
+    `${rapport.brouillonsServisProteges ?? 0} brouillon(s) SERVI(S) et verifie(s) sans aucune ` +
+    'entree non publiee';
   return (
     `${rapport.refusees} sonde(s) publique(s) refusee(s) — dont ${rapport.brouillonsRefuses} en ` +
     `?status=draft, ${rapport.brouillonsReelsRefuses} sur un type qui porte reellement le ` +
-    `brouillon/publie — et ${rapport.ouvertes} sonde(s) ouverte(s) par le jeton de build : le ` +
-    `role Public ne sert rien, et le jeton ouvre bien ce que le public n a pas. ` +
+    `brouillon/publie —, ${rapport.servies ?? 0} sonde(s) publique(s) SERVIE(S) dont ${servis}, ` +
+    `et ${rapport.ouvertes} sonde(s) ouverte(s) par le jeton de build. ` +
     `Chemins confrontes : ${rapport.chemins.join(', ')}.`
   );
 }
@@ -335,8 +415,20 @@ export async function mesurerSurface(base, jeton, plan) {
          brutal — dont l abandon des poignees libuv fait avorter Node sous Windows AVANT que
          le code de sortie ne soit rendu. Une garde dont le code de sortie est un accident
          ne garde rien. */
-      await reponse.arrayBuffer();
-      mesurees.push({ ...sonde, statut: reponse.status });
+      /* LE CORPS EST CONSERVE quand une sonde PUBLIQUE rend 200 : sous la branche A c est
+         lui qui tranche, l ouverture n etant plus le manquement. Le lire vide la connexion
+         aussi bien que le jeter — la raison ci-dessus est donc intacte. Un corps illisible
+         reste `undefined`, ce que le jugement traite en INCAPACITE et jamais en conforme. */
+      const brut = await reponse.text();
+      let corps;
+      if (sonde.role === 'public' && reponse.status === 200) {
+        try {
+          corps = JSON.parse(brut);
+        } catch {
+          corps = undefined;
+        }
+      }
+      mesurees.push({ ...sonde, statut: reponse.status, corps });
     } catch (erreur) {
       mesurees.push({ ...sonde, erreur: String(erreur?.cause?.message ?? erreur?.message ?? erreur) });
     }

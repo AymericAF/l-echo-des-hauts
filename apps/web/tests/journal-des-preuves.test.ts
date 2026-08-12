@@ -217,6 +217,30 @@ test('chaque nom consigne appartient a la population attendue — aucun ne se pe
   }
 });
 
+test('chaque pas ATTENDU est bien consigne par le workflow — le sens que personne ne verifiait', () => {
+  /* LE TROU QUE CE TEST FERME, ouvert et referme le 2026-08-12.
+     Le test precedent verifie un seul sens : ce qui est consigne est attendu. L autre
+     sens ne l etait pas — ce qui est ATTENDU doit etre consigne. Or la population
+     attendue se DERIVE de `package.json` : ajouter un script `preuve:<x>` suffit a le
+     rendre obligatoire en CI, sans toucher au workflow et sans qu aucun test ne bronche.
+     Le verdict rougissait alors en production d integration, en accusant un pas absent
+     que personne n avait voulu ajouter.
+     C est exactement ce qui s est produit en declarant `preuve:pagination-corpus` : cet
+     instrument exige l API Strapi de production, la CI ne peut pas le lancer, et il a
+     ete renomme `recette:` — le prefixe dit ce que le mecanisme fait. */
+  const consignes = new Set(
+    pasQuiJugent().flatMap((pas) => [...pas.run.matchAll(/--consigner\s+"?([^\s"]+)"?/g)].map(([, nom]) => nom)),
+  );
+  for (const attendu of pasAttendus(paquet())) {
+    assert.ok(
+      consignes.has(attendu),
+      `« ${attendu} » est attendu par le verdict mais AUCUN pas du workflow ne le consigne : ` +
+        'le job rougira sur un pas manquant. Soit on le cable au workflow, soit on le sort ' +
+        'de la population derivee (un script de recette lance a la main ne se prefixe pas « preuve: »).',
+    );
+  }
+});
+
 test('AUCUN pas qui juge ne depend de celui d avant : tous sous if: always()', () => {
   /* LE CŒUR DE LA TACHE 772ac0ac. Sans `always()`, GitHub saute le pas des qu un
      precedent est rouge — et une garde en court-circuite trois autres. */

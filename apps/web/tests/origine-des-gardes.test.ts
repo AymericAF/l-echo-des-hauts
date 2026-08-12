@@ -92,13 +92,19 @@ function distSaine(o: string): Record<string, string> {
         `<meta property="og:url" content="${o}/">` +
         '<meta property="og:type" content="website">' +
         '<meta property="og:locale" content="fr_FR">' +
-        `<meta property="og:image" content="${o}/medias/a.svg">` +
+        `<meta property="og:image" content="${o}/medias/a.png">` +
         '<meta name="twitter:card" content="summary_large_image">' +
-        `<meta name="twitter:image" content="${o}/medias/a.svg">` +
+        `<meta name="twitter:image" content="${o}/medias/a.png">` +
         `<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","url":"${o}/"}</script>`,
       `<a href="${o}/">accueil</a><img src="${o}/medias/a.svg" alt="x" width="1" height="1" loading="lazy">`,
     ),
     'medias/a.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
+    /* Les DEUX formats sont deposes, et ce n est pas un doublon : le SVG reste reference
+       par l `img` du corps — ou il est legitime — tandis que `og:image` et `twitter:image`
+       exigent un format RASTERISE depuis p2/wt-code-og. Cette fixture est la sortie SAINE
+       de reference : elle doit satisfaire les trois gardes telles qu elles sont, sinon ce
+       fichier ne mesure plus l origine mais le format. */
+    'medias/a.png': 'octets factices — aucune garde d origine ne lit le contenu binaire',
     'sitemap-index.xml': `<?xml version="1.0"?><sitemapindex><sitemap><loc>${o}/sitemap-pages.xml</loc></sitemap></sitemapindex>`,
     'sitemap-pages.xml': `<?xml version="1.0"?><urlset><url><loc>${o}/</loc></url></urlset>`,
   };

@@ -325,6 +325,45 @@ function clesMediaDe(contenu: Record<string, any>[]): string[] {
 /* Chargement                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Les formats d image qu une plateforme de partage RASTERISE reellement.
+ *
+ * Ce ne sont pas les formats du site : le §5.3 impose l AVIF pour les images de contenu,
+ * et le corpus de demonstration est en SVG d un bout a l autre — les deux sont ignores par
+ * Facebook, LinkedIn et X sur une carte de partage.
+ */
+export const FORMATS_DE_PARTAGE = ['.png', '.jpg', '.jpeg', '.webp'];
+
+/**
+ * L image de partage par defaut doit etre dans un format que les plateformes rendent.
+ *
+ * LE DEFAUT QUE CETTE GARDE FERME (2026-08-11, tache 9b173668). `imagePartageDefaut`
+ * pointait `identite/partage-defaut.svg`. Or c est la SEULE image de partage des pages
+ * sans article — accueil, rubriques, auteurs, dossiers : leur `og:image` sortait donc en
+ * `image/svg+xml`, releve sur la production le 2026-08-11
+ * (`https://echo.ayfiweb.fr/medias/partage_defaut_8285eac923.svg`, `og:image:type` =
+ * `image/svg+xml`). Facebook, LinkedIn et X ne rasterisent pas le SVG : ces pages
+ * n avaient AUCUNE image de partage, et rien ne le disait — le fichier existait, la balise
+ * pointait dessus, elle resolvait. Succes et echec rendaient la meme sortie.
+ *
+ * ET LES FIXTURES NE POUVAIENT PAS LE VOIR : `apps/web/tests/fixtures/configuration-*.json`
+ * portent un `partage_defaut_99aa.jpg`. L integration continue etait donc verte sur un
+ * corpus qui n est pas celui de la production. C est ici, sur la DONNEE REELLE, que le
+ * controle a sa place.
+ */
+export function exigerFormatDePartage(cle: string, contexte: string): void {
+  const extension = cle.slice(cle.lastIndexOf('.')).toLowerCase();
+  if (!FORMATS_DE_PARTAGE.includes(extension)) {
+    throw new ErreurCorpus(
+      `${contexte} : "${cle}" est en ${extension || '(sans extension)'}.\n` +
+        `  Une carte de partage doit etre dans un format que les plateformes RASTERISENT\n` +
+        `  (${FORMATS_DE_PARTAGE.join(', ')}). Le SVG et l AVIF sont ignores par Facebook,\n` +
+        `  LinkedIn et X : la page n'a alors aucune image de partage, sans qu'aucune balise\n` +
+        `  ne manque ni qu'aucun fichier ne soit absent.`
+    );
+  }
+}
+
 export function chargerCorpus(racine: string): Corpus {
   if (!fs.existsSync(racine)) {
     throw new ErreurCorpus(`dossier de corpus absent : ${racine}`);
@@ -526,6 +565,7 @@ export function chargerCorpus(racine: string): Corpus {
   for (const champ of ['logo', 'imagePartageDefaut'] as const) {
     exigerMedia(exigerTexte(configuration[champ], `configuration : ${champ} (requis)`), 'configuration');
   }
+  exigerFormatDePartage(configuration.imagePartageDefaut, 'configuration : imagePartageDefaut');
   for (const champ of ['logoSombre', 'favicon'] as const) {
     if (configuration[champ]) exigerMedia(configuration[champ]!, 'configuration');
   }

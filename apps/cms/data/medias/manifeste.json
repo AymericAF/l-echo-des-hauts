@@ -17,11 +17,11 @@
     "licence": "CC0 1.0",
     "note": "Favicon du site"
   },
-  "identite/partage-defaut.svg": {
+  "identite/partage-defaut.png": {
     "alternativeText": "Carte de partage par defaut de L'Echo des Hauts",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
-    "note": "Image de partage servie aux pages sans article"
+    "note": "Carte de partage servie aux pages sans article (accueil, rubriques, auteurs, dossiers). PNG 1200x630 et non SVG : Facebook, LinkedIn et X ignorent le SVG, la page n a alors AUCUNE image de partage"
   },
   "auteurs/camille-fournier-braud.svg": {
     "alternativeText": "Monogramme CF, portrait graphique de Camille Fournier-Braud",

@@ -11,6 +11,7 @@
  * l echec y produisent le meme fichier.
  */
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -20,6 +21,7 @@ import sharp from 'sharp';
 
 import {
   HAUTEUR_MINIMALE_GLYPHES,
+  SONDE_RATIO_MINIMAL,
   blocsJsonLd,
   inspecterSeo,
   estNoindex,
@@ -28,9 +30,14 @@ import {
   mesurerBandeTitre,
   metasDe,
   noeudsJsonLd,
+  sonderRasteriseur,
+  titreDeSonde,
   urlsDuGraphe,
+  verdictDebordement,
+  verdictSonde,
+  TOLERANCE_DEBORDEMENT,
 } from '../scripts/verifier-seo.mjs';
-import { CADRE_OG, dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
+import { CADRE_OG, MARGE_OG, dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
 
 const ORIGINE = 'https://echo.test';
 
@@ -360,7 +367,37 @@ test('un og:image du site qui ne resout pas est un manquement', async () => {
 
 test("un og:image herberge ailleurs (mediatheque Strapi) n est pas un manquement", async () => {
   const rapport = await inspecter({
+    'index.html': page('/', { ogImage: 'https://echoback.test/uploads/partage.png' }),
+  });
+  assert.deepEqual(rapport.manquements, []);
+});
+
+test('un og:image en SVG est un manquement — les plateformes ne le rasterisent pas', async () => {
+  /* LE DEFAUT DU 2026-08-11 (tache 9b173668). `imagePartageDefaut` etait un SVG, donc
+     l accueil, les rubriques, les auteurs et les dossiers servaient un `og:image` en
+     `image/svg+xml` — releve sur la production. La balise etait presente, le fichier
+     existait, l URL resolvait : les six premiers controles etaient verts, et ces pages
+     n avaient AUCUNE image de partage. */
+  const rapport = await inspecter({
+    'index.html': page('/', { ogImage: `${ORIGINE}/medias/partage-defaut.svg` }),
+    'medias/partage-defaut.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>',
+  });
+  assert.equal(rapport.manquements.length, 1, rapport.manquements.join(' | '));
+  assert.match(rapport.manquements[0], /\.svg/);
+  assert.match(rapport.manquements[0], /AUCUNE image de partage/);
+});
+
+test('le format se juge meme quand l image est HORS du site — ce que rasterise X ne depend pas de l hote', async () => {
+  const rapport = await inspecter({
     'index.html': page('/', { ogImage: 'https://echoback.test/uploads/partage.svg' }),
+  });
+  assert.equal(rapport.manquements.length, 1, rapport.manquements.join(' | '));
+  assert.match(rapport.manquements[0], /og:image est en \.svg/);
+});
+
+test('une URL de partage avec query ou ancre garde son format lisible', async () => {
+  const rapport = await inspecter({
+    'index.html': page('/', { ogImage: `${ORIGINE}/og/fr/a.png?v=2` }),
   });
   assert.deepEqual(rapport.manquements, []);
 });
@@ -438,6 +475,155 @@ test('une image OG illisible est signalee comme telle, pas comme sans glyphes', 
   const rapport = await inspecter({ 'og/fr/a.png': Buffer.from('ceci n est pas un PNG') });
   assert.equal(rapport.manquements.length, 1);
   assert.match(rapport.manquements[0], /image illisible/);
+});
+
+// --- controle 9 : le titre ne deborde pas de la zone de texte ---------------------
+
+/** Le titre en capitales du defaut du 2026-08-11 : il sortait jusqu au bord de l image. */
+const TITRE_CAPITALES = 'LE BUDGET 2027 DE LA COMMUNAUTE DES HAUTS EN DEBAT';
+
+/**
+ * Le gabarit reel, mais dont les lignes de titre sont dessinees SANS decoupage — l etat
+ * exact que produisait le modele de chasse unique de 0,54 em. Fabrique en dur plutot qu en
+ * revenant a l ancien modele : un banc doit rendre le meme verdict sur toutes les machines.
+ */
+function pngDebordant(titre: string): Promise<Buffer> {
+  const svg = svgOg({ ...GABARIT, titre })
+    .replace(/^ {2}<text[^>]*font-family="Georgia[^>]*>.*?<\/text>$/gm, '')
+    .replace(
+      '</svg>',
+      `  <text x="72" y="330" font-family="Georgia, serif" font-size="66" font-weight="700" ` +
+        `fill="#1b1a17">${titre}</text>\n</svg>`,
+    );
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+test('une image OG dont le titre sort de la zone de texte est un manquement', async () => {
+  const rapport = await inspecter({ 'og/fr/a.png': await pngDebordant(TITRE_CAPITALES) });
+  assert.equal(rapport.manquements.length, 1, rapport.manquements.join(' | '));
+  assert.match(rapport.manquements[0], /DEBORDE/);
+  assert.match(rapport.manquements[0], /a droite/);
+});
+
+test('le debordement se mesure sur l ENCRE, pas sur le nombre de caracteres', async () => {
+  const mesure = await mesurer(await pngDebordant(TITRE_CAPITALES));
+  assert.ok(
+    mesure!.droite > CADRE_OG.largeur - MARGE_OG,
+    `bord droit de l encre : ${mesure!.droite} (zone de texte : ${CADRE_OG.largeur - MARGE_OG})`,
+  );
+  /* Le temoin qui compte : la HAUTEUR, elle, est parfaitement normale. C est pourquoi le
+     controle 7 ne pouvait pas voir ce defaut. */
+  assert.ok(mesure!.hauteurGlyphes >= HAUTEUR_MINIMALE_GLYPHES, `hauteur : ${mesure!.hauteurGlyphes}`);
+});
+
+test('le meme titre en capitales, mis en page par le gabarit, ne deborde plus', async () => {
+  for (const titre of [TITRE_CAPITALES, 'MMMMMMMMMMMMMMMMMMMMMMMMMMMMM', TITRE_LE_PLUS_LONG]) {
+    const rapport = await inspecter({ 'og/fr/a.png': await pngDuTitre(titre) });
+    assert.deepEqual(rapport.manquements, [], `titre : ${titre.slice(0, 40)}`);
+  }
+});
+
+test('une bande de titre vierge n est PAS accusee de debordement — c est le controle 7 qui la juge', () => {
+  assert.deepEqual(verdictDebordement('og/fr/a.png', { hauteurGlyphes: 0, gauche: -1, droite: -1, ecartType: 0 }), []);
+});
+
+test('l anticrenelage ne fait pas rougir : la tolerance est nommee, pas devinee', () => {
+  const droiteMax = CADRE_OG.largeur - MARGE_OG;
+  const limite = { hauteurGlyphes: 65, gauche: MARGE_OG, droite: droiteMax + TOLERANCE_DEBORDEMENT, ecartType: 40 };
+  assert.deepEqual(verdictDebordement('og/fr/a.png', limite), []);
+  assert.equal(verdictDebordement('og/fr/a.png', { ...limite, droite: limite.droite + 1 }).length, 1);
+});
+
+// --- controle 7 bis : la sonde du rasteriseur ------------------------------------
+
+test('la sonde suit le corps quand les glyphes sont dessines, et rien ne rougit', async () => {
+  const sonde = await sonderRasteriseur();
+  assert.notEqual(sonde, null, 'la sonde doit etre lisible sur une machine qui a des fontes');
+  assert.ok(
+    sonde!.ratio >= SONDE_RATIO_MINIMAL,
+    `rapport mesure ${sonde!.ratio} (grand ${sonde!.grand.hauteur} px au corps ${sonde!.grand.corps}, ` +
+      `petit ${sonde!.petit.hauteur} px au corps ${sonde!.petit.corps})`,
+  );
+  assert.deepEqual(verdictSonde(sonde), []);
+});
+
+test('un tofu de VINGT-CINQ pixels franchit le seuil absolu — et la sonde l attrape quand meme', () => {
+  /* Le cas mesure le 2026-08-11 : la hauteur du rectangle de remplacement n est pas bornee.
+     A 21 px (runner GitHub, run 31534444682) puis 25 px (poste Windows), elle DEPASSE le
+     seuil de 20 px, et la premiere jambe accepte l image. Le seuil ne peut pas etre releve :
+     le plancher legitime est a 22 px. La sonde, elle, ne regarde pas la taille du tofu mais
+     le fait qu il ne grandit pas avec le corps. */
+  const tofu25 = { grand: { corps: 66, hauteur: 25 }, petit: { corps: 44, hauteur: 25 }, ratio: 1 };
+  assert.ok(25 >= HAUTEUR_MINIMALE_GLYPHES, 'le temoin : ce tofu passe bien la premiere jambe');
+  const manques = verdictSonde(tofu25);
+  assert.equal(manques.length, 2, manques.join(' | '));
+  assert.match(manques.join(' | '), /ne SUIT PAS le corps/);
+});
+
+test('la sonde ne se contente pas du rapport : un tofu proportionnel serait pris par la hauteur', () => {
+  /* Cas residuel : deux paliers qui tirent des tofus de tailles differentes pourraient
+     rendre un rapport flatteur. Le second critere (part du corps) le ferme. */
+  const trompeur = { grand: { corps: 66, hauteur: 21 }, petit: { corps: 44, hauteur: 12 }, ratio: 1.75 };
+  assert.ok(trompeur.ratio >= SONDE_RATIO_MINIMAL, 'le temoin : ce cas passe le rapport');
+  assert.match(verdictSonde(trompeur).join(' | '), /ne fait que 21 px/);
+});
+
+test('une sonde illisible est un manquement, jamais un silence', () => {
+  assert.match(verdictSonde(null).join(' | '), /illisible/);
+});
+
+test("le titre de sonde se CHERCHE : il tombe sur le palier vise, pas sur un compte de mots ecrit en dur", () => {
+  /* Les DEUX paliers extremes, ceux que la sonde oppose. Les paliers intermediaires ne
+     sont pas exiges : le titre de sonde grandit d un mot entier a la fois, et un palier
+     peut se sauter — ce qui est sans effet, la sonde ne s en sert pas. Ce qui compte est
+     que ces deux-la se trouvent QUEL QUE SOIT le modele de chasse du gabarit : ecrire un
+     compte de mots en dur ici en ferait une seconde source de verite. */
+  for (const corps of [Math.max(...TAILLES_TITRE), Math.min(...TAILLES_TITRE)]) {
+    const titre = titreDeSonde(corps);
+    assert.notEqual(titre, null, `aucun titre de sonde pour le corps ${corps}`);
+    assert.equal(dispositionOg({ ...GABARIT, titre: titre! }).tailleTitre, corps);
+  }
+});
+
+test('la garde PORTE la sonde : un rasteriseur aveugle fait rougir `inspecterSeo`', async () => {
+  /* MECANIQUE, PAS CONVENTIONNELLE. Les tests ci-dessus exercent `verdictSonde` ; celui-ci
+     verifie qu'elle est BRANCHEE dans `inspecterSeo`. Retirer l'appel du controle 7 bis
+     laisserait tous les autres verts. On ne peut pas priver de fontes le processus courant
+     — fontconfig est lu une fois pour toutes —, donc on relance l'inspection dans un fils
+     dont le `FONTCONFIG_PATH` ne declare aucun repertoire de polices. */
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-fc-vide-'));
+  fs.writeFileSync(
+    path.join(dossier, 'fonts.conf'),
+    '<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">\n' +
+      `<fontconfig>\n  <cachedir>${path.join(dossier, 'cache')}</cachedir>\n</fontconfig>\n`,
+  );
+  fs.mkdirSync(path.join(dossier, 'cache'), { recursive: true });
+
+  const dist = distFactice(await siteSain());
+  const fils = spawnSync(
+    process.execPath,
+    [
+      '-e',
+      "import('./scripts/verifier-seo.mjs').then(async (m) => " +
+        `{ const r = await m.inspecterSeo(${JSON.stringify(dist)}, ${JSON.stringify(ORIGINE)}); ` +
+        'console.log(JSON.stringify(r.manquements)); });',
+    ],
+    {
+      cwd: path.join(import.meta.dirname, '..'),
+      encoding: 'utf8',
+      env: { ...process.env, FONTCONFIG_PATH: dossier },
+    },
+  );
+  fs.rmSync(dossier, { recursive: true, force: true });
+  fs.rmSync(dist, { recursive: true, force: true });
+
+  assert.equal(fils.status, 0, fils.stderr);
+  const manquements: string[] = JSON.parse(fils.stdout.trim());
+  assert.match(
+    manquements.join(' | '),
+    /sonde du rasteriseur/,
+    `le controle 7 bis n a pas rougi dans un processus sans fonte : ${manquements.join(' | ')}`,
+  );
 });
 
 test('le gabarit reel du site passe le seuil avec une marge confortable', async () => {

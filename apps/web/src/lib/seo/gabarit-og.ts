@@ -10,11 +10,32 @@
  * coordonnees. Un titre de 160 caracteres qui passe par-dessus le pied de page ne se
  * voit autrement que sur l image, une fois publiee.
  *
- * LA LARGEUR DU TEXTE EST ESTIMEE, PAS MESUREE. Sans metriques de police au build, on
- * borne le nombre de CARACTERES par ligne a partir de la taille du corps et d un facteur
- * de chasse moyen volontairement pessimiste (0,54 em pour un serif). Le risque assume est
- * donc de couper un peu tot, jamais de deborder — l inverse serait invisible en test et
- * visible sur toutes les vignettes.
+ * LA LARGEUR DU TEXTE EST ESTIMEE, PAS MESUREE — MAIS CARACTERE PAR CARACTERE. Sans
+ * metriques de police au build, on borne la largeur d une ligne en EM, en sommant la
+ * chasse de chacun de ses caracteres (`CHASSE_EM`). Le risque assume est de couper un peu
+ * tot, jamais de deborder.
+ *
+ * CE QUI A CHANGE LE 2026-08-11 (tache 5e8f0fb7), ET POURQUOI CETTE PROMESSE ETAIT FAUSSE.
+ * Le budget etait un NOMBRE DE CARACTERES, derive d une chasse moyenne UNIQUE de 0,54 em.
+ * 0,54 est la moyenne d une phrase francaise en bas de casse ; une phrase tout en
+ * capitales chasse ~0,70 em, soit 30 % de plus. Mesure sur l image rasterisee : le titre
+ * « LE BUDGET 2027 DE LA COMMUNAUTE DES HAUTS EN DEBAT » au corps 66 poussait son encre
+ * jusqu a x = 1199 — LE BORD DE L IMAGE, 71 px au-dela de la marge droite. Et rien ne le
+ * voyait : les tests bornaient `ligne.texte.length`, la garde ne mesurait que la HAUTEUR
+ * de l encre, et la hauteur ne bouge pas quand le texte deborde sur le cote.
+ *
+ * D OU VIENNENT LES VALEURS DE `CHASSE_EM`. Mesurees le 2026-08-11 sur la pile de polices
+ * de `POLICE_TITRE` en graisse 700, en rasterisant chaque caractere seul puis repete 20
+ * fois et en divisant la difference d encre par 19 — c est la CHASSE (l avance), pas la
+ * largeur du dessin. La pile resout Georgia Bold sur le poste Windows et Liberation Serif
+ * Bold sur le runner (metriques de Times New Roman) ; Georgia est la plus large des deux
+ * sur tous les caracteres mesures, ce sont donc ses valeurs qui sont retenues, arrondies
+ * au centieme SUPERIEUR. `MARGE_CHASSE` couvre le reste.
+ *
+ * CE QUE CETTE TABLE NE PEUT PAS GARANTIR : qu une pile de polices non mesuree chasse plus
+ * large. C est pourquoi le controle 9 de `scripts/verifier-seo.mjs` mesure le DEBORDEMENT
+ * REEL sur l image produite — une estimation peut se tromper, une mesure sur la sortie
+ * non.
  *
  * CE QUE CE MODULE NE PROUVE PAS : que le rasteriseur trouve une police et dessine
  * vraiment les glyphes au corps demande. `sharp` embarque fontconfig, pas de fontes ; sur
@@ -43,10 +64,59 @@ export const MAX_LIGNES_TITRE = 4;
  */
 export const TAILLES_TITRE = [66, 58, 50, 44] as const;
 
-/** Chasse moyenne d un serif, en em. Pessimiste a dessein (cf. l en-tete). */
-const FACTEUR_CHASSE = 0.54;
+/**
+ * Chasse de chaque caractere, en em, pour la pile de `POLICE_TITRE` en graisse 700.
+ *
+ * Mesuree, arrondie au centieme superieur — cf. l en-tete pour le protocole. Groupee par
+ * valeur : les caracteres d une meme ligne ont la meme chasse dans la fonte mesuree, ce
+ * qui rend la table relisible et une correction verifiable d un coup d oeil.
+ */
+const CHASSE_EM = new Map<string, number>(
+  (
+    [
+      ['W', 1.13], ['Œ', 1.11], ['Æ', 1.07], ['M', 1.03], ['m', 1.02], ['…', 0.95], ['œ', 0.94],
+      ['—', 0.93], ['H', 0.92], ['%', 0.88], ['w', 0.87], ['æ', 0.86], ['NDUÙÛÜ', 0.84],
+      ['OQÔÖK', 0.82], ['XG', 0.81], ['R', 0.8], ['V', 0.77], ['AÀÂÄB', 0.76], ['Y', 0.74],
+      ['EÈÉÊË', 0.73], ['CÇ', 0.72], ['–0P', 0.71], ['ZnLT', 0.69], ['huùûü8F', 0.68], ['d', 0.67],
+      ['p', 0.66], ['4Sq69b', 0.65], ['oôök', 0.64], ['23', 0.63], ['«»', 0.62], ['5aàâäJ', 0.6],
+      ['x', 0.59], ['geèéêë', 0.58], ['vy', 0.57], ['7', 0.56], ['?', 0.55], ['cç', 0.54],
+      ['z', 0.53], ['rs', 0.52], ['1', 0.49], ['/', 0.48], ['()IÎÏ', 0.45], ['tf', 0.4],
+      ['-!', 0.38], [':;', 0.37], ['iîï', 0.36], ['jl', 0.35], ['.,', 0.33], ["'’", 0.27],
+      [' ', 0.26],
+    ] as const
+  ).flatMap(([caracteres, chasse]) => [...caracteres].map((caractere) => [caractere, chasse] as const)),
+);
 
-const MARGE = 72;
+/**
+ * Chasse d un caractere ABSENT de la table.
+ *
+ * Majore le plus large qu elle contienne (`W`, 1,13). Un caractere inconnu est rare dans
+ * un titre de ce magazine ; le compter au plus large fait couper trop tot, ce qui est le
+ * sens du risque qu on accepte. Le compter au plus etroit ferait deborder, c est-a-dire
+ * exactement le defaut que cette table corrige.
+ */
+export const CHASSE_DEFAUT = 1.15;
+
+/**
+ * Majoration appliquee au budget de largeur.
+ *
+ * La table vient d UNE pile de polices mesuree ; 3 % couvrent l arrondi et l ecart d une
+ * fonte de repli non mesuree. Ce n est PAS le filet : le filet est le controle 9 de
+ * `scripts/verifier-seo.mjs`, qui mesure le debordement sur l image produite.
+ */
+const MARGE_CHASSE = 1.03;
+
+/** Largeur estimee d un texte, en EM du corps auquel il sera dessine. */
+export function largeurEm(texte: string): number {
+  let largeur = 0;
+  for (const caractere of texte) largeur += CHASSE_EM.get(caractere) ?? CHASSE_DEFAUT;
+  return largeur;
+}
+
+/** Marge du gabarit, en pixels — exportee : le controle 9 en derive la zone sans texte. */
+export const MARGE_OG = 72;
+
+const MARGE = MARGE_OG;
 
 /* Les couleurs viennent de `src/styles/tokens.css` — recopiees ici parce qu un SVG
    rasterise au build ne lit aucune feuille de style. C est la seule duplication du lot,
@@ -81,20 +151,32 @@ export interface DispositionOg {
   readonly marge: number;
   readonly accent: string;
   readonly tailleTitre: number;
-  readonly caracteresParLigne: number;
+  /** Largeur maximale d une ligne, en EM du corps retenu (jamais un compte de caracteres). */
+  readonly budgetEm: number;
   readonly rubrique: { texte: string; x: number; y: number; taille: number };
   readonly lignes: readonly LigneTitre[];
   readonly pied: { texte: string; x: number; y: number; taille: number };
 }
 
+/** Coupe la fin du texte jusqu a ce qu il tienne, ellipse comprise, dans `budgetEm`. */
+function tronquerAvecEllipse(texte: string, budgetEm: number): string {
+  let garde = texte;
+  while (garde !== '' && largeurEm(`${garde.trimEnd()}…`) > budgetEm) garde = garde.slice(0, -1);
+  return `${garde.trimEnd()}…`;
+}
+
 /**
- * Decoupe un texte en au plus `maxLignes` lignes d au plus `budget` caracteres.
+ * Decoupe un texte en au plus `maxLignes` lignes d au plus `budgetEm` EM de large.
  *
- * Un mot plus long que le budget est coupe au caractere : le laisser deborder serait
+ * LE BUDGET EST UNE LARGEUR, PAS UN COMPTE DE CARACTERES (change le 2026-08-11) : un
+ * compte de caracteres suppose une chasse unique, et cette supposition faisait deborder
+ * les titres en capitales jusqu au bord de l image. Cf. l en-tete du module.
+ *
+ * Un mot plus large que le budget est coupe au caractere : le laisser deborder serait
  * pire, et c est le cas d un slug ou d un nom propre compose. Au-dela de `maxLignes`, la
  * derniere ligne se termine par une ellipse — un titre coupe net ressemble a un bug.
  */
-export function decouperEnLignes(texte: string, budget: number, maxLignes: number): string[] {
+export function decouperEnLignes(texte: string, budgetEm: number, maxLignes: number): string[] {
   const mots = texte.trim().split(/\s+/).filter((mot) => mot !== '');
   const lignes: string[] = [];
   let courante = '';
@@ -105,16 +187,22 @@ export function decouperEnLignes(texte: string, budget: number, maxLignes: numbe
   };
 
   for (const mot of mots) {
-    if (mot.length > budget) {
+    if (largeurEm(mot) > budgetEm) {
       poser();
-      for (let index = 0; index < mot.length; index += budget) {
-        lignes.push(mot.slice(index, index + budget));
+      let morceau = '';
+      for (const caractere of mot) {
+        if (morceau !== '' && largeurEm(morceau + caractere) > budgetEm) {
+          lignes.push(morceau);
+          morceau = caractere;
+        } else {
+          morceau += caractere;
+        }
       }
-      courante = lignes.pop() ?? '';
+      courante = morceau;
       continue;
     }
     const essai = courante === '' ? mot : `${courante} ${mot}`;
-    if (essai.length <= budget) {
+    if (largeurEm(essai) <= budgetEm) {
       courante = essai;
       continue;
     }
@@ -128,7 +216,7 @@ export function decouperEnLignes(texte: string, budget: number, maxLignes: numbe
   const gardees = lignes.slice(0, maxLignes);
   const derniere = gardees[maxLignes - 1];
   gardees[maxLignes - 1] =
-    derniere.length + 1 <= budget ? `${derniere}…` : `${derniere.slice(0, budget - 1).trimEnd()}…`;
+    largeurEm(`${derniere}…`) <= budgetEm ? `${derniere}…` : tronquerAvecEllipse(derniere, budgetEm);
   return gardees;
 }
 
@@ -140,7 +228,7 @@ function accentValide(couleur: string | null): string {
 export function dispositionOg(gabarit: GabaritOg): DispositionOg {
   const largeurUtile = CADRE_OG.largeur - 2 * MARGE;
 
-  const budgetDe = (taille: number): number => Math.floor(largeurUtile / (taille * FACTEUR_CHASSE));
+  const budgetDe = (taille: number): number => largeurUtile / (taille * MARGE_CHASSE);
 
   /* On descend d un palier tant que le titre ne tient pas en MAX_LIGNES_TITRE lignes.
      Au dernier palier, `decouperEnLignes` tronque : mieux vaut une ellipse qu un
@@ -175,7 +263,7 @@ export function dispositionOg(gabarit: GabaritOg): DispositionOg {
     marge: MARGE,
     accent: accentValide(gabarit.couleurAccent),
     tailleTitre: taille,
-    caracteresParLigne: budgetDe(taille),
+    budgetEm: budgetDe(taille),
     rubrique: { texte: gabarit.rubrique, x: MARGE, y: yRubrique, taille: tailleRubrique },
     lignes: lignes.map((texte, index) => ({
       texte,

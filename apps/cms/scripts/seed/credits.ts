@@ -45,27 +45,30 @@ const SEP = ` ${SEPARATEUR} `;
  * celles que le §6.2 exclut nommement (SA, NC, ND, banques d'images) : une
  * licence absente de cette liste n'est pas « a verifier », elle est refusee.
  *
- * `Œuvre du projet` y figure comme STATUT au sens du §6.2 : nous sommes
- * l'ayant droit, aucune attribution tierce n'est due. Ce n'est PAS un
- * identifiant de licence publiable, et il ne le devient pas : depuis le
- * 2026-08-10 (§13 point 4 tranche, decision `90276751`), c'est `CC0 1.0` que le
- * manifeste porte en `licence`, et `Œuvre du projet` ne vaut plus que comme
- * premier segment — l'`ayantDroit`.
+ * `Œuvre du projet` N'Y FIGURE PLUS — decision `887d2cfd`, branche A,
+ * approuvee par Aymeric le 2026-08-11. C'est un STATUT au sens du §6.2 (nous
+ * sommes l'ayant droit, aucune attribution tierce n'est due), jamais un
+ * identifiant de licence publiable ; depuis que le §13 point 4 est tranche
+ * (2026-08-10, decision `90276751`), tout media entrant au corpus porte une
+ * licence formelle — `CC0 1.0` pour les 94 —, et le statut ne vaut plus que
+ * comme premier segment, l'`ayantDroit`.
  *
- * IL RESTE EN LISTE BLANCHE, ET CE N'EST PAS UN OUBLI — mais la raison n'est
- * pas celle qu'on suppose. VERIFIE plutot que deduit : cette liste n'est
- * opposee qu'au SECOND segment ; l'ayant droit, lui, n'est controle que sur son
- * caractere non vide (`verifierFormatCredit`, ci-dessous). L'en retirer ne
- * casserait donc AUCUN des 94 medias. Il y reste parce que la garde n'est pas
- * l'objet de la decision du §13 point 4 : celle-ci arrete une VALEUR, pas un
- * mecanisme. Retirer `Œuvre du projet` de la liste blanche serait retrecir la
- * garde, une question distincte qui appartient a Aymeric.
+ * CE QUE LE RETRAIT NE CASSE PAS, et c'est la raison pour laquelle il est sans
+ * risque : cette liste n'est opposee qu'au SECOND segment. L'ayant droit, lui,
+ * n'est controle que sur son caractere non vide (`verifierFormatCredit`,
+ * ci-dessous). Mesure du 2026-08-10, REFAITE le 2026-08-11 sur le corpus du
+ * jour plutot que reprise sur parole : 94 medias charges, 94 en `CC0 1.0` en
+ * licence, 94 en « Œuvre du projet » en ayant droit, zero hors format. Aucune
+ * des 94 lignes servies ne change d'un caractere.
  *
- * Ce que la decision interdit est de le remettre en `licence`, et c'est garde
- * par `tests/seed-corpus.test.ts` sur le corpus REEL — pas ici.
+ * CE QUE LE RETRAIT ACHETE : la ligne tautologique « Œuvre du projet — Œuvre du
+ * projet » — celle que le depot publiait avant le 2026-08-10, qui ne credite
+ * rien — cesse d'etre representable. Elle etait jusqu'ici refusee par un
+ * CONSTAT sur le corpus reel (`tests/seed-corpus.test.ts`, §13 point 4) et non
+ * par la garde : un media entrant l'aurait passee sans broncher. Constater un
+ * etat et tenir un invariant sont deux choses.
  */
 export const LICENCES_ADMISES = [
-  'Œuvre du projet',
   "Photographie d'Aymeric Filliot",
   'CC0 1.0',
   'Public Domain Mark 1.0',

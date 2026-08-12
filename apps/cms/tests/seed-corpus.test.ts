@@ -42,17 +42,17 @@ function ecrireCorpusMinimal(): string {
       'couvertures/A05.svg': {
         alternativeText: 'Bassin versant',
         ayantDroit: 'Œuvre du projet',
-        licence: 'Œuvre du projet',
+        licence: 'CC0 1.0',
       },
       'identite/logo.svg': {
         alternativeText: 'Logo',
         ayantDroit: 'Œuvre du projet',
-        licence: 'Œuvre du projet',
+        licence: 'CC0 1.0',
       },
       'identite/partage.svg': {
         alternativeText: 'Partage',
         ayantDroit: 'Œuvre du projet',
-        licence: 'Œuvre du projet',
+        licence: 'CC0 1.0',
       },
     })
   );
@@ -217,7 +217,7 @@ test('chargerCorpus echoue sur deux medias de meme nom de fichier', () => {
   manifeste['identite/A05.svg'] = {
     alternativeText: 'Doublon',
     ayantDroit: 'Œuvre du projet',
-    licence: 'Œuvre du projet',
+    licence: 'CC0 1.0',
   };
   fs.writeFileSync(chemin, JSON.stringify(manifeste));
 
@@ -347,6 +347,35 @@ test('SENS 1 bis — une licence exclue par le §6.2 est refusee en la citant', 
   assert.match(message, /CC BY-SA 4\.0/);
 });
 
+/**
+ * Decision `887d2cfd`, branche A, approuvee par Aymeric le 2026-08-11 :
+ * « Œuvre du projet » sort de la liste blanche des licences.
+ *
+ * Ce test exerce le retrecissement SUR LE CHEMIN REEL de la garde — le
+ * chargement du manifeste —, et pas seulement sur la fonction pure. C est ce
+ * chemin-la qu emprunte le seed : une garde verte en unitaire et muette au
+ * chargement ne garderait rien.
+ *
+ * Il est le pendant du test « §13 point 4 applique » plus bas : celui-ci
+ * constate qu aucun media versionne ne porte le statut en licence, celui-la
+ * etablit que la garde le REFUSERAIT desormais. Constater un etat et tenir un
+ * invariant sont deux choses.
+ */
+test('SENS 1 quater — « Œuvre du projet » en LICENCE est refuse, en nommant le media', () => {
+  const message = refusDe(
+    corpusAvecMediaMeta({
+      alternativeText: 'Bassin versant',
+      ayantDroit: 'Œuvre du projet',
+      // Le statut d ayant droit recopie en second segment : la ligne
+      // tautologique que le depot publiait avant le 2026-08-10.
+      licence: 'Œuvre du projet',
+    })
+  );
+  assert.match(message, /couvertures\/A05\.svg/, 'le refus doit NOMMER le media');
+  assert.match(message, /Œuvre du projet/);
+  assert.match(message, /liste blanche/i);
+});
+
 test('SENS 1 ter — CC BY sans mention des modifications est refuse', () => {
   const message = refusDe(
     corpusAvecMediaMeta({
@@ -386,7 +415,7 @@ test('un `caption` ecrit a la main est refuse — il serait une seconde copie de
     corpusAvecMediaMeta({
       alternativeText: 'Bassin versant',
       ayantDroit: 'Œuvre du projet',
-      licence: 'Œuvre du projet',
+      licence: 'CC0 1.0',
       caption: 'Œuvre du projet — CC0 1.0',
     })
   );

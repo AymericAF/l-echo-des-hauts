@@ -273,16 +273,37 @@ test('un repertoire server/ ou functions/ est refuse', () => {
 
 // --- L exception /recherche, et surtout sa BORNE --------------------------------------
 
+/**
+ * La page /recherche telle qu elle sort REELLEMENT du build : elle NOMME son bundle, dans
+ * un `data-bundle` importe dynamiquement.
+ *
+ * CE QUE CES DEUX FIXTURES DISAIENT AVANT LE 2026-08-12, et pourquoi il a fallu les
+ * corriger : elles posaient un `pagefind/pagefind.js` que la page ne nommait PAS, et
+ * l exemption les acceptait quand meme — parce qu elle portait sur le REPERTOIRE. Depuis
+ * que le critere est l atteignabilite (tache cf33a689), une fixture ou rien ne charge le
+ * bundle decrit un site ou 45 Kio de JavaScript sont servis pour personne : la garde a
+ * raison de la refuser, et c est la fixture qui mentait sur la sortie reelle.
+ */
+const PAGE_RECHERCHE_REELLE = (bundle: string) =>
+  `<!DOCTYPE html><html lang="fr"><body><div data-bundle="${bundle}"></div>` +
+  '<script type="module">import(zone.dataset.bundle)</script></body></html>';
+
 test('la page /recherche a le droit de charger du JavaScript', () => {
   const rapport = inspecterSortie(
-    dist({ 'recherche/index.html': PAGE_SCRIPT, 'pagefind/pagefind.js': 'export{}' }),
+    dist({
+      'recherche/index.html': PAGE_RECHERCHE_REELLE('/pagefind/pagefind.js'),
+      'pagefind/pagefind.js': 'export{}',
+    }),
   );
   assert.deepEqual(rapport.manquements, []);
 });
 
 test('le miroir anglais /en/recherche beneficie de la meme exception', () => {
   const rapport = inspecterSortie(
-    dist({ 'en/recherche/index.html': PAGE_SCRIPT, 'en/pagefind/pagefind.js': 'export{}' }),
+    dist({
+      'en/recherche/index.html': PAGE_RECHERCHE_REELLE('/en/pagefind/pagefind.js'),
+      'en/pagefind/pagefind.js': 'export{}',
+    }),
   );
   assert.deepEqual(rapport.manquements, []);
 });

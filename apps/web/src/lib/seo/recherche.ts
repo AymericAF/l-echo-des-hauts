@@ -19,8 +19,11 @@
  *    D ou le second terme, explicite.
  *
  * Le bundle, lui, a une adresse et une seule : `/pagefind/pagefind.js`. Elle est ecrite
- * ICI et lue par la page ; la garde T-09 exempte exactement `(en/)?pagefind/<fichier>.js`
- * et rien d autre (`scripts/verifier-sortie.mjs`). Ecrire l adresse a la main dans le
+ * ICI et lue par la page ; ~~la garde T-09 exempte exactement `(en/)?pagefind/<fichier>.js`
+ * et rien d autre~~ **2026-08-12 (tache cf33a689) : la garde T-09 n exempte plus un CHEMIN
+ * mais ce que la page CHARGE** — cette constante est donc devenue le point d entree a
+ * partir duquel elle calcule ce qui a le droit d etre servi (`scripts/verifier-sortie.mjs`).
+ * Ecrire l adresse a la main dans le
  * gabarit la mettrait hors de portee de tout test : c est le seul lien entre la seule
  * page autorisee a charger du JavaScript et la seule exemption de la garde.
  */

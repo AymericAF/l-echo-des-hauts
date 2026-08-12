@@ -69,9 +69,27 @@ function sondesConformes() {
 
 // --- Famille 1 : le sens ROUGE — le role Public sert quelque chose ----------------------
 
-test('un 200 sans jeton est un manquement, et le manquement NOMME l endpoint', () => {
-  const sondes = sondesConformes();
-  sondes[0] = { ...sondes[0], statut: 200 };
+/** Un lot ou le role SERT les endpoints, contenu propre — l etat voulu par la branche A. */
+function sondesServies() {
+  const publie = (id) => ({ data: [{ id, publishedAt: '2026-08-01T10:00:00.000Z' }] });
+  return [
+    { chemin: '/api/articles', role: 'public', brouillon: false, brouillonsActifs: true, statut: 200, corps: publie(1) },
+    { chemin: '/api/articles?status=draft', role: 'public', brouillon: true, brouillonsActifs: true, statut: 200, corps: publie(1) },
+    { chemin: '/api/articles', role: 'jeton', brouillon: false, brouillonsActifs: true, statut: 200 },
+    { chemin: '/api/configuration', role: 'public', brouillon: false, brouillonsActifs: false, statut: 200, corps: publie(2) },
+    { chemin: '/api/configuration', role: 'jeton', brouillon: false, brouillonsActifs: false, statut: 200 },
+  ];
+}
+
+/* Les quatre tests qui suivent gardaient le meme rouge sous la branche B, ou le
+   DECLENCHEUR etait l ouverture (`200` sans jeton). Sous la branche A l ouverture est
+   l etat VOULU : le declencheur devient le CONTENU non publie. Ce qu ils exigeaient du
+   rouge — nommer l endpoint, qualifier la fuite, rester exact, ne rien agreger — est
+   inchange, et c est pour cela qu ils sont reecrits et non retires. */
+
+test('une reponse publique qui porte du non publie est un manquement, et il NOMME l endpoint', () => {
+  const sondes = sondesServies();
+  sondes[0] = { ...sondes[0], corps: { data: [{ id: 4, publishedAt: null }] } };
   const rapport = jugerSondes(sondes);
 
   assert.equal(rapport.issue, ISSUES.ANOMALIE);
@@ -81,9 +99,9 @@ test('un 200 sans jeton est un manquement, et le manquement NOMME l endpoint', (
   assert.match(rapport.manquements[0], /200/);
 });
 
-test('un 200 sans jeton sur une sonde de BROUILLON est qualifie de fuite editoriale', () => {
-  const sondes = sondesConformes();
-  sondes[1] = { ...sondes[1], statut: 200 };
+test('un non publie servi sans jeton est qualifie de FUITE EDITORIALE, et le geste nomme le middleware', () => {
+  const sondes = sondesServies();
+  sondes[1] = { ...sondes[1], corps: { data: [{ id: 5, publishedAt: null }] } };
   const rapport = jugerSondes(sondes);
 
   assert.equal(rapport.issue, ISSUES.ANOMALIE);
@@ -91,32 +109,36 @@ test('un 200 sans jeton sur une sonde de BROUILLON est qualifie de fuite editori
   assert.match(rapport.manquements[0], /status=draft/);
   // La distinction n est pas cosmetique : un brouillon lisible est une fuite de contenu
   // non publie, pas un reglage trop large. Les deux n appellent pas la meme urgence.
-  assert.match(rapport.manquements[0], /fuite|brouillon/i);
+  assert.match(rapport.manquements[0], /FUITE EDITORIALE/);
+  // Et sous la branche A le geste a change : ce n est plus « fermer la permission » en
+  // premier, c est regarder le middleware — la fermeture n etant que l urgence.
+  assert.match(rapport.manquements[0], /statut-publie/);
 });
 
-test('la fuite editoriale n est annoncee que sur un type qui PORTE reellement le brouillon', () => {
-  // Constate en mesurant pour de vrai le 2026-08-10 : `?status=draft` est accepte par
-  // Strapi sur TOUS les types, y compris ceux ou `draftAndPublish` est a `false` — ou il
-  // est simplement inerte. Annoncer « un article non publie est lisible » sur `/api/tags`
-  // serait une conclusion fausse tiree d une mesure juste : l endpoint est bien ouvert,
-  // mais il n y a aucun brouillon derriere. Le rouge doit rester exact, sinon il se
-  // discute au lieu de se corriger.
+test('un type SANS brouillon/publie ne peut pas produire de fuite : il n a pas de publishedAt', () => {
+  /* Constate en mesurant le 2026-08-10 : `?status=draft` est accepte par Strapi sur TOUS
+     les types, y compris ceux ou `draftAndPublish` est a `false` — ou il est inerte.
+     Annoncer « un article non publie est lisible » sur `/api/tags` serait une conclusion
+     fausse tiree d une mesure juste. Sous le critere de CONTENU, l exactitude est
+     structurelle : une entree sans champ `publishedAt` n est jamais comptee comme non
+     publiee, donc un type inerte ne peut PAS declencher la fuite. */
   const sondes = [
-    { chemin: '/api/tags?status=draft', role: 'public', brouillon: true, brouillonsActifs: false, statut: 200 },
-    { chemin: '/api/articles?status=draft', role: 'public', brouillon: true, brouillonsActifs: true, statut: 200 },
-    ...sondesConformes().filter((s) => s.role === 'jeton'),
+    { chemin: '/api/tags?status=draft', role: 'public', brouillon: true, brouillonsActifs: false,
+      statut: 200, corps: { data: [{ id: 1, nom: 'Local' }] } },
+    { chemin: '/api/articles?status=draft', role: 'public', brouillon: true, brouillonsActifs: true,
+      statut: 200, corps: { data: [{ id: 2, publishedAt: null }] } },
+    ...sondesServies().filter((s) => s.role === 'jeton'),
   ];
   const rapport = jugerSondes(sondes);
 
-  const surTags = rapport.manquements.find((m) => m.includes('/api/tags'));
-  const surArticles = rapport.manquements.find((m) => m.includes('/api/articles'));
-  assert.doesNotMatch(surTags, /FUITE EDITORIALE/);
-  assert.match(surTags, /inerte|ne porte pas/i);
-  assert.match(surArticles, /FUITE EDITORIALE/);
+  assert.equal(rapport.manquements.length, 1, 'seul le type qui porte le brouillon doit rougir');
+  assert.match(rapport.manquements[0], /\/api\/articles/);
+  assert.doesNotMatch(rapport.manquements.join(' '), /\/api\/tags/);
 });
 
-test('chaque endpoint ouvert produit SON manquement — aucun n est resume ni avale', () => {
-  const sondes = sondesConformes().map((s) => (s.role === 'public' ? { ...s, statut: 200 } : s));
+test('chaque endpoint qui fuit produit SON manquement — aucun n est resume ni avale', () => {
+  const nonPublie = { data: [{ id: 3, publishedAt: null }] };
+  const sondes = sondesServies().map((s) => (s.role === 'public' ? { ...s, corps: nonPublie } : s));
   const rapport = jugerSondes(sondes);
 
   assert.equal(rapport.issue, ISSUES.ANOMALIE);
@@ -262,4 +284,88 @@ test('les sondes attendues couvrent, pour chaque type, le public ET le jeton, br
   // `/api/upload/files` reste sonde — c est la surface que mesurait l ancienne preuve.
   // Elle n est plus LA preuve, elle en devient une ligne parmi les autres.
   assert.ok(sondes.some((s) => s.chemin === '/api/upload/files' && s.role === 'public'));
+});
+
+// --- Famille 4 : la BRANCHE A — le role reste ouvert, le code ferme la fuite ------------
+//
+// La decision 7106948b a tranche la branche A : la fuite se ferme PAR DU CODE
+// (`global::statut-publie`), et le role Public reste ouvert conformement au §3.9. Ce
+// verificateur avait ete ecrit du temps de la branche B (« fermer le role ») : tout 200
+// public y etait un manquement, le contenu n etait jamais lu. Il rendait donc l etat
+// retenu IMMESURABLE — rouvrir les 11 permissions produisait une douzaine de manquements
+// que le middleware fonctionne ou non, et « 0 avec le role OUVERT » etait inatteignable.
+//
+// Ce qui rougit desormais n est plus l OUVERTURE, c est le BROUILLON LISIBLE.
+
+/** Un lot branche A : le role sert les endpoints, et le contenu servi est du publie. */
+function sondesBrancheA() {
+  return [
+    { chemin: '/api/articles', role: 'public', brouillon: false, brouillonsActifs: true, statut: 200,
+      corps: { data: [{ id: 1, publishedAt: '2026-08-01T10:00:00.000Z' }] } },
+    { chemin: '/api/articles?status=draft', role: 'public', brouillon: true, brouillonsActifs: true, statut: 200,
+      corps: { data: [{ id: 1, publishedAt: '2026-08-01T10:00:00.000Z' }] } },
+    { chemin: '/api/articles', role: 'jeton', brouillon: false, brouillonsActifs: true, statut: 200 },
+    { chemin: '/api/configuration', role: 'public', brouillon: false, brouillonsActifs: false, statut: 200,
+      corps: { data: { id: 1, publishedAt: '2026-08-01T10:00:00.000Z' } } },
+    { chemin: '/api/configuration', role: 'jeton', brouillon: false, brouillonsActifs: false, statut: 200 },
+  ];
+}
+
+test('branche A : un endpoint OUVERT dont le contenu ne porte que du publie n est pas un manquement', () => {
+  const rapport = jugerSondes(sondesBrancheA());
+  assert.deepEqual(rapport.manquements, []);
+  assert.equal(rapport.issue, ISSUES.CONFORME);
+});
+
+test('branche A : une entree a publishedAt null dans une reponse PUBLIQUE est une FUITE', () => {
+  /* Le discriminant du middleware. Il impose `status=published` a l appelant sans
+     credence : la reponse ne peut donc porter que des versions publiees. Une entree a
+     `publishedAt: null` prouve que `?status=draft` a ete honore — c est la fuite du
+     2026-08-10, celle qui rendait un article non publie titre et corps compris. */
+  const fuite = sondesBrancheA();
+  fuite[1] = { ...fuite[1], corps: { data: [{ id: 7, publishedAt: null }] } };
+  const rapport = jugerSondes(fuite);
+  assert.equal(rapport.issue, ISSUES.ANOMALIE);
+  const dit = rapport.manquements.join(' ');
+  assert.match(dit, /\/api\/articles\?status=draft/);
+  assert.match(dit, /FUITE EDITORIALE/);
+  // Le compte des entrees non publiees est NOMME : « il y a une fuite » sans son ampleur
+  // se discute au lieu de se corriger.
+  assert.match(dit, /1 entree\(s\) non publiee\(s\)/);
+});
+
+test('branche A : le vert nomme les brouillons SERVIS ET PROTEGES, a part des refuses', () => {
+  /* Un 0 avec le role FERME ne prouve que la fermeture — c est ecrit dans d9ca105f. Le
+     resume doit donc permettre de lire LEQUEL des deux etats a ete mesure, sans quoi les
+     deux verts sont indiscernables. */
+  const resume = resumeSurface(jugerSondes(sondesBrancheA()));
+  assert.match(resume, /1 brouillon\(s\) SERVI\(S\) et verifie\(s\) sans aucune entree non publiee/);
+});
+
+test('role ferme : le resume annonce ZERO brouillon servi protege — la fermeture n est pas une protection', () => {
+  const resume = resumeSurface(jugerSondes(sondesConformes()));
+  assert.match(resume, /0 brouillon\(s\) SERVI\(S\)/);
+});
+
+test('un 200 public dont le corps n a pas pu etre lu est une INCAPACITE, jamais un vert', () => {
+  /* Sans le corps, la garde ne peut pas distinguer une protection d une fuite. Rendre
+     conforme faute de mesure serait exactement le mode d echec que cette famille corrige,
+     retourne : un vert obtenu sur rien. */
+  const muette = sondesBrancheA();
+  muette[1] = { chemin: '/api/articles?status=draft', role: 'public', brouillon: true,
+                brouillonsActifs: true, statut: 200, corps: undefined };
+  const rapport = jugerSondes(muette);
+  assert.equal(rapport.issue, ISSUES.VERIFICATION_IMPOSSIBLE);
+  assert.match(rapport.manquements.join(' '), /corps|contenu/i);
+});
+
+test('le jeton de build GARDE ses brouillons : un publishedAt null par le jeton n est pas une fuite', () => {
+  /* L application d apercu en depend, et trois tests du middleware le tiennent. Ce
+     verificateur ne doit pas contredire cette exigence en accusant le jeton. */
+  const avecJeton = sondesBrancheA();
+  avecJeton.push({ chemin: '/api/articles?status=draft', role: 'jeton', brouillon: true,
+                   brouillonsActifs: true, statut: 200, corps: { data: [{ id: 9, publishedAt: null }] } });
+  const rapport = jugerSondes(avecJeton);
+  assert.deepEqual(rapport.manquements, []);
+  assert.equal(rapport.issue, ISSUES.CONFORME);
 });

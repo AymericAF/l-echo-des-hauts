@@ -38,10 +38,83 @@ function typeofLisible(valeur: unknown): string {
 
 // --- chaines ---------------------------------------------------------------
 
+/**
+ * L alphabet des caracteres qui n affichent RIEN — l unique domicile de cette liste.
+ *
+ * Pourquoi une liste explicite plutot que `trim()`. Le critere que ce fichier applique
+ * est un critere de RENDU : « ce champ sortira-t-il vide a l ecran ? ». `trim()` repond
+ * a une autre question — « ce caractere appartient-il a la grammaire `WhiteSpace`
+ * d ECMAScript ? » — et les deux reponses divergent des deux cotes :
+ *
+ *   - l espace INSECABLE U+00A0 est bien retiree par `trim()` (mesure du 2026-08-11 sur
+ *     Node 24 : `' '.trim().length === 0`), mais s en remettre a une regle de
+ *     langage pour un jugement de rendu est un raccourci, pas une garantie ; elle est
+ *     donc nommee ici, avec ses cousines U+2000-U+200A, U+202F, U+205F et U+3000 ;
+ *   - les caracteres de LARGEUR NULLE, eux, passent `trim()` sans encombre : U+200B,
+ *     U+200C, U+200D et U+2060 ne sont pas de categorie Zs. Mesure du meme jour :
+ *     `'​'.trim().length === 1`. Or un titre fait d un U+200B est EXACTEMENT aussi
+ *     vide a l ecran qu un titre fait d une espace — il produit le meme `<h1>` creux,
+ *     le meme `<title>` creux et le meme `headline` creux dans le JSON-LD.
+ *
+ * La liste est bornee a ce qui ne laisse aucune trace visible. Elle ne contient donc ni
+ * le point median, ni le tiret, ni aucun caractere qui, lui, se voit.
+ */
+const BLANCS_INVISIBLES =
+  '\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200d\\u2028\\u2029\\u202f\\u205f\\u2060\\u3000\\ufeff';
+
+/** Vrai si la chaine ne contient QUE des caracteres sans trace visible (une chaine de longueur nulle comprise). */
+export function estBlanc(valeur: string): boolean {
+  return new RegExp(`^[${BLANCS_INVISIBLES}]*$`, 'u').test(valeur);
+}
+
+/**
+ * Rend la chaine lisible dans un message d erreur, en echappant ce qui ne se voit pas.
+ *
+ * `JSON.stringify(' ')` rend `" "` : deux guillemets autour de rien. Le lecteur du
+ * journal de build devrait alors compter des pixels pour savoir ce qui a ete refuse, et
+ * ne saurait toujours pas s il a affaire a une espace ordinaire ou a une insecable — la
+ * distinction qui decide de la correction a faire dans Strapi.
+ */
+function echapperInvisibles(valeur: string): string {
+  const echappee = Array.from(valeur)
+    .map((caractere) =>
+      estBlanc(caractere) && caractere !== ' '
+        ? `\\u${caractere.codePointAt(0)!.toString(16).padStart(4, '0')}`
+        : caractere,
+    )
+    .join('');
+  return `"${echappee}"`;
+}
+
+/**
+ * Un champ texte requis : present, de type chaine, et PORTEUR DE QUELQUE CHOSE.
+ *
+ * La troisieme condition est celle qui manquait jusqu au 2026-08-11 : la regle etait
+ * `valeur.length === 0`, donc `"   "` passait. Ce que ca produisait, sans qu un build
+ * rougisse : un `<h1>` visuellement vide, un `<title>` vide, un `headline` vide dans le
+ * JSON-LD, et une entree de sitemap pointant une page sans titre — c est-a-dire le mode
+ * d echec que `erreurs.ts` existe pour fermer (« le build reste vert et le site ment »),
+ * sur la moitie des champs qu il couvre.
+ *
+ * Ce qu elle ne fait PAS, deliberement : elle ne NORMALISE rien. La valeur est rendue
+ * telle quelle, blancs de bordure compris. Refuser un champ vide et reecrire le contenu
+ * d autrui sont deux gestes differents ; le second appartient a la saisie, pas a la
+ * lecture, et un mapping qui corrige en silence est un mapping qui ment a son tour.
+ */
 export function texteRequis(source: unknown, cle: string, chemin: string): string {
   const valeur = lire(source, cle, chemin);
-  if (typeof valeur !== 'string' || valeur.length === 0) {
+  if (typeof valeur !== 'string') {
     throw new ValeurInattendueError(`${chemin}.${cle}`, `chaine non vide attendue, recu ${JSON.stringify(valeur)}`);
+  }
+  if (estBlanc(valeur)) {
+    throw new ValeurInattendueError(
+      `${chemin}.${cle}`,
+      valeur.length === 0
+        ? 'chaine non vide attendue, recu ""'
+        : `chaine non vide attendue, recu ${echapperInvisibles(valeur)} — ${valeur.length} caractere(s), ` +
+          'tous BLANCS : ce champ sortirait vide a l ecran (titre, balise ou libelle) ' +
+          'alors que le build resterait vert',
+    );
   }
   return valeur;
 }

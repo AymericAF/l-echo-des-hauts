@@ -20,7 +20,8 @@
  * l « Almost Black » de YouTube) : la forme n est jamais retouchee, seule la couleur
  * bascule avec `prefers-color-scheme` — A-35, meme mecanique que les deux logos du site.
  */
-import type { Plateforme } from './domaine.ts';
+import type { Locale, Plateforme } from './domaine.ts';
+import { libelles } from './i18n/libelles.ts';
 
 export interface GlypheSocial {
   /** Repris tel quel du fichier officiel : recadrer changerait les proportions du signe. */
@@ -42,8 +43,25 @@ export interface GlypheSocial {
   readonly releve: string;
 }
 
-/** Le nom affichable. Il sert de texte accessible quand un glyphe le remplace a l ecran. */
-export const LIBELLES: Record<Plateforme, string> = {
+/**
+ * LES SEPT MARQUES, ET RIEN D AUTRE. Le nom affichable des plateformes qui sont des
+ * marques deposees — il sert de texte accessible quand un glyphe les remplace a l ecran.
+ *
+ * IL NE SE TRADUIT PAS, et ce n est pas une commodite : « LinkedIn » se dit LinkedIn
+ * partout, et les chartes citees dans `GLYPHES` interdisent nommement d alterer la
+ * denomination comme elles interdisent d alterer le trace. Les mettre dans le
+ * dictionnaire de `i18n/libelles.ts` y ferait entrer sept valeurs identiques par locale,
+ * c est-a-dire sept occasions de divergence pour zero traduction.
+ *
+ * `site` EST DEHORS, et c est tout le sujet de la tache `ba63557e`. Ce n est pas une
+ * marque mais un NOM COMMUN — « Site web » — qui doit changer de langue. Il vivait ici,
+ * en francais, et sortait donc en francais dans le nom accessible d un lien du pied de
+ * page des pages ANGLAISES ; le defaut ne se voyait pas tant que ces pages ne rendaient
+ * pas le bloc. Son domicile est `libelles(locale).plateformeSite`, avec les autres
+ * chaines adressees au lecteur. La reunion « marques + `site` » couvre l enum, et
+ * `tests/glyphes-sociaux.test.ts` refuse qu elle cesse de la couvrir.
+ */
+export const MARQUES: Record<Exclude<Plateforme, 'site'>, string> = {
   linkedin: 'LinkedIn',
   x: 'X',
   bluesky: 'Bluesky',
@@ -51,8 +69,18 @@ export const LIBELLES: Record<Plateforme, string> = {
   instagram: 'Instagram',
   facebook: 'Facebook',
   youtube: 'YouTube',
-  site: 'Site web',
 };
+
+/**
+ * Le nom affichable d une plateforme, dans la langue de la page.
+ *
+ * @param plateforme Valeur de l enum `partage.lien-social` (A-30).
+ * @param locale La langue de la PAGE, pas celle de la donnee : ce texte est le nom
+ *   accessible du lien, il est lu par le lecteur d ecran de qui consulte cette page-la.
+ */
+export function libelleDePlateforme(plateforme: Plateforme, locale: Locale): string {
+  return plateforme === 'site' ? libelles(locale).plateformeSite : MARQUES[plateforme];
+}
 
 export const GLYPHES: Partial<Record<Plateforme, GlypheSocial>> = {
   linkedin: {

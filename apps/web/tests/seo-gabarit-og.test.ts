@@ -188,9 +188,24 @@ test("le chemin d une image OG porte la locale et le slug de CETTE locale", () =
 });
 
 test("le texte de remplacement decrit ce que l image montre, pas le fichier", () => {
-  const alt = texteAlternatifOg(gabarit());
+  const alt = texteAlternatifOg(gabarit(), 'fr');
   assert.ok(alt.includes('Le plateau se reboise'));
   assert.ok(alt.includes('Territoire'));
   assert.ok(alt.includes('Noelle Vasseur'));
   assert.ok(!alt.includes('.png'));
+});
+
+test("le texte de remplacement est ECRIT DANS LA LANGUE DE LA PAGE", () => {
+  /* Il part dans `og:image:alt` et `twitter:image:alt` : c est ce qu un lecteur d ecran
+     annonce quand l image de partage ne charge pas, et ce qu un reseau social affiche.
+     La signature en etait ecrite en dur — « , par <auteur> » — donc en francais sur les
+     pages anglaises, sans que rien ne le voie (tache `ba63557e`). */
+  assert.equal(
+    texteAlternatifOg(gabarit(), 'fr'),
+    'Le plateau se reboise, trente ans apres la deprise — Territoire, par Noelle Vasseur',
+  );
+  assert.equal(
+    texteAlternatifOg(gabarit(), 'en'),
+    'Le plateau se reboise, trente ans apres la deprise — Territoire, by Noelle Vasseur',
+  );
 });

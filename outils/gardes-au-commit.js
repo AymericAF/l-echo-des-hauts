@@ -81,6 +81,13 @@ const LECTURES = {
         'apps/web/src/components/blocs/',
     ],
     'apps/web/tests/glyphes-sociaux.test.ts': ['apps/web/src/components/LiensSociaux.astro'],
+    // Il PARCOURT `src/components/` en entier a la recherche d'un texte litteral
+    // dans un gabarit — c'est la forme exacte du defaut du 2026-08-10
+    // (`intitule="Reseaux du journal"`). Le graphe d'imports ne voit pas ce
+    // parcours : sans cette ligne, ajouter une chaine en dur dans un composant ne
+    // declencherait AUCUN test au commit, c'est-a-dire le trou meme que ce fichier
+    // de test existe pour fermer.
+    'apps/web/tests/garde-langue.test.ts': ['apps/web/src/components/'],
     'apps/web/tests/nixpacks-fontes.test.ts': [
         'apps/web/nixpacks.toml',
         'apps/web/src/lib/seo/gabarit-og.ts',

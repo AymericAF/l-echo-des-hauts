@@ -33,9 +33,22 @@ const motsCible = libelles(cible.locale);
 
 const intituleCourt = { fr: 'FR', en: 'EN' } as const;
 const nomDeLaCible = motsCible.nomLangue[cible.locale];
-const libelleAccessible = cible.exact
-  ? motsCible.versLangue(nomDeLaCible)
-  : `${motsCible.versLangue(nomDeLaCible)} — ${motsCourants.traductionAbsente}`;
+/**
+ * LES DEUX MOITIES DU LIBELLE ACCESSIBLE NE SONT PAS DANS LA MEME LANGUE, et depuis le
+ * 2026-08-11 elles ne sont plus dans le meme element.
+ *
+ * Le libelle du LIEN est ecrit dans la langue de destination (« Read in English ») ; le
+ * complement qui annonce la perte de contexte (T-06) est ecrit dans la langue de la PAGE,
+ * puisqu il s adresse a qui lit celle-ci. Les deux etaient concatenes dans un unique
+ * `<span>` porte par le `<a lang={cible.locale}>` : sur une page francaise sans
+ * contrepartie anglaise, un lecteur d ecran annoncait donc « cette page n est pas
+ * disponible en anglais » AVEC LA PHONETIQUE ANGLAISE, et symetriquement en EN.
+ *
+ * C est le meme defaut que les quatre chaines de la tache `ba63557e` — une chaine servie
+ * dans une langue qui n est pas la sienne — a ceci pres qu ici le texte etait deja
+ * localise : c est sa DECLARATION qui mentait. C est `verifier-langue.mjs` qui l a trouve,
+ * sur la sortie construite, et non une relecture.
+ */
 ---
 
 <nav class="bascule" aria-label={motsCourants.changerDeLangue}>
@@ -54,7 +67,13 @@ const libelleAccessible = cible.exact
         lang={cible.locale}
       >
         {intituleCourt[cible.locale]}
-        <span class="hors-ecran">— {libelleAccessible}</span>
+        <span class="hors-ecran">
+          — {motsCible.versLangue(nomDeLaCible)}{
+            !cible.exact && (
+              <Fragment> — <span lang={locale}>{motsCourants.traductionAbsente}</span></Fragment>
+            )
+          }
+        </span>
       </a>
     </li>
   </ul>

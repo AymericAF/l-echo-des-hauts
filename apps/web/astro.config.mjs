@@ -4,6 +4,7 @@ import { loadEnv } from 'vite';
 
 import gardeCascadeTitres from './integrations/garde-cascade-titres.mjs';
 import gardeImages from './integrations/garde-images.mjs';
+import gardeLangue from './integrations/garde-langue.mjs';
 import gardeLiens from './integrations/garde-liens.mjs';
 import gardeOrigineMedias from './integrations/garde-origine-medias.mjs';
 import gardeRepartiteur from './integrations/garde-repartiteur.mjs';
@@ -79,6 +80,7 @@ export default defineConfig({
     gardeSeo(),
     gardeStylesEnLigne(),
     gardeCascadeTitres(),
+    gardeLangue(),
   ],
   output: 'static',
   site: process.env.ECHO_SITE_URL ?? 'https://echo.ayfiweb.fr',

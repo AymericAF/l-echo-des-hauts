@@ -40,6 +40,10 @@ const TEXTES = {
     hebergementTitre: 'Hébergement',
     hebergeur: 'Site hébergé par',
     majTitre: 'Dernière mise à jour',
+    /* Le PAYS se traduit ; la raison sociale et la rue, non — ce sont des noms propres
+       qui identifient une entite juridique, et les alterer rendrait la mention fausse.
+       « Chypre » sortait tel quel sur la page anglaise (tache `ba63557e`). */
+    pays: 'Chypre',
   },
   en: {
     titre: 'Legal notice',
@@ -49,6 +53,7 @@ const TEXTES = {
     hebergementTitre: 'Hosting',
     hebergeur: 'Site hosted by',
     majTitre: 'Last updated',
+    pays: 'Cyprus',
   },
 }[locale];
 ---
@@ -88,7 +93,7 @@ const TEXTES = {
           Laquelle facture le VPS n'a pas pu etre etabli depuis des sources
           publiques. Confronter a la facture ou au contrat, et corriger si besoin. */}
       {TEXTES.hebergeur} HOSTINGER INTERNATIONAL LTD, 61 Lordou Vironos Street, 6023
-      Larnaca, Chypre.
+      Larnaca, {TEXTES.pays}.
     </p>
   </section>
 

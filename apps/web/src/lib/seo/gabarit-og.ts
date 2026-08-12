@@ -25,6 +25,7 @@
  * palier de `TAILLES_TITRE`.
  */
 import type { Locale } from '../domaine.ts';
+import { libelles } from '../i18n/libelles.ts';
 import { texteXml } from './xml.ts';
 
 /** Le format Open Graph attendu : 1200x630, ratio 1,91:1. */
@@ -185,9 +186,17 @@ export function dispositionOg(gabarit: GabaritOg): DispositionOg {
   };
 }
 
-/** Le texte de remplacement : il decrit ce que l image MONTRE (§5.3, esprit d A-04). */
-export function texteAlternatifOg(gabarit: GabaritOg): string {
-  return `${gabarit.titre} — ${gabarit.rubrique}, par ${gabarit.auteur}`;
+/**
+ * Le texte de remplacement : il decrit ce que l image MONTRE (§5.3, esprit d A-04).
+ *
+ * IL EST ECRIT DANS LA LANGUE DE LA PAGE. Le titre et la rubrique le sont deja, puisque
+ * ce sont les valeurs de la locale ; la signature, elle, etait ecrite en dur (« , par »)
+ * et sortait donc en francais sur les pages anglaises — dans `og:image:alt` et
+ * `twitter:image:alt`, c est-a-dire dans ce qu un lecteur d ecran annonce quand l image
+ * ne charge pas (tache `ba63557e`, 2026-08-11).
+ */
+export function texteAlternatifOg(gabarit: GabaritOg, locale: Locale): string {
+  return `${gabarit.titre} — ${gabarit.rubrique}, ${libelles(locale).parAuteur(gabarit.auteur)}`;
 }
 
 /** `/og/<locale>/<slug>.png` — le slug est celui de SA locale, jamais derive (T-05). */

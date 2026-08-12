@@ -135,7 +135,7 @@ const dateLisible = new Intl.DateTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB',
   <div class="article__corps">
     {
       article.contenu.map((bloc, index) => (
-        <BlocContenu bloc={bloc} ancres={sommaire.ancres.get(index)} />
+        <BlocContenu bloc={bloc} ancres={sommaire.ancres.get(index)} locale={locale} />
       ))
     }
   </div>

@@ -1,10 +1,18 @@
 /**
  * T-01 — les medias sont TELECHARGES AU BUILD et servis par le site.
  *
- * Cette integration est la premiere de la chaine `astro:build:done`, et l ordre compte :
- * les trois gardes qui suivent (`garde-origine-medias`, `garde-liens`, `garde-seo`)
- * verifient toutes qu une reference aboutit dans `dist/`. Les faire passer avant le
- * depot des octets les ferait rougir sur un site sain.
+ * Cette integration est la premiere de la chaine `astro:build:done`, et l ordre compte.
+ * QUATRE gardes en dependent, pour deux raisons opposees :
+ *   - `garde-origine-medias`, `garde-liens`, `garde-seo` verifient qu une reference
+ *     aboutit dans `dist/`. Les faire passer avant le depot les ferait rougir sur un
+ *     site SAIN ;
+ *   - `garde-t09` dresse l inventaire des fichiers servis. La faire passer avant le
+ *     depot la fait rendre VERT sur un site FAUTIF — c est ce qui a ete mesure et
+ *     reproduit le 2026-08-11 (tache 5bf5c24b), et corrige en la posant juste apres ici.
+ *
+ * ~~« la premiere de la chaine »~~ etait FAUX jusqu au 2026-08-11 : `garde-t09` occupait
+ * la premiere position d `astro.config.mjs`. La phrase est vraie depuis, et le rang ne
+ * tient pas a elle mais aux `ROLE_SORTIE` que `tests/astro-config.test.ts` confronte.
  *
  * POURQUOI DANS LE BUILD plutot que dans un script separe : un script qu il faut penser
  * a lancer n aura pas ete lance le jour ou il aurait servi. Une exception levee dans un

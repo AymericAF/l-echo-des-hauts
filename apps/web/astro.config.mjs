@@ -33,9 +33,26 @@ for (const [cle, valeur] of Object.entries(env)) {
 /**
  * L ORDRE DES INTEGRATIONS EST UNE DEPENDANCE, pas une preference. Toutes accrochent
  * `astro:build:done`, ou Astro les appelle dans l ordre de ce tableau. `mediasLocaux`
- * DEPOSE les octets des medias dans la sortie (T-01) ; les trois gardes qui le suivent
- * verifient qu une reference y aboutit. Le placer apres elles les ferait rougir sur un
- * site sain.
+ * DEPOSE les octets des medias dans la sortie (T-01) ; TOUT CE QUI JUGE CETTE SORTIE
+ * passe apres lui — pour deux raisons distinctes, que `tests/astro-config.test.ts` tient
+ * separees parce que leurs modes d echec sont opposes :
+ *
+ *   - `gardeOrigineMedias`, `gardeLiens`, `gardeSeo` verifient qu une REFERENCE aboutit.
+ *     Placees avant le depot, elles rougiraient sur un site SAIN.
+ *   - `gardeT09` dresse l INVENTAIRE des fichiers servis. Placee avant le depot, elle
+ *     rendait VERT sur un site FAUTIF : c est le defaut mesure et reproduit le
+ *     2026-08-11 (tache 5bf5c24b) — un media `temoin-5bf5c24b.js` depose apres son
+ *     passage, `[garde-t09] aucun JavaScript servi`, et 131 octets de `.js` bel et bien
+ *     servis a une page. Elle etait en PREMIERE position ; elle est desormais en seconde,
+ *     immediatement apres le depot.
+ *
+ * Ses deux autres hooks n ont pas bouge de rang utile : `astro:config:done` et
+ * `astro:routes:resolved` se declenchent bien avant tout `astro:build:done`, donc une
+ * configuration serveur ou une route `prerender = false` arrete toujours le build AVANT
+ * le moindre telechargement de media.
+ *
+ * L ordre n est pas garde par ce commentaire mais par le ROLE que chaque module declare
+ * (`ROLE_SORTIE`), confronte a ce tableau par `tests/astro-config.test.ts`.
  */
 export default defineConfig({
   integrations: [
@@ -46,10 +63,16 @@ export default defineConfig({
      * Un neuvieme type de bloc sans son composant s arretait jusqu ici a `npm test` — que
      * le build de Coolify ne lance PAS (plan Nixpacks : `npm ci` puis `npm run build`,
      * releve au journal de deploiement du 2026-08-12).
+     *
+     * `gardeT09` NE REMONTE PAS avec elle : elle dresse l INVENTAIRE de la sortie, donc
+     * elle reste APRES `mediasLocaux` (defaut mesure le 2026-08-11, tache 5bf5c24b — en
+     * premiere position elle rendait VERT sur un site qui servait 131 octets de `.js`).
+     * Les deux contraintes sont opposees et coexistent : `gardeRepartiteur` juge des
+     * SOURCES avant tout rendu, `gardeT09` juge des OCTETS apres tout depot.
      */
     gardeRepartiteur(),
-    gardeT09(),
     mediasLocaux(),
+    gardeT09(),
     gardeImages(),
     gardeOrigineMedias(),
     gardeLiens(),

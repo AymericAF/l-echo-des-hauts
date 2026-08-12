@@ -36,18 +36,43 @@ import { inspecterSortie, resume } from '../scripts/verifier-sortie.mjs';
 const NOM = 'garde-t09';
 
 /**
- * AUCUNE CONTRAINTE DE REFERENCE : `inspecterSortie()` ne verifie jamais qu une reference
- * aboutit ; il cherche du JavaScript servi et des marqueurs de sortie serveur. Rien ne lui
- * impose donc de suivre un depot d octets, et ce module est branche EN PREMIER.
+ * CE MODULE JUGE TOUS LES OCTETS SERVIS — donc il passe APRES tout depot d octets.
  *
- * CE QUE CETTE PLACE LAISSE OUVERT, et qu il faut ecrire plutot que taire : place avant
- * `medias-locaux`, son hook `astro:build:done` ne voit PAS les octets deposes ensuite. Un
- * media dont le nom finit en `.js` serait donc depose apres son passage, sans etre compte
- * comme « fichier JavaScript servi ». Le trou est etroit (il faut qu une page reference un
- * tel media) et il n est pas ferme ici : le test de configuration tient l ordre declare, il
- * ne redresse pas un ordre incomplet.
+ * ~~AUCUNE CONTRAINTE DE REFERENCE : `inspecterSortie()` ne verifie jamais qu une
+ * reference aboutit ; il cherche du JavaScript servi et des marqueurs de sortie serveur.
+ * Rien ne lui impose donc de suivre un depot d octets, et ce module est branche EN
+ * PREMIER.~~ **2026-08-11 (tache 5bf5c24b) : ce raisonnement etait faux, et il a ete
+ * REPRODUIT.** Il concluait « donc aucune contrainte d ordre » a partir de « aucune
+ * contrainte de REFERENCE » : les deux gardes qui suivent un depot ne le suivent pas pour
+ * la meme raison, mais elles le suivent toutes les deux. `inspecterSortie()` ne juge pas
+ * une reference — il juge L INVENTAIRE DES FICHIERS SERVIS, et un inventaire dresse avant
+ * la fin des ecritures est un inventaire incomplet.
+ *
+ * MESURE DU 2026-08-11, banc de fixtures. Un media temoin `/uploads/temoin-5bf5c24b.js`
+ * pose dans la mediatheque de substitution, reference par une page article :
+ *
+ *     [garde-t09]      24 page(s) HTML, 48 fichier(s) : aucun JavaScript servi.   <- VERT
+ *     [medias-locaux]  17 media(s) deposes dans la sortie.
+ *     dist/medias/temoin-5bf5c24b.js : PRESENT (131 octets), reference par 1 page.
+ *
+ * La garde a rendu VERT sur une sortie qui servait un fichier JavaScript. Le trou etait
+ * etroit — il faut un nom de media en `.js` — mais il etait de la famille exacte que ce
+ * projet ferme : une garde qui rend vert sur ce qu elle n a pas regarde.
+ *
+ * CE QUI L A RATTRAPE, ET QUI NE SUFFIT PAS. `npm run build` enchaine
+ * `scripts/index-pagefind.mjs`, qui RE-INSPECTE la sortie augmentee : le meme temoin y
+ * sort en code 1 (« fichier JavaScript servi : medias/temoin-5bf5c24b.js »). La
+ * production n a donc jamais ete exposee. Mais un rattrapage en aval ne repare pas une
+ * garde qui MENT : c est elle qui porte la contrainte T-09 dans le build, et une garde
+ * dont le vert ne vaut rien finit par etre crue.
+ *
+ * POURQUOI DEPLACER PLUTOT QU ELARGIR LA PORTEE. `astro:build:done` est le DERNIER hook
+ * du build : il n existe pas de « plus tard » a l interieur d Astro. Elargir la portee
+ * voudrait dire re-inspecter hors du build — ce que `index-pagefind.mjs` fait deja, et
+ * une seconde definition de la meme regle est precisement ce que ce depot corrige depuis
+ * plusieurs taches. Le rang, lui, se declare et se garde mecaniquement.
  */
-export const ROLE_SORTIE = 'sans-contrainte-d-ordre';
+export const ROLE_SORTIE = 'juge-tous-les-octets-servis';
 
 /** Le message d echec, ecrit pour quelqu un qui decouvre la contrainte. */
 function echec(titre, manquements) {

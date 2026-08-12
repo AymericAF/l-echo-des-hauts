@@ -95,6 +95,24 @@ est un travail qui reste à faire.
 | `preuve:pagination` | un build sur corpus de recette | les **bornes** que le corpus éditorial n'atteint pas : page 2, catégorie à exactement 12, article non traduit | 4,9 s |
 | `preuve:encre-og` | le gabarit rastérisé deux fois | que le seuil de la garde OG **sépare encore** les deux populations (avec fontes / sans aucune fonte) | 1,5 s |
 
+**Le banc des preuves est déplaçable, et c'est ce qui les rend rejouables.** Les trois
+`preuve-*` construisent contre un Strapi de substitution servi depuis `tests/fixtures/`.
+Pour reproduire un défaut, il faut pouvoir servir un banc **abîmé exprès** sans muter le
+dépôt — et jusqu'au 2026-08-12 c'était impossible : `demarrerServeurFixtures()` ne savait
+pas recevoir de dossier, si bien qu'un run l'a réécrit dans son scratchpad, où il a disparu
+avec sa session. Le geste est désormais versionné :
+
+```bash
+cp -r apps/web/tests/fixtures /tmp/banc-temoin       # puis on abîme ce qu'on veut voir
+node apps/web/scripts/serveur-fixtures.mjs /tmp/banc-temoin   # l'URL sort sur stdout
+ECHO_STRAPI_URL=<url> ECHO_STRAPI_API_TOKEN_READONLY=jeton-de-fixture npm run build
+```
+
+Le défaut reste `tests/fixtures/` : les preuves existantes ne changent pas de corpus. ⚠ Ce
+qui manquait n'était pas seulement le paramètre — les messages d'incapacité écrivaient
+`tests/fixtures/<nom>.json` **quel que soit** le banc consulté, donc envoyaient chercher un
+fichier absent là où il existe. Ils nomment maintenant le dossier réellement lu.
+
 Les six vérificateurs sont **déjà branchés dans le build** comme intégrations Astro : un défaut de
 sortie fait échouer `astro build`, donc le déploiement Coolify. Le job les relance **aussi en
 ligne de commande**, et ce n'est pas une redondance : le build ne les exerce que **tant qu'ils

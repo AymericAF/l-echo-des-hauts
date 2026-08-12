@@ -39,10 +39,16 @@
  * defaut entier en place.
  *
  * QUI LIT CES CODES, mesure avant de les changer : le seul lecteur automatique du depot est
- * le job `sortie` de `.github/workflows/gardes-du-code.yml`, et il fait `|| echec=1` — il
+ * le job `sortie` de `.github/workflows/gardes-du-code.yml`. ~~Et il fait `|| echec=1` — il
  * aplatit donc TOUT code non nul sur un seul rouge. Le gain de ce fichier ne va pas a lui :
- * il va au lecteur en ligne de commande (recette, `queue-run`, poste d Aymeric), et il va a
+ * il va au lecteur en ligne de commande (recette, `queue-run`, poste d Aymeric)~~, et il va a
  * l uniformite, qui est ce qui rend un code lisible sans aller relire la source.
+ *
+ * MARQUE EN PLACE LE 2026-08-11 (tache 794ad120) : le passage barre ci-dessus a CESSE D ETRE
+ * VRAI. Le job `sortie` capture desormais le code (`code=0` puis `... || code=$?`), le trie,
+ * et nomme les deux natures dans son journal — « N ONT PAS PU JUGER (code 2) » et « ONT JUGE,
+ * ET TROUVE (code 1) ». Le gain de ce fichier va donc AUSSI au lecteur du journal de CI. Le
+ * VERDICT, lui, n a pas bouge : une incapacite fait toujours echouer le job.
  */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -377,8 +383,12 @@ test('la liste des exceptions est VIVANTE, et chaque exception tient quand meme 
  * — la classe fermee par 64614b7, ou personne n etait trompe sur le fond : ici une absence
  * TOTALE de contenu produit le signal du succes. Et contrairement au defaut precedent, il
  * n est PAS inerte pour l integration continue : le job `sortie` de
- * `.github/workflows/gardes-du-code.yml` aplatit tout code non nul par `|| echec=1`, mais
- * il n aplatit pas un zero. Un `dist/` vide passait la CI en vert sur quatre des six.
+ * `.github/workflows/gardes-du-code.yml` aplatissait tout code non nul par `|| echec=1`, mais
+ * il n aplatissait pas un zero. Un `dist/` vide passait la CI en vert sur quatre des six.
+ * *(Imparfait depuis le 2026-08-11, tache 794ad120 : le job ne les aplatit plus, il les trie
+ * et les nomme. Le constat de 2026-08-10 ci-dessus reste ce qu il etait, il ne se relit
+ * simplement plus au present. Ce que le tri ne change pas : un zero reste un zero — c est
+ * bien ce fichier-ci, et lui seul, qui empeche le vert sur rien du tout.)*
  *
  * OU LA FRONTIERE EST PLACEE, ET POURQUOI — c est la seule question de ce correctif.
  * Un `dist/` vide est une INCAPACITE (code 2), pas une anomalie (code 1) :
@@ -398,8 +408,11 @@ test('la liste des exceptions est VIVANTE, et chaque exception tient quand meme 
  *      part editer un composant.
  *   4. `1` s accompagne d une liste de « N manquement(s) » du site. Il n y en a aucun : le
  *      rendre obligerait a FABRIQUER un manquement dont le site n est pas coupable.
- *   5. Le choix ne coute rien a la CI (1 et 2 y sont aplatis sur le meme rouge) et rapporte
- *      tout au lecteur en ligne de commande — recette, `queue-run`, poste d Aymeric.
+ *   5. Le choix ne coute rien a la CI (le VERDICT y est le meme rouge pour 1 et pour 2) et
+ *      rapporte tout au lecteur en ligne de commande — recette, `queue-run`, poste d Aymeric.
+ *      *(2026-08-11, tache 794ad120 : il rapporte desormais AUSSI au lecteur du journal de
+ *      CI, qui lit les deux natures nommees. Le verdict, lui, n a pas bouge — c est la
+ *      contrainte dure du correctif, pas un effet de bord.)*
  *
  * CE QUE LA FRONTIERE NE DOIT PAS EMPORTER, et que la famille 8 tient : un objet
  * LEGITIMEMENT vide sur des pages REELLES (aucune image, aucun lien, aucun style) reste

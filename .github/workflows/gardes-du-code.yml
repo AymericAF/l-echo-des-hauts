@@ -80,6 +80,18 @@
 #
 # Cout mesure des suites de tests reunies : ~3,0 s de calcul a chaud. La minute
 # de runner part en `npm ci`, pas en verification.
+#
+# LES PAS DU JOB `sortie` NE SONT PLUS EN SERIE (2026-08-12, tache 772ac0ac).
+# GitHub Actions arrete un job au PREMIER pas non nul : un verificateur rouge
+# faisait sauter `preuve:pagination` et `preuve:encre-og`, qui ne partagent
+# pourtant rien avec lui — la premiere construit son propre corpus dans
+# `dist-recette/`, la seconde ne lit aucune sortie. Les pas sautes ne sont ni
+# verts ni rouges : ils N'EXISTENT PAS dans le run, et tant qu'un rouge subsiste
+# on n'a aucun moyen de savoir si les gardes d'apres tournent encore. Chaque pas
+# qui juge tourne desormais sous `if: always()`, CONSIGNE son code de sortie
+# (`apps/web/scripts/journal-des-preuves.mjs`) et sort en 0 ; le dernier pas
+# relit le journal et rend le verdict unique. Le rouge n'est pas perdu, il est
+# DIFFERE — et un journal vide, illisible ou ampute rend 2, jamais 0.
 
 name: Gardes du code
 
@@ -190,6 +202,26 @@ jobs:
     defaults:
       run:
         working-directory: apps/web
+    env:
+      # LE JOURNAL DES PREUVES, ET POURQUOI IL EXISTE (2026-08-12, tache 772ac0ac).
+      #
+      # Ce job enchaine CINQ pas qui JUGENT, sur des objets SANS RAPPORT entre eux :
+      # `preuve:pagination` construit son propre corpus dans `dist-recette/`,
+      # `preuve:encre-og` ne lit meme aucune sortie. Or GitHub Actions arrete un job au
+      # PREMIER pas en code non nul : un verificateur rouge faisait donc SAUTER les deux
+      # preuves suivantes, qui ne devenaient ni vertes ni rouges — elles n existaient plus
+      # dans le run. On corrigeait une trouvaille, on repoussait, et le run d apres
+      # decouvrait la suivante : un defaut par aller-retour de CI, a `npm ci` + deux builds
+      # piece. Et tant qu un pas rougissait, on n avait AUCUN moyen de savoir si les gardes
+      # d apres tournaient encore.
+      #
+      # DESORMAIS : chaque pas qui juge tourne sous `if: always()`, CONSIGNE son code de
+      # sortie dans ce journal, et sort en 0 — le rouge n est pas perdu, il est DIFFERE.
+      # Le dernier pas relit le journal et rend le verdict unique du job.
+      #
+      # PAS `continue-on-error: true` : il fait passer la CONCLUSION du pas a `success`,
+      # ce qui echangerait un court-circuit contre un mensonge.
+      JOURNAL_DES_PREUVES: ${{ github.workspace }}/.journal-des-preuves
     steps:
       - uses: actions/checkout@v7
 
@@ -212,9 +244,15 @@ jobs:
           echo "fc-list : $(fc-list | wc -l) fonte(s)"
 
       - name: npm ci
+        id: installation
         run: npm ci --no-audit --no-fund
 
       - name: Build reel sur fixtures, et les 8 types de blocs rendus
+        id: preuve-rendu
+        # `if: always() && …` — le pas ne depend plus de ceux d avant, mais il depend
+        # encore de `npm ci` : juger sans `node_modules` ne produirait que des incapacites
+        # en cascade, c est-a-dire du bruit qui ferait desactiver le journal.
+        if: always() && steps.installation.outcome == 'success'
         # `preuve:rendu` lance `npm run build` COMPLET contre le Strapi de
         # substitution — donc `astro build` PUIS `scripts/index-pagefind.mjs`,
         # la porte MEME de la production (2026-08-11, tache 08f04f58 ; il
@@ -222,22 +260,44 @@ jobs:
         # Les huit integrations d'`astro.config.mjs` s'exercent DANS ce build et
         # le font sortir en code non nul, et l'indexation re-inspecte la sortie
         # AUGMENTEE : c'est ici que la sortie est jugee pour de bon.
-        run: npm run preuve:rendu
+        #
+        # `code=0` puis `… || code=$?` et non `…; code=$?` : le shell d'un `run:` est
+        # `bash -e {0}`, et la seconde forme AVORTERAIT le pas avant l'affectation.
+        run: |
+          code=0
+          npm run preuve:rendu || code=$?
+          node scripts/journal-des-preuves.mjs --consigner preuve:rendu "$code"
 
       - name: La sortie construite porte bien l index de recherche
+        id: index-de-recherche
+        if: always() && steps.installation.outcome == 'success'
         # MECANIQUE, ET PAS CONVENTIONNELLE. Revenir a `npx astro build` dans
         # `preuve-rendu.mjs` ferait rougir `tests/integration-continue.test.ts` —
         # mais un test se contourne, et le job resterait VERT sur une sortie sans
         # index, exactement l'etat du 2026-08-11. Ce pas-la lit le repertoire
         # PRODUIT : il ne peut pas etre satisfait par une declaration.
+        #
+        # TROIS ISSUES ET NON DEUX, depuis que ce pas peut tourner APRES un
+        # `preuve:rendu` rouge (2026-08-12) : `dist/` absent veut dire que le build
+        # n'a rien produit — c'est une INCAPACITE (code 2, corriger l'ENVIRONNEMENT),
+        # pas un index manquant. Les confondre enverrait chercher un defaut
+        # d'indexation la ou il n'y a pas eu de construction du tout.
         run: |
-          test -f dist/pagefind/pagefind.js || {
+          code=0
+          if [ ! -d dist ]; then
+            echo "INCAPACITE : dist/ n existe pas — aucune sortie construite, il n y a rien a juger ici"
+            code=2
+          elif [ ! -f dist/pagefind/pagefind.js ]; then
             echo "ROUGE : dist/pagefind/pagefind.js absent — le build n a pas enchaine l indexation"
-            exit 1
-          }
-          echo "OK : $(ls dist/pagefind | wc -l) entree(s) dans dist/pagefind"
+            code=1
+          else
+            echo "OK : $(ls dist/pagefind | wc -l) entree(s) dans dist/pagefind"
+          fi
+          node scripts/journal-des-preuves.mjs --consigner index-de-recherche "$code"
 
       - name: Les verificateurs de sortie, en ligne de commande, sur le dist/ produit
+        id: verificateurs-de-sortie
+        if: always() && steps.installation.outcome == 'success'
         # REDONDANT AVEC LE BUILD ? Non, et c'est le point : le build ne les
         # exerce que TANT QU'ILS SONT BRANCHES dans `astro.config.mjs`. Retirer
         # une ligne de ce tableau rend le build vert sur une sortie fautive.
@@ -254,31 +314,125 @@ jobs:
         # ci-dessous les imprime DANS CE JOURNAL : qui recompte « 9 contre 7 »
         # trouve la reponse la ou il recompte, pas dans un commentaire.
         #
-        # `|| echec=1` plutot qu'un arret au premier rouge : on veut la liste
-        # complete des manquements en une execution, pas un jeu de piste.
+        # ON NE S'ARRETE PAS AU PREMIER ROUGE : on veut la liste complete des
+        # manquements en une execution, pas un jeu de piste. La boucle capture donc
+        # le code au lieu de le jeter (`cv=0` puis `... || cv=$?`), et le trie.
+        #
+        # POURQUOI TRIER (2026-08-11, tache 794ad120 ; mode operatoire au §4 de
+        # `docs/ci-incapacite-vs-anomalie.md` du depot prive). L'ancienne forme
+        # `npm run ... || echec=1` JETAIT le code : un `1` (a juge, c'est rouge) et
+        # un `2` (n'a PAS pu juger) devenaient le meme echec. Or les verificateurs
+        # savent rendre `2`, et le seul lecteur automatique de cette distinction
+        # etait precisement ce job, qui l'aplatissait. Aplatis, ils envoient
+        # chercher dans le MAUVAIS OBJET : `1` = corriger le SITE, `2` = corriger
+        # l'ENVIRONNEMENT.
+        #
+        # DEUX NOMS POUR DEUX CHOSES (reconciliation du 2026-08-12, tache b84acfc7).
+        # `cv` est le code du VERIFICATEUR COURANT, reaffecte a chaque tour ; `code`
+        # est le verdict DU PAS, celui que la consigne transmet au journal — meme
+        # sens que dans les quatre autres pas qui jugent. Les confondre ferait
+        # consigner le code du DERNIER verificateur au lieu du verdict du pas, et
+        # aucun run vert ne le montrerait.
+        #
+        # CE PAS NE SORT PLUS SUR SON PROPRE CODE (tache 772ac0ac). Il consigne, et
+        # le dernier pas du job tranche. Un `exit` ici ferait sauter les preuves
+        # suivantes — c'est le defaut que ce `always()` et ce journal reparent. Le
+        # verdict, lui, ne s'affaiblit pas : il GAGNE en precision, la consigne
+        # distinguant desormais 2 de 1 la ou la boucle simple les aplatissait en 1.
         run: |
+          code=0
           node scripts/verificateurs-de-sortie.mjs --pourquoi
           liste="$(node scripts/verificateurs-de-sortie.mjs)"
           if [ -z "$liste" ]; then
-            echo "ROUGE : la derivation n a rendu AUCUN verificateur — la boucle serait verte sur rien"
-            exit 1
+            # INCAPACITE et non anomalie : la derivation ne sait pas dire QUI doit
+            # tourner. Rien n'a ete juge — le geste est de corriger le dispositif,
+            # pas de chercher un defaut dans la sortie.
+            echo "INCAPACITE : la derivation n a rendu AUCUN verificateur — la boucle serait verte sur rien"
+            code=2
+          else
+            anomalies=""
+            incapacites=""
+            for v in $liste; do
+              echo "::group::verifier:$v"
+              # `set -e` EST ACTIF (le shell par defaut d'un `run:` est `bash -e {0}`).
+              # Ecrire `npm run ...; cv=$?` avorterait le job AVANT l'affectation.
+              # La forme `cv=0` puis `... || cv=$?` place la commande dans un
+              # compound : `-e` ne se declenche pas, et `cv` est toujours defini.
+              cv=0
+              npm run --silent "verifier:$v" || cv=$?
+              # `::endgroup::` AVANT le `case` : sinon la sortie du verificateur reste
+              # repliee dans un groupe que le `::error::` ne rouvre pas.
+              echo "::endgroup::"
+              case "$cv" in
+                0) ;;
+                2) incapacites="$incapacites $v" ;;
+                *) anomalies="$anomalies $v" ;;
+              esac
+            done
+
+            if [ -n "$incapacites" ]; then
+              echo "::error title=Verification impossible::N ONT PAS PU JUGER (code 2) :$incapacites"
+              echo "N ONT PAS PU JUGER — code 2, il manquait de quoi juger. Corriger l ENVIRONNEMENT :$incapacites"
+            fi
+            if [ -n "$anomalies" ]; then
+              echo "::error title=Anomalie::ONT JUGE ET TROUVE (code 1) :$anomalies"
+              echo "ONT JUGE, ET TROUVE — code 1. Corriger le SITE :$anomalies"
+            fi
+
+            # LE VERDICT NE S'AFFAIBLIT PAS. Toute issue non nulle, incapacite
+            # COMPRISE, fait rougir le job — par le journal, seul juge. L'incapacite
+            # prime sur l'anomalie : quand un verificateur n'a pas pu juger, la
+            # population est amputee, et « corriger l'ENVIRONNEMENT » passe avant.
+            if [ -n "$incapacites" ]; then
+              code=2
+            elif [ -n "$anomalies" ]; then
+              code=1
+            else
+              echo "OK : $(echo "$liste" | wc -w) verificateur(s), tous conformes (code 0)."
+            fi
           fi
-          echec=0
-          for v in $liste; do
-            echo "::group::verifier:$v"
-            npm run --silent "verifier:$v" || echec=1
-            echo "::endgroup::"
-          done
-          exit $echec
+          node scripts/journal-des-preuves.mjs --consigner verificateurs-de-sortie "$code"
 
       - name: Bornes de pagination et bascule FR/EN, sur un second build reel
+        id: preuve-pagination
+        # `always()` : cette preuve construit SON PROPRE corpus dans `dist-recette/`.
+        # Elle ne partage rien avec les pas ci-dessus, et rien ne justifiait qu'un
+        # verificateur rouge sur `dist/` la fasse sauter.
+        if: always() && steps.installation.outcome == 'success'
         # Corpus de recette (`scripts/corpus-recette.mjs`) : les bornes que le
         # corpus editorial n'atteint pas — page 2, categorie a exactement 12,
         # article non traduit. Sortie dans `dist-recette/`, jamais dans `dist/`.
-        run: npm run preuve:pagination
+        run: |
+          code=0
+          npm run preuve:pagination || code=$?
+          node scripts/journal-des-preuves.mjs --consigner preuve:pagination "$code"
 
       - name: Le seuil de la garde des images OG separe encore les deux populations
+        id: preuve-encre-og
+        # `always()` : ce pas ne lit AUCUNE sortie construite. Il n'avait aucune
+        # raison de dependre des quatre precedents, et c'est pourtant lui qui sautait
+        # le plus souvent, etant le dernier de la file.
+        if: always() && steps.installation.outcome == 'success'
         # Il rejoue les deux distributions (avec fontes, sans aucune fonte) et sort
         # en code non nul si le seuil cesse de tomber dans le fosse. Sur ce runner
         # il mesure EN PLUS que les fontes du pas ci-dessus sont bien resolues.
-        run: npm run preuve:encre-og
+        run: |
+          code=0
+          npm run preuve:encre-og || code=$?
+          node scripts/journal-des-preuves.mjs --consigner preuve:encre-og "$code"
+
+      - name: Le verdict du job — relu dans le journal, jamais dans le dernier pas
+        # LE SEUL JUGE DU JOB. Chaque pas ci-dessus sort en 0 pour ne pas arreter la
+        # file ; c'est ici que leurs codes sont relus, classes selon la convention de
+        # `scripts/issues.mjs` (0 conforme, 1 corriger le SITE, 2 corriger
+        # l'ENVIRONNEMENT) et agreges en un verdict unique.
+        #
+        # POURQUOI IL NE PEUT PAS ETRE VERT PAR ACCIDENT — c'est la question qu'il
+        # faut se poser d'un dispositif qui differe des rouges. Trois parades, toutes
+        # dans `scripts/journal-des-preuves.mjs` : un journal vide rend 2, une ligne
+        # illisible rend 2, et un pas ATTENDU (derive des `preuve:*` de package.json,
+        # plus les deux pas natifs declares) absent du journal rend 2. Un verdict
+        # rendu sur une population amputee certifierait « tout conforme » sur ce qui
+        # manque.
+        if: always()
+        run: node scripts/journal-des-preuves.mjs --verdict

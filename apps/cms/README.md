@@ -3,11 +3,16 @@
 ## Contenu de démonstration
 
 ```bash
-export SEED_STRAPI_TOKEN=<jeton API full-access>   # PAS le jeton du build, qui est en lecture seule
+export SEED_STRAPI_TOKEN=<jeton API full-access, à DURÉE LIMITÉE>   # PAS le jeton du build (lecture seule)
 npm run seed              # charge le contenu versionné de ./data dans Strapi (rejouable)
 npm run seed:comptage     # n'écrit rien : le comptage en base
 npm run seed:verifier     # n'écrit rien : slugs EN + relations EN des articles traduits
 ```
+
+⚠️ Le jeton se crée avec *Token duration* = **30 days**, **jamais `Unlimited`** : un jeton plein
+accès sans expiration survit à qui l'a créé. Mode opératoire complet dans le `README.md` à la
+racine ; sa date d'expiration vit à un seul endroit, la matrice des secrets du dépôt de
+documentation.
 
 Le corpus vit dans `data/` : `categories.json`, `tags.json`, `auteurs.json`, `dossiers.json`,
 `configuration.json`, `articles/<code>.<fr|en>.md` et `medias/` avec son `manifeste.json`.

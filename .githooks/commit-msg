@@ -28,7 +28,12 @@
 # 2026-08-11 (tache b903aa06) : un test d'`apps/web` tient desormais des
 # invariants du workflow lui-meme — que le job `sortie` relance TOUS les
 # verificateurs non exemptes — et un commit qui ne toucherait que le workflow
-# n'aurait rien lance. La regle precise « quel fichier declenche quel test »
+# n'aurait rien lance. Le `README.md` de la RACINE a ete ajoute le 2026-08-11
+# (tache 3e7efb8e) pour la meme raison exactement : un test d'`apps/cms` tient
+# desormais la regle de duree du jeton d'amorcage aux SIX endroits ou ce depot
+# le prescrit, et deux d'entre eux sont des README — dont celui-la. Sans cette
+# forme, ramollir la prescription de la racine ne lancerait AUCUN test.
+# La regle precise « quel fichier declenche quel test »
 # vit a UN SEUL endroit, `outils/gardes-au-commit.js`, et elle s'y DERIVE du
 # graphe d'imports plutot que de s'y ecrire : deux listes de noms finiraient par
 # diverger, et une entree oubliee serait un trou silencieux.
@@ -65,7 +70,9 @@ touches="$(git diff --cached --name-only --diff-filter=ACMRD)"
 # `outils/gardes-au-commit.js`, qui a le temoin et le parent sous la main ; le cout de ce
 # renvoi est un demarrage de node (~0,1 s) sur les seuls commits sans rien de neuf a l index.
 if [ -n "$touches" ]; then
-    if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.github/workflows/.+|\.githooks/commit-msg|outils/gardes-au-commit\.js)$'; then
+    # `README.md` est dans le motif depuis p2/wt-code-jeton : la racine est hors `apps/`,
+    # donc une regression du README n aurait declenche AUCUN test sans cette entree.
+    if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.github/workflows/.+|README\.md|\.githooks/commit-msg|outils/gardes-au-commit\.js)$'; then
         echo "gardes du code : aucune application gardee dans ce commit — 0 test lance" >&2
         exit 0
     fi

@@ -6,8 +6,13 @@
  *
  * Deux variables d'environnement, aucune valeur par defaut secrete :
  *   SEED_STRAPI_URL    (defaut http://localhost:1337)
- *   SEED_STRAPI_TOKEN  jeton d'API **full-access** — PAS celui du build, qui
- *                      est en lecture seule (contrainte dure de la §1 ratifiee).
+ *   SEED_STRAPI_TOKEN  jeton d'API **full-access** et a DUREE LIMITEE (jamais
+ *                      `Unlimited` : un jeton plein acces sans expiration
+ *                      survit a qui l'a cree) — PAS celui du build, qui est en
+ *                      lecture seule (contrainte dure de la §1 ratifiee).
+ *                      Sa date d'expiration vit a UN SEUL endroit, la matrice
+ *                      des secrets du depot de documentation : elle ne se
+ *                      recopie pas ici.
  *
  * Sous-commandes :
  *   (aucune)     execute le seed puis affiche le comptage en base
@@ -94,8 +99,10 @@ async function principal(): Promise<number> {
   if (JETON === '') {
     console.error(
       'SEED_STRAPI_TOKEN est vide.\n' +
-        "  Creez un jeton d'API **full-access** dans l'admin Strapi\n" +
-        '  (Settings > API Tokens > Create new API Token, Token type: Full access)\n' +
+        "  Creez un jeton d'API **full-access** et a DUREE LIMITEE dans l'admin Strapi\n" +
+        '  (Settings > API Tokens > Create new API Token, Token type: Full access,\n' +
+        '   Token duration: 30 days — JAMAIS `Unlimited` : un jeton plein acces sans\n' +
+        "   expiration survit a qui l'a cree)\n" +
         "  et exportez-le. Ce n'est PAS le jeton du build, qui est en lecture seule."
     );
     return 2;

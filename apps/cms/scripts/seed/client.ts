@@ -3,8 +3,8 @@
  *
  * Le jeton utilise ici n'est PAS celui du build : celui du build est en lecture
  * seule (contrainte dure de la §1 ratifiee). Le seed exige un jeton
- * `full-access`, injecte par l'environnement — jamais ecrit dans le depot,
- * qui est public.
+ * `full-access` et a DUREE LIMITEE (jamais `Unlimited`), injecte par
+ * l'environnement — jamais ecrit dans le depot, qui est public.
  */
 import fs from 'node:fs';
 import { ErreurStrapi } from './erreurs.ts';

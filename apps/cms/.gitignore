@@ -129,3 +129,6 @@ dist
 build
 .strapi-updater.json
 .strapi-cloud.json
+# Sentinelle de l ecluse de publication (scripts/seed/ecluse.ts) : etat LOCAL
+# d un seed en cours, jamais versionne.
+.seed-ecluse.json

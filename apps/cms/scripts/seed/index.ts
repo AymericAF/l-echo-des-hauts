@@ -4,7 +4,7 @@
  * Rejouable : le rapprochement se fait sur le slug, par locale. Deux executions
  * consecutives donnent le meme comptage en base.
  *
- * Deux variables d'environnement, aucune valeur par defaut secrete :
+ * Variables d'environnement, aucune valeur par defaut secrete :
  *   SEED_STRAPI_URL    (defaut http://localhost:1337)
  *   SEED_STRAPI_TOKEN  jeton d'API **full-access** et a DUREE LIMITEE (jamais
  *                      `Unlimited` : un jeton plein acces sans expiration
@@ -13,12 +13,25 @@
  *                      Sa date d'expiration vit a UN SEUL endroit, la matrice
  *                      des secrets du depot de documentation : elle ne se
  *                      recopie pas ici.
+ *   SEED_STRAPI_ADMIN_EMAIL     \  identifiants ADMIN, pour l'ecluse de
+ *   SEED_STRAPI_ADMIN_PASSWORD  /  publication (cf. `ecluse.ts`). Le jeton
+ *                      d'API, meme full-access, NE PEUT PAS lire ni ecrire
+ *                      `/admin/webhooks` : seule une session admin le peut.
+ *
+ * L'ECLUSE EST OBLIGATOIRE POUR SEEDER. Sans identifiants admin, le seed
+ * REFUSE de partir : il republierait alors 69 fois avec le webhook arme, ce qui
+ * s'est produit trois fois sur trois (runbook, etape 21 bis). L'echappatoire
+ * `SEED_ECLUSE=non` existe pour un Strapi local sans webhook — elle doit etre
+ * tapee, donc elle ne peut pas etre oubliee, ce qui est exactement la
+ * difference avec la consigne qu'elle remplace.
  *
  * Sous-commandes :
  *   (aucune)     execute le seed puis affiche le comptage en base
  *   --verifier   n'ecrit rien : rejoue le controle 12 du plan editorial
  *   --comptage   n'ecrit rien : affiche le comptage en base
+ *   --ecluse     n'ecrit rien : releve l'etat du webhook de publication
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,12 +40,31 @@ import { chargerCorpus } from './corpus.ts';
 import { executerSeed } from './seed.ts';
 import { controlerLocalisationsEn, EFFECTIFS_EN } from './controle12.ts';
 import { ErreurCorpus, ErreurStrapi } from './erreurs.ts';
+import { ClientAdminHttp, Ecluse, NOM_WEBHOOK_PUBLICATION, traverser } from './ecluse.ts';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
-const RACINE_DATA = path.join(ICI, '..', '..', 'data');
+const RACINE_CMS = path.join(ICI, '..', '..');
+const RACINE_DATA = path.join(RACINE_CMS, 'data');
+
+/**
+ * La sentinelle de l'ecluse : un fichier LOCAL, jamais versionne (le depot est
+ * public). C'est ce qui survit a un SIGKILL, donc ce qui permet au seed suivant
+ * de rattraper un webhook laisse desarme.
+ */
+const SENTINELLE_ECLUSE = path.join(RACINE_CMS, '.seed-ecluse.json');
 
 const BASE = (process.env.SEED_STRAPI_URL ?? 'http://localhost:1337').replace(/\/+$/, '');
 const JETON = process.env.SEED_STRAPI_TOKEN ?? '';
+const ADMIN_EMAIL = process.env.SEED_STRAPI_ADMIN_EMAIL ?? '';
+const ADMIN_MOTDEPASSE = process.env.SEED_STRAPI_ADMIN_PASSWORD ?? '';
+const ECLUSE_RETIREE = process.env.SEED_ECLUSE === 'non';
+
+function ecluse(): Ecluse {
+  return new Ecluse(new ClientAdminHttp(BASE, ADMIN_EMAIL, ADMIN_MOTDEPASSE), {
+    cheminSentinelle: SENTINELLE_ECLUSE,
+    journal: (l) => console.log(l),
+  });
+}
 
 const FAMILLES = ['categories', 'tags', 'auteurs', 'dossiers', 'articles'] as const;
 
@@ -96,6 +128,11 @@ async function verifier(): Promise<number> {
 async function principal(): Promise<number> {
   const args = new Set(process.argv.slice(2));
 
+  // `--ecluse` ne touche qu'a /admin/webhooks : il n'a pas besoin du jeton
+  // d'API, et devoir en creer un pour verifier qu'une publication n'est pas
+  // muette serait un frein place sur le seul controle qui la voit.
+  if (args.has('--ecluse')) return etatEcluse();
+
   if (JETON === '') {
     console.error(
       'SEED_STRAPI_TOKEN est vide.\n' +
@@ -114,6 +151,63 @@ async function principal(): Promise<number> {
     return 0;
   }
 
+  // ------------------------------------------------------------------
+  // FERME PAR DEFAUT : pas d'ecluse, pas de seed.
+  //
+  // C'est le coeur du mecanisme. Une consigne se saute ; un refus de
+  // demarrer, non. Trois rafales de 26 deploiements de production ont ete
+  // lancees par un seed dont l'operateur avait, chaque fois, la consigne
+  // sous les yeux.
+  // ------------------------------------------------------------------
+  if (!ECLUSE_RETIREE && (ADMIN_EMAIL === '' || ADMIN_MOTDEPASSE === '')) {
+    console.error(
+      [
+        '',
+        'SEED REFUSE — l ecluse de publication ne peut pas etre ouverte.',
+        '',
+        'SEED_STRAPI_ADMIN_EMAIL et SEED_STRAPI_ADMIN_PASSWORD sont requis pour',
+        'seeder : le seed republie chaque article, chaque republication declenche',
+        'le webhook `' + NOM_WEBHOOK_PUBLICATION + '`, et un corpus complet part',
+        'donc en 69 deploiements de PRODUCTION. L ecluse desarme ce webhook le',
+        'temps du seed et le remet ensuite ; sans identifiants admin, elle ne peut',
+        'ni l un ni l autre — et le jeton d API, meme full-access, n a pas acces a',
+        '/admin/webhooks.',
+        '',
+        'Ce refus remplace une consigne qui a echoue TROIS FOIS SUR TROIS :',
+        'runbook de provisionnement, etape 21 bis.',
+        '',
+        'A EXPORTER (les valeurs vivent dans ~/.claude/.env, hors depot) :',
+        '  export SEED_STRAPI_ADMIN_EMAIL="$ECHO_STRAPI_ADMIN_EMAIL"',
+        '  export SEED_STRAPI_ADMIN_PASSWORD="$ECHO_STRAPI_ADMIN_PASSWORD"',
+        '',
+        'Contre un Strapi LOCAL sans webhook de publication, et la seulement :',
+        '  SEED_ECLUSE=non npm run seed',
+        '',
+      ].join('\n')
+    );
+    return 2;
+  }
+
+  if (ECLUSE_RETIREE) {
+    console.warn(
+      [
+        '',
+        '⚠️  SEED LANCE SANS ECLUSE (SEED_ECLUSE=non).',
+        '   Le webhook de publication n est PAS desarme. Si la cible porte un',
+        '   webhook arme sur `entry.publish`, ce seed va declencher un',
+        '   deploiement par article publie — 69 sur un corpus complet.',
+        '   Cette echappatoire est prevue pour un Strapi local, rien d autre.',
+        '',
+      ].join('\n')
+    );
+    return await seeder();
+  }
+
+  return await traverser(ecluse(), seeder);
+}
+
+/** Le seed lui-meme, ecluse ou non : le travail, et rien que le travail. */
+async function seeder(): Promise<number> {
   console.log(`corpus : ${RACINE_DATA}`);
   const corpus = chargerCorpus(RACINE_DATA);
   console.log(
@@ -130,6 +224,52 @@ async function principal(): Promise<number> {
   const somme = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0);
   console.log(`creations : ${somme(resultat.crees)} — mises a jour : ${somme(resultat.misAJour)}`);
   afficherComptage('Comptage en base', await comptage());
+  return 0;
+}
+
+/**
+ * `--ecluse` : le releve du webhook de publication, sans rien ecrire.
+ *
+ * Il rattrape aussi une sentinelle laissee par un run mort — c'est la seule
+ * sous-commande a le faire sans seeder, ce qui en fait le geste de controle a
+ * porter sur une cadence si on veut voir une publication muette sans attendre
+ * le prochain seed.
+ */
+async function etatEcluse(): Promise<number> {
+  if (ADMIN_EMAIL === '' || ADMIN_MOTDEPASSE === '') {
+    console.error(
+      'SEED_STRAPI_ADMIN_EMAIL et SEED_STRAPI_ADMIN_PASSWORD sont requis pour lire\n' +
+        "l etat des webhooks : le jeton d API n a pas acces a /admin/webhooks."
+    );
+    return 2;
+  }
+  const client = new ClientAdminHttp(BASE, ADMIN_EMAIL, ADMIN_MOTDEPASSE);
+  const webhooks = await client.listerWebhooks();
+  const publication = webhooks.find((w) => w.name === NOM_WEBHOOK_PUBLICATION);
+
+  console.log(`\nEtat des webhooks de ${BASE} — releve a ${new Date().toISOString()}`);
+  for (const w of webhooks) {
+    console.log(`  ${w.name.padEnd(24)} isEnabled=${w.isEnabled}  events=[${w.events.join(',')}]`);
+    console.log(`  ${''.padEnd(24)} url=${w.url}`);
+  }
+
+  const sentinelle = fs.existsSync(SENTINELLE_ECLUSE);
+  console.log(`\nsentinelle d ecluse : ${sentinelle ? `PRESENTE (${SENTINELLE_ECLUSE})` : 'absente'}`);
+
+  if (publication === undefined) {
+    console.log(`\naucun webhook « ${NOM_WEBHOOK_PUBLICATION} » sur cette instance.`);
+    return 0;
+  }
+  if (!publication.isEnabled) {
+    console.error(
+      `\n⚠️  PUBLICATION MUETTE : « ${NOM_WEBHOOK_PUBLICATION} » est DESARME.\n` +
+        '   Plus aucune publication dans Strapi ne met le site a jour. Rien ne\n' +
+        '   casse et rien ne s allume en rouge : le site cesse simplement de\n' +
+        '   changer. A remettre en ON (runbook, etape 21 bis).'
+    );
+    return 1;
+  }
+  console.log(`\n« ${NOM_WEBHOOK_PUBLICATION} » est ARME : la publication met bien le site a jour.`);
   return 0;
 }
 

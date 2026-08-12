@@ -19,7 +19,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
-import { origineDuBuild } from '../scripts/origine.mjs';
+import { ORIGINE_PAR_DEFAUT, origineDuBuild } from '../scripts/origine.mjs';
 import { inspecterOrigineMedias, resumeOrigineMedias } from '../scripts/verifier-origine-medias.mjs';
 
 const NOM = 'garde-origine-medias';
@@ -73,7 +73,7 @@ export default function gardeOrigineMedias() {
         // `fileURLToPath`, jamais `dir.pathname` : sous Windows ce dernier rend
         // `/C:/Users/...`, que `fs` ne trouve pas — la garde inspecterait une sortie
         // « absente » au lieu de la vraie, et rendrait vert sur zero image lue.
-        const origine = origineDuBuild(siteResolu, 'https://echo.ayfiweb.fr');
+        const origine = origineDuBuild(siteResolu, ORIGINE_PAR_DEFAUT);
         const rapport = inspecterOrigineMedias(fileURLToPath(dir), origine);
         if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
           throw erreurVerificationImpossible(NOM, rapport.manquements);

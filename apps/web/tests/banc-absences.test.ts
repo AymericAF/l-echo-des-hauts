@@ -41,6 +41,7 @@ import {
   FIXTURES,
   ISSUES,
   absencesDeBanc,
+  cheminAffiche,
   fixturesDuBanc,
   messageVerificationImpossible,
   reponseDeFixture,
@@ -124,7 +125,12 @@ test('Configuration anglaise absente : INCAPACITE nommee, et jamais la Configura
   const dossier = bancSansAnglais();
   try {
     const reponse = reponseDeFixture('configuration', 'en', dossier);
-    assert.equal(reponse.incapacite, 'tests/fixtures/configuration-en.json');
+    /* CE QUE CETTE LIGNE ASSERTAIT AVANT LE 2026-08-12, et pourquoi c etait faux : elle
+       exigeait `'tests/fixtures/configuration-en.json'` alors que le dossier passe est un
+       `mkdtemp` d ou le fichier a ete RETIRE. Le message envoyait donc le lecteur vers le
+       banc PAR DEFAUT, ou `configuration-en.json` existe — le test verrouillait un
+       mensonge. Il nomme desormais le dossier reellement consulte (tache 66fc4e4c). */
+    assert.equal(reponse.incapacite, cheminAffiche('configuration-en', dossier));
     assert.equal(reponse.corps, undefined, 'un corps a ete servi a la place de l absence');
   } finally {
     fs.rmSync(dossier, { recursive: true, force: true });
@@ -136,7 +142,7 @@ test('collection anglaise absente : INCAPACITE nommee, et jamais une collection 
   try {
     for (const collection of COLLECTIONS) {
       const reponse = reponseDeFixture(collection, 'en', dossier);
-      assert.equal(reponse.incapacite, `tests/fixtures/${collection}-en.json`);
+      assert.equal(reponse.incapacite, cheminAffiche(`${collection}-en`, dossier));
       assert.equal(
         reponse.corps,
         undefined,
@@ -176,7 +182,9 @@ test('Configuration de la locale absente : la recette DECLARE, elle ne replie pa
       () => configurationRecette('en', dossier),
       (erreur: Error) => {
         assert.match(erreur.message, /VERIFICATION IMPOSSIBLE/);
-        assert.match(erreur.message, /tests\/fixtures\/configuration-en\.json/);
+        // Le dossier REELLEMENT consulte, pas le banc par defaut ou la fixture existe.
+        assert.ok(erreur.message.includes(cheminAffiche('configuration-en', dossier)));
+        assert.doesNotMatch(erreur.message, /tests\/fixtures\/configuration-en\.json/);
         // Et surtout : rien du francais n a ete rendu au passage.
         assert.doesNotMatch(erreur.message, new RegExp(francais.slice(0, 40).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
         return true;

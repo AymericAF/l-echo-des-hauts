@@ -14,7 +14,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { erreurVerificationImpossible, ISSUES } from '../scripts/issues.mjs';
-import { origineDuBuild } from '../scripts/origine.mjs';
+import { ORIGINE_PAR_DEFAUT, origineDuBuild } from '../scripts/origine.mjs';
 import { inspecterLiens, resumeLiens } from '../scripts/verifier-liens.mjs';
 
 const NOM = 'garde-liens';
@@ -66,7 +66,7 @@ export default function gardeLiens() {
         // `fileURLToPath`, jamais `dir.pathname` : sous Windows ce dernier rend
         // `/C:/Users/...`, que `fs` ne trouve pas — la garde inspecterait une sortie
         // « absente » au lieu de la vraie.
-        const origine = origineDuBuild(siteResolu, 'https://echo.ayfiweb.fr');
+        const origine = origineDuBuild(siteResolu, ORIGINE_PAR_DEFAUT);
         const rapport = inspecterLiens(fileURLToPath(dir), origine);
         /* UNE INCAPACITE N EST PAS UNE ANOMALIE, et les deux messages n envoient pas au
            meme endroit : « lien mort » envoie corriger le registre des routes, «

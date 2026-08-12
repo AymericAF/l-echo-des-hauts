@@ -82,17 +82,24 @@
  * manquait a celui-ci. `contexte-site.ts` le REEXPORTE : aucun appelant ne bouge.
  */
 import { ISSUES } from '../../../scripts/issues.mjs';
-import { decrire, lireOrigine } from '../../../scripts/origine.mjs';
+import { decrire, lireOrigine, ORIGINE_PAR_DEFAUT } from '../../../scripts/origine.mjs';
 
 /**
  * Le repli quand `ECHO_SITE_URL` est ABSENTE — absente, et non vide.
  *
- * Il est ecrit ici et dans `astro.config.mjs`, `integrations/garde-*.mjs` et les trois
+ * ~~Il est ecrit ici et dans `astro.config.mjs`, `integrations/garde-*.mjs` et les trois
  * `scripts/verifier-*.mjs` : huit copies de la meme chaine au 2026-08-10. Les unifier
  * depasse le perimetre de cette tache et se fait sous son propre controle — cette
- * constante existe pour leur donner un domicile le jour ou on le fera.
+ * constante existe pour leur donner un domicile le jour ou on le fera.~~
+ * **2026-08-12 (tache 927dd3a2) : fait.** Les huit copies sont fondues, et deux replis de
+ * plus avec elles (`preuve-rendu.mjs`, `preuve-pagination.mjs`). La constante a DEMENAGE
+ * dans `scripts/origine.mjs`, le module le plus bas de la chaine — le seul que les trois
+ * contextes de chargement (configuration Astro, integrations de build, scripts `node`)
+ * savent tous importer. Elle est REEXPORTEE ici, sans etre reecrite : aucun appelant de ce
+ * fichier ne bouge, et `tests/origine-domicile-unique.test.ts` rougit si une neuvieme copie
+ * reapparait.
  */
-export const ORIGINE_PAR_DEFAUT = 'https://echo.ayfiweb.fr';
+export { ORIGINE_PAR_DEFAUT };
 
 /**
  * L origine publique du site, sans slash final.

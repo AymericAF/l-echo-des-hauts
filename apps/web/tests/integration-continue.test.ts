@@ -190,16 +190,28 @@ test('aucun intitule du workflow ne COMPTE les verificateurs', () => {
  * LES SCRIPTS DE PREUVE QUI ONT LE DROIT DE CONSTRUIRE PAR UNE AUTRE PORTE, et pourquoi.
  *
  * `preuve-pagination.mjs` construit un CORPUS DIFFERENT (`scripts/corpus-recette.mjs`)
- * dans un repertoire different (`dist-recette/`), via `astro build --outDir`. Son objet
- * est la BORNE de pagination, pas les octets servis : `npm run build` ne saurait pas ou
- * deposer l index (`index-pagefind.mjs` prend son chemin en argument, pas de `--outDir`),
- * et l index de recherche ne prouverait rien sur une page 2. L extension de la garde a ce
- * corpus-la n a pas ete faite et n est pas prevue — c est ecrit ici plutot que tu.
+ * dans un repertoire different (`dist-recette/`), via `astro build --outDir` : `npm run
+ * build` ne sait pas transmettre un `--outDir` (`index-pagefind.mjs` prend son chemin en
+ * argument, et le script `build` n en passe aucun).
+ *
+ * ~~« L extension de la garde a ce corpus-la n a pas ete faite et n est pas prevue »~~ —
+ * ECRIT ICI JUSQU AU 2026-08-12, ET DEVENU FAUX CE JOUR-LA (tache da329cb3). La phrase
+ * excusait davantage que la porte : mesure du 2026-08-12, `dist-recette/pagefind/`
+ * n existait pas et AUCUN des sept verificateurs derives n y etait lance, alors que les
+ * sept y rendent `0`. Une page 2, un article non traduit, une 404 — tout ce que ce corpus
+ * existe pour exercer — n etait juge par personne.
+ *
+ * CE QUE CETTE EXEMPTION COUVRE DESORMAIS, ET RIEN DE PLUS : la PORTE du build. Le
+ * maillon d indexation, lui, est exerce — `preuve-pagination.mjs` importe `indexer` et
+ * `manquementsDepot`, depose l index sur `dist-recette/` puis re-inspecte la sortie
+ * augmentee, avant de la soumettre aux verificateurs derives. Les deux assertions
+ * ci-dessous empechent l exemption de se rouvrir en silence.
  */
 const PORTE_ETROITE_ADMISE: Record<string, string> = {
   'preuve-pagination.mjs':
     'corpus de recette, sortie dans dist-recette/ via --outDir : `npm run build` ne sait ' +
-    "pas ou deposer l index, et l index ne prouve rien sur une borne de pagination",
+    "pas ou deposer l index. Le MAILLON d indexation est exerce quand meme, par import " +
+    'direct d index-pagefind.mjs (2026-08-12) — seule la porte reste plus etroite.',
 };
 
 test('aucun script de preuve ne construit par une porte plus etroite que la production', () => {
@@ -212,6 +224,22 @@ test('aucun script de preuve ne construit par une porte plus etroite que la prod
       `${fichier} lance « astro build » en direct : il n exerce donc AUCUN maillon que ` +
         '`npm run build` enchaine apres lui. Passe par `npm run build`, ou exempte ce ' +
         'fichier ICI avec sa raison.',
+    );
+  }
+});
+
+test('une porte plus etroite n excuse pas un maillon SAUTE — le corpus de recette est indexe', () => {
+  /* CE QUI REND L EXEMPTION CI-DESSUS SUPPORTABLE. Une porte plus etroite est admise
+     quand elle est justifiee ; elle ne l est jamais quand elle fait DISPARAITRE un
+     maillon. Le 2026-08-12, `dist-recette/pagefind/` n existait pas : le corpus de
+     recette etait le seul endroit du dispositif ou du JavaScript pouvait entrer sans
+     passer devant la re-inspection de la garde T-09. */
+  for (const fichier of Object.keys(PORTE_ETROITE_ADMISE)) {
+    const source = fs.readFileSync(path.join(RACINE, 'scripts', fichier), 'utf8');
+    assert.ok(
+      /from '\.\/index-pagefind\.mjs'/.test(source),
+      `${fichier} construit par une porte plus etroite que la production SANS exercer le ` +
+        "maillon d indexation : sa sortie n est jamais re-inspectee apres le depot de l index",
     );
   }
 });

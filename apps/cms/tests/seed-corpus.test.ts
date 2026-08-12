@@ -438,7 +438,7 @@ test('un `caption` ecrit a la main est refuse — il serait une seconde copie de
   assert.match(message, /caption/);
 });
 
-test('les 94 medias VERSIONNES portent une ligne de credit au format, ayant droit et licence', () => {
+test('les 102 medias VERSIONNES portent une ligne de credit au format, ayant droit et licence', () => {
   const corpus = chargerCorpus(DATA_REEL);
   const horsFormat: string[] = [];
   for (const media of corpus.medias) {
@@ -447,7 +447,10 @@ test('les 94 medias VERSIONNES portent une ligne de credit au format, ayant droi
     if (media.ayantDroit.trim() === '') horsFormat.push(`${media.cle} : ayant droit vide`);
   }
   assert.deepEqual(horsFormat, []);
-  assert.equal(corpus.medias.length, 94);
+  // 102 et non 105 : les 3 vignettes de `bloc.video` du §6.4 sont SANS OBJET
+  // depuis l avenant A5. Le compte attendu est tenu, famille par famille, par
+  // `tests/repartition-6-4.test.ts`.
+  assert.equal(corpus.medias.length, 102);
 });
 
 /* ------------------------------------------------------------------ */

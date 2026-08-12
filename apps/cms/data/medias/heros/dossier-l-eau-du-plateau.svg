@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" width="1600" height="500" role="img">
+  <rect width="1600" height="500" fill="#FBFAF7"/>
+  <polygon points="80,444 80,279 140,342 200,374 260,381 320,395 380,377 440,358 500,331 560,282 620,257 680,244 740,206 800,222 860,245 920,288 980,287 1040,317 1100,366 1160,386 1220,356 1280,358 1340,354 1400,315 1460,293 1520,274 1520,444" fill="#0E6F87" opacity="0.18"/>
+  <polyline points="80,279 140,342 200,374 260,381 320,395 380,377 440,358 500,331 560,282 620,257 680,244 740,206 800,222 860,245 920,288 980,287 1040,317 1100,366 1160,386 1220,356 1280,358 1340,354 1400,315 1460,293 1520,274" fill="none" stroke="#0E6F87" stroke-width="3"/>
+  <line x1="80" y1="444" x2="1520" y2="444" stroke="#1A1A1A" stroke-width="1.5" opacity="0.45"/>
+  <circle cx="80" cy="279" r="5" fill="#0E6F87"/>
+  <circle cx="440" cy="358" r="5" fill="#0E6F87"/>
+  <circle cx="800" cy="222" r="5" fill="#0E6F87"/>
+  <circle cx="1160" cy="386" r="5" fill="#0E6F87"/>
+  <circle cx="1520" cy="274" r="5" fill="#0E6F87"/>
+  <rect x="80" y="60" width="10" height="120" fill="#0E6F87"/>
+  <text x="122" y="118" font-family="Georgia, serif" font-size="52" fill="#1A1A1A">L'eau du plateau</text>
+  <text x="122" y="164" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#0E6F87">L'Echo des Hauts</text>
+</svg>

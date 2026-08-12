@@ -13,7 +13,7 @@ d Aymeric, **C** un document du domaine public, **D** un portrait sous licence
 tierce. Les colonnes de relevee (URL, date, releveur) sont sans objet en voie B et
 proviennent du sidecar `data/medias/sources/<fichier>.json` pour les autres.
 
-**94 fichiers** — voie B : 94.
+**102 fichiers** — voie B : 102.
 
 | Fichier | Entite(s) | Voie | Source precise | Licence | URL permanente relevee | Date de relevee | Releve par | alternativeText | caption |
 |---|---|---|---|---|---|---|---|---|---|
@@ -107,6 +107,14 @@ proviennent du sidecar `data/medias/sources/<fichier>.json` pour les autres.
 | `galeries/A30-1.svg` | A30 | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Composition graphique evoquant une ecorce decollee | Œuvre du projet — CC0 1.0 |
 | `galeries/A30-2.svg` | A30 | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Composition graphique evoquant des galeries de scolytes sous l'ecorce | Œuvre du projet — CC0 1.0 |
 | `galeries/A30-3.svg` | A30 | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Composition graphique evoquant une coupe sanitaire en bord de piste | Œuvre du projet — CC0 1.0 |
+| `heros/dossier-ce-qui-reste-de-la-filature.svg` | Dossier/ce-qui-reste-de-la-filature | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Bandeau de fac-simile d'une page de registre d'atelier a six colonnes | Œuvre du projet — CC0 1.0 |
+| `heros/dossier-l-eau-du-plateau.svg` | Dossier/l-eau-du-plateau | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Bandeau d'une courbe de debit en aire bleue, du captage a la coupure, cinq points releves | Œuvre du projet — CC0 1.0 |
+| `heros/rubrique-culture-patrimoine.svg` | Categorie/culture-patrimoine | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Bandeau de fac-simile d'une fiche d'inventaire a trois colonnes, cinq entrees renseignees | Œuvre du projet — CC0 1.0 |
+| `heros/rubrique-economie-locale.svg` | Categorie/economie-locale | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Bandeau de fac-simile d'un tableau comptable a quatre colonnes et cinq lignes chiffrees | Œuvre du projet — CC0 1.0 |
+| `heros/rubrique-grand-air.svg` | Categorie/grand-air | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Bandeau de courbes de niveau bleues d'un bassin versant, avec cinq perimetres releves | Œuvre du projet — CC0 1.0 |
+| `heros/rubrique-la-vie-publique.svg` | Categorie/la-vie-publique | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Bandeau de fac-simile d'un extrait de deliberation a cinq colonnes de vote | Œuvre du projet — CC0 1.0 |
+| `heros/rubrique-territoire.svg` | Categorie/territoire | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Bandeau de courbes de niveau du plateau, traversees par cinq emprises parcellaires au trace vert | Œuvre du projet — CC0 1.0 |
+| `heros/rubrique-vies-d-ici.svg` | Categorie/vies-d-ici | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Bandeau de courbes de terrain rouges, semees de cinq enclos qui figurent des hameaux | Œuvre du projet — CC0 1.0 |
 | `identite/favicon.svg` | Configuration/favicon | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Monogramme E de L'Echo des Hauts | Œuvre du projet — CC0 1.0 |
 | `identite/logo-sombre.svg` | Configuration/logoSombre | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | L'Echo des Hauts, magazine du plateau | Œuvre du projet — CC0 1.0 |
 | `identite/logo.svg` | Configuration/logo | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | L'Echo des Hauts, magazine du plateau | Œuvre du projet — CC0 1.0 |

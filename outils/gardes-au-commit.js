@@ -105,6 +105,7 @@ const LECTURES = {
     'apps/cms/tests/seed-corpus.test.ts': ['apps/cms/data/'],
     'apps/cms/tests/seed-idempotence.test.ts': ['apps/cms/data/'],
     'apps/cms/tests/garde-medias-corpus-reel.test.ts': ['apps/cms/data/'],
+    'apps/cms/tests/repartition-6-4.test.ts': ['apps/cms/data/'],
     // `CREDITS.md` est PRODUIT depuis le corpus (plan editorial §6.7). Les deux
     // sens comptent : toucher le corpus doit rejouer la comparaison, et toucher
     // `CREDITS.md` a la main aussi — c'est le seul moment ou une divergence peut

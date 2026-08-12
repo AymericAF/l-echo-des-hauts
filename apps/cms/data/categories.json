@@ -2,6 +2,7 @@
   {
     "ordreAffichage": 10,
     "couleurAccent": "#1F5C4A",
+    "imageHero": "heros/rubrique-territoire.svg",
     "fr": {
       "nom": "Territoire",
       "slug": "territoire",
@@ -16,6 +17,7 @@
   {
     "ordreAffichage": 20,
     "couleurAccent": "#B4472A",
+    "imageHero": "heros/rubrique-vies-d-ici.svg",
     "fr": {
       "nom": "Vies d'ici",
       "slug": "vies-d-ici",
@@ -30,6 +32,7 @@
   {
     "ordreAffichage": 30,
     "couleurAccent": "#8A5A12",
+    "imageHero": "heros/rubrique-economie-locale.svg",
     "fr": {
       "nom": "Économie locale",
       "slug": "economie-locale",
@@ -44,6 +47,7 @@
   {
     "ordreAffichage": 40,
     "couleurAccent": "#5B3E7A",
+    "imageHero": "heros/rubrique-culture-patrimoine.svg",
     "fr": {
       "nom": "Culture & patrimoine",
       "slug": "culture-patrimoine",
@@ -58,6 +62,7 @@
   {
     "ordreAffichage": 50,
     "couleurAccent": "#0E6F87",
+    "imageHero": "heros/rubrique-grand-air.svg",
     "fr": {
       "nom": "Grand air",
       "slug": "grand-air",
@@ -72,6 +77,7 @@
   {
     "ordreAffichage": 60,
     "couleurAccent": "#8C2F39",
+    "imageHero": "heros/rubrique-la-vie-publique.svg",
     "fr": {
       "nom": "La vie publique",
       "slug": "la-vie-publique",

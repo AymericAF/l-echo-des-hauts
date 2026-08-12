@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" width="1600" height="500" role="img">
+  <rect width="1600" height="500" fill="#FBFAF7"/>
+  <rect x="80" y="216" width="1440" height="228" fill="#FFFFFF" stroke="#5B3E7A" stroke-width="2" opacity="0.9"/>
+  <rect x="80" y="216" width="1440" height="34" fill="#5B3E7A" opacity="0.16"/>
+  <line x1="560" y1="216" x2="560" y2="444" stroke="#5B3E7A" stroke-width="1" opacity="0.35"/>
+  <line x1="1040" y1="216" x2="1040" y2="444" stroke="#5B3E7A" stroke-width="1" opacity="0.35"/>
+  <line x1="80" y1="282" x2="1520" y2="282" stroke="#5B3E7A" stroke-width="1" opacity="0.22"/>
+  <line x1="80" y1="314" x2="1520" y2="314" stroke="#5B3E7A" stroke-width="1" opacity="0.22"/>
+  <line x1="80" y1="346" x2="1520" y2="346" stroke="#5B3E7A" stroke-width="1" opacity="0.22"/>
+  <line x1="80" y1="378" x2="1520" y2="378" stroke="#5B3E7A" stroke-width="1" opacity="0.22"/>
+  <line x1="80" y1="410" x2="1520" y2="410" stroke="#5B3E7A" stroke-width="1" opacity="0.22"/>
+  <rect x="104" y="272" width="129" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="104" y="304" width="98" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="104" y="336" width="89" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="104" y="368" width="152" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="104" y="400" width="117" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="584" y="272" width="96" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="584" y="304" width="72" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="584" y="336" width="110" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="584" y="368" width="88" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="584" y="400" width="89" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="1064" y="272" width="97" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="1064" y="304" width="92" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="1064" y="336" width="102" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="1064" y="368" width="116" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="1064" y="400" width="87" height="9" fill="#1A1A1A" opacity="0.28"/>
+  <rect x="80" y="60" width="10" height="120" fill="#5B3E7A"/>
+  <text x="122" y="118" font-family="Georgia, serif" font-size="52" fill="#1A1A1A">Culture &amp; patrimoine</text>
+  <text x="122" y="164" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#5B3E7A">L'Echo des Hauts</text>
+</svg>

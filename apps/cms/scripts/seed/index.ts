@@ -128,7 +128,14 @@ async function principal(): Promise<number> {
   console.log(`\ntermine en ${((Date.now() - debut) / 1000).toFixed(1)} s`);
 
   const somme = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0);
-  console.log(`creations : ${somme(resultat.crees)} — mises a jour : ${somme(resultat.misAJour)}`);
+  // `inchanges` est un registre a part, jamais range en « mises a jour » : une
+  // entree sautee n'a produit AUCUNE ecriture, donc aucune republication, donc
+  // aucun deploiement. Les confondre ferait mentir le comptage exactement
+  // comme il mentait sur les 94 medias.
+  console.log(
+    `creations : ${somme(resultat.crees)} — mises a jour : ${somme(resultat.misAJour)} — ` +
+      `inchanges (aucune ecriture emise) : ${somme(resultat.inchanges)}`
+  );
   afficherComptage('Comptage en base', await comptage());
   return 0;
 }

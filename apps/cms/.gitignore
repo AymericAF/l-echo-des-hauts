@@ -129,3 +129,6 @@ dist
 build
 .strapi-updater.json
 .strapi-cloud.json
+# Sauvegardes locales des champs CMS avant ecriture (configuration-seule.ts) :
+# etat d'une INSTANCE a un instant donne, pas une source — il ne se versionne pas.
+.sauvegardes/

@@ -157,13 +157,57 @@ export function slugRequis(source: unknown, cle: string, chemin: string): string
   return valeur;
 }
 
+/**
+ * Un champ texte optionnel : `null` si absent de fait, sinon la chaine telle quelle.
+ *
+ * « Absent de fait » couvre TROIS etats, et c est le troisieme qui manquait jusqu au
+ * 2026-08-11 : `null` (Strapi, champ vide), `''` (Strapi, champ vide autrement), et
+ * une chaine faite UNIQUEMENT de blancs invisibles. Les trois affichent la meme
+ * chose — rien — donc la lecture leur rend la meme valeur.
+ *
+ * Ce que ca fermait, et pourquoi ce defaut a survecu a la correction de `texteRequis` :
+ * un `<h1>` fait de trois espaces se VOIT a l ecran, un `alt` fait de trois espaces ne
+ * se voit nulle part. Il PASSE meme les gardes — axe-core exige une alternative non
+ * nulle, il en trouve une, et compte trois espaces comme une description valide. La
+ * garde reste verte sur une image qui n a plus d alternative du tout. C est la meme
+ * classe de defaut qu une alternative qui nomme la FORME d un graphique : PRESENTE et
+ * INUTILE. `alt=""`, lui, est une DECLARATION — « cette image est decorative » — et
+ * c est exactement ce que rend ce `null` en aval.
+ *
+ * POURQUOI NORMALISER ICI ALORS QUE `texteRequis` REFUSE. Ce n est pas une entorse a
+ * la regle voisine, ce sont deux contrats differents :
+ *
+ *  1. `texteOptionnel` normalise DEJA — `''` rend `null` depuis l origine. Ce qui est
+ *     etendu ici est l ALPHABET du vide, pas la nature de la fonction. `texteRequis`,
+ *     lui, n a jamais rien normalise et ne commence pas.
+ *  2. Un champ optionnel a le DROIT d etre absent. Rougir un build parce qu un editeur
+ *     a laisse une espace dans une legende ferait payer a la publication le prix d une
+ *     coquille, sur un champ dont le schema dit qu il peut ne rien valoir.
+ *  3. `null` declenche le repli DOCUMENTE de chaque consommateur (`alt=""`, pas de
+ *     `<figcaption>`, `metaTitre` qui retombe sur le titre, canonique recalculee).
+ *     Rendre la chaine de blancs force au contraire chaque consommateur a servir un
+ *     attribut ou une balise qui ne porte rien.
+ *
+ * Et ce n est PAS reecrire le contenu d autrui : la valeur n est jamais rognee ni
+ * remplacee. Une valeur PORTEUSE sort telle quelle, blancs de bordure compris. Ce qui
+ * est choisi ici, c est la branche « absent » plutot que la branche « rempli », pour
+ * une valeur qui n affiche rien.
+ *
+ * CE QUE CETTE BRANCHE COUTE, ecrit plutot que taire : la lecture cesse de distinguer
+ * « champ laisse vide » de « champ rempli de blancs par erreur ». Un defaut de saisie
+ * devient indiscernable d une absence voulue. Ce trou est ferme A L AUTRE BOUT, a
+ * l ECRITURE : la garde de corpus du seed refuse un `alternativeText` blanc sur ce
+ * meme alphabet (`apps/cms/scripts/seed/corpus.ts`). Refuser a l entree, etre honnete
+ * a la sortie — l inverse laisserait le site mentir sur ce qu il n a pas su ecrire.
+ */
 export function texteOptionnel(source: unknown, cle: string, chemin: string): string | null {
   const valeur = lire(source, cle, chemin);
-  if (valeur === null || valeur === '') return null;
+  if (valeur === null) return null;
   if (typeof valeur !== 'string') {
     throw new ValeurInattendueError(`${chemin}.${cle}`, `chaine ou null attendus, recu ${JSON.stringify(valeur)}`);
   }
-  return valeur;
+  // `estBlanc('')` est vrai : la chaine strictement vide reste couverte, sans cas a part.
+  return estBlanc(valeur) ? null : valeur;
 }
 
 // --- nombres et booleens ---------------------------------------------------

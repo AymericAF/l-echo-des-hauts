@@ -142,6 +142,20 @@ const LECTURES = {
         '.github/workflows/gardes-du-code.yml',
         'apps/web/scripts/',
     ],
+    // CE TEST LIT LES DEUX APPLICATIONS, et c'est le point : depuis la decision
+    // `ed69d5bf` (branche A), le texte des mentions legales n'a plus qu'une
+    // source — le champ `mentionsLegales` du SEED d'`apps/cms`, rendu par
+    // `PageMentions.astro` d'`apps/web`. Aucun de ces trois fichiers n'est
+    // importe : le seed et les fixtures sont lus par chemin, le composant est lu
+    // comme du TEXTE (il tient qu'aucun fait juridique n'y revienne en dur).
+    // Sans cette ligne, retirer l'hebergeur du seed ne declencherait AUCUN test
+    // au commit — c'est-a-dire publier des mentions legales amputees sans qu'une
+    // seule garde s'allume, le defaut meme que ce test existe pour fermer.
+    'apps/web/tests/mentions-legales.test.ts': [
+        'apps/cms/data/configuration.json',
+        'apps/web/tests/fixtures/',
+        'apps/web/src/components/pages/PageMentions.astro',
+    ],
 };
 
 // ── Fichiers HORS APPLICATION qu un test lit par chemin ──────────────────────

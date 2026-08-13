@@ -62,11 +62,44 @@ test('la composition est DETERMINISTE : deux appels rendent le meme texte', () =
   assert.equal(composerRegistre(corpus), composerRegistre(chargerCorpus(DATA_REEL)));
 });
 
-test('aucune ligne ne porte de licence vide, ni d alternative vide, ni de credit vide', () => {
-  const fautives = lignesRegistre(chargerCorpus(DATA_REEL)).filter(
-    (l) => !l.licence.trim() || !l.alternativeText.trim() || !l.caption.trim()
+test('aucune ligne ne porte de licence vide, ni d alternative vide NON DECLAREE, ni de credit vide', () => {
+  /* AMENDE AU TRAIN DU 2026-08-12 (fusion de `p2/wt-code-alt`). Ce cas exigeait une
+     alternative non vide sur TOUTE ligne. Il avait raison tant que le vide ne pouvait
+     etre qu un oubli — mais `p2/wt-code-alt` fait du vide un ETAT DECLARE : 22 galeries
+     portent `alternativeText: ""` AVEC `decoratif: true`, parce qu aucune ne montre son
+     sujet et que leur legende porte le sens. Laisse tel quel, ce cas interdisait l etat
+     que la branche venait de rendre legitime — `[[garde-ecrite-pour-la-solution-ecartee]]`.
+
+     Ce qu il juge desormais est le vide NON DECLARE, c est-a-dire l oubli, qui reste une
+     faute. La declaration elle-meme ne peut pas s obtenir par negligence : `corpus.ts`
+     exerce trois refus symetriques (vide sans declaration, declaration avec alternative
+     non vide, `decoratif` qui ne soit pas le booleen `true`). */
+  const corpus = chargerCorpus(DATA_REEL);
+  const declares = new Set(corpus.medias.filter((m) => m.decoratif).map((m) => m.cle));
+  const fautives = lignesRegistre(corpus).filter(
+    (l) =>
+      !l.licence.trim() ||
+      (!l.alternativeText.trim() && !declares.has(l.fichier)) ||
+      !l.caption.trim()
   );
   assert.deepEqual(fautives, []);
+});
+
+test('PREUVE EN CASSANT — une alternative vide SANS declaration reste une faute', () => {
+  /* Sans ce cas, l amendement ci-dessus serait indistinguable d un assouplissement :
+     un `filter` trop large rendrait vert sur un oubli comme sur une declaration. */
+  const corpus = chargerCorpus(DATA_REEL);
+  const declares = new Set(corpus.medias.filter((m) => m.decoratif).map((m) => m.cle));
+  const lignes = lignesRegistre(corpus);
+  const declaree = lignes.find((l) => declares.has(l.fichier));
+  assert.ok(declaree, 'le corpus reel doit porter au moins un media declare decoratif');
+  assert.equal(declaree.alternativeText.trim(), '');
+
+  const oubli = { ...declaree, fichier: 'galeries/media-jamais-declare.svg' };
+  const fautives = [oubli].filter(
+    (l) => !l.alternativeText.trim() && !declares.has(l.fichier)
+  );
+  assert.deepEqual(fautives, [oubli]);
 });
 
 test('les colonnes de relevee sont SANS OBJET en voie B — aucune date inventee', () => {

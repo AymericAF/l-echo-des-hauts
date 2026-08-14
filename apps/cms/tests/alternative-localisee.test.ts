@@ -422,3 +422,148 @@ test('la garde ne touche pas au corpus REEL du depot : il se charge toujours', (
   assert.equal(corpus.articles.length, 40);
   assert.equal(corpus.articles.filter((a) => a.en).length, 8);
 });
+
+/* ------------------------------------------------------------------ */
+/* SENS 5 — LE CORPUS VERSIONNE : complet, et reellement en anglais    */
+/*                                                                     */
+/* Ces trois cas sont la RECETTE de la tache, pas une redite des tests  */
+/* de fixture : ils portent sur ce que le site sert vraiment. Sans eux, */
+/* tout ce qui precede peut etre vert pendant que les pages anglaises   */
+/* restent francaises — le mecanisme marcherait, personne ne s en       */
+/* servirait.                                                          */
+/* ------------------------------------------------------------------ */
+
+/** Tout ce qui est servi sur une page EN et attend une alternative, avec sa surcharge. */
+function porteursAnglais(corpus: ReturnType<typeof chargerCorpus>) {
+  const parCle = new Map(corpus.medias.map((m) => [m.cle, m]));
+  const porteurs: { quoi: string; media: string; surcharge?: string }[] = [];
+
+  for (const a of corpus.articles) {
+    if (!a.en) continue;
+    porteurs.push({
+      quoi: `article ${a.code} : couverture`,
+      media: a.en.imageCouverture,
+      surcharge: a.en.alternativeCouverture,
+    });
+    for (const bloc of a.en.contenu) {
+      if (bloc.__component === 'bloc.image-legendee') {
+        porteurs.push({
+          quoi: `article ${a.code} : bloc image-legendee`,
+          media: bloc.image.__media,
+          surcharge: bloc.alternative,
+        });
+      }
+      /* LA GALERIE EST DANS CETTE LISTE, ET ELLE N A PAS DE SURCHARGE — c est voulu,
+         et c est ce qui rend le trou VISIBLE plutot que tacite.
+         `bloc.galerie` porte N images pour une seule legende (A-22) ; lui donner des
+         alternatives par locale demanderait un champ REPETABLE, donc un autre lot. Le
+         corpus n en a pas besoin : ses 22 images de galerie sont toutes
+         `decoratif: true` (commit `d0e3db5`), elles sortent en `alt=""` et il n y a
+         rien a traduire. Le filtre `decoratif` ci-dessous les ecarte donc toutes.
+         Le jour ou une galerie PORTEUSE sera servie en anglais, ce test ROUGIRA en la
+         nommant — et c est le bon moment pour decider d etendre le mecanisme, pas
+         avant. Sans cette ligne, elle serait sortie en francais sans que rien ne bouge.
+         Mesure du 2026-08-14 : sur le banc de fixtures, dont les galeries ne sont PAS
+         decoratives, trois alternatives francaises sortaient bien sur les pages EN. */
+      if (bloc.__component === 'bloc.galerie') {
+        for (const image of bloc.images) {
+          porteurs.push({ quoi: `article ${a.code} : bloc galerie`, media: image.__media });
+        }
+      }
+    }
+  }
+  for (const c of corpus.categories) {
+    if (c.en && c.imageHero) {
+      porteurs.push({
+        quoi: `categorie ${c.en.slug} : hero`,
+        media: c.imageHero,
+        surcharge: c.en.alternativeHero,
+      });
+    }
+  }
+  for (const d of corpus.dossiers) {
+    if (d.en && d.imageHero) {
+      porteurs.push({
+        quoi: `dossier ${d.en.slug} : hero`,
+        media: d.imageHero,
+        surcharge: d.en.alternativeHero,
+      });
+    }
+  }
+  for (const a of corpus.auteurs) {
+    if (a.en && a.photo) {
+      porteurs.push({
+        quoi: `auteur ${a.en.slug} : photo`,
+        media: a.photo,
+        surcharge: a.en.alternativePhoto,
+      });
+    }
+  }
+  const conf = corpus.configuration;
+  if (conf.en) {
+    porteurs.push({
+      quoi: 'configuration : logo',
+      media: conf.logo,
+      surcharge: conf.en.alternativeLogo,
+    });
+    porteurs.push({
+      quoi: 'configuration : image de partage',
+      media: conf.imagePartageDefaut,
+      surcharge: conf.en.alternativePartageDefaut,
+    });
+  }
+
+  // Un media DECORATIF n attend rien : son alternative est vide des deux cotes.
+  return porteurs.filter((p) => !parCle.get(p.media)?.decoratif);
+}
+
+test('RECETTE — tout media servi sur une page ANGLAISE et non decoratif porte sa surcharge', () => {
+  const corpus = chargerCorpus(path.join(RACINE_CMS, 'data'));
+  const manquants = porteursAnglais(corpus).filter((p) => !p.surcharge);
+
+  assert.deepEqual(
+    manquants.map((p) => `${p.quoi} (${p.media})`),
+    [],
+    'ces medias sortiraient avec leur alternative FRANCAISE sur une page anglaise'
+  );
+});
+
+test('RECETTE — aucune surcharge anglaise ne recopie l alternative francaise, mot pour mot', () => {
+  const corpus = chargerCorpus(path.join(RACINE_CMS, 'data'));
+  const parCle = new Map(corpus.medias.map((m) => [m.cle, m]));
+
+  /* LE CRITERE EST L EGALITE, PAS UNE HEURISTIQUE DE LANGUE. C est ce qui a fait
+     defaut au compteur de `verifier-langue.mjs`, qui cherchait des lettres accentuees
+     dans un manifeste ECRIT SANS ACCENTS : il rendait 0 sur 28 alt francais, et un
+     compteur a zero se lit « rien a signaler ». Comparer a la source, c est exact. */
+  const recopies = porteursAnglais(corpus).filter(
+    (p) => p.surcharge !== undefined && p.surcharge === parCle.get(p.media)?.alternativeText
+  );
+
+  assert.deepEqual(recopies.map((p) => p.quoi), []);
+});
+
+test('RECETTE — le corpus versionne porte exactement 29 surcharges, et AUCUNE en francais', () => {
+  const corpus = chargerCorpus(path.join(RACINE_CMS, 'data'));
+
+  assert.equal(porteursAnglais(corpus).filter((p) => p.surcharge).length, 29);
+
+  /* La locale FRANCAISE n en porte aucune, et c est le sens meme du dispositif :
+     l alternative native EST deja francaise. Une surcharge FR serait une seconde
+     copie de la meme phrase, a diverger. */
+  const surchargesFr = [
+    ...corpus.articles.map((a) => a.fr.alternativeCouverture),
+    ...corpus.articles.flatMap((a) =>
+      a.fr.contenu
+        .filter((b: any) => b.__component === 'bloc.image-legendee')
+        .map((b: any) => b.alternative)
+    ),
+    ...corpus.categories.map((c) => c.fr.alternativeHero),
+    ...corpus.dossiers.map((d) => d.fr.alternativeHero),
+    ...corpus.auteurs.map((a) => a.fr.alternativePhoto),
+    corpus.configuration.fr?.alternativeLogo,
+    corpus.configuration.fr?.alternativePartageDefaut,
+  ].filter((v) => v !== undefined);
+
+  assert.deepEqual(surchargesFr, []);
+});

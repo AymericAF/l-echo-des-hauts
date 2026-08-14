@@ -59,11 +59,23 @@
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le releve est invente"
   },
+  "couvertures/A01.en.svg": {
+    "alternativeText": "Trois-Vents pass in contour lines, with the siting of the wind farm's six masts",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Trace genere a graine fixe ; le releve est invente — version anglaise : seuls les <text> different du fichier francais"
+  },
   "couvertures/A05.svg": {
     "alternativeText": "Bassin versant de l'Ambre, perimetres des cinq echelons de competence superposes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le bassin est invente"
+  },
+  "couvertures/A05.en.svg": {
+    "alternativeText": "The Ambre catchment, with the boundaries of the five tiers of authority overlaid",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Trace genere a graine fixe ; le bassin est invente — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A09.svg": {
     "alternativeText": "Verbatim en grand corps : ni ferme dans la famille, ni terre, ni troupeau",
@@ -71,11 +83,23 @@
     "licence": "CC0 1.0",
     "note": "Composition typographique, filet d'accent de la rubrique Vies d'ici"
   },
+  "couvertures/A09.en.svg": {
+    "alternativeText": "A pull quote set very large: no farm in the family, no land, no herd — over the line \"Les Sagnes, 42 cows\"",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Composition typographique, filet d'accent de la rubrique Vies d'ici — version anglaise : seuls les <text> different du fichier francais"
+  },
   "couvertures/A16.svg": {
     "alternativeText": "Le cout du cahier des charges AOP rapporte a la prime au kilo, valeur par valeur",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
+  },
+  "couvertures/A16.en.svg": {
+    "alternativeText": "The cost of the PDO specification set against the premium per kilo, value by value",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A18.svg": {
     "alternativeText": "Les niveaux de salaire de la filature en 1983 et de la scierie en 2026, en euros constants",
@@ -83,11 +107,23 @@
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
+  "couvertures/A18.en.svg": {
+    "alternativeText": "Wage levels at the mill in 1983 and at the sawmill in 2026, in constant euros",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
+  },
   "couvertures/A23.svg": {
     "alternativeText": "L'heure 17 h 40 en tres grand corps, sur fond creme",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Composition typographique, filet d'accent de la rubrique Culture et patrimoine"
+  },
+  "couvertures/A23.en.svg": {
+    "alternativeText": "The time 5.40 p.m. set very large on a cream ground, over the line \"14 June 1983, La Rive-Haute\"",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Composition typographique, filet d'accent de la rubrique Culture et patrimoine — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A29.svg": {
     "alternativeText": "Le remplissage estival du lac de la Fauge, de 1976 a 2026",
@@ -95,11 +131,23 @@
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
+  "couvertures/A29.en.svg": {
+    "alternativeText": "Summer filling of Lake Fauge, from 1976 to 2026",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
+  },
   "couvertures/A35.svg": {
     "alternativeText": "La repartition des depenses du budget 2027 de la communaute des Hauts, poste par poste",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
+  },
+  "couvertures/A35.en.svg": {
+    "alternativeText": "The 2027 spending of the Hauts authority broken down, line by line",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A11.svg": {
     "alternativeText": "Verbatim en grand corps : cinq dossiers sur six n'ont jamais abouti",
@@ -179,11 +227,23 @@
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
+  "blocs/A01-poste-source.en.svg": {
+    "alternativeText": "Facsimile of an extract from a grid connection file, showing the substation's residual capacity",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Document entierement reconstitue pour la demonstration — version anglaise : seuls les <text> different du fichier francais"
+  },
   "blocs/A09-etable.svg": {
     "alternativeText": "Fac-simile d'un plan d'etable, ferme des Sagnes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
+  },
+  "blocs/A09-etable.en.svg": {
+    "alternativeText": "Facsimile of a byre layout plan, Sagnes farm",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Document entierement reconstitue pour la demonstration — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A23-registre.svg": {
     "alternativeText": "Fac-simile d'une page de registre d'atelier de juin 1983",
@@ -191,11 +251,23 @@
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
+  "blocs/A23-registre.en.svg": {
+    "alternativeText": "Facsimile of a page from the workshop register, June 1983",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Document entierement reconstitue pour la demonstration — version anglaise : seuls les <text> different du fichier francais"
+  },
   "blocs/A29-regle-exploitation.svg": {
     "alternativeText": "Fac-simile d'un extrait de la regle d'exploitation du barrage de la Fauge",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
+  },
+  "blocs/A29-regle-exploitation.en.svg": {
+    "alternativeText": "Facsimile of an extract from the operating rule of the Fauge dam",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Document entierement reconstitue pour la demonstration — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A29-cote-retenue.svg": {
     "alternativeText": "La cote de la retenue de la Fauge au fil de l'ete 2025 : la serie finit sur ses valeurs les plus basses",
@@ -203,11 +275,23 @@
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
+  "blocs/A29-cote-retenue.en.svg": {
+    "alternativeText": "The level of the Fauge reservoir through the summer of 2025: the series ends on its lowest values",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
+  },
   "blocs/A35-dette.svg": {
     "alternativeText": "La dette par habitant de la communaute des Hauts, de 2019 a 2027",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
+  },
+  "blocs/A35-dette.en.svg": {
+    "alternativeText": "Debt per head of the Hauts authority, from 2019 to 2027",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A11-dossier.svg": {
     "alternativeText": "Fac-simile d'un dossier de reconnaissance de maladie professionnelle, formulaire et pieces jointes",
@@ -591,11 +675,23 @@
     "licence": "CC0 1.0",
     "note": "Gabarit B2 ; geometrie generee a graine fixe, aucun fond de plan reel"
   },
+  "heros/rubrique-territoire.en.svg": {
+    "alternativeText": "Banner of contour lines of the plateau, crossed by five land parcels outlined in green",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B2 ; geometrie generee a graine fixe, aucun fond de plan reel — version anglaise : seuls les <text> different du fichier francais"
+  },
   "heros/rubrique-vies-d-ici.svg": {
     "alternativeText": "Bandeau de courbes de terrain rouges, semees de cinq enclos qui figurent des hameaux",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B2 ; geometrie generee a graine fixe"
+  },
+  "heros/rubrique-vies-d-ici.en.svg": {
+    "alternativeText": "Banner of red ground contours, scattered with five enclosures standing for hamlets",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B2 ; geometrie generee a graine fixe — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/rubrique-economie-locale.svg": {
     "alternativeText": "Bandeau de fac-simile d'un tableau comptable a quatre colonnes et cinq lignes chiffrees",
@@ -603,11 +699,23 @@
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue, aucun scan"
   },
+  "heros/rubrique-economie-locale.en.svg": {
+    "alternativeText": "Banner of a facsimile accounting table, four columns and five figure rows",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B4 ; document entierement reconstitue, aucun scan — version anglaise : seuls les <text> different du fichier francais"
+  },
   "heros/rubrique-culture-patrimoine.svg": {
     "alternativeText": "Bandeau de fac-simile d'une fiche d'inventaire a trois colonnes, cinq entrees renseignees",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue"
+  },
+  "heros/rubrique-culture-patrimoine.en.svg": {
+    "alternativeText": "Banner of a facsimile inventory record, three columns, five entries filled in",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B4 ; document entierement reconstitue — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/rubrique-grand-air.svg": {
     "alternativeText": "Bandeau de courbes de niveau bleues d'un bassin versant, avec cinq perimetres releves",
@@ -615,11 +723,23 @@
     "licence": "CC0 1.0",
     "note": "Gabarit B2 ; geometrie generee a graine fixe"
   },
+  "heros/rubrique-grand-air.en.svg": {
+    "alternativeText": "Banner of blue contour lines of a catchment, with five surveyed perimeters",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B2 ; geometrie generee a graine fixe — version anglaise : seuls les <text> different du fichier francais"
+  },
   "heros/rubrique-la-vie-publique.svg": {
     "alternativeText": "Bandeau de fac-simile d'un extrait de deliberation a cinq colonnes de vote",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue"
+  },
+  "heros/rubrique-la-vie-publique.en.svg": {
+    "alternativeText": "Banner of a facsimile extract from a council minute, with five voting columns",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B4 ; document entierement reconstitue — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/dossier-l-eau-du-plateau.svg": {
     "alternativeText": "Bandeau d'une courbe de debit en aire bleue, du captage a la coupure, cinq points releves",
@@ -627,10 +747,22 @@
     "licence": "CC0 1.0",
     "note": "Gabarit B1 ; serie inventee, tracee a graine fixe"
   },
+  "heros/dossier-l-eau-du-plateau.en.svg": {
+    "alternativeText": "Banner of a flow curve as a blue area, from intake to cut-off, five surveyed points",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B1 ; serie inventee, tracee a graine fixe — version anglaise : seuls les <text> different du fichier francais"
+  },
   "heros/dossier-ce-qui-reste-de-la-filature.svg": {
     "alternativeText": "Bandeau de fac-simile d'une page de registre d'atelier a six colonnes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue"
+  },
+  "heros/dossier-ce-qui-reste-de-la-filature.en.svg": {
+    "alternativeText": "Banner of a facsimile page from a workshop register, six columns",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Gabarit B4 ; document entierement reconstitue — version anglaise : seuls les <text> different du fichier francais"
   }
 }

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" width="1600" height="500" role="img">
+  <rect width="1600" height="500" fill="#FBFAF7"/>
+  <polyline points="60,242 152,231 244,244 336,265 428,244 520,209 612,231 704,224 796,233 888,217 980,272 1072,246 1164,253 1256,250 1348,231 1440,197 1532,192" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.22"/>
+  <polyline points="60,281 152,277 244,276 336,264 428,278 520,238 612,223 704,253 796,267 888,299 980,286 1072,267 1164,253 1256,260 1348,237 1440,251 1532,247" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.28"/>
+  <polyline points="60,330 152,306 244,282 336,311 428,269 520,262 612,280 704,301 796,321 888,338 980,320 1072,293 1164,287 1256,259 1348,273 1440,304 1532,304" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.34"/>
+  <polyline points="60,361 152,328 244,335 336,310 428,289 520,315 612,330 704,357 796,338 888,359 980,315 1072,328 1164,327 1256,300 1348,298 1440,336 1532,334" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.40"/>
+  <polyline points="60,362 152,353 244,322 336,333 428,319 520,347 612,387 704,381 796,382 888,356 980,363 1072,347 1164,345 1256,346 1348,350 1440,348 1532,363" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.46"/>
+  <polyline points="60,391 152,364 244,342 336,371 428,373 520,398 612,430 704,408 796,411 888,382 980,366 1072,357 1164,366 1256,384 1348,394 1440,407 1532,406" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.52"/>
+  <polyline points="60,407 152,398 244,398 336,420 428,412 520,429 612,441 704,431 796,415 888,414 980,374 1072,402 1164,398 1256,446 1348,450 1440,443 1532,410" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.58"/>
+  <polyline points="60,420 152,426 244,440 336,439 428,471 520,446 612,468 704,436 796,440 888,447 980,445 1072,448 1164,456 1256,448 1348,473 1440,466 1532,446" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.64"/>
+  <polyline points="60,452 152,472 244,509 336,497 428,493 520,493 612,489 704,475 796,467 888,478 980,492 1072,513 1164,500 1256,510 1348,493 1440,451 1532,473" fill="none" stroke="#1F5C4A" stroke-width="2.5" opacity="0.70"/>
+  <rect x="180" y="327" width="168" height="78" fill="none" stroke="#1F5C4A" stroke-width="1.5" opacity="0.55"/>
+  <rect x="448" y="357" width="123" height="95" fill="none" stroke="#1F5C4A" stroke-width="1.5" opacity="0.55"/>
+  <rect x="716" y="311" width="187" height="86" fill="none" stroke="#1F5C4A" stroke-width="1.5" opacity="0.55"/>
+  <rect x="984" y="348" width="135" height="98" fill="none" stroke="#1F5C4A" stroke-width="1.5" opacity="0.55"/>
+  <rect x="1252" y="313" width="165" height="104" fill="none" stroke="#1F5C4A" stroke-width="1.5" opacity="0.55"/>
+  <rect x="80" y="60" width="10" height="120" fill="#1F5C4A"/>
+  <text x="122" y="118" font-family="Georgia, serif" font-size="52" fill="#1A1A1A">Territory</text>
+  <text x="122" y="164" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1F5C4A">The Highland Echo</text>
+</svg>

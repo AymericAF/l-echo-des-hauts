@@ -473,19 +473,25 @@ function porteursAnglais(corpus: ReturnType<typeof chargerCorpus>) {
     }
   }
   for (const c of corpus.categories) {
-    if (c.en && c.imageHero) {
+    /* LE MEDIA REELLEMENT SERVI EN ANGLAIS : la localisation de la locale quand elle
+       existe, le fichier partage sinon. Lire `c.imageHero` seul ferait juger le fichier
+       FRANCAIS pour une page anglaise — et rendrait cette recette aveugle a la parade
+       qu on vient de poser. */
+    const media = c.en?.imageHero ?? c.imageHero;
+    if (c.en && media) {
       porteurs.push({
         quoi: `categorie ${c.en.slug} : hero`,
-        media: c.imageHero,
+        media,
         surcharge: c.en.alternativeHero,
       });
     }
   }
   for (const d of corpus.dossiers) {
-    if (d.en && d.imageHero) {
+    const media = d.en?.imageHero ?? d.imageHero;
+    if (d.en && media) {
       porteurs.push({
         quoi: `dossier ${d.en.slug} : hero`,
-        media: d.imageHero,
+        media,
         surcharge: d.en.alternativeHero,
       });
     }
@@ -517,14 +523,32 @@ function porteursAnglais(corpus: ReturnType<typeof chargerCorpus>) {
   return porteurs.filter((p) => !parCle.get(p.media)?.decoratif);
 }
 
-test('RECETTE — tout media servi sur une page ANGLAISE et non decoratif porte sa surcharge', () => {
+/**
+ * DEUX MECANISMES, ET IL EN FAUT UN — mis a jour le 2026-08-14 (tache `f011a634`).
+ *
+ * Ce cas exigeait une SURCHARGE sur chaque media servi en anglais. Depuis que les visuels
+ * porteurs de texte ont leur propre fichier par locale, ce n est plus la seule reponse, et
+ * ce n est plus la bonne pour eux :
+ *
+ *   - media PARTAGE entre les deux locales -> la surcharge localisee est le seul moyen
+ *     (le fichier est le meme, son `alternativeText` aussi) ;
+ *   - media LOCALISE (`…​.en.svg`) -> le fichier anglais porte SA propre alternative au
+ *     manifeste, et une surcharge en plus serait un second porteur du meme texte, a
+ *     diverger.
+ *
+ * Ce qui se garde n a pas change : qu AUCUNE alternative francaise ne soit servie sur une
+ * page anglaise. C est le chemin qui differe, pas le resultat.
+ */
+test('RECETTE — tout media servi sur une page ANGLAISE et non decoratif porte une alternative ANGLAISE', () => {
   const corpus = chargerCorpus(path.join(RACINE_CMS, 'data'));
-  const manquants = porteursAnglais(corpus).filter((p) => !p.surcharge);
+  const manquants = porteursAnglais(corpus).filter(
+    (p) => !p.surcharge && !p.media.endsWith('.en.svg')
+  );
 
   assert.deepEqual(
     manquants.map((p) => `${p.quoi} (${p.media})`),
     [],
-    'ces medias sortiraient avec leur alternative FRANCAISE sur une page anglaise'
+    'ces medias sont PARTAGES et sans surcharge : ils sortiraient en francais sur une page anglaise'
   );
 });
 
@@ -543,10 +567,22 @@ test('RECETTE — aucune surcharge anglaise ne recopie l alternative francaise, 
   assert.deepEqual(recopies.map((p) => p.quoi), []);
 });
 
-test('RECETTE — le corpus versionne porte exactement 29 surcharges, et AUCUNE en francais', () => {
+test('RECETTE — le corpus versionne porte 7 surcharges, celles des medias PARTAGES, et AUCUNE en francais', () => {
   const corpus = chargerCorpus(path.join(RACINE_CMS, 'data'));
+  const porteurs = porteursAnglais(corpus);
 
-  assert.equal(porteursAnglais(corpus).filter((p) => p.surcharge).length, 29);
+  /* SEPT, ET NON PLUS VINGT-NEUF (2026-08-14, tache `f011a634`). Les 22 visuels porteurs
+     de texte ont desormais un fichier par locale : leur alternative anglaise vit au
+     manifeste, avec le fichier, et la surcharge a ete RETIREE — deux porteurs du meme
+     texte finissent par diverger. Restent les medias vraiment partages : les cinq
+     portraits d auteur, le logo et l image de partage. */
+  assert.equal(porteurs.filter((p) => p.surcharge).length, 7);
+  assert.equal(porteurs.filter((p) => p.media.endsWith('.en.svg')).length, 22);
+  assert.equal(
+    porteurs.filter((p) => p.surcharge && p.media.endsWith('.en.svg')).length,
+    0,
+    'un media localise NE DOIT PAS porter en plus une surcharge : le fichier dit deja tout'
+  );
 
   /* La locale FRANCAISE n en porte aucune, et c est le sens meme du dispositif :
      l alternative native EST deja francaise. Une surcharge FR serait une seconde

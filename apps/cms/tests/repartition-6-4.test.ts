@@ -46,12 +46,19 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 const DATA_REEL = path.join(ICI, '..', 'data');
 
 /** La table du §6.4, recopiee ligne a ligne — c'est elle qui fait foi. */
+/* LES EFFECTIFS MONTENT DE 22 LE 2026-08-14 (tache `f011a634`), et aucun media NOUVEAU
+   n est entre au corpus : ce sont les VERSIONS ANGLAISES des visuels porteurs de texte,
+   un fichier par locale la ou il n y en avait qu un partage. Le §6.4 du plan editorial
+   compte donc desormais par locale servie, pas par image. Familles touchees : les
+   couvertures des 8 articles traduits, les 6 heros de rubrique, les 2 de dossier et les 6
+   images de `bloc.image-legendee` servies en anglais. Les galeries, les portraits et la
+   Configuration ne bougent pas — le lot ne les couvre pas. */
 const REPARTITION_6_4: { famille: string; placement: Placement; attendu: number }[] = [
-  { famille: "Couvertures d'article (`imageCouverture`)", placement: 'couverture', attendu: 40 },
-  { famille: '`imageHero` de rubrique', placement: 'hero-categorie', attendu: 6 },
-  { famille: '`imageHero` de dossier', placement: 'hero-dossier', attendu: 2 },
+  { famille: "Couvertures d'article (`imageCouverture`)", placement: 'couverture', attendu: 48 },
+  { famille: '`imageHero` de rubrique', placement: 'hero-categorie', attendu: 12 },
+  { famille: '`imageHero` de dossier', placement: 'hero-dossier', attendu: 4 },
   { famille: 'Images de `bloc.galerie`', placement: 'galerie', attendu: 22 },
-  { famille: 'Images de `bloc.image-legendee`', placement: 'image-legendee', attendu: 23 },
+  { famille: 'Images de `bloc.image-legendee`', placement: 'image-legendee', attendu: 29 },
   { famille: "Portraits d'auteur (`Auteur.photo`)", placement: 'auteur-photo', attendu: 5 },
   { famille: '`Configuration` : logo, logoSombre, favicon, imagePartageDefaut', placement: 'configuration', attendu: 4 },
 ];
@@ -59,7 +66,7 @@ const REPARTITION_6_4: { famille: string; placement: Placement; attendu: number 
 /** La huitieme ligne du §6.4, laissee a 3 a dessein et sans objet depuis A5. */
 const VIGNETTES_VIDEO = { placement: 'video-vignette' as Placement, annonce: 3, exigible: 0 };
 
-const TOTAL_ANNONCE = 105;
+const TOTAL_ANNONCE = 127;
 
 function compter(): Map<Placement, number> {
   const corpus = chargerCorpus(DATA_REEL);
@@ -97,10 +104,10 @@ test('AUCUN `bloc.video` dans le corpus — c est ce qui rend les 3 vignettes sa
   assert.equal(compter().get(VIGNETTES_VIDEO.placement) ?? 0, VIGNETTES_VIDEO.exigible);
 });
 
-test('le total atteignable est 102 — 105 annonces moins les 3 vignettes sans objet', () => {
+test('le total atteignable est 124 — 127 annonces moins les 3 vignettes sans objet', () => {
   const corpus = chargerCorpus(DATA_REEL);
   const attendu = REPARTITION_6_4.reduce((s, l) => s + l.attendu, 0);
-  assert.equal(attendu + VIGNETTES_VIDEO.annonce, TOTAL_ANNONCE, 'la table recopiee doit sommer a 105');
+  assert.equal(attendu + VIGNETTES_VIDEO.annonce, TOTAL_ANNONCE, 'la table recopiee doit sommer a 127');
   assert.equal(attendu, TOTAL_ANNONCE - VIGNETTES_VIDEO.annonce);
   assert.equal(corpus.medias.length, attendu, 'un media au manifeste hors des familles du §6.4');
 });

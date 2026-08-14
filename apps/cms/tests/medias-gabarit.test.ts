@@ -1,20 +1,19 @@
 /**
- * LE GABARIT PLACEHOLDER, COMPTE — et la dette des 11 fac-similes, NOMMEE plutot que
- * racontee.
+ * LE GABARIT PLACEHOLDER, COMPTE — et la dette des 11 fac-similes, SOLDEE.
  *
  * CE QUI S EST MESURE LE 2026-08-12, sur les 94 medias de `data/medias/manifeste.json`.
- * TRENTE-TROIS fichiers sont le MEME dessin, au caractere pres : un panneau creme, une
+ * TRENTE-TROIS fichiers etaient le MEME dessin, au caractere pres : un panneau creme, une
  * feuille blanc casse, un filet d accent, UNE ligne de titre, et dix-huit barres grises
  * (`height="10" fill="#1A1A1A" opacity="0.16"`) figurant du faux texte. 21 `<rect>`, un
- * seul `<text>`, ~1,95 Kio. Aucun ne montre son sujet.
+ * seul `<text>`, ~1,95 Kio. Aucun ne montrait son sujet.
  *
  *   - VINGT-DEUX sont les galeries. Traitees le 2026-08-11 : leur alternative passe a
  *     la chaine vide avec `"decoratif": true`, parce que le sens est porte par la
  *     LEGENDE UNIQUE de la galerie (« La ferme des Sagnes, en quatre plans. ») et
  *     qu une alternative par image ferait lire quatre fois la meme phrase.
- *   - ONZE sont des FAC-SIMILES, et leur conclusion N EST PAS LA MEME.
+ *   - ONZE etaient des FAC-SIMILES, et leur conclusion N ETAIT PAS LA MEME.
  *
- * POURQUOI ELLE N EST PAS LA MEME — c est tout l objet de ce fichier. Un fac-simile
+ * POURQUOI ELLE N ETAIT PAS LA MEME — c est ce qui a decide de la suite. Un fac-simile
  * n est pas une image d ambiance sous une legende collective : c est une PIECE, et la
  * legende du corpus la designe comme la preuve de ce que l article avance.
  *
@@ -23,27 +22,34 @@
  *                      residuelle du poste source »
  *       legende A01  « L'extrait du dossier de raccordement OU FIGURE la capacite
  *                      residuelle du poste source. »
- *       le fichier   un panneau titre « Extrait du dossier de raccordement —
- *                      reconstitution », et dix-huit barres grises.
+ *       le fichier   un panneau titre, et dix-huit barres grises.
  *
- * Vider cette alternative-la ne retirerait pas du bruit : cela effacerait la seule trace
- * ecrite de ce que l image DOIT montrer, et figerait le placeholder en decor assume. Le
- * defaut n est pas dans l alternative, il est dans le DESSIN.
+ * Vider cette alternative-la n aurait pas retire du bruit : cela aurait efface la seule
+ * trace ecrite de ce que l image DOIT montrer, et fige le placeholder en decor assume. Le
+ * defaut n etait pas dans l alternative, il etait dans le DESSIN.
  *
- * ET CE N EST PAS UNE FATALITE DU FAC-SIMILE : QUATRE des quinze en dessinent un pour de
- * bon — `couvertures/A28.svg` (8,1 Kio, 73 rect + 19 lignes, cinq colonnes de registre),
- * `couvertures/A38.svg` (6,1 Kio, tableau de quatre rentrees), `couvertures/A39.svg`
- * (3,8 Kio, dix-huit lignes de texte portant les montants reels) et
- * `blocs/A25-inspection.svg` (7,6 Kio, cotation des six piles). Leurs legendes sont de
- * la MEME nature que celles des onze. La difference tient au fichier, a rien d autre :
- * les onze sont INACHEVES, ils ne sont pas decoratifs.
+ * CE QUI A ETE DECIDE, ET FAIT. La decision b7579b1d, approuvee le 2026-08-12, a retenu
+ * la branche A : REDESSINER LES ONZE plutot que vider leurs alternatives. C est fait le
+ * 2026-08-14. Chaque piece porte desormais la grille documentaire reelle que sa legende
+ * annonce, remplie des SEULES valeurs que l article cite — jamais une valeur inventee.
+ * Deux pieces n en avaient aucune a montrer et le disent en clair sur le dessin :
+ * `blocs/A09-etable.svg` (« Sans echelle — l'article ne donne aucune dimension ») et
+ * `blocs/A33-carnet.svg` (« valeurs quotidiennes non reproduites »). AUCUNE alternative
+ * n a ete touchee : elles etaient justes, c est le dessin qui manquait.
  *
- * CE QUE CE FICHIER FAIT, ET CE QU IL NE FAIT PAS. Il ne redessine rien — le contenu
- * appartient a Aymeric — et il ne touche a aucune alternative. Il rend le constat
- * MECANIQUE : la liste des onze est ecrite ici, re-mesuree a chaque push, et elle
- * rougit dans les DEUX sens. Un douzieme placeholder declare comme un document se voit ;
- * un des onze REDESSINE se voit aussi, et demande alors qu on le retire de la liste —
- * une exemption qui survit a sa cause elargit le trou en silence.
+ * CE QUE CE FICHIER FAIT, ET CE QU IL NE FAIT PAS. Il ne redessine rien, et il ne touche
+ * a aucune alternative. Il rend le constat MECANIQUE, et il rougit dans les DEUX sens :
+ * un douzieme placeholder declare comme un document se voit (premier test) ; un des
+ * dix-neuf fac-similes qui RETOMBERAIT au gabarit — regeneration ratee, revert, ecrasement
+ * — se voit aussi (deuxieme test). La liste des onze n a pas disparu avec la dette : elle
+ * a change de sens, et garde la ligne de titre sur laquelle la legende du corpus s adosse.
+ *
+ * ET LES QUATRE VERSIONS ANGLAISES, arrivees entre-temps. La tache `f011a634` a donne un
+ * fichier par locale aux quatre fac-similes servis sur une page anglaise, copies du dessin
+ * francais D AVANT le redessin — donc au gabarit. La fusion du redessin leur a porte la
+ * meme grille : meme geometrie, seuls les `<text>` traduits, et aucune valeur qui ne soit
+ * citee par l article `.en.md` qui sert la piece. Les redessines sont donc QUINZE, les
+ * fac-similes du corpus DIX-NEUF, et il ne reste au gabarit que les 22 galeries.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -56,13 +62,14 @@ const MEDIAS = path.join(RACINE, 'data', 'medias');
 const ARTICLES = path.join(RACINE, 'data', 'articles');
 
 /**
- * LES ONZE, ET CE QUE CHACUN ANNONCE SANS LE DESSINER.
+ * LES QUINZE REDESSINES, ET LA LIGNE DE TITRE QUE CHACUN CONSERVE.
  *
- * La valeur est la ligne de titre REELLEMENT gravee dans le fichier — le seul contenu
- * que le dessin porte aujourd hui. Elle sert de repere a qui redessinera : ce titre est
- * ce que l image dit deja, tout le reste est a produire.
+ * La valeur est la ligne de titre gravee dans le fichier. Elle etait, avant le redessin,
+ * le SEUL contenu que la piece portait ; elle reste ce a quoi la legende du media et
+ * l article se raccrochent. Un dessin regenere qui la perdrait rendrait la legende
+ * orpheline sans qu aucune autre garde ne s en apercoive.
  */
-const FAC_SIMILES_AU_GABARIT: Record<string, string> = {
+const FAC_SIMILES_REDESSINES: Record<string, string> = {
   'couvertures/A02.svg': 'Reglement de zonage, annexe 4 — reconstitution',
   'couvertures/A24.svg': 'Chronologie contentieuse — reconstitution',
   'couvertures/A36.svg': 'Deliberation du 24 avril 2026 — reconstitution',
@@ -81,15 +88,19 @@ const FAC_SIMILES_AU_GABARIT: Record<string, string> = {
 };
 
 /**
- * LES QUATRE QUI DESSINENT VRAIMENT UN DOCUMENT — la ligne de partage, et la preuve que
- * le gabarit n est pas la forme normale d un fac-simile.
+ * LES QUATRE QUI DESSINAIENT DEJA UN DOCUMENT — la preuve, avant le redessin, que le
+ * gabarit n etait pas la forme normale d un fac-simile. Ils servaient de modele ; ils
+ * sont maintenant tenus par la meme garde que les quinze.
  */
-const FAC_SIMILES_DESSINES = [
+const FAC_SIMILES_DEJA_DESSINES = [
   'couvertures/A28.svg',
   'couvertures/A38.svg',
   'couvertures/A39.svg',
   'blocs/A25-inspection.svg',
 ];
+
+/** Les dix-neuf fac-similes du corpus, redessines et modeles confondus. */
+const FAC_SIMILES = [...Object.keys(FAC_SIMILES_REDESSINES), ...FAC_SIMILES_DEJA_DESSINES];
 
 type Profil = { rect: number; texte: number; barres: number; titres: string[] };
 
@@ -118,11 +129,14 @@ function manifeste(): Record<string, { alternativeText: string }> {
   return JSON.parse(fs.readFileSync(path.join(MEDIAS, 'manifeste.json'), 'utf8'));
 }
 
-/* TRENTE-SEPT DEPUIS LE 2026-08-14 (tache `f011a634`) : les quatre fac-similes servis sur
-   une page anglaise ont desormais un fichier PAR LOCALE. La version anglaise est au meme
-   gabarit que sa francaise — c est le meme dessin, seuls ses `<text>` changent — donc le
-   compte monte de 33 a 37 sans qu aucun placeholder NOUVEAU soit apparu. */
-test('le gabarit placeholder porte 37 fichiers : les 22 galeries et les 15 fac-similes, et personne d autre', () => {
+/* LE COMPTE EST PASSE PAR 37 AVANT DE RETOMBER A 22, et les deux etapes se lisent ici.
+   La tache `f011a634` a donne un fichier PAR LOCALE aux quatre fac-similes servis sur une
+   page anglaise : leurs `.en.svg` sont nes du dessin FRANCAIS D AVANT REDESSIN, donc au
+   gabarit, et le compte est monte de 33 a 37 sans qu aucun placeholder NOUVEAU apparaisse.
+   La fusion du redessin a porte la meme grille aux quatre versions anglaises — meme
+   geometrie, seuls les `<text>` traduits, valeurs prises aux SEULS articles `.en.md` qui
+   les servent. Il ne reste donc au gabarit que les 22 galeries, des deux cotes. */
+test('le gabarit placeholder ne porte plus que les 22 galeries, et personne d autre', () => {
   const auGabarit = Object.keys(manifeste())
     .filter((cle) => estAuGabarit(profil(cle)))
     .sort();
@@ -136,37 +150,35 @@ test('le gabarit placeholder porte 37 fichiers : les 22 galeries et les 15 fac-s
      jamais : l alternative est presente et non vide, axe-core est vert. */
   assert.deepEqual(
     autres,
-    Object.keys(FAC_SIMILES_AU_GABARIT).sort(),
-    'un media hors galerie est au gabarit placeholder sans figurer dans la liste des onze',
+    [],
+    'un media hors galerie est au gabarit placeholder : il annonce un document et n en dessine aucun',
   );
 });
 
-test('chacun des onze est TOUJOURS au gabarit — sinon la liste doit maigrir', () => {
-  for (const [cle, titre] of Object.entries(FAC_SIMILES_AU_GABARIT)) {
+test('les dix-neuf fac-similes DESSINENT leur document — aucun ne retombe au gabarit', () => {
+  for (const cle of FAC_SIMILES) {
     const p = profil(cle);
-    /* Une exemption qui survit a sa cause elargit le trou en silence : le jour ou l un
-       des onze est redessine, ce test rougit et demande qu on le retire de la liste. */
-    assert.ok(
-      estAuGabarit(p),
-      `${cle} n est plus au gabarit (${p.rect} rect, ${p.texte} text, ${p.barres} barres) — ` +
-        's il a ete redessine, retire-le de FAC_SIMILES_AU_GABARIT.',
-    );
-    assert.deepEqual(p.titres, [titre], `${cle} : la ligne de titre gravee a change`);
-  }
-});
-
-test('les quatre autres fac-similes DESSINENT leur document — le gabarit n est pas une fatalite', () => {
-  for (const cle of FAC_SIMILES_DESSINES) {
-    const p = profil(cle);
+    /* Le redessin de 2026-08-14 se defait aussi facilement qu il s est fait : un revert,
+       une regeneration ratee, un ecrasement par un script. La dette reviendrait alors en
+       silence, sous des alternatives toujours justes et un axe-core toujours vert. */
     assert.equal(p.barres, 0, `${cle} porte des barres de faux texte`);
     assert.ok(
       p.rect >= 40 || p.texte >= 10,
-      `${cle} ne dessine plus de document (${p.rect} rect, ${p.texte} text)`,
+      `${cle} ne dessine pas de document (${p.rect} rect, ${p.texte} text)`,
     );
   }
 });
 
-test('les onze annoncent un DOCUMENT, et le corpus les designe comme la piece qu ils montrent', () => {
+test('chacun des quinze redessines conserve la ligne de titre a laquelle la legende s adosse', () => {
+  for (const [cle, titre] of Object.entries(FAC_SIMILES_REDESSINES)) {
+    assert.ok(
+      profil(cle).titres.includes(titre),
+      `${cle} : la ligne de titre gravee a disparu ou change — la legende du corpus la cite`,
+    );
+  }
+});
+
+test('les dix-neuf annoncent un DOCUMENT, et le corpus les designe comme la piece qu ils montrent', () => {
   const meta = manifeste();
   const corpus = fs
     .readdirSync(ARTICLES)
@@ -174,8 +186,8 @@ test('les onze annoncent un DOCUMENT, et le corpus les designe comme la piece qu
     .map((f) => fs.readFileSync(path.join(ARTICLES, f), 'utf8'))
     .join('\n');
 
-  for (const cle of Object.keys(FAC_SIMILES_AU_GABARIT)) {
-    /* C EST CE COUPLE QUI INTERDIT DE LES VIDER PAR SYMETRIE AVEC LES GALERIES. Une
+  for (const cle of FAC_SIMILES) {
+    /* C EST CE COUPLE QUI INTERDISAIT DE LES VIDER PAR SYMETRIE AVEC LES GALERIES. Une
        galerie s efface parce que sa legende UNIQUE porte le sens pour quatre images ; ici
        la legende ne remplace pas l image, elle la DESIGNE comme la preuve. */
     /* « Facsimile » sans tiret est la forme ANGLAISE, entree le 2026-08-14 avec les

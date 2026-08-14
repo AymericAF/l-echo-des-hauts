@@ -2,23 +2,29 @@
   <rect width="1600" height="900" fill="#EFEBE3"/>
   <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
   <rect x="220" y="170" width="420" height="18" fill="#5B3E7A"/>
-  <rect x="220" y="250" width="756" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="282" width="580" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="314" width="968" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="346" width="636" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="378" width="547" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="410" width="482" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="442" width="577" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="474" width="433" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="506" width="558" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="538" width="777" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="570" width="952" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="602" width="879" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="634" width="738" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="666" width="1085" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="698" width="942" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="730" width="497" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="762" width="1064" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="794" width="417" height="10" fill="#1A1A1A" opacity="0.16"/>
   <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Chronologie contentieuse — reconstitution</text>
+  <text x="220" y="272" font-family="Georgia, serif" font-size="24" fill="#1A1A1A" opacity="0.65">Ordre de service notifie en avril 2016 — delai contractuel : trois ans</text>
+  <line x1="470" y1="300" x2="470" y2="726" stroke="#1A1A1A" stroke-opacity="0.18" stroke-width="2"/>
+  <text x="236" y="340" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">juin 2016</text>
+  <text x="500" y="340" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">Refere precontractuel — lot maconnerie</text>
+  <text x="500" y="374" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Contestation de la ponderation des criteres d'attribution</text>
+  <text x="500" y="404" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Candidat evince deboute — marche repris cinq mois plus tard</text>
+  <line x1="236" y1="420" x2="1380" y2="420" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="236" y="442" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">2018</text>
+  <text x="500" y="442" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">Expertise judiciaire — lot couverture</text>
+  <text x="500" y="476" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Etendue de la reprise de charpente : 12 fermes au devis, 19 constatees</text>
+  <text x="500" y="506" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Rapport rendu vingt-six mois plus tard</text>
+  <line x1="236" y1="522" x2="1380" y2="522" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="236" y="544" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">2021</text>
+  <text x="500" y="544" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">Recours contre le permis modificatif</text>
+  <text x="500" y="578" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Verriere du choeur de 1897 : remplacement conteste par les Amis du vieux Chastel</text>
+  <text x="500" y="608" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Rejete au fond dix-neuf mois plus tard — lot vitrail suspendu</text>
+  <line x1="236" y1="624" x2="1380" y2="624" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="236" y="646" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">2023</text>
+  <text x="500" y="646" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">Liquidation du titulaire maconnerie</text>
+  <text x="500" y="680" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Etat d'avancement contradictoire, garantie, consultation pour le solde</text>
+  <text x="500" y="710" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Quatorze mois</text>
+  <line x1="220" y1="745" x2="1380" y2="745" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="236" y="778" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.75">Reouverture le 21 juin 2026 — echafaudage en activite 38 mois, immobilise 52 mois</text>
+  <text x="236" y="806" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.5">Reconstitue d'apres les pieces du marche</text>
 </svg>

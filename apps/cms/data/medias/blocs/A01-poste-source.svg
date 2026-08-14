@@ -2,23 +2,29 @@
   <rect width="1600" height="900" fill="#EFEBE3"/>
   <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
   <rect x="220" y="170" width="420" height="18" fill="#1F5C4A"/>
-  <rect x="220" y="250" width="599" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="282" width="737" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="314" width="692" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="346" width="455" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="378" width="620" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="410" width="1018" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="442" width="1067" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="474" width="930" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="506" width="911" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="538" width="470" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="570" width="1076" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="602" width="649" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="634" width="1054" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="666" width="520" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="698" width="1010" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="730" width="519" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="762" width="724" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="794" width="636" height="10" fill="#1A1A1A" opacity="0.16"/>
   <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Extrait du dossier de raccordement — reconstitution</text>
+  <text x="220" y="272" font-family="Georgia, serif" font-size="24" fill="#1A1A1A" opacity="0.65">Poste source du plateau — dossier de raccordement depose en 2024</text>
+  <text x="236" y="320" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Capacites, en megawatts</text>
+  <line x1="220" y1="336" x2="1380" y2="336" stroke="#1A1A1A" stroke-opacity="0.3" stroke-width="2"/>
+  <text x="236" y="386" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Capacite d'accueil du poste, au dimensionnement</text>
+  <text x="1364" y="386" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">22,0</text>
+  <line x1="236" y1="402" x2="1380" y2="402" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="438" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Reserve par deux centrales photovoltaiques (2019, 2022) et une methanisation</text>
+  <text x="1364" y="438" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">- 13,6</text>
+  <line x1="236" y1="454" x2="1380" y2="454" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="490" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">CAPACITE RESIDUELLE, AU DERNIER ETAT PUBLIE</text>
+  <text x="1364" y="490" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#1F5C4A" opacity="1">8,4</text>
+  <line x1="236" y1="506" x2="1380" y2="506" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="236" y="542" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Puissance demandee par le parc — six machines de 3,3 MW</text>
+  <text x="1364" y="542" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">19,8</text>
+  <line x1="236" y1="558" x2="1380" y2="558" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="594" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Ecart a combler</text>
+  <text x="1364" y="594" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">11,4</text>
+  <line x1="236" y1="610" x2="1380" y2="610" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="700" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Renforcement du poste, chiffre au meme dossier</text>
+  <text x="236" y="728" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Porte la capacite d'accueil de 22 a 34 MW</text>
+  <text x="1364" y="728" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">4 200 000 euros</text>
+  <text x="236" y="764" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Quote-part du parc, au prorata de la puissance reservee</text>
+  <text x="1364" y="764" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">95 %</text>
+  <text x="236" y="806" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.5">Document entierement reconstitue</text>
 </svg>

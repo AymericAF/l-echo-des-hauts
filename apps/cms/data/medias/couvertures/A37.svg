@@ -2,23 +2,28 @@
   <rect width="1600" height="900" fill="#EFEBE3"/>
   <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
   <rect x="220" y="170" width="420" height="18" fill="#8C2F39"/>
-  <rect x="220" y="250" width="664" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="282" width="640" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="314" width="441" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="346" width="691" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="378" width="787" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="410" width="852" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="442" width="1007" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="474" width="500" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="506" width="494" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="538" width="480" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="570" width="852" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="602" width="424" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="634" width="1018" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="666" width="660" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="698" width="734" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="730" width="681" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="762" width="774" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="794" width="848" height="10" fill="#1A1A1A" opacity="0.16"/>
   <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Ordre du jour du 24 septembre 2026, point 9 — reconstitution</text>
+  <text x="220" y="272" font-family="Georgia, serif" font-size="24" fill="#1A1A1A" opacity="0.65">Conseil communautaire des Hauts — seance du 24 septembre 2026</text>
+  <text x="236" y="318" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">Point 9</text>
+  <text x="380" y="318" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">Devenir de la parcelle AB 214 a La Rive-Haute — 1,8 hectare</text>
+  <text x="236" y="358" font-family="Helvetica, Arial, sans-serif" font-size="23" fill="#1A1A1A" opacity="0.7">Note de synthese annexee a la convocation : onze pages, trois scenarios</text>
+  <line x1="220" y1="386" x2="1380" y2="386" stroke="#1A1A1A" stroke-opacity="0.3" stroke-width="2"/>
+  <text x="236" y="428" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Cout net pour la communaute, en euros</text>
+  <text x="236" y="480" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.95">Option A</text>
+  <text x="1364" y="480" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#8C2F39" opacity="1">362 000</text>
+  <text x="236" y="514" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Cession en l'etat — acquisition 340 000 + 22 000 de frais, revente 1 euro</text>
+  <text x="1364" y="514" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">en une fois</text>
+  <line x1="236" y1="534" x2="1380" y2="534" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="236" y="572" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.95">Option B</text>
+  <text x="1364" y="572" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#8C2F39" opacity="1">1 300 000 a 1 900 000</text>
+  <text x="236" y="606" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Portage public — diagnostic, demolition, depollution, fonds friches deduit</text>
+  <text x="1364" y="606" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">sur huit ans</text>
+  <line x1="236" y1="626" x2="1380" y2="626" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="236" y="664" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.95">Option C</text>
+  <text x="1364" y="664" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#8C2F39" opacity="1">489 000</text>
+  <text x="236" y="698" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Statu quo securise — mise en securite 185 000 puis 38 000 par an</text>
+  <text x="1364" y="698" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">sur huit ans</text>
+  <line x1="236" y1="718" x2="1380" y2="718" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="236" y="768" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.75">Accord des onze indivisaires expire le 31 decembre 2026 — guichet du fonds friches clos le 31 octobre</text>
+  <text x="236" y="806" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.5">Autres points non reproduits — ordre du jour public depuis le 3 juillet 2026</text>
 </svg>

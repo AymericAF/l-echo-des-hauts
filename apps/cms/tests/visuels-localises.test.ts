@@ -140,6 +140,34 @@ test('RECETTE — les 22 visuels informatifs servis en anglais pointent un fichi
 /* SENS 3 — GARDE 1 : aucun texte grave identique entre les deux        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * UNE VALEUR N EST PAS UNE TRADUCTION OUBLIEE — precision du 2026-08-14, apportee par le
+ * redessin des quatre fac-similes anglais (tache `d1b7e931`).
+ *
+ * La garde 1 lit une EGALITE, et c est sa force : elle ne devine pas la langue. Mais elle
+ * n avait jamais rencontre de visuel anglais portant des DONNEES. Les fac-similes en
+ * portent, et une donnee s ecrit pareil dans les deux langues : « 95 % » cote francais et
+ * « 95 % » cote anglais ne prouvent pas un oubli de traduction, ils prouvent que le
+ * chiffre est le meme — c est meme exactement ce que le corpus exige, puisque aucune
+ * valeur ne doit etre inventee ni deviee d une locale a l autre.
+ *
+ * CE QUI EST EXCLU, ET RIEN D AUTRE : une chaine dont il ne reste AUCUN MOT une fois otes
+ * les chiffres, les separateurs, la ponctuation et les unites invariables ci-dessous. Une
+ * phrase recopiee du francais continue donc d etre vue — c est ce que le test suivant
+ * prouve en la fabriquant. Les separateurs, eux, ne sont volontairement PAS normalises :
+ * « 1 214 kg » et « 1,214 kg » restent deux chaines distinctes, et c est tant mieux, la
+ * difference d usage typographique etant elle-meme un signe que la locale a ete traitee.
+ */
+const UNITES_INVARIABLES = ['kg', 'm3', 'MW', 'ha', 'km', 'mm'];
+
+function estUneValeur(texte: string): boolean {
+  let reste = texte;
+  for (const unite of UNITES_INVARIABLES) reste = reste.split(unite).join('');
+  /* Ce qui reste doit etre depourvu de toute lettre : chiffres, espaces, ponctuation,
+     tirets et symboles ne portent aucune langue. */
+  return !/\p{L}/u.test(reste);
+}
+
 test('RECETTE — aucun visuel anglais ne porte une chaine identique a sa version francaise', () => {
   const corpus = chargerCorpus(DATA);
   const recopies: string[] = [];
@@ -148,11 +176,23 @@ test('RECETTE — aucun visuel anglais ne porte une chaine identique a sa versio
     const fr = textesGraves(path.join(MEDIAS, paire.fr));
     const en = textesGraves(path.join(MEDIAS, paire.en));
     for (const texte of en) {
-      if (fr.includes(texte)) recopies.push(`${paire.quoi} — « ${texte} »`);
+      if (fr.includes(texte) && !estUneValeur(texte)) recopies.push(`${paire.quoi} — « ${texte} »`);
     }
   }
 
   assert.deepEqual(recopies, []);
+});
+
+test('GARDE 1 — PREUVE EN CASSANT : l exemption des valeurs ne desarme pas la detection', () => {
+  /* Le sens qui compte : une PHRASE recopiee reste vue, exemption ou pas. */
+  assert.equal(estUneValeur("Capacite d'accueil du poste, au dimensionnement"), false);
+  assert.equal(estUneValeur('Extrait du dossier de raccordement — reconstitution'), false);
+  /* Et les cinq chaines qui ont motive l exemption, relevees sur le corpus reel. */
+  for (const valeur of ['95 %', '45 %', '412 kg', '9', '—']) {
+    assert.equal(estUneValeur(valeur), true, `${valeur} devrait etre lue comme une valeur`);
+  }
+  /* Le piege a eviter : une unite ne doit pas blanchir la phrase qui la contient. */
+  assert.equal(estUneValeur('412 kg au-dessus de la cadence'), false);
 });
 
 test('GARDE 1 — PREUVE EN CASSANT : une chaine recopiee du francais est bien vue', () => {

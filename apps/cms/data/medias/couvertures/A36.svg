@@ -2,23 +2,25 @@
   <rect width="1600" height="900" fill="#EFEBE3"/>
   <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
   <rect x="220" y="170" width="420" height="18" fill="#8C2F39"/>
-  <rect x="220" y="250" width="509" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="282" width="838" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="314" width="833" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="346" width="465" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="378" width="1074" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="410" width="1032" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="442" width="675" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="474" width="857" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="506" width="587" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="538" width="673" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="570" width="777" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="602" width="588" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="634" width="1045" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="666" width="433" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="698" width="576" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="730" width="737" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="762" width="830" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="794" width="518" height="10" fill="#1A1A1A" opacity="0.16"/>
   <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Deliberation du 24 avril 2026 — reconstitution</text>
+  <text x="220" y="272" font-family="Georgia, serif" font-size="24" fill="#1A1A1A" opacity="0.65">Conseil communautaire des Hauts — seance du 24 avril 2026</text>
+  <text x="236" y="316" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">Deliberation 2026-38</text>
+  <text x="1364" y="316" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.6">Point 7 sur 11</text>
+  <text x="236" y="356" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">Mesures de gestion de la ressource en periode de tension — sectorisation nocturne</text>
+  <line x1="220" y1="380" x2="1380" y2="380" stroke="#1A1A1A" stroke-opacity="0.3" stroke-width="2"/>
+  <text x="236" y="424" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.95">Article 1</text>
+  <text x="420" y="424" font-family="Helvetica, Arial, sans-serif" font-size="23" fill="#1A1A1A" opacity="0.78">A compter du 15 juin 2026, la distribution d'eau potable est interrompue</text>
+  <text x="420" y="454" font-family="Helvetica, Arial, sans-serif" font-size="23" fill="#1A1A1A" opacity="0.78">de 23 heures a 5 heures sur les secteurs du haut service, six communes.</text>
+  <text x="236" y="506" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.95">Article 2</text>
+  <text x="420" y="506" font-family="Helvetica, Arial, sans-serif" font-size="23" fill="#1A1A1A" opacity="0.78">Application par periode de quinze jours renouvelable, sur decision du president,</text>
+  <text x="420" y="536" font-family="Helvetica, Arial, sans-serif" font-size="23" fill="#1A1A1A" opacity="0.78">des que le remplissage de la retenue de la Fauge passe sous un seuil fixe par arrete.</text>
+  <text x="236" y="588" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.95">Article 3</text>
+  <text x="420" y="588" font-family="Helvetica, Arial, sans-serif" font-size="23" fill="#1A1A1A" opacity="0.78">Sont exemptes les points de puisage declares sensibles : etablissements de sante,</text>
+  <text x="420" y="618" font-family="Helvetica, Arial, sans-serif" font-size="23" fill="#1A1A1A" opacity="0.78">elevages abreuvant au reseau, defense exterieure contre l'incendie.</text>
+  <text x="236" y="670" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.95">Article 4</text>
+  <text x="420" y="670" font-family="Helvetica, Arial, sans-serif" font-size="23" fill="#1A1A1A" opacity="0.78">Un bilan est presente au conseil au terme de la premiere periode d'application.</text>
+  <text x="1364" y="722" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#8C2F39" opacity="1">Pour 29 — Contre 6 — Abstentions 3</text>
+  <line x1="220" y1="745" x2="1380" y2="745" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="236" y="778" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.7">Presents ou representes 38 sur 43 — appele a 19 h 12, vote acquis a 19 h 52</text>
+  <text x="236" y="806" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.5">Le seuil de l'article 2 est renvoye a un arrete du president</text>
 </svg>

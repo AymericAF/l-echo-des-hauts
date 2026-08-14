@@ -38,6 +38,22 @@
 /** Ce qu'un champ du corps ecrit est, et donc comment il se relit et se compare. */
 export type Nature =
   | 'scalaire'
+  /**
+   * Booleen : l ABSENCE et `false` decrivent le meme etat.
+   *
+   * MESURE LE 2026-08-14 CONTRE L INSTANCE REELLE (tache `cdebf977`), et invisible autrement.
+   * Le corpus n ecrit `noindex` que quand il vaut `true` — l absence EST l information « pas
+   * de noindex » (A-07). Strapi, lui, stocke le defaut du champ booleen : `false`. Compare en
+   * `scalaire`, `undefined` contre `false` rend DIFFERENT, et le seed reecrivait alors les
+   * memes 5 entrees a CHAQUE passe, pour toujours — exactement le defaut que ce fichier
+   * existe pour empecher, et que seule une confrontation a l instance pouvait montrer : le
+   * faux client du depot ne renvoie pas les defauts de Strapi.
+   *
+   * C est le meme raisonnement que `vide()` un cran plus bas — « undefined, null et le
+   * tableau vide decrivent le meme etat : rien » —, applique au type booleen, dont le
+   * « rien » s ecrit `false`.
+   */
+  | 'booleen'
   /** Date ou date-heure : comparee sur l'instant, pas sur la chaine. */
   | 'date'
   /** Media unique : le corps porte un id numerique, la lecture un objet. */
@@ -160,6 +176,16 @@ function comparerChamp(
     return egalProfond(attendu, lu) ? IDENTIQUE : different(`champ « ${champ} » different`);
   }
 
+  if (nature === 'booleen') {
+    /* L absence et `false` sont le meme etat : c est tout l objet de cette nature. Le reste
+       se compare strictement — `true` contre `false` doit rester DIFFERENT, sans quoi la
+       nature ne garderait plus rien. */
+    const net = (v: unknown): boolean => v === true;
+    return net(attendu) === net(lu)
+      ? IDENTIQUE
+      : different(`booleen « ${champ} » different`);
+  }
+
   if (nature === 'date') {
     return memeInstant(attendu, lu) ? IDENTIQUE : different(`date « ${champ} » differente`);
   }
@@ -262,7 +288,7 @@ export function parametresPopulate(natures: Natures, prefixe = 'populate'): Reco
   const sortie: Record<string, string> = {};
 
   for (const [champ, nature] of Object.entries(natures)) {
-    if (nature === 'scalaire' || nature === 'date') continue;
+    if (nature === 'scalaire' || nature === 'booleen' || nature === 'date') continue;
 
     if (nature === 'media' || nature === 'medias') {
       sortie[`${prefixe}[${champ}][fields][0]`] = 'name';
@@ -287,8 +313,13 @@ export function parametresPopulate(natures: Natures, prefixe = 'populate'): Reco
 /** Une feuille de populate NOMME toujours ses champs — jamais `true`, jamais `*`. */
 function feuille(prefixe: string, natures: Natures): Record<string, string> {
   const sortie: Record<string, string> = {};
+  /* `booleen` est ici au MEME titre que `scalaire` et `date` : c'est un champ simple, que
+     Strapi ne rend QUE s'il est demandé. L'oublier de cette liste le fait lire `undefined`
+     alors que la comparaison le juge — donc différent, donc réécriture perpétuelle, ce que
+     l'en-tête de cette section annonce mot pour mot. Constaté en l'oubliant le 2026-08-14 :
+     l'article A40, `noindex: true` des DEUX côtés, était réécrit à chaque passe. */
   const scalaires = Object.entries(natures)
-    .filter(([, n]) => n === 'scalaire' || n === 'date')
+    .filter(([, n]) => n === 'scalaire' || n === 'booleen' || n === 'date')
     .map(([c]) => c);
 
   // Un composant sans champ scalaire (`bloc.chiffres-cles`) demande quand meme

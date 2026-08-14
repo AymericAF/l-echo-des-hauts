@@ -100,7 +100,12 @@ const NATURE_SEO: Nature = {
   repete: {
     metaTitre: 'scalaire',
     metaDescription: 'scalaire',
-    noindex: 'scalaire',
+    /* `booleen` et non `scalaire` : le corpus n'écrit `noindex` que quand il vaut `true`,
+       Strapi stocke `false` par défaut, et comparés en scalaire ces deux états divergent —
+       le seed réécrivait alors les mêmes 5 entrées à CHAQUE passe. Mesuré contre l'instance
+       le 2026-08-14 (tâche `cdebf977`) ; le faux client du dépôt ne rend pas les défauts de
+       Strapi, donc rien d'autre ne pouvait le montrer. */
+    noindex: 'booleen',
     canonique: 'scalaire',
     imagePartage: 'media',
   },

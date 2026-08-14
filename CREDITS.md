@@ -13,7 +13,7 @@ d Aymeric, **C** un document du domaine public, **D** un portrait sous licence
 tierce. Les colonnes de relevee (URL, date, releveur) sont sans objet en voie B et
 proviennent du sidecar `data/medias/sources/<fichier>.json` pour les autres.
 
-**102 fichiers** — voie B : 102.
+**103 fichiers** — voie B : 103.
 
 | Fichier | Entite(s) | Voie | Source precise | Licence | URL permanente relevee | Date de relevee | Releve par | alternativeText | caption |
 |---|---|---|---|---|---|---|---|---|---|
@@ -119,3 +119,4 @@ proviennent du sidecar `data/medias/sources/<fichier>.json` pour les autres.
 | `identite/logo-sombre.svg` | Configuration/logoSombre | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | L'Echo des Hauts, magazine du plateau | Œuvre du projet — CC0 1.0 |
 | `identite/logo.svg` | Configuration/logo | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | L'Echo des Hauts, magazine du plateau | Œuvre du projet — CC0 1.0 |
 | `identite/partage-defaut.png` | Configuration/imagePartageDefaut | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Carte de partage par defaut de L'Echo des Hauts | Œuvre du projet — CC0 1.0 |
+| `partage/A01-col-des-trois-vents.png` | Article/A01 en, Article/A01 fr | B | Œuvre du projet — source versionnee dans ce depot | CC0 1.0 | — | — | — | Carte de partage de A01 : six eoliennes sur la crete du col, la capacite residuelle de 8,4 MW en barre pleine sous les 19,8 MW demandes en barre evidee | Œuvre du projet — CC0 1.0 |

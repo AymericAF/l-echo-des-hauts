@@ -632,5 +632,11 @@
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue"
+  },
+  "partage/A01-col-des-trois-vents.png": {
+    "alternativeText": "Carte de partage de A01 : six eoliennes sur la crete du col, la capacite residuelle de 8,4 MW en barre pleine sous les 19,8 MW demandes en barre evidee",
+    "ayantDroit": "Œuvre du projet",
+    "licence": "CC0 1.0",
+    "note": "Carte de partage SURCHARGEE par la redaction sur A01 (seo.imagePartage), fr et en. Elle existe pour rendre la surcharge VISIBLE au partage reel : fond encre, quand la carte generee au build est creme a titre serif noir — les deux ne se confondent pas d'un coup d'oeil. PNG 1200x630 et non SVG, comme la carte par defaut : Facebook, LinkedIn et X ignorent le SVG"
   }
 }

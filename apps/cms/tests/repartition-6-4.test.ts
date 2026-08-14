@@ -1,8 +1,8 @@
 /**
  * LA REPARTITION DU §6.4, TENUE PAR UN COMPTAGE ET NON PAR UNE PHRASE.
  *
- * CE QUE CE FICHIER TRANCHE. Le plan editorial §6.4 annonce **105 entrees
- * media**, reparties en huit familles. Le manifeste en portait **94**, et rien
+ * CE QUE CE FICHIER TRANCHE. Le plan editorial §6.4 annonce **106 entrees
+ * media**, reparties en neuf familles. Le manifeste en portait **94**, et rien
  * ne disait si les onze manquantes existaient sans etre decrites — auquel cas
  * ce seraient des visuels publies sans credit — ou si elles restaient a
  * produire. Le comptage ci-dessous repond, famille par famille, et il repondra
@@ -30,9 +30,19 @@
  * qui l explique : si un jour il rougit, c est qu une video est revenue, et
  * c est ce jour-la que les vignettes se produisent.
  *
- * LE PLAFOND ATTEIGNABLE EST DONC 102, PAS 105, tant que le recomptage du §6.4
+ * LE PLAFOND ATTEIGNABLE EST DONC 103, PAS 106, tant que le recomptage du §6.4
  * n est pas arbitre. Ecrit ici pour que personne ne cherche onze fichiers
  * fantomes.
+ *
+ * LA NEUVIEME FAMILLE, AJOUTEE LE 2026-08-14 (decision `426812f2`, branche A).
+ * `seo.imagePartage` etait le seul des cinq champs de `partage.seo` qu aucune
+ * entree du corpus reel n exercait — le chemin etait prouve sur corpus fabrique,
+ * mais AUCUNE page du site ne servait une carte de partage choisie par la
+ * redaction. Les deux gardes de ce fichier avaient raison de refuser le 103e
+ * media tant que le §6.4 en annoncait 105 : c est le PLAN qui a bouge, porte a
+ * 106 entrees, et ce comptage-ci le suit. Le nouveau media ne porte QUE le
+ * placement `partage-seo` — la carte par defaut de la Configuration reste dans
+ * sa famille, ce sont deux choses differentes (cf. `voies.ts`).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -54,12 +64,13 @@ const REPARTITION_6_4: { famille: string; placement: Placement; attendu: number 
   { famille: 'Images de `bloc.image-legendee`', placement: 'image-legendee', attendu: 23 },
   { famille: "Portraits d'auteur (`Auteur.photo`)", placement: 'auteur-photo', attendu: 5 },
   { famille: '`Configuration` : logo, logoSombre, favicon, imagePartageDefaut', placement: 'configuration', attendu: 4 },
+  { famille: 'Carte de partage surchargee (`seo.imagePartage`)', placement: 'partage-seo', attendu: 1 },
 ];
 
 /** La huitieme ligne du §6.4, laissee a 3 a dessein et sans objet depuis A5. */
 const VIGNETTES_VIDEO = { placement: 'video-vignette' as Placement, annonce: 3, exigible: 0 };
 
-const TOTAL_ANNONCE = 105;
+const TOTAL_ANNONCE = 106;
 
 function compter(): Map<Placement, number> {
   const corpus = chargerCorpus(DATA_REEL);
@@ -97,10 +108,10 @@ test('AUCUN `bloc.video` dans le corpus — c est ce qui rend les 3 vignettes sa
   assert.equal(compter().get(VIGNETTES_VIDEO.placement) ?? 0, VIGNETTES_VIDEO.exigible);
 });
 
-test('le total atteignable est 102 — 105 annonces moins les 3 vignettes sans objet', () => {
+test('le total atteignable est 103 — 106 annonces moins les 3 vignettes sans objet', () => {
   const corpus = chargerCorpus(DATA_REEL);
   const attendu = REPARTITION_6_4.reduce((s, l) => s + l.attendu, 0);
-  assert.equal(attendu + VIGNETTES_VIDEO.annonce, TOTAL_ANNONCE, 'la table recopiee doit sommer a 105');
+  assert.equal(attendu + VIGNETTES_VIDEO.annonce, TOTAL_ANNONCE, 'la table recopiee doit sommer a 106');
   assert.equal(attendu, TOTAL_ANNONCE - VIGNETTES_VIDEO.annonce);
   assert.equal(corpus.medias.length, attendu, 'un media au manifeste hors des familles du §6.4');
 });

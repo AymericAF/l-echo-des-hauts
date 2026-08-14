@@ -57,6 +57,14 @@
         }
       }
     },
+    "alternativeHero": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
     "ordreAffichage": {
       "type": "integer",
       "default": 0,

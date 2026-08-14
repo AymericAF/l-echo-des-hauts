@@ -48,6 +48,14 @@
         }
       }
     },
+    "alternativeHero": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
     "articles": {
       "type": "relation",
       "relation": "oneToMany",

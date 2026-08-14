@@ -93,6 +93,22 @@
         }
       }
     },
+    "alternativeLogo": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "alternativePartageDefaut": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
     "reseaux": {
       "type": "component",
       "repeatable": true,

@@ -136,6 +136,10 @@ export const NATURES: Record<string, Natures> = {
     slug: 'scalaire',
     description: 'scalaire',
     alternativeHero: 'scalaire',
+    /* LOCALISE depuis le 2026-08-14 : le bandeau grave le nom de la rubrique, donc il ne
+       peut pas etre partage. Non declare ici, `comparerCorps` le traiterait en nature
+       inconnue et REECRIRAIT chaque entree a chaque passe. */
+    imageHero: 'media',
   },
   'tag:fr': { nom: 'scalaire', slug: 'scalaire' },
   'tag:en': { nom: 'scalaire', slug: 'scalaire' },
@@ -169,6 +173,7 @@ export const NATURES: Record<string, Natures> = {
     slug: 'scalaire',
     introduction: 'scalaire',
     alternativeHero: 'scalaire',
+    imageHero: 'media',
   },
   configuration: {
     nomSite: 'scalaire',
@@ -445,6 +450,9 @@ export async function executerSeed(
       slug: c[l]!.slug,
       description: c[l]!.description,
       alternativeHero: c[l]!.alternativeHero,
+      /* Le bandeau de LA LOCALE, avec repli sur le fichier partage : une locale sans
+         visuel propre continue de servir celui d origine, exactement comme avant. */
+      imageHero: idsMedia.get(c[l]!.imageHero ?? c.imageHero!),
       seo: corpsSeo(c[l]!.seo, idsMedia),
     }),
   });
@@ -538,6 +546,7 @@ export async function executerSeed(
       slug: d[l]!.slug,
       introduction: d[l]!.introduction,
       alternativeHero: d[l]!.alternativeHero,
+      imageHero: idsMedia.get(d[l]!.imageHero ?? d.imageHero!),
       seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
   });

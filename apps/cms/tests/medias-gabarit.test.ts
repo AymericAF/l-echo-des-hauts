@@ -68,11 +68,15 @@ const FAC_SIMILES_AU_GABARIT: Record<string, string> = {
   'couvertures/A36.svg': 'Deliberation du 24 avril 2026 — reconstitution',
   'couvertures/A37.svg': 'Ordre du jour du 24 septembre 2026, point 9 — reconstitution',
   'blocs/A01-poste-source.svg': 'Extrait du dossier de raccordement — reconstitution',
+  'blocs/A01-poste-source.en.svg': 'Extract from the connection file — reconstruction',
   'blocs/A09-etable.svg': "Plan de l'etable des Sagnes — reconstitution",
+  'blocs/A09-etable.en.svg': 'Layout of the Sagnes byre — reconstruction',
   'blocs/A11-dossier.svg': 'Dossier de maladie professionnelle — reconstitution',
   'blocs/A17-compte.svg': "Compte d'exploitation 2025-2026 — reconstitution",
   'blocs/A23-registre.svg': "Registre d'atelier, juin 1983 — reconstitution",
+  'blocs/A23-registre.en.svg': 'Workshop register, June 1983 — reconstruction',
   'blocs/A29-regle-exploitation.svg': "Regle d'exploitation du barrage — reconstitution",
+  'blocs/A29-regle-exploitation.en.svg': 'Dam operating rule — reconstruction',
   'blocs/A33-carnet.svg': 'Carnet du col des Trois-Vents, double page — reconstitution',
 };
 
@@ -114,7 +118,11 @@ function manifeste(): Record<string, { alternativeText: string }> {
   return JSON.parse(fs.readFileSync(path.join(MEDIAS, 'manifeste.json'), 'utf8'));
 }
 
-test('le gabarit placeholder porte 33 fichiers : les 22 galeries et les 11 fac-similes, et personne d autre', () => {
+/* TRENTE-SEPT DEPUIS LE 2026-08-14 (tache `f011a634`) : les quatre fac-similes servis sur
+   une page anglaise ont desormais un fichier PAR LOCALE. La version anglaise est au meme
+   gabarit que sa francaise — c est le meme dessin, seuls ses `<text>` changent — donc le
+   compte monte de 33 a 37 sans qu aucun placeholder NOUVEAU soit apparu. */
+test('le gabarit placeholder porte 37 fichiers : les 22 galeries et les 15 fac-similes, et personne d autre', () => {
   const auGabarit = Object.keys(manifeste())
     .filter((cle) => estAuGabarit(profil(cle)))
     .sort();
@@ -170,9 +178,12 @@ test('les onze annoncent un DOCUMENT, et le corpus les designe comme la piece qu
     /* C EST CE COUPLE QUI INTERDIT DE LES VIDER PAR SYMETRIE AVEC LES GALERIES. Une
        galerie s efface parce que sa legende UNIQUE porte le sens pour quatre images ; ici
        la legende ne remplace pas l image, elle la DESIGNE comme la preuve. */
+    /* « Facsimile » sans tiret est la forme ANGLAISE, entree le 2026-08-14 avec les
+       fichiers `.en.svg` : la regle est la meme des deux cotes — l alternative annonce un
+       document —, seule sa graphie change. */
     assert.match(
       meta[cle].alternativeText,
-      /^Fac-simile/i,
+      /^Fac-?simile/i,
       `${cle} : l alternative n annonce plus un document`,
     );
     assert.ok(corpus.includes(cle), `${cle} n est reference par aucun article`);

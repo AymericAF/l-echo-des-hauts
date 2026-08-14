@@ -103,6 +103,16 @@ export type CategorieLocale = {
   description?: string;
   seo?: SeoCorpus;
   alternativeHero?: string;
+  /**
+   * LE MEDIA DU BANDEAU, PAR LOCALE (2026-08-14, tache `f011a634`).
+   *
+   * Il surcharge l `imageHero` PARTAGE de l entree : le fichier francais grave le nom de
+   * la rubrique et la signature du magazine, donc il ne peut pas servir une page anglaise.
+   * Absent, la locale sert le fichier partage — le comportement d origine, exactement.
+   * A-06 est amende sur le fond : sa colonne « partages » etait un CHOIX, pas une
+   * contrainte, et ce lot le renverse pour les champs media porteurs de texte.
+   */
+  imageHero?: string;
 };
 export type CategorieCorpus = {
   ordreAffichage: number;
@@ -135,6 +145,8 @@ export type DossierLocale = {
   introduction?: unknown[];
   seo?: SeoCorpus;
   alternativeHero?: string;
+  /** Le media du bandeau, par locale — cf. `CategorieLocale.imageHero`. */
+  imageHero?: string;
 };
 export type DossierCorpus = {
   dateOuverture?: string;
@@ -799,9 +811,17 @@ export function chargerCorpus(racine: string): Corpus {
         exigerMedia,
         `Categorie/${localisee.slug}`
       );
+      if (localisee.imageHero) {
+        exigerMedia(
+          localisee.imageHero,
+          `Categorie ${localisee.slug} ${locale}`,
+          'hero-categorie',
+          `Categorie/${localisee.slug}`
+        );
+      }
       localisee.alternativeHero = exigerSurcharge(
         localisee.alternativeHero,
-        c.imageHero,
+        localisee.imageHero ?? c.imageHero,
         'alternativeHero',
         `Categorie ${localisee.slug} ${locale}`
       );
@@ -850,9 +870,12 @@ export function chargerCorpus(racine: string): Corpus {
         slug: l.slug,
         introduction: l.introduction ? markdownVersBlocks(l.introduction) : undefined,
         seo: lireSeo(l.seo, `Dossier ${l.slug}`, exigerMedia, `Dossier/${l.slug}`),
+        imageHero: l.imageHero
+          ? exigerMedia(l.imageHero, `Dossier ${l.slug} ${locale}`, 'hero-dossier', `Dossier/${l.slug}`)
+          : undefined,
         alternativeHero: exigerSurcharge(
           l.alternativeHero,
-          d.imageHero,
+          l.imageHero ?? d.imageHero,
           'alternativeHero',
           `Dossier ${l.slug} ${locale}`
         ),

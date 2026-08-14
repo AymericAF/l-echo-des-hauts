@@ -79,12 +79,17 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
         components: [...BLOCS_CONTENU],
         loc: true,
       },
+      /* LOCALISE depuis le 2026-08-14 (tache `f011a634`) — A-06 amende SUR LE FOND.
+         Sa colonne « partages » etait un CHOIX, pas une contrainte : un champ media PEUT
+         etre localise, `hasLocalizedOption` s appliquant a tout type d attribut. Ce lot le
+         renverse pour les medias PORTEURS DE TEXTE, dont le libelle grave est francais et
+         ne peut donc pas servir une page anglaise. */
       imageCouverture: {
         type: 'media',
         multiple: false,
         allowedTypes: ['images'],
         required: true,
-        loc: false,
+        loc: true,
       },
       legendeCouverture: { type: 'string', loc: true },
       /* SURCHARGE LOCALISEE DE L ALTERNATIVE (2026-08-14, tache `2801722c`) — A-04 amende.
@@ -182,7 +187,7 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
       slug: { type: 'uid', targetField: 'nom', required: true, minLength: 1, loc: 'force' },
       description: { type: 'text', loc: true },
       couleurAccent: { type: 'string', regex: '^#[0-9a-fA-F]{6}$', loc: false }, // A-15
-      imageHero: { type: 'media', multiple: false, loc: false },
+      imageHero: { type: 'media', multiple: false, loc: true }, // localise le 2026-08-14, cf. imageCouverture
       alternativeHero: { type: 'string', loc: true },
       ordreAffichage: { type: 'integer', default: 0, loc: false }, // A-16
       seo: { type: 'component', repeatable: false, component: 'partage.seo', loc: true },
@@ -215,7 +220,7 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
       titre: { type: 'string', required: true, loc: true },
       slug: { type: 'uid', targetField: 'titre', required: true, minLength: 1, loc: 'force' },
       introduction: { type: 'blocks', loc: true },
-      imageHero: { type: 'media', multiple: false, loc: false },
+      imageHero: { type: 'media', multiple: false, loc: true }, // localise le 2026-08-14, cf. imageCouverture
       alternativeHero: { type: 'string', loc: true },
       articles: {
         type: 'relation',

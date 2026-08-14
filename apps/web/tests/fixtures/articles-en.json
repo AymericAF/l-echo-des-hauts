@@ -67,7 +67,8 @@
             "width": 1600,
             "height": 900,
             "mime": "image/jpeg"
-          }
+          },
+          "alternativeCouverture": null
         },
         {
           "id": 25,
@@ -84,7 +85,8 @@
             "width": 1600,
             "height": 900,
             "mime": "image/jpeg"
-          }
+          },
+          "alternativeCouverture": null
         },
         {
           "id": 26,
@@ -101,7 +103,8 @@
             "width": 1600,
             "height": 900,
             "mime": "image/jpeg"
-          }
+          },
+          "alternativeCouverture": null
         },
         {
           "id": 27,
@@ -118,7 +121,8 @@
             "width": 1600,
             "height": 900,
             "mime": "image/jpeg"
-          }
+          },
+          "alternativeCouverture": null
         }
       ],
       "contenu": [
@@ -267,7 +271,8 @@
             "width": 1800,
             "height": 1200,
             "mime": "image/jpeg"
-          }
+          },
+          "alternative": null
         },
         {
           "__component": "bloc.separateur",
@@ -314,7 +319,8 @@
           "locale": "fr",
           "slug": "viaduc-rouvre-apres-dix-huit-mois-de-travaux"
         }
-      ]
+      ],
+      "alternativeCouverture": null
     }
   ],
   "meta": {

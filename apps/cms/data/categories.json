@@ -19,7 +19,8 @@
       "seo": {
         "metaTitre": "Territory: decided before it becomes visible",
         "metaDescription": "Planning, water, transport and energy on the Hauts plateau: the rulings and technical files that commit the area, read line by line."
-      }
+      },
+      "alternativeHero": "Banner of contour lines of the plateau, crossed by five land parcels outlined in green"
     }
   },
   {
@@ -34,7 +35,8 @@
     "en": {
       "nom": "Lives Here",
       "slug": "lives-here",
-      "description": "People of the plateau, at length. Neither puff piece nor news brief: a life, a trade, a decision, told where they stand."
+      "description": "People of the plateau, at length. Neither puff piece nor news brief: a life, a trade, a decision, told where they stand.",
+      "alternativeHero": "Banner of red ground contours, scattered with five enclosures standing for hamlets"
     }
   },
   {
@@ -49,7 +51,8 @@
     "en": {
       "nom": "Local Economy",
       "slug": "local-economy",
-      "description": "The plateau's books: what fourteen villages produce, what it earns, what it costs, and to whom. Figures first."
+      "description": "The plateau's books: what fourteen villages produce, what it earns, what it costs, and to whom. Figures first.",
+      "alternativeHero": "Banner of a facsimile accounting table, four columns and five figure rows"
     }
   },
   {
@@ -64,7 +67,8 @@
     "en": {
       "nom": "Culture & Heritage",
       "slug": "culture-heritage",
-      "description": "What the plateau keeps and what it lets go. Industrial memory, stone, archives, cultural seasons."
+      "description": "What the plateau keeps and what it lets go. Industrial memory, stone, archives, cultural seasons.",
+      "alternativeHero": "Banner of a facsimile inventory record, three columns, five entries filled in"
     }
   },
   {
@@ -79,7 +83,8 @@
     "en": {
       "nom": "Outdoors",
       "slug": "outdoors",
-      "description": "The mountain as a habitat, not a backdrop: forest, water, snow, wildlife, and the people who measure them."
+      "description": "The mountain as a habitat, not a backdrop: forest, water, snow, wildlife, and the people who measure them.",
+      "alternativeHero": "Banner of blue contour lines of a catchment, with five surveyed perimeters"
     }
   },
   {
@@ -94,7 +99,8 @@
     "en": {
       "nom": "Public Life",
       "slug": "public-life",
-      "description": "Councils, votes, budgets, school maps, healthcare. What gets passed and what it changes, without the language of the minutes."
+      "description": "Councils, votes, budgets, school maps, healthcare. What gets passed and what it changes, without the language of the minutes.",
+      "alternativeHero": "Banner of a facsimile extract from a council minute, with five voting columns"
     }
   }
 ]

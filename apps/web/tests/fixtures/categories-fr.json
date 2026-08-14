@@ -36,7 +36,8 @@
           "locale": "en",
           "slug": "planning-and-development"
         }
-      ]
+      ],
+      "alternativeHero": null
     },
     {
       "id": 3,
@@ -50,10 +51,16 @@
       "updatedAt": "2026-02-11T14:02:00.000Z",
       "imageHero": null,
       "seo": null,
-      "localizations": []
+      "localizations": [],
+      "alternativeHero": null
     }
   ],
   "meta": {
-    "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 2 }
+    "pagination": {
+      "page": 1,
+      "pageSize": 25,
+      "pageCount": 1,
+      "total": 2
+    }
   }
 }

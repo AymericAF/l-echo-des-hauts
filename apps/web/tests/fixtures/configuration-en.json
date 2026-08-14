@@ -256,7 +256,9 @@
           }
         ]
       }
-    ]
+    ],
+    "alternativeLogo": null,
+    "alternativePartageDefaut": null
   },
   "meta": {}
 }

@@ -38,8 +38,18 @@
         "couleurAccent": "#1f6f4a"
       },
       "tags": [
-        { "id": 7, "documentId": "tag0000000000000000007", "nom": "Mobilite", "slug": "mobilite" },
-        { "id": 9, "documentId": "tag0000000000000000009", "nom": "Travaux", "slug": "travaux" }
+        {
+          "id": 7,
+          "documentId": "tag0000000000000000007",
+          "nom": "Mobilite",
+          "slug": "mobilite"
+        },
+        {
+          "id": 9,
+          "documentId": "tag0000000000000000009",
+          "nom": "Travaux",
+          "slug": "travaux"
+        }
       ],
       "dossier": {
         "id": 1,
@@ -63,7 +73,8 @@
             "width": 1600,
             "height": 900,
             "mime": "image/jpeg"
-          }
+          },
+          "alternativeCouverture": null
         },
         {
           "id": 5,
@@ -80,7 +91,8 @@
             "width": 1600,
             "height": 900,
             "mime": "image/jpeg"
-          }
+          },
+          "alternativeCouverture": null
         },
         {
           "id": 6,
@@ -97,7 +109,8 @@
             "width": 1600,
             "height": 900,
             "mime": "image/jpeg"
-          }
+          },
+          "alternativeCouverture": null
         },
         {
           "id": 7,
@@ -114,7 +127,8 @@
             "width": 1600,
             "height": 900,
             "mime": "image/jpeg"
-          }
+          },
+          "alternativeCouverture": null
         }
       ],
       "contenu": [
@@ -122,12 +136,63 @@
           "__component": "bloc.texte",
           "id": 101,
           "contenu": [
-            { "type": "heading", "level": 2, "children": [{ "type": "text", "text": "Dix-huit mois de detours" }] },
-            { "type": "paragraph", "children": [{ "type": "text", "text": "Le premier vehicule a franchi l ouvrage a 6 h 12, sous les applaudissements d une trentaine d habitants venus malgre le froid." }] },
-            { "type": "heading", "level": 3, "children": [{ "type": "text", "text": "Ce que le chantier a change" }] },
-            { "type": "paragraph", "children": [{ "type": "text", "text": "Les acces ont ete elargis, et le trottoir cote amont permet desormais de traverser a pied." }] },
-            { "type": "heading", "level": 2, "children": [{ "type": "text", "text": "Ce qui reste a faire" }] },
-            { "type": "paragraph", "children": [{ "type": "text", "text": "La passerelle cyclable, ecartee du marche initial, attend un financement du departement." }] }
+            {
+              "type": "heading",
+              "level": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Dix-huit mois de detours"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Le premier vehicule a franchi l ouvrage a 6 h 12, sous les applaudissements d une trentaine d habitants venus malgre le froid."
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Ce que le chantier a change"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Les acces ont ete elargis, et le trottoir cote amont permet desormais de traverser a pied."
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Ce qui reste a faire"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "La passerelle cyclable, ecartee du marche initial, attend un financement du departement."
+                }
+              ]
+            }
           ]
         },
         {
@@ -171,7 +236,15 @@
           "titre": "Ce qu il faut retenir",
           "variante": "info",
           "contenu": [
-            { "type": "paragraph", "children": [{ "type": "text", "text": "La circulation est retablie dans les deux sens." }] }
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "La circulation est retablie dans les deux sens."
+                }
+              ]
+            }
           ]
         },
         {
@@ -204,7 +277,8 @@
             "width": 1800,
             "height": 1200,
             "mime": "image/jpeg"
-          }
+          },
+          "alternative": null
         },
         {
           "__component": "bloc.separateur",
@@ -215,9 +289,24 @@
           "__component": "bloc.chiffres-cles",
           "id": 108,
           "entrees": [
-            { "id": 201, "valeur": "18", "unite": "mois", "libelle": "de fermeture" },
-            { "id": 202, "valeur": "4,2", "unite": "M EUR", "libelle": "de travaux" },
-            { "id": 203, "valeur": "1 sur 4", "unite": null, "libelle": "habitants concernes" }
+            {
+              "id": 201,
+              "valeur": "18",
+              "unite": "mois",
+              "libelle": "de fermeture"
+            },
+            {
+              "id": 202,
+              "valeur": "4,2",
+              "unite": "M EUR",
+              "libelle": "de travaux"
+            },
+            {
+              "id": 203,
+              "valeur": "1 sur 4",
+              "unite": null,
+              "libelle": "habitants concernes"
+            }
           ]
         }
       ],
@@ -236,7 +325,8 @@
           "locale": "en",
           "slug": "viaduct-reopens-after-eighteen-months-of-works"
         }
-      ]
+      ],
+      "alternativeCouverture": null
     },
     {
       "id": 20,
@@ -282,15 +372,29 @@
           "__component": "bloc.texte",
           "id": 120,
           "contenu": [
-            { "type": "paragraph", "children": [{ "type": "text", "text": "La decision a ete prise en conseil municipal." }] }
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "La decision a ete prise en conseil municipal."
+                }
+              ]
+            }
           ]
         }
       ],
       "seo": null,
-      "localizations": []
+      "localizations": [],
+      "alternativeCouverture": null
     }
   ],
   "meta": {
-    "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 2 }
+    "pagination": {
+      "page": 1,
+      "pageSize": 25,
+      "pageCount": 1,
+      "total": 2
+    }
   }
 }

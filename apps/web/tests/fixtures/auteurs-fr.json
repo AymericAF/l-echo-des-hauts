@@ -10,7 +10,15 @@
       "locale": "fr",
       "updatedAt": "2026-01-20T08:00:00.000Z",
       "bio": [
-        { "type": "paragraph", "children": [{ "type": "text", "text": "Suit les chantiers de la vallee depuis huit ans." }] }
+        {
+          "type": "paragraph",
+          "children": [
+            {
+              "type": "text",
+              "text": "Suit les chantiers de la vallee depuis huit ans."
+            }
+          ]
+        }
       ],
       "photo": {
         "id": 85,
@@ -23,8 +31,16 @@
         "mime": "image/jpeg"
       },
       "reseaux": [
-        { "id": 300, "plateforme": "linkedin", "url": "https://www.linkedin.com/in/exemple" },
-        { "id": 301, "plateforme": "site", "url": "https://exemple.invalid" }
+        {
+          "id": 300,
+          "plateforme": "linkedin",
+          "url": "https://www.linkedin.com/in/exemple"
+        },
+        {
+          "id": 301,
+          "plateforme": "site",
+          "url": "https://exemple.invalid"
+        }
       ],
       "localizations": [
         {
@@ -33,7 +49,8 @@
           "locale": "en",
           "slug": "camille-ferrand"
         }
-      ]
+      ],
+      "alternativePhoto": null
     },
     {
       "id": 4,
@@ -46,10 +63,16 @@
       "bio": null,
       "photo": null,
       "reseaux": [],
-      "localizations": []
+      "localizations": [],
+      "alternativePhoto": null
     }
   ],
   "meta": {
-    "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 2 }
+    "pagination": {
+      "page": 1,
+      "pageSize": 25,
+      "pageCount": 1,
+      "total": 2
+    }
   }
 }

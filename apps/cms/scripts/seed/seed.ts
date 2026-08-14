@@ -74,7 +74,15 @@ const NATURES_BLOCS: Record<string, Natures> = {
   'bloc.galerie': { images: 'medias', legende: 'scalaire', disposition: 'scalaire' },
   'bloc.encadre': { titre: 'scalaire', contenu: 'scalaire', variante: 'scalaire' },
   'bloc.video': { url: 'scalaire', legende: 'scalaire', vignette: 'media' },
-  'bloc.image-legendee': { image: 'media', legende: 'scalaire', credit: 'scalaire' },
+  'bloc.image-legendee': {
+    image: 'media',
+    legende: 'scalaire',
+    /* La surcharge LOCALISEE de l alternative — declaree ici comme tout champ ecrit,
+       sans quoi `comparerCorps` la traiterait en nature inconnue et REECRIRAIT chaque
+       article a chaque passe (cf. l en-tete de ce bloc). */
+    alternative: 'scalaire',
+    credit: 'scalaire',
+  },
   'bloc.separateur': { style: 'scalaire' },
   'bloc.chiffres-cles': {
     entrees: { repete: { valeur: 'scalaire', unite: 'scalaire', libelle: 'scalaire' } },
@@ -120,8 +128,15 @@ export const NATURES: Record<string, Natures> = {
     couleurAccent: 'scalaire',
     ordreAffichage: 'scalaire',
     imageHero: 'media',
+    alternativeHero: 'scalaire',
   },
-  'categorie:en': { seo: NATURE_SEO, nom: 'scalaire', slug: 'scalaire', description: 'scalaire' },
+  'categorie:en': {
+    seo: NATURE_SEO,
+    nom: 'scalaire',
+    slug: 'scalaire',
+    description: 'scalaire',
+    alternativeHero: 'scalaire',
+  },
   'tag:fr': { nom: 'scalaire', slug: 'scalaire' },
   'tag:en': { nom: 'scalaire', slug: 'scalaire' },
   'auteur:fr': {
@@ -130,9 +145,15 @@ export const NATURES: Record<string, Natures> = {
     fonction: 'scalaire',
     bio: 'scalaire',
     photo: 'media',
+    alternativePhoto: 'scalaire',
     reseaux: { repete: { plateforme: 'scalaire', url: 'scalaire' } },
   },
-  'auteur:en': { slug: 'scalaire', fonction: 'scalaire', bio: 'scalaire' },
+  'auteur:en': {
+    slug: 'scalaire',
+    fonction: 'scalaire',
+    bio: 'scalaire',
+    alternativePhoto: 'scalaire',
+  },
   'dossier:fr': {
     seo: NATURE_SEO,
     titre: 'scalaire',
@@ -140,8 +161,15 @@ export const NATURES: Record<string, Natures> = {
     introduction: 'scalaire',
     dateOuverture: 'date',
     imageHero: 'media',
+    alternativeHero: 'scalaire',
   },
-  'dossier:en': { seo: NATURE_SEO, titre: 'scalaire', slug: 'scalaire', introduction: 'scalaire' },
+  'dossier:en': {
+    seo: NATURE_SEO,
+    titre: 'scalaire',
+    slug: 'scalaire',
+    introduction: 'scalaire',
+    alternativeHero: 'scalaire',
+  },
   configuration: {
     nomSite: 'scalaire',
     baseline: 'scalaire',
@@ -152,6 +180,8 @@ export const NATURES: Record<string, Natures> = {
     logoSombre: 'media',
     favicon: 'media',
     imagePartageDefaut: 'media',
+    alternativeLogo: 'scalaire',
+    alternativePartageDefaut: 'scalaire',
     reseaux: { repete: { plateforme: 'scalaire', url: 'scalaire' } },
   },
   article: {
@@ -162,6 +192,7 @@ export const NATURES: Record<string, Natures> = {
     contenu: { zone: NATURES_BLOCS },
     imageCouverture: 'media',
     legendeCouverture: 'scalaire',
+    alternativeCouverture: 'scalaire',
     auteur: 'relation',
     categorie: 'relation',
     tags: 'relations',
@@ -395,6 +426,7 @@ export async function executerSeed(
       couleurAccent: c.couleurAccent,
       ordreAffichage: c.ordreAffichage,
       imageHero: c.imageHero ? idsMedia.get(c.imageHero) : undefined,
+      alternativeHero: c[l]!.alternativeHero,
       seo: corpsSeo(c[l]!.seo, idsMedia),
     }),
   });
@@ -412,6 +444,7 @@ export async function executerSeed(
       nom: c[l]!.nom,
       slug: c[l]!.slug,
       description: c[l]!.description,
+      alternativeHero: c[l]!.alternativeHero,
       seo: corpsSeo(c[l]!.seo, idsMedia),
     }),
   });
@@ -451,6 +484,7 @@ export async function executerSeed(
       fonction: a[l]!.fonction,
       bio: a[l]!.bio,
       photo: a.photo ? idsMedia.get(a.photo) : undefined,
+      alternativePhoto: a[l]!.alternativePhoto,
       reseaux: a.reseaux,
     }),
   });
@@ -464,7 +498,12 @@ export async function executerSeed(
     locale: 'en',
     natures: NATURES['auteur:en'],
     documentIdConnus: idsAuteur,
-    corpsDe: (a, l) => ({ slug: a[l]!.slug, fonction: a[l]!.fonction, bio: a[l]!.bio }),
+    corpsDe: (a, l) => ({
+      slug: a[l]!.slug,
+      fonction: a[l]!.fonction,
+      bio: a[l]!.bio,
+      alternativePhoto: a[l]!.alternativePhoto,
+    }),
   });
 
   /* --- dossiers --- */
@@ -480,6 +519,7 @@ export async function executerSeed(
       introduction: d[l]!.introduction,
       dateOuverture: d.dateOuverture,
       imageHero: d.imageHero ? idsMedia.get(d.imageHero) : undefined,
+      alternativeHero: d[l]!.alternativeHero,
       seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
   });
@@ -497,6 +537,7 @@ export async function executerSeed(
       titre: d[l]!.titre,
       slug: d[l]!.slug,
       introduction: d[l]!.introduction,
+      alternativeHero: d[l]!.alternativeHero,
       seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
   });
@@ -520,6 +561,7 @@ export async function executerSeed(
     contenu: resoudreMedias(art.contenu, idsMedia),
     imageCouverture: idsMedia.get(art.imageCouverture),
     legendeCouverture: art.legendeCouverture,
+    alternativeCouverture: art.alternativeCouverture,
     auteur: idsAuteur.get(art.auteur),
     categorie: idsCategorie.get(art.categorie),
     tags: art.tags.map((t) => idsTag.get(t)).filter(Boolean),
@@ -617,6 +659,8 @@ export async function executerSeed(
       descriptionDefaut: local.descriptionDefaut,
       texteFooter: local.texteFooter,
       mentionsLegales: local.mentionsLegales,
+      alternativeLogo: local.alternativeLogo,
+      alternativePartageDefaut: local.alternativePartageDefaut,
       ...(locale === 'fr' ? mediasConfig : { reseaux: conf.reseaux }),
     };
     const existant = await client.lireSingle('configuration', {

@@ -29,3 +29,32 @@
 
 [phases.setup]
 aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
+
+# LA SURCHARGE `partage.seo` SE PROUVE ICI, ET C EST LE SEUL ENDROIT QUI LE PERMET.
+#
+# `scripts/preuve-surcharge-seo.mjs` croise DEUX sources reelles : le corpus versionne
+# (`../cms/data`, ce que la REDACTION a ecrit) et le `dist/` construit. Elle est la seule
+# preuve du depot qui confronte le HTML au contenu editorial — les autres verifient des
+# invariants sans connaitre le contenu.
+#
+# Pourquoi PAS en integration continue (mesure du 2026-08-14, trois pushes rouges) : le
+# job `sortie` construit contre le Strapi de SUBSTITUTION, qui sert 3 fixtures. Aucune
+# page du corpus n y est, donc rien a confronter, donc code `2` — le BON verdict, sur un
+# job qui n avait aucun moyen de faire mieux. Et il n existe aucun job de mesure ou la
+# deplacer : aucun workflow des deux depots ne porte de secret ni ne joint l instance.
+#
+# Ici, les deux extremites existent en meme temps : Coolify clone le depot — donc le
+# corpus — et construit contre l instance REELLE. Aucun banc a ecrire, et surtout aucun
+# maillon remplace : la chaine prouvee reste `redaction -> seed -> Strapi -> build -> HTML`,
+# celle qui a effectivement casse deux fois (le seed muet du 2026-08-12, le renommage des
+# medias du 2026-08-14).
+#
+# CE QU IL EN COUTE, ET C EST VOULU : un manquement SEO fait echouer la construction, donc
+# le deploiement — l ancienne version reste servie. C est deja le regime des huit gardes
+# portees par les integrations d `astro.config.mjs`.
+#
+# `npm run build` DOIT rester en tete : declarer `cmds` REMPLACE la commande detectee par
+# le fournisseur Node. L omettre supprimerait la construction elle-meme, et la preuve
+# jugerait le vide qu elle vient de causer. Verrouille par `tests/nixpacks-preuve-surcharge.test.ts`.
+[phases.build]
+cmds = ['npm run build', 'node scripts/preuve-surcharge-seo.mjs']

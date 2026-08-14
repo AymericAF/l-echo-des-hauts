@@ -462,8 +462,22 @@ jobs:
       # `journal-des-preuves` offrait explicitement les deux issues, et c'est la mesure qui
       # a tranché entre elles.
       #
-      # Pour la câbler un jour, il faudrait un banc qui SERVE le corpus complet — il
-      # n'existe pas aujourd'hui. Tâche de suivi créée pour en décider.
+      # OÙ ELLE TOURNE DÉSORMAIS, ET POURQUOI PAS ICI (arbitrage du 2026-08-14, tâche
+      # `b2682fc0`, session supervisée) : au BUILD DE PRODUCTION, déclaré par
+      # `apps/web/nixpacks.toml`. C'est le seul endroit où ses deux sources sont réelles en
+      # même temps — Coolify clone le dépôt, donc le corpus, et construit contre l'instance.
+      #
+      # Les deux autres branches ont été instruites, et écartées sur des faits :
+      #   - un banc qui SERVIRAIT le corpus obligerait à réimplémenter le seed (relations,
+      #     blocs, `localizations`, renommage des médias à l'upload). La preuve tournerait
+      #     alors contre ce générateur, et cesserait de couvrir les deux maillons qui ont
+      #     RÉELLEMENT cassé — le seed muet du 2026-08-12, le renommage du 2026-08-14 ;
+      #   - « la déplacer dans le job de mesure » suppose un job qui n'existe pas : aucun
+      #     workflow des deux dépôts ne porte de secret ni ne joint l'instance.
+      #
+      # Ce fichier reste donc inchangé sur ce point, et c'est le résultat de l'arbitrage,
+      # pas son ajournement. Le détail vit en T-13 de `docs/arbitrages-techniques.md`
+      # (dépôt privé).
 
       - name: La garde de surface publique sait encore rougir sur une fuite EN PROFONDEUR
         id: preuve-surface-profondeur

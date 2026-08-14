@@ -39,6 +39,7 @@ import path from 'node:path';
    bouge — et un script qui ne trouve rien ne signale rien. */
 import { cheminArticle, cheminIndex } from '../src/lib/routes/chemins.ts';
 import { ISSUES } from './issues.mjs';
+import { decoder, designeLeMedia, normaliserNom } from './verifier-alternatives.mjs';
 
 const ICI = import.meta.dirname;
 const DIST = process.argv[2] ?? path.join(ICI, '..', 'dist');
@@ -123,27 +124,11 @@ function lirePage(dist, chemin) {
   return null;
 }
 
-/**
- * Le HTML n est pas du texte, et c est tout le sujet de ce fichier.
- *
- * Astro echappe l apostrophe en `&#39;` dans un noeud texte — donc dans le <title> —
- * et l esperluette en `&amp;` partout. Comparer la sortie BRUTE a ce que la redaction
- * a ecrit fait donc echouer TOUTE valeur portant l un des deux caracteres, soit, sur
- * un corpus francais, la quasi-totalite des titres. Le 2026-08-14 cette absence de
- * decodage a produit 15 manquements dont AUCUN n etait reel.
- *
- * L esperluette se decode EN DERNIER : dans l autre ordre, `&amp;#39;` — qui doit
- * rendre le texte litteral `&#39;` — deviendrait une apostrophe.
- */
-const ENTITES = { quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ' };
-
-function decoder(texte) {
-  return texte
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&(quot|apos|lt|gt|nbsp);/g, (_, nom) => ENTITES[nom])
-    .replace(/&amp;/g, '&');
-}
+/* Le decodage des entites et le rapprochement d un media servi a sa cle de
+ * manifeste vivent tous deux dans `verifier-alternatives.mjs`, qui les a mesures
+ * contre Strapi et les documente. Les recopier ici en ferait une seconde copie —
+ * exactement ce que la convention `Pointer, jamais dupliquer` interdit, et pour la
+ * raison qui s est verifiee ici : deux copies divergent. */
 
 const titreDe = (html) => {
   const trouve = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -273,9 +258,14 @@ export function verifierSurchargeSeo(dist = DIST, corpus = CORPUS) {
       );
     }
 
+    /* Strapi RENOMME a l upload : `partage/A01-col-des-trois-vents.png` est servi
+       `/medias/A01_col_des_trois_vents_ec2b979fb1.png`. Comparer le nom brut faisait
+       donc manquer tout media a tiret — constate sur l instance le 2026-08-14, ou
+       l image surchargee SORTAIT et ce controle la declarait absente. */
     if (seo.imagePartage !== undefined) {
       const nom = path.basename(seo.imagePartage);
-      if (ogImage === null || !ogImage.includes(nom)) {
+      const servi = ogImage === null ? null : normaliserNom(path.posix.basename(ogImage));
+      if (servi === null || !designeLeMedia(servi, normaliserNom(nom))) {
         signaler(
           `${entree.quoi} : og:image vaut « ${ogImage} » et ne designe pas l image ` +
             `surchargee « ${nom} » — c est la carte generee ou le defaut qui sort`

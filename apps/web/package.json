@@ -21,6 +21,7 @@
     "verifier:langue": "node scripts/verifier-langue.mjs",
     "verifier:en-tetes": "node scripts/verifier-en-tetes.mjs",
     "verifier:surface-publique": "node scripts/verifier-surface-publique.mjs",
+    "preuve:surface-profondeur": "node scripts/preuve-surface-profondeur.mjs",
     "preuve:rendu": "node scripts/preuve-rendu.mjs",
     "verifier:liens": "node scripts/verifier-liens.mjs",
     "preuve:pagination": "node scripts/preuve-pagination.mjs",

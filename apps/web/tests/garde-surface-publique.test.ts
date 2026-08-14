@@ -61,6 +61,8 @@ function sondesConformes() {
   return [
     { chemin: '/api/articles', role: 'public', brouillon: false, brouillonsActifs: true, statut: 401 },
     { chemin: '/api/articles?status=draft', role: 'public', brouillon: true, brouillonsActifs: true, statut: 401 },
+    { chemin: '/api/articles?populate=*', role: 'public', brouillon: false, brouillonsActifs: true, profond: true, statut: 401 },
+    { chemin: '/api/articles?populate=*&status=draft', role: 'public', brouillon: true, brouillonsActifs: true, profond: true, statut: 401 },
     { chemin: '/api/articles', role: 'jeton', brouillon: false, brouillonsActifs: true, statut: 200 },
     { chemin: '/api/configuration', role: 'public', brouillon: false, brouillonsActifs: false, statut: 403 },
     { chemin: '/api/configuration', role: 'jeton', brouillon: false, brouillonsActifs: false, statut: 200 },
@@ -179,11 +181,11 @@ test('le vert ANNONCE ce qui a ete confronte : les chemins, les refus, les ouver
   // se dissoudre dans un compte global.
   assert.match(resume, /brouillon/i);
   // Les deux comptes, pour qu un vert obtenu sur zero sonde saute aux yeux.
-  assert.match(resume, /3 sonde\(s\) publique\(s\) refusee\(s\)/);
+  assert.match(resume, /5 sonde\(s\) publique\(s\) refusee\(s\)/);
   assert.match(resume, /2 .*jeton/);
   // Et le compte de brouillons REELS a part du compte de sondes `?status=draft` : sans
   // cette distinction, six sondes inertes se liraient comme six brouillons proteges.
-  assert.match(resume, /1 sur un type qui porte reellement/);
+  assert.match(resume, /2 sur un type qui porte reellement/);
 });
 
 test('le vert ne peut pas etre obtenu sans avoir interroge de brouillon', () => {
@@ -297,16 +299,42 @@ test('les sondes attendues couvrent, pour chaque type, le public ET le jeton, br
 //
 // Ce qui rougit desormais n est plus l OUVERTURE, c est le BROUILLON LISIBLE.
 
+/** Une date de publication quelconque — sa VALEUR n a aucune importance, seule sa non-nullite en a. */
+const PUBLIE = '2026-08-01T10:00:00.000Z';
+
+/**
+ * Le corps d une reponse `?populate=*` : la racine ET ses relations imbriquees portent
+ * chacune leur `publishedAt`. C est cette forme-la que la garde doit parcourir en entier —
+ * un scan limite a la racine la declarerait propre sans avoir regarde les relations.
+ */
+function corpsPopulate(publishedAtDuTag = PUBLIE) {
+  return {
+    data: [
+      {
+        id: 1,
+        publishedAt: PUBLIE,
+        auteur: { id: 3, publishedAt: PUBLIE },
+        categorie: { id: 4, publishedAt: PUBLIE },
+        tags: [{ id: 5, publishedAt: publishedAtDuTag }],
+      },
+    ],
+  };
+}
+
 /** Un lot branche A : le role sert les endpoints, et le contenu servi est du publie. */
 function sondesBrancheA() {
   return [
     { chemin: '/api/articles', role: 'public', brouillon: false, brouillonsActifs: true, statut: 200,
-      corps: { data: [{ id: 1, publishedAt: '2026-08-01T10:00:00.000Z' }] } },
+      corps: { data: [{ id: 1, publishedAt: PUBLIE }] } },
     { chemin: '/api/articles?status=draft', role: 'public', brouillon: true, brouillonsActifs: true, statut: 200,
-      corps: { data: [{ id: 1, publishedAt: '2026-08-01T10:00:00.000Z' }] } },
+      corps: { data: [{ id: 1, publishedAt: PUBLIE }] } },
+    { chemin: '/api/articles?populate=*', role: 'public', brouillon: false, brouillonsActifs: true,
+      profond: true, statut: 200, corps: corpsPopulate() },
+    { chemin: '/api/articles?populate=*&status=draft', role: 'public', brouillon: true, brouillonsActifs: true,
+      profond: true, statut: 200, corps: corpsPopulate() },
     { chemin: '/api/articles', role: 'jeton', brouillon: false, brouillonsActifs: true, statut: 200 },
     { chemin: '/api/configuration', role: 'public', brouillon: false, brouillonsActifs: false, statut: 200,
-      corps: { data: { id: 1, publishedAt: '2026-08-01T10:00:00.000Z' } } },
+      corps: { data: { id: 1, publishedAt: PUBLIE } } },
     { chemin: '/api/configuration', role: 'jeton', brouillon: false, brouillonsActifs: false, statut: 200 },
   ];
 }
@@ -339,7 +367,7 @@ test('branche A : le vert nomme les brouillons SERVIS ET PROTEGES, a part des re
      resume doit donc permettre de lire LEQUEL des deux etats a ete mesure, sans quoi les
      deux verts sont indiscernables. */
   const resume = resumeSurface(jugerSondes(sondesBrancheA()));
-  assert.match(resume, /1 brouillon\(s\) SERVI\(S\) et verifie\(s\) sans aucune entree non publiee/);
+  assert.match(resume, /2 brouillon\(s\) SERVI\(S\) et verifie\(s\) sans aucune entree non publiee/);
 });
 
 test('role ferme : le resume annonce ZERO brouillon servi protege — la fermeture n est pas une protection', () => {
@@ -365,6 +393,93 @@ test('le jeton de build GARDE ses brouillons : un publishedAt null par le jeton 
   const avecJeton = sondesBrancheA();
   avecJeton.push({ chemin: '/api/articles?status=draft', role: 'jeton', brouillon: true,
                    brouillonsActifs: true, statut: 200, corps: { data: [{ id: 9, publishedAt: null }] } });
+  const rapport = jugerSondes(avecJeton);
+  assert.deepEqual(rapport.manquements, []);
+  assert.equal(rapport.issue, ISSUES.CONFORME);
+});
+
+// --- Famille 5 : la PROFONDEUR — `?populate=*` et les relations imbriquees ---------------
+//
+// Le middleware `global::statut-publie` impose `status=published` sur la query RACINE. Que
+// cette contrainte se propage aux relations ramenees par `?populate=*` est un RAISONNEMENT
+// sur le comportement de Strapi, pas un fait mesure : c est le seul point du lot « role
+// Public » qui ne reposait sur rien d autre. Un scan limite a la racine rendrait exactement
+// le meme vert qu une instance saine si une relation imbriquee fuyait — le mode d echec de
+// l etape 21, deplace d un cran en profondeur.
+
+test('profondeur : un publishedAt null dans une RELATION imbriquee est une fuite', () => {
+  const fuite = sondesBrancheA();
+  const i = fuite.findIndex((s) => s.chemin === '/api/articles?populate=*&status=draft');
+  fuite[i] = { ...fuite[i], corps: corpsPopulate(null) };
+  const rapport = jugerSondes(fuite);
+
+  assert.equal(rapport.issue, ISSUES.ANOMALIE);
+  const dit = rapport.manquements.join(' ');
+  assert.match(dit, /FUITE EDITORIALE/);
+  // Le rouge doit envoyer QUELQUE PART : un « il y a une fuite quelque part dans la reponse »
+  // se discute, un chemin se corrige. La racine etant propre, seul le chemin de la relation
+  // dit ou regarder.
+  assert.match(dit, /tags/);
+  assert.match(dit, /publishedAt/);
+});
+
+test('profondeur : la racine propre ne suffit plus a rendre vert', () => {
+  /* La garde d avant ce lot lisait `corps.data[i].publishedAt` et rien d autre. Sur le corps
+     ci-dessous elle rendait 0 : la racine est publiee, la fuite est dans le tag. Ce test
+     echouerait sur elle — c est ce qui prouve que la profondeur est reellement parcourue. */
+  const racinePropre = { data: [{ id: 1, publishedAt: PUBLIE, tags: [{ id: 5, publishedAt: null }] }] };
+  const sondes = sondesBrancheA();
+  const i = sondes.findIndex((s) => s.chemin === '/api/articles?populate=*');
+  sondes[i] = { ...sondes[i], corps: racinePropre };
+
+  assert.equal(jugerSondes(sondes).issue, ISSUES.ANOMALIE);
+});
+
+test('profondeur : le plan de sondes exerce `?populate=*` sur CHAQUE type, sans jeton et avec', () => {
+  const sondes = sondesAttendues(SURFACE);
+  for (const entree of SURFACE) {
+    for (const role of ['public', 'jeton']) {
+      const siennes = sondes.filter(
+        (s) => s.role === role && s.chemin.startsWith(`/api/${entree.chemin}?populate=*`),
+      );
+      assert.ok(
+        siennes.some((s) => !s.brouillon) && siennes.some((s) => s.brouillon),
+        `${entree.chemin} (${role}) : il manque une sonde ?populate=* — avec et sans status=draft`,
+      );
+      assert.ok(siennes.every((s) => s.profond === true), `${entree.chemin} : sonde populate non marquee profonde`);
+    }
+  }
+});
+
+test('profondeur : un lot SANS aucune sonde `?populate=*` ne peut pas rendre le vert', () => {
+  /* Le critere le plus grave de cette famille. Sans lui, un plan qui perdrait ses sondes de
+     profondeur — refonte, filtre, regression — rendrait un vert rigoureusement identique a
+     celui d une instance dont les relations ont ete verifiees. C est la meme exigence que
+     celle qui porte deja sur les brouillons, un cran plus bas. */
+  const sansProfondeur = sondesBrancheA().filter((s) => !s.profond);
+  const rapport = jugerSondes(sansProfondeur);
+
+  assert.equal(rapport.issue, ISSUES.VERIFICATION_IMPOSSIBLE);
+  assert.match(rapport.manquements.join(' '), /populate/);
+});
+
+test('profondeur : le vert ANNONCE combien de publishedAt ont ete inspectes', () => {
+  /* Une sonde `?populate=*` qui ramenerait un document PLAT — relations absentes, populate
+     ignore par l instance — rendrait le meme vert qu une sonde qui a reellement parcouru les
+     relations. Seul le compte des `publishedAt` rencontres distingue les deux. */
+  const resume = resumeSurface(jugerSondes(sondesBrancheA()));
+  assert.match(resume, /publishedAt inspecte/);
+  // 2 sondes populate x 4 publishedAt (racine + auteur + categorie + tag) = 8, plus les
+  // 3 sondes non profondes a 1 chacune.
+  assert.match(resume, /11 publishedAt inspecte/);
+});
+
+test('profondeur : le jeton GARDE ses brouillons, relations imbriquees comprises', () => {
+  /* Symetrique du test de la famille 4 : l application d apercu lit des brouillons avec le
+     jeton, et la garde ne doit pas les lui reprocher — a aucune profondeur. */
+  const avecJeton = sondesBrancheA();
+  avecJeton.push({ chemin: '/api/articles?populate=*&status=draft', role: 'jeton', brouillon: true,
+                   brouillonsActifs: true, profond: true, statut: 200, corps: corpsPopulate(null) });
   const rapport = jugerSondes(avecJeton);
   assert.deepEqual(rapport.manquements, []);
   assert.equal(rapport.issue, ISSUES.CONFORME);

@@ -421,6 +421,22 @@ jobs:
           npm run preuve:encre-og || code=$?
           node scripts/journal-des-preuves.mjs --consigner preuve:encre-og "$code"
 
+      - name: La garde de surface publique sait encore rougir sur une fuite EN PROFONDEUR
+        id: preuve-surface-profondeur
+        # `always()` : ce pas ne lit AUCUNE sortie construite et ne joint AUCUN reseau —
+        # il dresse son propre Strapi de substitution sur `127.0.0.1`. Il n'avait donc
+        # aucune raison de dependre du build ni des verificateurs de `dist/`.
+        if: always() && steps.installation.outcome == 'success'
+        # Il joue le CLI reel contre deux etats du meme banc : une relation imbriquee a
+        # `publishedAt: null` servie sans credence (la garde DOIT rendre 1 et nommer le
+        # chemin), puis le meme banc protege (elle DOIT rendre 0). Sans lui, une
+        # regression du parcours en profondeur laisserait la garde rendre 0 sur
+        # l'instance reelle, qui est saine — un vert indiscernable du vert legitime.
+        run: |
+          code=0
+          npm run preuve:surface-profondeur || code=$?
+          node scripts/journal-des-preuves.mjs --consigner preuve:surface-profondeur "$code"
+
       - name: Le verdict du job — relu dans le journal, jamais dans le dernier pas
         # LE SEUL JUGE DU JOB. Chaque pas ci-dessus sort en 0 pour ne pas arreter la
         # file ; c'est ici que leurs codes sont relus, classes selon la convention de

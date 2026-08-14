@@ -60,6 +60,30 @@ function frontmatter(chemin) {
 }
 
 /**
+ * CE QUE LE CORPUS DOIT PORTER POUR QUE LA PREUVE AIT LIEU — les chemins ABSENTS.
+ *
+ * Il n y avait aucune garde ici jusqu au 2026-08-14 : un corpus introuvable remontait le
+ * `ENOENT` brut de `readdirSync`, donc un code `1`. La convention des trois issues s en
+ * trouvait retournee — `1` commande de corriger le SITE, quand rien du site n est en
+ * cause et que la preuve n a simplement pas eu de quoi juger.
+ *
+ * Ce n est pas theorique depuis que la preuve est lancee par le build de production
+ * (`nixpacks.toml`) : elle y cherche `../cms/data` depuis `apps/web`, un chemin qui
+ * n existe QUE si le contexte de construction porte le depot entier. Le jour ou il ne le
+ * porte plus, le deploiement doit dire « il manque le corpus, ICI », pas exhiber une pile
+ * d appels.
+ *
+ * Meme geste qu `absencesDeBanc`/`exigerBanc` (`serveur-fixtures.mjs`), pour la meme
+ * raison : une absence de FICHIER et une absence d ENTREE rendent la meme sortie tant
+ * qu on ne les separe pas — un `dossiers.json` disparu se lirait « ce corpus n a pas de
+ * dossier ».
+ */
+export function absencesDuCorpus(racine) {
+  return [path.join(racine, 'articles'), path.join(racine, 'categories.json'),
+    path.join(racine, 'dossiers.json')].filter((chemin) => !fs.existsSync(chemin));
+}
+
+/**
  * Les entrees a confronter : une par page attendue dans `dist/`.
  *
  * `repli` porte ce que le build DOIT calculer quand rien n est surcharge — le titre
@@ -199,6 +223,25 @@ function urlsDuSitemap(dist) {
 export function verifierSurchargeSeo(dist = DIST, corpus = CORPUS) {
   const manquements = [];
   const signaler = (m) => manquements.push(m);
+
+  /* L INCAPACITE SE CONSTATE AVANT TOUTE LECTURE — l une des deux sources manque, il n y
+     a rien a confronter, et le dire est le seul verdict honnete. */
+  const absentes = absencesDuCorpus(corpus);
+  if (absentes.length > 0) {
+    return {
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      manquements: [
+        `le corpus est introuvable ou incomplet sous ${corpus} — la preuve croise DEUX ` +
+          'sources et n en a qu une :',
+        ...absentes.map((chemin) => `  - absent : ${chemin}`),
+        'Ce n est PAS un manquement du site : rien n a ete verifie. Corriger l ENVIRONNEMENT ' +
+          '(le contexte de construction porte-t-il bien le depot entier ?).',
+      ],
+      pagesLues: 0,
+      surchargees: 0,
+      nues: 0,
+    };
+  }
 
   const entrees = entreesDuCorpus(corpus);
   const surchargees = entrees.filter((e) => e.seo !== undefined);

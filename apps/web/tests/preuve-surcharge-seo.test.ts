@@ -263,6 +263,43 @@ test('un manquement reel rend ANOMALIE — le geste est de corriger le site', ()
   assert.equal(issue, ISSUES.ANOMALIE);
 });
 
+test('un CORPUS absent rend VERIFICATION IMPOSSIBLE en le NOMMANT, jamais un ENOENT', () => {
+  /* CE N EST PAS UN CAS D ECOLE, c est le mode d echec du cablage au build de
+     production (2026-08-14). La preuve y est lancee depuis `apps/web`, et son corpus est
+     `../cms/data` — un chemin qui n existe QUE si le contexte de construction porte le
+     depot entier. S il ne le porte pas, le comportement d avant remontait un ENOENT brut
+     en code 1 : « corriger le SITE », pour un site qui n a rien. La distinction du projet
+     (0/1/2) ne vaut que si le 2 sort AUSSI quand c est la source qui manque, pas
+     seulement quand `dist/` est vide. */
+  const absent = path.join(os.tmpdir(), 'echo-corpus-qui-n-existe-pas');
+  fs.rmSync(absent, { recursive: true, force: true });
+
+  const { issue, manquements } = verifierSurchargeSeo(distSain(), absent);
+
+  assert.equal(issue, ISSUES.VERIFICATION_IMPOSSIBLE);
+  assert.match(manquements.join('\n'), /articles/);
+  assert.match(manquements.join('\n'), /categories\.json/);
+  assert.ok(
+    manquements.join('\n').includes(absent),
+    'le message doit nommer le chemin REELLEMENT consulte — sans lui, personne ne sait ' +
+      'ou la preuve a cherche, et le geste de reparation se devine.',
+  );
+});
+
+test('un corpus AMPUTE d un seul fichier est une incapacite, pas un corpus sans surcharge', () => {
+  /* La borne qui compte : retirer `dossiers.json` d un corpus par ailleurs sain ne doit
+     pas se lire « ce corpus ne porte pas de dossier ». Une absence de FICHIER et une
+     absence d ENTREE rendent la meme sortie si on ne les separe pas — le mode d echec
+     que ce depot traque. */
+  const corpus = corpusFactice();
+  fs.rmSync(path.join(corpus, 'dossiers.json'));
+
+  const { issue, manquements } = verifierSurchargeSeo(distSain(), corpus);
+
+  assert.equal(issue, ISSUES.VERIFICATION_IMPOSSIBLE);
+  assert.match(manquements.join('\n'), /dossiers\.json/);
+});
+
 test('les trois issues sortent AUSSI en ligne de commande, pas seulement en fonction', () => {
   const script = path.join(import.meta.dirname, '..', 'scripts', 'preuve-surcharge-seo.mjs');
   const corpus = corpusFactice();
@@ -281,6 +318,16 @@ test('les trois issues sortent AUSSI en ligne de commande, pas seulement en fonc
   );
   assert.equal(
     lancer(fs.mkdtempSync(path.join(os.tmpdir(), 'echo-dist-absent-'))),
+    ISSUES.VERIFICATION_IMPOSSIBLE
+  );
+
+  /* Le CORPUS absent sort en 2 PAR LA LIGNE DE COMMANDE, et c est la seule forme qui
+     compte pour le build de production : nixpacks ne lance pas une fonction, il lance ce
+     script, et ne lit que son code de sortie. */
+  const corpusAbsent = path.join(os.tmpdir(), 'echo-corpus-absent-cli');
+  fs.rmSync(corpusAbsent, { recursive: true, force: true });
+  assert.equal(
+    spawnSync(process.execPath, [script, distSain(), corpusAbsent], { encoding: 'utf8' }).status,
     ISSUES.VERIFICATION_IMPOSSIBLE
   );
 });

@@ -566,10 +566,41 @@ test('la Configuration versionnee ne porte QU UN lien social, le LinkedIn d Ayme
 });
 
 /* ------------------------------------------------------------------ */
-/* Les liens des AUTEURS : circulaires, oui — geles sur une origine, non. */
+/* Les liens des AUTEURS : il n y en a plus, et c est ce qui est exige. */
 /* ------------------------------------------------------------------ */
 
 /**
+ * RETOURNE LE 2026-08-14 — decision `b2517199`, branche B, tranchee par Aymeric
+ * en session supervisee. Ce test exigeait un lien circulaire par auteur ; il
+ * exige desormais qu il n y en ait AUCUN. Le commentaire d origine est conserve
+ * en dessous, non supprime : c est lui qui dit pourquoi la valeur avait cette
+ * forme, et une relecture future qui ne trouverait que « reseaux: [] » croirait
+ * a un oubli de seed.
+ *
+ * CE QUE LA BRANCHE B FERME, et que le relatif ne fermait pas. `Auteur.reseaux`
+ * est NON localise (A-06) : les deux locales lisent la MEME valeur. Les cinq
+ * pages `/en/auteur/<slug>` servaient donc, sous une icone « Website », un lien
+ * vers la page FRANCAISE — mesure sur la production le 2026-08-14 sur les dix
+ * pages, pas deduit. Vider le champ est la seule branche qui n exigeait ni
+ * d amender un arbitrage ratifie (localiser le champ), ni de faire rendre au
+ * gabarit ce que la donnee porte (calculer au build).
+ *
+ * CE QUE LA BRANCHE B COUTE, ecrit plutot que taire : le lien pointait la page
+ * de l auteur lui-meme — un auto-lien, deja qualifie « inutile mais inoffensif »
+ * par le § `reseaux` du plan editorial. On ne perd donc pas un lien utile, on
+ * perd la DEMONSTRATION du glyphe `site` : il ne sort plus nulle part en
+ * production, le pied de page ne portant que le LinkedIn d Aymeric. Le composant
+ * `LiensSociaux` reste demontre par ce dernier, et `glyphes-sociaux.test.ts`
+ * continue de tenir le registre et son CSS — il juge la source, jamais le rendu.
+ *
+ * POURQUOI CE TEST SURVIT AU LIEU D ETRE SUPPRIME. Sans lui, rien n empecherait
+ * la reintroduction : le champ existe toujours dans le schema, le seed le
+ * transmet toujours, et aucune garde du depot ne surveille un lien EN -> FR
+ * (`garde-langue` juge la langue des TEXTES, `verifier-liens.mjs` ne confronte
+ * qu a l origine). Une garde retournee vaut mieux qu une garde retiree.
+ *
+ * --- CI-DESSOUS, LE COMMENTAIRE D ORIGINE, CADUC MAIS CONSERVE ---
+ *
  * LE DEFAUT DU 2026-08-11, MESURE et non deduit (tache 6e8578be). Sous
  * `astro build --site https://autre-origine.test`, `garde-liens` comptait 3577
  * liens internes au lieu de 3587. Les DIX manquants — cinq auteurs x deux
@@ -601,14 +632,14 @@ test('la Configuration versionnee ne porte QU UN lien social, le LinkedIn d Ayme
  * localise. Sa moitie SEO, elle, est deja fermee par `profilsExternes` dans
  * `apps/web/src/lib/seo/donnees-structurees.ts`.
  */
-test('aucun reseau d auteur ne porte une URL ABSOLUE — l origine ne se gele pas dans la donnee', () => {
+test('aucun auteur ne porte de reseau — le lien « site » circulaire est RETIRE', () => {
   const corpus = chargerCorpus(DATA_REEL);
   assert.equal(corpus.auteurs.length, 5);
   for (const auteur of corpus.auteurs) {
     assert.deepEqual(
       auteur.reseaux,
-      [{ plateforme: 'site', url: `/auteur/${auteur.fr.slug}` }],
-      `${auteur.nom} : le lien doit etre le chemin RELATIF de sa propre page`,
+      [],
+      `${auteur.nom} : le champ reseaux doit etre VIDE (decision b2517199, branche B)`,
     );
   }
 });

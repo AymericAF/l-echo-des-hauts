@@ -2,7 +2,7 @@
   {
     "nom": "Camille Fournier-Braud",
     "photo": "auteurs/camille-fournier-braud.svg",
-    "reseaux": [{ "plateforme": "site", "url": "/auteur/camille-fournier-braud" }],
+    "reseaux": [],
     "fr": {
       "slug": "camille-fournier-braud",
       "fonction": "Rédactrice en chef",
@@ -18,7 +18,7 @@
   {
     "nom": "Hakim Zerrouki",
     "photo": "auteurs/hakim-zerrouki.svg",
-    "reseaux": [{ "plateforme": "site", "url": "/auteur/hakim-zerrouki" }],
+    "reseaux": [],
     "fr": {
       "slug": "hakim-zerrouki",
       "fonction": "Reporter territoire et vie publique",
@@ -34,7 +34,7 @@
   {
     "nom": "Noëlle Vasseur",
     "photo": "auteurs/noelle-vasseur.svg",
-    "reseaux": [{ "plateforme": "site", "url": "/auteur/noelle-vasseur" }],
+    "reseaux": [],
     "fr": {
       "slug": "noelle-vasseur",
       "fonction": "Chroniqueuse — récits et patrimoine",
@@ -50,7 +50,7 @@
   {
     "nom": "Théo Brissac",
     "photo": "auteurs/theo-brissac.svg",
-    "reseaux": [{ "plateforme": "site", "url": "/auteur/theo-brissac" }],
+    "reseaux": [],
     "fr": {
       "slug": "theo-brissac",
       "fonction": "Journaliste économie et données",
@@ -66,7 +66,7 @@
   {
     "nom": "Ana-Lucia Ferreiro",
     "photo": "auteurs/ana-lucia-ferreiro.svg",
-    "reseaux": [{ "plateforme": "site", "url": "/auteur/ana-lucia-ferreiro" }],
+    "reseaux": [],
     "fr": {
       "slug": "ana-lucia-ferreiro",
       "fonction": "Journaliste environnement et montagne",

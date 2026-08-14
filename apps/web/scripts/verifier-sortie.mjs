@@ -287,6 +287,68 @@ function balisesOuvrantes(html) {
 }
 
 /**
+ * Les manquements d un DOCUMENT — balises `<script>` et attributs d evenement inline.
+ *
+ * Extrait du bloc des pages HTML le 2026-08-14 pour etre applique AUSSI aux autres
+ * documents servis (cf. `estDocumentTexte`). Une seule redaction de la regle : deux
+ * copies divergeraient, et l une des deux finirait par etre la plus laxiste.
+ */
+function manquementsDeDocument(contenu, relatif) {
+  const manquements = manquementsScripts(contenu, relatif);
+  const baliseFautive = balisesOuvrantes(contenu).find((b) => /\son[a-z]+\s*=/i.test(b));
+  if (baliseFautive) {
+    manquements.push(`attribut d evenement inline dans ${relatif} : ${baliseFautive.slice(0, 80)}`);
+  }
+  return manquements;
+}
+
+/** Ce qu on lit d un fichier pour decider s il est du texte : assez pour trancher. */
+const SONDE = 4096;
+
+/**
+ * LE FICHIER EST-IL UN DOCUMENT TEXTE ? — et pourquoi ce critere plutot que son nom.
+ *
+ * DEFAUT MESURE LE 2026-08-14 (audit `387697e8`). Jusqu ici, seul le SUFFIXE decidait :
+ * `EST_SCRIPT` ne connaissait que `.js`, `.mjs`, `.cjs`, et le controle des balises ne
+ * lisait que les `.html`. Entre les deux, le reste de la sortie n etait jamais ouvert. Or
+ * `integrations/medias-locaux.mjs` depose sous `dist/medias/` tout fichier que la
+ * mediatheque rend, sous le nom qu elle lui donne : liste FERMEE cote garde, liste OUVERTE
+ * cote producteur. Un SVG porteur de `<script>` rendait donc :
+ *
+ *     [garde-t09] 24 page(s) HTML, 93 fichier(s) : aucun JavaScript servi.   <- VERT
+ *
+ * et le MEME contenu renomme `.js` sortait en code 1. Le verdict ne dependait que du nom.
+ * C est `temoin-5bf5c24b.js` (2026-08-11) rouvert par l extension, et cette fois sans
+ * rattrapage : `scripts/index-pagefind.mjs` re-inspecte via CETTE fonction, donc avec le
+ * meme angle mort.
+ *
+ * POURQUOI PAS « AJOUTER `.svg` A LA LISTE » : ce serait reconduire la liste fermee d un
+ * cran. La mediatheque accepte d autres formats, et le prochain trou porterait un autre
+ * nom. Le critere porte donc sur ce que le fichier EST.
+ *
+ * LA BORNE, ET ELLE EST ASSUMEE : un fichier BINAIRE n est pas juge, meme s il porte la
+ * sequence `<script`. Un JPEG est servi en `image/jpeg` et n est jamais interprete comme un
+ * document ; l accuser serait un faux positif sur une garde dure, et un faux positif finit
+ * toujours de la meme facon — on la desactive. Le sniff est l octet NUL, qu aucun document
+ * texte ne porte et que presque tout format binaire pose dans ses premiers octets.
+ */
+function estDocumentTexte(absolu) {
+  let descripteur;
+  try {
+    descripteur = fs.openSync(absolu, 'r');
+  } catch {
+    return false;
+  }
+  try {
+    const tampon = Buffer.alloc(SONDE);
+    const lus = fs.readSync(descripteur, tampon, 0, SONDE, 0);
+    return tampon.subarray(0, lus).indexOf(0) === -1;
+  } finally {
+    fs.closeSync(descripteur);
+  }
+}
+
+/**
  * @param {string} dist Chemin du repertoire de sortie.
  * @returns {{manquements: string[], issue: number, pages: number, fichiers: number, octets: number}}
  */
@@ -387,12 +449,34 @@ export function inspecterSortie(dist) {
   for (const fichier of tous) {
     if (!fichier.relatif.endsWith('.html')) continue;
     if (PAGES_EXEMPTEES.has(fichier.relatif)) continue;
-    const html = fs.readFileSync(fichier.absolu, 'utf8');
-    manquements.push(...manquementsScripts(html, fichier.relatif));
-    const baliseFautive = balisesOuvrantes(html).find((b) => /\son[a-z]+\s*=/i.test(b));
-    if (baliseFautive) {
+    manquements.push(
+      ...manquementsDeDocument(fs.readFileSync(fichier.absolu, 'utf8'), fichier.relatif),
+    );
+  }
+
+  /* 2 bis. LES AUTRES DOCUMENTS SERVIS — jugés sur ce qu ils CONTIENNENT, pas sur leur
+     nom. C est le correctif du 2026-08-14 (audit `387697e8`) : l argument complet vit dans
+     `estDocumentTexte`. Sont hors de ce bloc, et pour des raisons distinctes :
+       - les `.html`, deja juges ci-dessus, avec leur exemption de /recherche ;
+       - les SCRIPTS, qui ont leur propre regime — l atteignabilite depuis une page
+         exemptee. Les faire passer AUSSI par ici les accuserait sur du JavaScript minifie
+         (` onload=` dans une chaine), et accuser deux fois ferait croire la seconde garde
+         exercee ;
+       - les fichiers binaires, que le navigateur n interprete jamais comme un document. */
+  for (const fichier of tous) {
+    if (fichier.relatif.endsWith('.html')) continue;
+    if (EST_SCRIPT.test(fichier.relatif)) continue;
+    if (!estDocumentTexte(fichier.absolu)) continue;
+    for (const manquement of manquementsDeDocument(
+      fs.readFileSync(fichier.absolu, 'utf8'),
+      fichier.relatif,
+    )) {
       manquements.push(
-        `attribut d evenement inline dans ${fichier.relatif} : ${baliseFautive.slice(0, 80)}`,
+        `${manquement} — ce fichier n est pas une page du site mais il est SERVI, et un ` +
+          'document a balisage executable sert du JavaScript quel que soit son suffixe ' +
+          '(§1 : 0 ko hors /recherche). S il vient de la mediatheque (dist/medias/), la ' +
+          'correction est EN BASE — retirer le fichier de la Media Library ; sinon, dans ' +
+          'ce qui l a ecrit.',
       );
     }
   }

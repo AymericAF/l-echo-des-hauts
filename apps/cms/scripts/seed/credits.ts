@@ -95,6 +95,27 @@ export type SourceCredit = {
 const listeBlanche = () => LICENCES_ADMISES.join(', ');
 
 /**
+ * Le motif du refus « hors liste blanche », ecrit UNE fois pour les deux points
+ * de controle — la garde de format et le composeur. Deux copies d'un meme motif
+ * finissent par diverger, et c'est le lecteur du refus qui paie l'ecart.
+ *
+ * POURQUOI IL NOMME LE SEGMENT PLUTOT QUE LE SEUL « §6.2 ». La formulation
+ * d'origine opposait la valeur lue au « §6.2 » et s'arretait la. Or le §6.2 du
+ * plan editorial est une table EDITORIALE : elle recense ce qu'on a le droit
+ * d'employer comme SOURCE — des licences ET des statuts d'ayant droit. « Œuvre
+ * du projet » y figure sous « Convient », et il y RESTE (§13, point 4). Un
+ * lecteur envoye la par ce message y lisait donc l'inverse de ce qu'il venait
+ * de subir, et concluait a un ecart entre le code et le cadrage. Il n'y en a
+ * pas : cette liste-ci ne juge que le SECOND segment. Le motif le dit
+ * desormais lui-meme, sans qu'il faille ouvrir le plan pour lever le doute.
+ */
+const horsListeBlanche = (licence: string) =>
+  `licence "${licence}" hors liste blanche — SECOND segment de la ligne de credit, ` +
+  'celui qui doit nommer une licence. Le §6.2 du plan editorial recense aussi des ' +
+  'STATUTS d ayant droit, qui relevent du PREMIER segment : les y trouver ne ' +
+  `contredit pas ce refus. Licences admises : ${listeBlanche()}.`;
+
+/**
  * Le format du §6.5, exerce segment par segment.
  *
  * Le motif rendu doit dire CE QUI MANQUE : « non conforme » oblige a rouvrir le
@@ -140,12 +161,7 @@ export function verifierFormatCredit(credit: unknown): Verdict {
     };
   }
   if (!(LICENCES_ADMISES as readonly string[]).includes(licence.trim())) {
-    return {
-      conforme: false,
-      motif:
-        `licence "${licence.trim()}" hors liste blanche du §6.2. ` +
-        `Licences admises : ${listeBlanche()}.`,
-    };
+    return { conforme: false, motif: horsListeBlanche(licence.trim()) };
   }
   if (ATTRIBUTION_OBLIGATOIRE(licence.trim()) && (modifications ?? '').trim() === '') {
     return {
@@ -191,7 +207,7 @@ export function composerCredit(source: SourceCredit, cle: string): string {
     );
   }
   if (!(LICENCES_ADMISES as readonly string[]).includes(licence)) {
-    echec(`licence "${licence}" hors liste blanche du §6.2. Licences admises : ${listeBlanche()}.`);
+    echec(horsListeBlanche(licence));
   }
   for (const [nom, valeur] of [
     ['ayantDroit', ayantDroit],

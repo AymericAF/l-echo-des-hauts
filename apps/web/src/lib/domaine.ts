@@ -14,7 +14,20 @@ export type Locale = 'fr' | 'en';
 
 export interface Media {
   readonly url: string;
-  /** `alternativeText` natif de la Media Library — jamais une legende (A-04). */
+  /**
+   * L alternative textuelle de ce media SUR CETTE PAGE — jamais une legende (A-04).
+   *
+   * Sa source est l `alternativeText` natif de la Media Library, SAUF quand le porteur
+   * du media declare une surcharge localisee (`alternativeCouverture`, `alternativeHero`,
+   * `alternativePhoto`, `alternativeLogo`, `alternative` du bloc), auquel cas c est elle.
+   * Le remplacement est fait au mapping (`avecSurcharge`), une fois pour tout le site :
+   * ce champ porte donc deja la bonne valeur pour la locale rendue, et aucun composant
+   * n a de repli a se rappeler.
+   *
+   * Pourquoi cette surcharge existe : l `alternativeText` est UNE valeur par fichier,
+   * sans locale — `plugin::upload.file` n est pas localisable. Sans elle, les pages
+   * anglaises servent des alternatives francaises.
+   */
   readonly alternative: string | null;
   /**
    * `caption` NATIF de la Media Library — le porteur du credit et de la licence

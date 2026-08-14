@@ -59,6 +59,14 @@
         }
       }
     },
+    "alternativePhoto": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
     "reseaux": {
       "type": "component",
       "repeatable": true,

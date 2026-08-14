@@ -169,6 +169,7 @@ function categorieEntree(cle, slug, locale, ordre, slugAutre, localeAutre) {
     description: `Description de la rubrique ${cle}.`,
     couleurAccent: '#1f6f4a',
     imageHero: null,
+    alternativeHero: null,
     ordreAffichage: ordre,
     locale,
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -198,6 +199,7 @@ function auteurEntree(locale, autre) {
     fonction: locale === 'fr' ? 'Reporter de recette' : 'Test reporter',
     bio: [PARAGRAPHE('Signature fabriquee pour la recette des routes.')],
     photo: null,
+    alternativePhoto: null,
     reseaux: [],
     locale,
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -222,6 +224,11 @@ function articleEntree({ rang, locale, cle, slugCategorie, slugArticle, tags, lo
     slug: slugArticle,
     chapo: `Chapo de l article ${rang} de la rubrique ${cle}.`,
     legendeCouverture: null,
+    /* Le mapping EXIGE toute cle que le populate demande : absente, `lire()` leve.
+       Le banc doit donc porter les surcharges d alternative, meme vides — c est ce que
+       Strapi rend pour un champ facultatif non renseigne. Trouve par l integration
+       continue le 2026-08-14, apres un vert local complet. */
+    alternativeCouverture: null,
     datePublication: dateDuRang(rang),
     aLaUne: rang === 1 && cle === 'treize' && locale === 'fr',
     locale,

@@ -22,6 +22,9 @@ l'objet commit. Cf. `[[garantie-par-mecanisme-pas-convention]]`.
 | `.githooks/pre-commit` | enveloppe `/bin/sh`, résout `node`, échoue bruyamment s'il manque |
 | `.githooks/detect-secrets.js` | la détection elle-même |
 | `.githooks/package.json` | `{"type": "commonjs"}` — **ne pas l'oublier en copiant le dossier** |
+| `.githooks/pre-push` | enveloppe `/bin/sh`, même forme — **elle garde `main` d'un résultat de fusion rouge**, cf. la section dédiée |
+| `.githooks/gardes-avant-push.js` | les deux suites jouées sur le commit poussé, avant qu'il n'atteigne `main` |
+| `.githooks/gardes-avant-push.recette.mjs` | 7 cas sur de vrais dépôts et de vrais `git push` — elle prouve que la garde REFUSE |
 
 > **Pourquoi ce `package.json` de trois lignes** (2026-08-08, en armant
 > `assistant-business-ia`). `detect-secrets.js` est du CommonJS (`require`,
@@ -1716,3 +1719,56 @@ propagation : **c'est l'entretien de 37 fichiers de plus qui l'était.**
 - **Un outil tiers** (`gitleaks`, `trufflehog`) plutôt que le détecteur du dépôt.
   Il aurait fallu recalibrer un second jeu de règles, et vivre avec deux verdicts
   différents sur la même ligne selon qu'on commite ou qu'on pousse.
+
+
+## Le troisième filet : le résultat de FUSION, jugé avant `main`
+
+*(Posé le 2026-08-14, tâche `6efc9c7d`. À ne pas confondre avec la protection de push
+ci-dessus, qui porte sur les **secrets** : celle-ci porte sur les **suites de tests**.)*
+
+**Le problème est structurel, pas accidentel : deux branches vertes séparément peuvent être
+rouges ENSEMBLE.** Seul le résultat de fusion le dit, et personne ne le joue avant de pousser.
+
+La CI juge bien un résultat de fusion, dans deux cas : sur `pull_request`, et sur le `push` du
+commit de fusion. **Mais la pratique de ce dépôt est le merge LOCAL poussé** — mesuré le
+2026-08-14 sur les vingt dernières fusions vers `main` : **17 merges locaux contre 3 PR**. Le job
+tourne donc sur un commit de fusion **déjà sur `main`** : le rouge atterrit sur la branche par
+défaut au lieu d'y être refusé. Le commit de tête d'`origin/main` s'est un jour intitulé
+« CI: rendre main verte » — ce qui prouve que main avait été rouge.
+
+### Ce qui a été retenu, et pourquoi pas l'autre branche
+
+| Option | Retenue ? | Motif |
+| --- | :---: | --- |
+| Règle de branche exigeant la verte | non | elle **interdit les pushes directs** : les 17 fusions locales devraient passer par une PR. Sur un dépôt où des runs autonomes fusionnent plusieurs fois par jour, cela ne durcit pas la garde, cela déplace le travail vers un tour de circuit que rien ne garantit d'atteindre |
+| Crochet local jouant les deux suites avant le push | **oui** | il juge exactement ce que la CI jugerait — mais **avant** |
+
+**Ce qui a tranché est une mesure, pas une préférence.** L'objection évidente était le coût :
+jouer deux suites complètes avant chaque push. Relevé le 2026-08-14 sur ce dépôt — **`apps/cms`
+8 s, `apps/web` 6 s, soit 14 s**. À ce prix, il n'y avait aucune raison de restreindre aux seuls
+commits de fusion : **tout push vers `main` est jugé**.
+
+### Les trois trous, assumés — ce sont ceux de `pre-commit`
+
+1. `git push --no-verify` le contourne ;
+2. il est absent d'un clone frais tant que `core.hooksPath = .githooks` n'y est pas posé ;
+3. il juge ce que la **copie de travail** porte.
+
+Le troisième est fermé de la seule façon honnête : **le crochet REFUSE de prononcer** quand
+`HEAD` n'est pas le commit poussé, ou quand l'arbre porte des modifications non commitées. Il
+dirait sinon quelque chose de vrai sur un arbre qui n'est pas ce qui partirait. « Je n'ai pas pu
+juger » et « c'est vert » sont deux phrases différentes.
+
+Les deux premiers sont couverts pour ce qui peut l'être : le workflow `gardes-du-code.yml`
+vérifie, **depuis l'index donc depuis un clone frais**, que `.githooks/pre-push` est en `100755`
+et qu'il appelle bien son module — et il joue sa recette. Rien ne peut être fait contre un
+`--no-verify` assumé, et c'est écrit plutôt que masqué.
+
+### Ce que la recette exige
+
+`node .githooks/gardes-avant-push.recette.mjs` — **7 cas, sur de vrais dépôts avec un remote nu
+et de vrais `git push`**. Un banc qui appellerait la fonction en mémoire ne prouverait ni que git
+invoque le crochet, ni qu'un code non nul arrête effectivement le push, qui est tout l'enjeu.
+Elle exige notamment qu'une suite rouge **arrête** le push et que le commit **ne parte pas**,
+que le refus **nomme** les applications fautives, qu'une branche autre que `main` ne soit **pas**
+jugée, et que les deux incapacités refusent au lieu de juger à côté.

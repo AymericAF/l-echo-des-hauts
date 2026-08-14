@@ -79,14 +79,26 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
         components: [...BLOCS_CONTENU],
         loc: true,
       },
+      /* LOCALISE depuis le 2026-08-14 (tache `f011a634`) — A-06 amende SUR LE FOND.
+         Sa colonne « partages » etait un CHOIX, pas une contrainte : un champ media PEUT
+         etre localise, `hasLocalizedOption` s appliquant a tout type d attribut. Ce lot le
+         renverse pour les medias PORTEURS DE TEXTE, dont le libelle grave est francais et
+         ne peut donc pas servir une page anglaise. */
       imageCouverture: {
         type: 'media',
         multiple: false,
         allowedTypes: ['images'],
         required: true,
-        loc: false,
+        loc: true,
       },
       legendeCouverture: { type: 'string', loc: true },
+      /* SURCHARGE LOCALISEE DE L ALTERNATIVE (2026-08-14, tache `2801722c`) — A-04 amende.
+         L `alternativeText` de la mediatheque est UNE valeur par fichier, sans locale :
+         `plugin::upload.file` ne porte aucune entree i18n et le plugin upload ecrit par
+         `strapi.db.query`, jamais par le Document Service. Ce champ la surcharge POUR CETTE
+         LOCALE ; vide, il ne change rien. Il est donc `loc: true` par necessite — non
+         localise, il servirait le francais des deux cotes, c est-a-dire le defaut repare. */
+      alternativeCouverture: { type: 'string', loc: true },
       auteur: {
         type: 'relation',
         relation: 'manyToOne',
@@ -145,6 +157,7 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
       fonction: { type: 'string', loc: true },
       bio: { type: 'blocks', loc: true },
       photo: { type: 'media', multiple: false, allowedTypes: ['images'], loc: false },
+      alternativePhoto: { type: 'string', loc: true },
       reseaux: {
         type: 'component',
         repeatable: true,
@@ -174,7 +187,8 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
       slug: { type: 'uid', targetField: 'nom', required: true, minLength: 1, loc: 'force' },
       description: { type: 'text', loc: true },
       couleurAccent: { type: 'string', regex: '^#[0-9a-fA-F]{6}$', loc: false }, // A-15
-      imageHero: { type: 'media', multiple: false, loc: false },
+      imageHero: { type: 'media', multiple: false, loc: true }, // localise le 2026-08-14, cf. imageCouverture
+      alternativeHero: { type: 'string', loc: true },
       ordreAffichage: { type: 'integer', default: 0, loc: false }, // A-16
       seo: { type: 'component', repeatable: false, component: 'partage.seo', loc: true },
     },
@@ -206,7 +220,8 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
       titre: { type: 'string', required: true, loc: true },
       slug: { type: 'uid', targetField: 'titre', required: true, minLength: 1, loc: 'force' },
       introduction: { type: 'blocks', loc: true },
-      imageHero: { type: 'media', multiple: false, loc: false },
+      imageHero: { type: 'media', multiple: false, loc: true }, // localise le 2026-08-14, cf. imageCouverture
+      alternativeHero: { type: 'string', loc: true },
       articles: {
         type: 'relation',
         relation: 'oneToMany',
@@ -241,6 +256,8 @@ export const CONTENT_TYPES: Record<string, TypeSpec> = {
         required: true,
         loc: false,
       }, // A-28
+      alternativeLogo: { type: 'string', loc: true },
+      alternativePartageDefaut: { type: 'string', loc: true },
       reseaux: {
         type: 'component',
         repeatable: true,
@@ -327,6 +344,9 @@ export const COMPONENTS: Record<string, ComponentSpec> = {
     attributes: {
       image: { type: 'media', multiple: false, allowedTypes: ['images'], required: true },
       legende: { type: 'string' },
+      /* Un attribut de COMPOSANT ne declare pas d option i18n : ce qui le rend localise
+         est la dynamic zone `contenu` de l article, qui l est. */
+      alternative: { type: 'string' },
       credit: { type: 'string' }, // R5 : obligatoire operationnellement, pas dans le schema
     },
   },
@@ -412,5 +432,5 @@ export const INVENTAIRE = {
   componentImbrique: 1,
   componentsPartages: 2,
   schemas: 17,
-  champs: 75,
+  champs: 82,
 };

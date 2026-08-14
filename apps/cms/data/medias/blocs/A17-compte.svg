@@ -2,23 +2,31 @@
   <rect width="1600" height="900" fill="#EFEBE3"/>
   <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
   <rect x="220" y="170" width="420" height="18" fill="#8A5A12"/>
-  <rect x="220" y="250" width="606" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="282" width="715" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="314" width="591" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="346" width="472" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="378" width="1076" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="410" width="551" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="442" width="932" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="474" width="506" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="506" width="933" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="538" width="1006" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="570" width="682" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="602" width="605" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="634" width="762" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="666" width="530" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="698" width="449" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="730" width="674" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="762" width="1051" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="794" width="1060" height="10" fill="#1A1A1A" opacity="0.16"/>
   <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Compte d'exploitation 2025-2026 — reconstitution</text>
+  <text x="220" y="272" font-family="Georgia, serif" font-size="24" fill="#1A1A1A" opacity="0.65">Monteclair 1450 — en euros, saison 2025-2026</text>
+  <line x1="220" y1="300" x2="1380" y2="300" stroke="#1A1A1A" stroke-opacity="0.3" stroke-width="2"/>
+  <text x="236" y="348" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Jours d'ouverture de la saison</text>
+  <text x="1364" y="348" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">41</text>
+  <line x1="236" y1="366" x2="1380" y2="366" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="404" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Recette par jour ouvert — forfaits, ecole de ski, location, restauration</text>
+  <text x="1364" y="404" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">25 900</text>
+  <line x1="236" y1="422" x2="1380" y2="422" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="460" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Cout variable par jour ouvert — saisonniers, energie, damage, production de neige</text>
+  <text x="1364" y="460" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">- 9 800</text>
+  <line x1="236" y1="478" x2="1380" y2="478" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="516" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#1A1A1A" opacity="1">MARGE PAR JOUR OUVERT</text>
+  <text x="1364" y="516" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="32" fill="#8A5A12" opacity="1">16 100</text>
+  <line x1="236" y1="534" x2="1380" y2="534" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="236" y="572" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Marge cumulee sur 41 jours</text>
+  <text x="1364" y="572" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">660 000</text>
+  <line x1="236" y1="590" x2="1380" y2="590" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="628" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.8">Charges fixes annuelles — remontees, controles, permanents, assurance</text>
+  <text x="1364" y="628" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="1">- 1 140 000</text>
+  <line x1="236" y1="646" x2="1380" y2="646" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="684" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#1A1A1A" opacity="1">RESULTAT D'EXPLOITATION</text>
+  <text x="1364" y="684" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="32" fill="#8C2F39" opacity="1">- 480 000</text>
+  <line x1="236" y1="702" x2="1380" y2="702" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="236" y="770" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#1A1A1A" opacity="1">Seuil d'equilibre : 71 jours d'ouverture</text>
+  <text x="1364" y="770" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.6">atteint trois fois en dix saisons</text>
+  <text x="236" y="806" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.5">Reconstitue d'apres les comptes administratifs et le contrat d'exploitation</text>
 </svg>

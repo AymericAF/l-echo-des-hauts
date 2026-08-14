@@ -38,9 +38,38 @@ const TEXTES = /\.(html|xml|txt|css|json|webmanifest)$/i;
 /**
  * Un chemin de media dans un document.
  *
- * Les caracteres admis sont ceux qu un nom de fichier de la mediatheque peut porter ;
- * la classe s arrete avant le guillemet, l espace et les separateurs de balise, ce qui
+ * La classe s arrete avant le guillemet, l espace et les separateurs de balise, ce qui
  * suffit a borner la reference dans un attribut comme dans une URL absolue.
+ *
+ * CE QU ELLE SUPPOSE DU PRODUCTEUR, et pourquoi ce n est PAS une devinette — verifie le
+ * 2026-08-14 (tache `b863b636`) sur le paquet reellement installe. Un nom de fichier ne
+ * traverse pas la mediatheque tel quel : `@strapi/upload` le remplace par un HASH
+ * (`services/upload.js`, `hash: generateFileName(basename)`), lui-meme construit par
+ * `services/image-manipulation.js` :
+ *
+ *     nameToSlug(name, { separator: '_', lowercase: false }) + '_' + 10 hex
+ *
+ * et le provider local sert `/uploads/${hash}${ext}`. Mesure de la vraie fonction :
+ *
+ *     « été.svg »         -> /uploads/ete_a1b2c3d4e5.svg
+ *     « photo (1).svg »   -> /uploads/photo_1_a1b2c3d4e5.svg
+ *     « c'est.svg »       -> /uploads/c_est_a1b2c3d4e5.svg
+ *     « naïve œuvre.png » -> /uploads/naive_oeuvre_a1b2c3d4e5.png
+ *
+ * Accents translitteres, espaces / apostrophes / parentheses remplaces : la mediatheque ne
+ * PEUT PAS emettre un nom hors de cette classe. Le soupcon inverse — un nom accentue jamais
+ * releve, un nom a parenthese TRONQUE en son milieu, donc un 404 sur un fichier qui n a
+ * jamais existe — a bien ete reproduit sur des references FABRIQUEES, mais aucune ne peut
+ * venir du producteur reel. La lecture n a donc pas ete elargie : le faire aurait fallu
+ * distinguer l espace separateur d un `srcset` de l espace d un nom de fichier, ce que rien
+ * ne permet.
+ *
+ * LA LIMITE, ECRITE PLUTOT QUE TUE : cette garantie reste une CONVENTION. Aucun test ne la
+ * verrouille, parce que `@strapi/utils` vit dans `apps/cms/node_modules` et n est pas
+ * resolvable d ici — un test qui pointerait ce chemin rougirait dans toute CI qui n installe
+ * que `apps/web`. Si la slugification de Strapi change, rien ici ne rougira : c est
+ * `cheminLocalMedia` (`src/lib/media.ts`), qui ne filtre AUCUN caractere, qui ecrira le
+ * chemin, et cette classe qui le lira mal.
  */
 const REFERENCE = new RegExp(`${PREFIXE_MEDIAS}[A-Za-z0-9._~%\\-/]+`, 'g');
 

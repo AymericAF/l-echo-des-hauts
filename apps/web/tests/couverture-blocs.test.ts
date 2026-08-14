@@ -28,7 +28,14 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { SIGNATURES, TYPES, articlesDuBanc, inspecterBlocs } from '../scripts/couverture-blocs.mjs';
+import {
+  SIGNATURES,
+  TYPES,
+  articlesDuBanc,
+  inspecterBlocs,
+  verdictPageComplete,
+} from '../scripts/couverture-blocs.mjs';
+import { ISSUES } from '../scripts/issues.mjs';
 import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
 import { cheminArticle } from '../src/lib/routes/chemins.ts';
 
@@ -244,6 +251,164 @@ test('aucune locale du tout : le controle le DECLARE au lieu de rendre vert sur 
 // ---------------------------------------------------------------------------
 // 6. Le banc reel exerce bien les huit types, dans CHAQUE locale
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 7. « Une page les rend TOUS a elle seule » — le denominateur suit le CORPUS
+//
+// CE QUE CETTE SECTION FERME. Le controle 13 du §11 du plan editorial (avenant A11,
+// ratifie le 2026-08-14) demande qu AU MOINS UNE page article rendue affiche les types
+// de blocs AYANT UN PORTEUR au corpus. Jusqu ici `pagesCompletes` comparait `rendus.size`
+// a `TYPES.length` = 8, `bloc.video` compris — or ce type n a plus aucun porteur depuis
+// l avenant A5. Mesure du 2026-08-14 sur l instance : « 0 page(s) rendant les 8 » alors
+// que DEUX pages rendaient les 7 types disponibles. Le chiffre etait juste sur son propre
+// enonce et inconciliable avec un controle vert : qui lit ce rapport pour juger le
+// controle 13 conclut l inverse du vrai.
+//
+// POURQUOI LE DENOMINATEUR SE DERIVE, ET N EST PAS ECRIT A 7. Ecrire 7 en dur rendrait le
+// compte faux le jour ou `bloc.video` retrouve un porteur — exactement le mode d echec
+// qu on vient de corriger, decale d un cran. Le denominateur est donc ce que le corpus
+// EXERCE dans cette locale, deja calcule pour `typesExerces`.
+// ---------------------------------------------------------------------------
+
+test('une page compte comme complete si elle rend les types AYANT UN PORTEUR, meme quand un type du §3.6 n en a aucun', () => {
+  const sansVideo = HUIT.filter((type) => type !== 'bloc.video');
+  const rapport = inspecterBlocs(
+    { fr: [article('fr', 'riche', sansVideo), article('fr', 'maigre', ['bloc.texte'])] },
+    lecteur({ '/article/riche': page(sansVideo), '/article/maigre': page(['bloc.texte']) }),
+  );
+
+  assert.deepEqual(rapport.site, [], rapport.site.join(' | '));
+  assert.equal(rapport.inspectees.fr.typesExerces, 7);
+  assert.equal(
+    rapport.inspectees.fr.pagesCompletes,
+    1,
+    'la page qui rend les 7 types disponibles doit compter, meme si le §3.6 en declare 8',
+  );
+});
+
+test('le denominateur SUIT le corpus : si les huit sont exerces, il faut les huit pour etre complete', () => {
+  const rapport = inspecterBlocs(
+    { fr: [article('fr', 'complet', HUIT), article('fr', 'presque', HUIT.filter((t) => t !== 'bloc.video'))] },
+    lecteur({
+      '/article/complet': page(HUIT),
+      '/article/presque': page(HUIT.filter((t) => t !== 'bloc.video')),
+    }),
+  );
+
+  assert.equal(rapport.inspectees.fr.typesExerces, 8);
+  assert.equal(
+    rapport.inspectees.fr.pagesCompletes,
+    1,
+    'le denominateur est ecrit en dur a 7 : la page a 7 types ne doit PAS compter quand le corpus en exerce 8',
+  );
+});
+
+test('une page a laquelle il manque UN type disponible ne compte pas', () => {
+  const sansVideo = HUIT.filter((type) => type !== 'bloc.video');
+  const rapport = inspecterBlocs(
+    { fr: [article('fr', 'six', sansVideo.filter((t) => t !== 'bloc.galerie')), article('fr', 'sept', sansVideo)] },
+    lecteur({
+      '/article/six': page(sansVideo.filter((t) => t !== 'bloc.galerie')),
+      '/article/sept': page(sansVideo),
+    }),
+  );
+  assert.equal(rapport.inspectees.fr.pagesCompletes, 1);
+});
+
+test('un corpus qui n exerce AUCUN type ne rend aucune page complete — sinon le vide passerait pour complet', () => {
+  const rapport = inspecterBlocs(
+    { fr: [article('fr', 'vide', [])] },
+    lecteur({ '/article/vide': page([]) }),
+  );
+  assert.equal(rapport.inspectees.fr.typesExerces, 0);
+  assert.equal(rapport.inspectees.fr.pagesCompletes, 0);
+});
+
+test('les types SANS porteur sont nommes, pour que la ligne imprimee se lise sans le brief', () => {
+  const sansVideo = HUIT.filter((type) => type !== 'bloc.video');
+  const rapport = inspecterBlocs(
+    { fr: [article('fr', 'riche', sansVideo)] },
+    lecteur({ '/article/riche': page(sansVideo) }),
+  );
+  assert.deepEqual(
+    rapport.inspectees.fr.sansPorteur,
+    ['bloc.video'],
+    'sans cette liste, « 7/8 » n apprend pas QUEL type manque',
+  );
+});
+
+test('le compte des pages completes se totalise sur TOUTES les locales — le controle 13 dit « au moins UNE page », pas « une par locale »', () => {
+  const sansVideo = HUIT.filter((type) => type !== 'bloc.video');
+  const rapport = inspecterBlocs(
+    {
+      fr: [article('fr', 'riche', sansVideo)],
+      en: [article('en', 'maigre', sansVideo), article('en', 'autre', ['bloc.texte'])],
+    },
+    lecteur({
+      '/article/riche': page(sansVideo),
+      '/en/article/maigre': page(sansVideo),
+      '/en/article/autre': page(['bloc.texte']),
+    }),
+  );
+  const total = Object.values(rapport.inspectees).reduce((n, c) => n + c.pagesCompletes, 0);
+  assert.equal(total, 2);
+});
+
+// ---------------------------------------------------------------------------
+// 8. LE SEUIL DU CONTROLE 13, exerce DANS LES DEUX SENS
+//
+// La decision « zero page complete = anomalie » vit dans une fonction pure plutot que
+// dans le corps de `preuve-rendu.mjs` : un `process.exit` enfoui dans un script de 580
+// lignes qui construit le site ne se prouve pas en le cassant, et un seuil qu on ne peut
+// pas exercer finit par ne plus rien garder.
+// ---------------------------------------------------------------------------
+
+test('zero page complete est une ANOMALIE (1) — la preuve a eu lieu et a trouve quelque chose', () => {
+  const verdict = verdictPageComplete({ fr: { pagesCompletes: 0 }, en: { pagesCompletes: 0 } });
+  assert.equal(verdict.pagesCompletes, 0);
+  assert.equal(verdict.issue, ISSUES.ANOMALIE);
+});
+
+test('une seule page complete, dans une seule locale, SUFFIT — le controle 13 dit « au moins UNE »', () => {
+  const verdict = verdictPageComplete({ fr: { pagesCompletes: 1 }, en: { pagesCompletes: 0 } });
+  assert.equal(verdict.pagesCompletes, 1);
+  assert.equal(verdict.issue, ISSUES.CONFORME);
+});
+
+test('le verdict totalise les locales', () => {
+  assert.equal(verdictPageComplete({ fr: { pagesCompletes: 1 }, en: { pagesCompletes: 3 } }).pagesCompletes, 4);
+});
+
+test('une locale non inspectee ne compte pour rien, et ne fait pas planter le verdict', () => {
+  const verdict = verdictPageComplete({ fr: { pagesCompletes: 1 }, en: undefined });
+  assert.equal(verdict.pagesCompletes, 1);
+  assert.equal(verdict.issue, ISSUES.CONFORME);
+});
+
+test('AUCUNE locale inspectee ne rend PAS vert : zero page sur zero locale ne prouve rien', () => {
+  assert.equal(verdictPageComplete({}).issue, ISSUES.ANOMALIE);
+});
+
+test('le verdict se branche sur ce que `inspecterBlocs` rend, pas sur une forme inventee', () => {
+  // Le couplage est le point : si `inspectees` cessait de porter `pagesCompletes`, ce
+  // test rougirait ici plutot que de laisser le verdict compter des `undefined`.
+  const sansVideo = HUIT.filter((type) => type !== 'bloc.video');
+  const rapport = inspecterBlocs(
+    { fr: [article('fr', 'riche', sansVideo)] },
+    lecteur({ '/article/riche': page(sansVideo) }),
+  );
+  assert.equal(verdictPageComplete(rapport.inspectees).issue, ISSUES.CONFORME);
+
+  const maigre = inspecterBlocs(
+    { fr: [article('fr', 'pauvre', sansVideo)] },
+    lecteur({ '/article/pauvre': page(sansVideo.filter((t) => t !== 'bloc.galerie')) }),
+  );
+  assert.equal(
+    verdictPageComplete(maigre.inspectees).issue,
+    ISSUES.ANOMALIE,
+    'une page qui perd un bloc fait tomber le controle 13 : c est la marge nulle de O25',
+  );
+});
 
 test('le banc de chaque locale exerce les huit types — sinon le controle ne peut rien dire de cette locale', () => {
   for (const locale of LOCALES_SITE) {

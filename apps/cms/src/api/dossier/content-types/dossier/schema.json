@@ -44,7 +44,15 @@
       "multiple": false,
       "pluginOptions": {
         "i18n": {
-          "localized": false
+          "localized": true
+        }
+      }
+    },
+    "alternativeHero": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
         }
       }
     },

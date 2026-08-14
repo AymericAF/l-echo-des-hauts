@@ -78,7 +78,42 @@ export type SeoCorpus = {
   canonique?: string;
 };
 
-export type CategorieLocale = { nom: string; slug: string; description?: string; seo?: SeoCorpus };
+/**
+ * LA SURCHARGE LOCALISEE DE L ALTERNATIVE TEXTUELLE (2026-08-14, tache `2801722c`).
+ *
+ * Les champs `alternative*` ci-dessous sont FACULTATIFS, et leur absence est une
+ * information : « pas de surcharge, prends l `alternativeText` de la mediatheque ».
+ * Ils existent parce que cet `alternativeText` est UNE valeur par fichier, sans
+ * locale — `plugin::upload.file` ne porte aucune entree i18n, et le plugin upload
+ * ecrit par `strapi.db.query`, jamais par le Document Service. Une image servie sur
+ * une page anglaise sortait donc avec son alternative FRANCAISE.
+ *
+ * A-04 tient sur son fond : l alternative ne vient JAMAIS d une legende, et le champ
+ * natif reste la source par defaut. Ce qui est amende est sa phrase « il n y a rien
+ * a ajouter au modele ».
+ *
+ * DEUX GARDES les tiennent, toutes deux dans `chargerCorpus` : une surcharge BLANCHE
+ * est refusee (elle ecraserait l alternative native par du silence), et une surcharge
+ * sur un media `decoratif: true` l est aussi (meme contradiction que celle deja
+ * gardee au manifeste).
+ */
+export type CategorieLocale = {
+  nom: string;
+  slug: string;
+  description?: string;
+  seo?: SeoCorpus;
+  alternativeHero?: string;
+  /**
+   * LE MEDIA DU BANDEAU, PAR LOCALE (2026-08-14, tache `f011a634`).
+   *
+   * Il surcharge l `imageHero` PARTAGE de l entree : le fichier francais grave le nom de
+   * la rubrique et la signature du magazine, donc il ne peut pas servir une page anglaise.
+   * Absent, la locale sert le fichier partage — le comportement d origine, exactement.
+   * A-06 est amende sur le fond : sa colonne « partages » etait un CHOIX, pas une
+   * contrainte, et ce lot le renverse pour les champs media porteurs de texte.
+   */
+  imageHero?: string;
+};
 export type CategorieCorpus = {
   ordreAffichage: number;
   couleurAccent?: string;
@@ -90,7 +125,12 @@ export type CategorieCorpus = {
 export type TagLocale = { nom: string; slug: string };
 export type TagCorpus = { fr: TagLocale; en?: TagLocale };
 
-export type AuteurLocale = { slug: string; fonction?: string; bio?: unknown[] };
+export type AuteurLocale = {
+  slug: string;
+  fonction?: string;
+  bio?: unknown[];
+  alternativePhoto?: string;
+};
 export type AuteurCorpus = {
   nom: string;
   photo?: string;
@@ -104,6 +144,9 @@ export type DossierLocale = {
   slug: string;
   introduction?: unknown[];
   seo?: SeoCorpus;
+  alternativeHero?: string;
+  /** Le media du bandeau, par locale — cf. `CategorieLocale.imageHero`. */
+  imageHero?: string;
 };
 export type DossierCorpus = {
   dateOuverture?: string;
@@ -125,6 +168,7 @@ export type ArticleLocale = {
   aLaUne: boolean;
   imageCouverture: string;
   legendeCouverture?: string;
+  alternativeCouverture?: string;
   contenu: Record<string, any>[];
   seo?: SeoCorpus;
 };
@@ -136,6 +180,9 @@ export type ConfigurationLocale = {
   descriptionDefaut: string;
   texteFooter?: unknown[];
   mentionsLegales: unknown[];
+  /** Vaut pour le logo CLAIR et le logo SOMBRE : le `<source>` d un `<picture>` n a pas d `alt`. */
+  alternativeLogo?: string;
+  alternativePartageDefaut?: string;
 };
 export type ConfigurationCorpus = {
   logo: string;
@@ -412,6 +459,10 @@ function construireBloc(bloc: BlocBrut, contexte: string): Record<string, any> {
         __component: 'bloc.image-legendee',
         image: media(exigerTexte(a.image, `${ctx} : attribut image`)),
         legende: a.legende,
+        /* La surcharge LOCALISEE de l alternative. Elle n est pas validee ici : sa
+           garde a besoin de savoir si le media est DECORATIF, ce que seul le
+           manifeste dit — donc `chargerCorpus`, une fois les medias charges. */
+        alternative: a.alternative,
         credit: a.credit,
       };
 
@@ -666,6 +717,58 @@ export function chargerCorpus(racine: string): Corpus {
     return cle;
   };
 
+  /**
+   * LA SURCHARGE LOCALISEE DE L ALTERNATIVE, et les deux seules facons de la rater.
+   *
+   * Elle est FACULTATIVE, et son absence dit « prends l `alternativeText` de la
+   * mediatheque ». Ce qui est refuse, ce n est donc pas de ne rien ecrire — c est
+   * d ecrire quelque chose qui ne veut rien dire :
+   *
+   *  1. UNE SURCHARGE BLANCHE. « Absente » et « blanche » ne se ressemblent pas : la
+   *     premiere laisse l alternative native passer, la seconde l ECRASE par du
+   *     silence. C est le defaut du 2026-08-11 — `alt="   "` servi par un optionnel
+   *     qui ne ramenait a `null` que la chaine STRICTEMENT vide —, et il ne doit pas
+   *     rentrer par la porte qu on vient d ouvrir. On refuse donc aussi `""` : pour
+   *     ne pas surcharger, on OMET le champ.
+   *
+   *  2. UNE SURCHARGE SUR UN MEDIA `decoratif: true`. Meme contradiction que celle
+   *     deja gardee au manifeste : ou l image porte une information — alors elle n est
+   *     pas decorative —, ou elle n en porte pas, et la traduire n a aucun sens. Sans
+   *     cette garde, `decoratif` cesserait d etre opposable des qu on passe par la
+   *     surcharge, et « decoratif » redeviendrait la case qu on coche pour se taire.
+   */
+  const exigerSurcharge = (
+    valeur: unknown,
+    cleMedia: string | undefined,
+    champ: string,
+    contexte: string
+  ): string | undefined => {
+    if (valeur === undefined) return undefined;
+    if (typeof valeur !== 'string') {
+      throw new ErreurCorpus(
+        `${contexte} : \`${champ}\` doit etre un texte, recu ${JSON.stringify(valeur)}.`
+      );
+    }
+    if (estBlanc(valeur)) {
+      throw new ErreurCorpus(
+        `${contexte} : \`${champ}\` est BLANC.\n` +
+          `  Une surcharge blanche n est pas « pas de surcharge » : elle ECRASE l alternative\n` +
+          `  de la mediatheque par du silence, et un lecteur d ecran passe l image sans un mot.\n` +
+          `  Pour ne pas surcharger, OMETTRE le champ — ne pas le vider.`
+      );
+    }
+    const media = cleMedia ? mediasParCle.get(cleMedia) : undefined;
+    if (media?.decoratif) {
+      throw new ErreurCorpus(
+        `${contexte} : \`${champ}\` surcharge le media "${cleMedia}", declare \`decoratif: true\`.\n` +
+          `  Ou l image porte une information — alors elle n est pas decorative —,\n` +
+          `  ou elle n en porte pas, et il n y a rien a traduire.\n` +
+          `  Recu ${JSON.stringify(valeur)}.`
+      );
+    }
+    return valeur;
+  };
+
   /* --- categories, tags, dossiers, auteurs --- */
 
   const categories: CategorieCorpus[] = lireJson(path.join(racine, 'categories.json'));
@@ -708,6 +811,20 @@ export function chargerCorpus(racine: string): Corpus {
         exigerMedia,
         `Categorie/${localisee.slug}`
       );
+      if (localisee.imageHero) {
+        exigerMedia(
+          localisee.imageHero,
+          `Categorie ${localisee.slug} ${locale}`,
+          'hero-categorie',
+          `Categorie/${localisee.slug}`
+        );
+      }
+      localisee.alternativeHero = exigerSurcharge(
+        localisee.alternativeHero,
+        localisee.imageHero ?? c.imageHero,
+        'alternativeHero',
+        `Categorie ${localisee.slug} ${locale}`
+      );
     }
   }
   for (const t of tags) {
@@ -722,14 +839,24 @@ export function chargerCorpus(racine: string): Corpus {
     if (a.photo) exigerMedia(a.photo, `Auteur ${a.fr.slug}`, 'auteur-photo', `Auteur/${a.fr.slug}`);
     refuserSeo(a, `Auteur ${a.fr?.slug}`);
     for (const locale of LOCALES) refuserSeo(a[locale], `Auteur ${a.fr?.slug} ${locale}`);
-    const localiser = (l: any) =>
-      l && { slug: l.slug, fonction: l.fonction, bio: l.bio ? markdownVersBlocks(l.bio) : undefined };
+    const localiser = (l: any, locale: string) =>
+      l && {
+        slug: l.slug,
+        fonction: l.fonction,
+        bio: l.bio ? markdownVersBlocks(l.bio) : undefined,
+        alternativePhoto: exigerSurcharge(
+          l.alternativePhoto,
+          a.photo,
+          'alternativePhoto',
+          `Auteur ${l.slug} ${locale}`
+        ),
+      };
     return {
       nom: a.nom,
       photo: a.photo,
       reseaux: a.reseaux ?? [],
-      fr: localiser(a.fr),
-      en: localiser(a.en),
+      fr: localiser(a.fr, 'fr'),
+      en: localiser(a.en, 'en'),
     };
   });
 
@@ -737,18 +864,27 @@ export function chargerCorpus(racine: string): Corpus {
     if (d.imageHero) {
       exigerMedia(d.imageHero, `Dossier ${d.fr?.slug}`, 'hero-dossier', `Dossier/${d.fr?.slug}`);
     }
-    const localiser = (l: any) =>
+    const localiser = (l: any, locale: string) =>
       l && {
         titre: exigerTexte(l.titre, `Dossier ${l.slug} : titre`),
         slug: l.slug,
         introduction: l.introduction ? markdownVersBlocks(l.introduction) : undefined,
         seo: lireSeo(l.seo, `Dossier ${l.slug}`, exigerMedia, `Dossier/${l.slug}`),
+        imageHero: l.imageHero
+          ? exigerMedia(l.imageHero, `Dossier ${l.slug} ${locale}`, 'hero-dossier', `Dossier/${l.slug}`)
+          : undefined,
+        alternativeHero: exigerSurcharge(
+          l.alternativeHero,
+          l.imageHero ?? d.imageHero,
+          'alternativeHero',
+          `Dossier ${l.slug} ${locale}`
+        ),
       };
     return {
       dateOuverture: d.dateOuverture,
       imageHero: d.imageHero,
-      fr: localiser(d.fr),
-      en: localiser(d.en),
+      fr: localiser(d.fr, 'fr'),
+      en: localiser(d.en, 'en'),
     };
   });
 
@@ -780,6 +916,18 @@ export function chargerCorpus(racine: string): Corpus {
 
     const contenu = blocs.map((b, i) => construireBloc(b, `${contexte} #${i + 1}`));
     for (const r of renvoisMediaDe(contenu)) exigerMedia(r.cle, contexte, r.placement, code);
+    /* La surcharge des blocs se valide ICI et pas dans `construireBloc` : sa garde a
+       besoin du manifeste pour savoir si le media est DECORATIF, et `construireBloc`
+       ne le connait pas. */
+    contenu.forEach((bloc, i) => {
+      if (bloc.__component !== 'bloc.image-legendee') return;
+      bloc.alternative = exigerSurcharge(
+        bloc.alternative,
+        (bloc.image as RenvoiMedia | undefined)?.__media,
+        'alternative',
+        `${contexte} #${i + 1}, bloc \`image-legendee\``
+      );
+    });
     exigerMedia(
       exigerTexte(enTete.imageCouverture, `${contexte} : imageCouverture`),
       contexte,
@@ -807,6 +955,12 @@ export function chargerCorpus(racine: string): Corpus {
       aLaUne: Boolean(enTete.aLaUne),
       imageCouverture: enTete.imageCouverture,
       legendeCouverture: enTete.legendeCouverture,
+      alternativeCouverture: exigerSurcharge(
+        enTete.alternativeCouverture,
+        enTete.imageCouverture,
+        'alternativeCouverture',
+        contexte
+      ),
       contenu,
       seo: lireSeo(enTete.seo, contexte, exigerMedia, `Article/${code} ${locale}`),
     };
@@ -895,6 +1049,18 @@ export function chargerCorpus(racine: string): Corpus {
       texteFooter: l.texteFooter ? markdownVersBlocks(l.texteFooter) : undefined,
       mentionsLegales: markdownVersBlocks(
         exigerTexte(l.mentionsLegales, `configuration ${nom} : mentionsLegales (requis)`)
+      ),
+      alternativeLogo: exigerSurcharge(
+        l.alternativeLogo,
+        configuration.logo,
+        'alternativeLogo',
+        `configuration ${nom}`
+      ),
+      alternativePartageDefaut: exigerSurcharge(
+        l.alternativePartageDefaut,
+        configuration.imagePartageDefaut,
+        'alternativePartageDefaut',
+        `configuration ${nom}`
       ),
     };
   const config: ConfigurationCorpus = {

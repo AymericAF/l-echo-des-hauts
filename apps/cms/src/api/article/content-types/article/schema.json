@@ -71,11 +71,19 @@
       ],
       "pluginOptions": {
         "i18n": {
-          "localized": false
+          "localized": true
         }
       }
     },
     "legendeCouverture": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "alternativeCouverture": {
       "type": "string",
       "pluginOptions": {
         "i18n": {

@@ -3,7 +3,7 @@
   "info": {
     "displayName": "Image legendee",
     "icon": "image",
-    "description": "Image avec figcaption. L alternative textuelle vient de l alternativeText natif de la Media Library, jamais de legende (A-04)."
+    "description": "Image avec figcaption. L alternative textuelle vient de l alternativeText natif de la Media Library, jamais de legende (A-04) — sauf si `alternative` est renseigne, qui la surcharge pour CETTE locale : la mediatheque ne porte qu une valeur par fichier."
   },
   "options": {},
   "attributes": {
@@ -16,6 +16,9 @@
       ]
     },
     "legende": {
+      "type": "string"
+    },
+    "alternative": {
       "type": "string"
     },
     "credit": {

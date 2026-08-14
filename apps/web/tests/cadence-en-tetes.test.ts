@@ -60,8 +60,10 @@ import { fileURLToPath } from 'node:url';
 import { ISSUES } from '../scripts/issues.mjs';
 import {
   BASE_PAR_DEFAUT,
+  MARQUEUR_EMPREINTE,
   POLITIQUE_ATTENDUE,
   URLS_PAR_DEFAUT,
+  politiquePour,
 } from '../scripts/verifier-en-tetes.mjs';
 import { EXEMPTES_DE_L_INTEGRATION_CONTINUE } from '../scripts/verificateurs-de-sortie.mjs';
 
@@ -97,8 +99,28 @@ function origineDeSubstitution(enTetesDe: (chemin: string) => Record<string, str
   });
 }
 
-/** La politique attendue, telle qu un serveur conforme la servirait. */
-function politiqueServie(): Record<string, string> {
+/** Une empreinte bien formee — la garde en juge la FORME, jamais la valeur. */
+const EMPREINTE = "'sha256-urNDGBXjkCXmKLEppFdMdUMasfH9vYiR+8cKV+DrGSc='";
+
+/**
+ * Les en-tetes qu un serveur conforme servirait SUR CE CHEMIN.
+ *
+ * L origine de substitution doit router comme le proxy : depuis le 2026-08-12, un serveur
+ * qui servirait la meme politique partout n est PAS conforme — c est meme un des deux
+ * defauts que la garde existe pour voir.
+ */
+function politiqueServie(chemin = '/'): Record<string, string> {
+  const { politique } = politiquePour(chemin);
+  return Object.fromEntries(
+    Object.entries(politique).map(([nom, regle]) => [
+      nom,
+      regle.valeur.replace(MARQUEUR_EMPREINTE, EMPREINTE),
+    ]),
+  );
+}
+
+/** La politique FERMEE, servie sans distinction de route — l etat fautif du point 4. */
+function politiqueFermeePartout(): Record<string, string> {
   return Object.fromEntries(
     Object.entries(POLITIQUE_ATTENDUE).map(([nom, regle]) => [nom, regle.valeur]),
   );
@@ -126,7 +148,7 @@ function lancer(base: string) {
 // ── 1. Le CODE DE SORTIE est le verdict — c est lui, et rien d autre, que lit un porteur
 
 test('conforme : le processus rend 0, et il ne dit RIEN sur la sortie d erreur', async () => {
-  const { base, fermer } = await origineDeSubstitution(() => politiqueServie());
+  const { base, fermer } = await origineDeSubstitution((chemin) => politiqueServie(chemin));
   try {
     const passe = await lancer(base);
     assert.equal(
@@ -159,6 +181,42 @@ test('politique absente : le processus rend 1, en NOMMANT chaque en-tete manquan
           'envoie chercher partout',
       );
     }
+  } finally {
+    await fermer();
+  }
+});
+
+test('politique FERMEE partout : le processus rend 1 — les routes de la recherche SONT mesurees', async () => {
+  /* LE TROU QUE CE TEST FERME, et il etait entier jusqu au 2026-08-14 : `URLS_PAR_DEFAUT`
+     ne portait que des routes du cote ferme. Un serveur servant la politique fermee sur
+     TOUT le site — c est-a-dire une recherche morte, page `200`, aucun symptome visible —
+     passait donc au VERT de bout en bout. Le verdict se lit ici sur le CODE DE SORTIE,
+     seul canal que lit le porteur de cadence : une fonction qui rougit et un processus
+     qui rend 0 laisseraient le defaut entier. */
+  const { base, fermer } = await origineDeSubstitution(() => politiqueFermeePartout());
+  try {
+    const passe = await lancer(base);
+    assert.equal(passe.code, ISSUES.ANOMALIE, `code ${passe.code} au lieu de 1 :\n${passe.stdout}`);
+    assert.match(passe.stderr, /\/recherche/);
+    assert.match(passe.stderr, /pagefind/);
+    // Le rouge dit la CONSEQUENCE, pas un ecart de chaine : c est ce qui envoie au bon objet.
+    assert.match(passe.stderr, /NE CHERCHE PAS/);
+  } finally {
+    await fermer();
+  }
+});
+
+test('politique OUVERTE partout : le processus rend 1 — le debordement se voit de bout en bout', async () => {
+  /* Le sens inverse, et le plus grave : le site entier sert la politique de la recherche.
+     Aucune page ne casse, aucun affichage ne change, et `script-src 'none'` — donc le
+     verdict « zero octet de JS hors /recherche » — a disparu du site. Sans une page fermee
+     dans `URLS_PAR_DEFAUT`, ce cas serait indetectable. */
+  const { base, fermer } = await origineDeSubstitution(() => politiqueServie('/recherche'));
+  try {
+    const passe = await lancer(base);
+    assert.equal(passe.code, ISSUES.ANOMALIE, `code ${passe.code} au lieu de 1 :\n${passe.stdout}`);
+    assert.match(passe.stderr, /DEBORDE/);
+    assert.match(passe.stderr, /robots\.txt/);
   } finally {
     await fermer();
   }

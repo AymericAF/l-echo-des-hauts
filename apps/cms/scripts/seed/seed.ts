@@ -74,7 +74,15 @@ const NATURES_BLOCS: Record<string, Natures> = {
   'bloc.galerie': { images: 'medias', legende: 'scalaire', disposition: 'scalaire' },
   'bloc.encadre': { titre: 'scalaire', contenu: 'scalaire', variante: 'scalaire' },
   'bloc.video': { url: 'scalaire', legende: 'scalaire', vignette: 'media' },
-  'bloc.image-legendee': { image: 'media', legende: 'scalaire', credit: 'scalaire' },
+  'bloc.image-legendee': {
+    image: 'media',
+    legende: 'scalaire',
+    /* La surcharge LOCALISEE de l alternative — declaree ici comme tout champ ecrit,
+       sans quoi `comparerCorps` la traiterait en nature inconnue et REECRIRAIT chaque
+       article a chaque passe (cf. l en-tete de ce bloc). */
+    alternative: 'scalaire',
+    credit: 'scalaire',
+  },
   'bloc.separateur': { style: 'scalaire' },
   'bloc.chiffres-cles': {
     entrees: { repete: { valeur: 'scalaire', unite: 'scalaire', libelle: 'scalaire' } },
@@ -111,6 +119,22 @@ const NATURE_SEO: Nature = {
   },
 };
 
+/**
+ * UN CHAMP QUE LE CORPUS NE DECLARE PLUS DOIT ETRE VIDE EN BASE.
+ *
+ * `JSON.stringify` supprime les cles `undefined`, et un PUT Strapi ne touche QUE ce qu on
+ * lui donne : un champ retire du corpus SURVIT donc en base, et le seed le declare
+ * « inchange » parce qu il ne le compare a rien. Mesure en production le 2026-08-14 — les
+ * 22 surcharges d alternative retirees ce jour-la sont restees servies, dont celle de A23,
+ * devenue FAUSSE puisque son image affichait desormais l anglais.
+ *
+ * Ce que ca coute, ecrit plutot que tu : une valeur saisie a la main dans le back-office
+ * sur un champ que le corpus porte sera ECRASEE au seed suivant. C etait deja vrai de tout
+ * champ RENSEIGNE ; ce l est desormais aussi de ceux qu on a cesse de renseigner. Le
+ * corpus versionne fait autorite — c est la regle du seed depuis le premier jour.
+ */
+const efface = <T>(valeur: T | undefined): T | null => valeur ?? null;
+
 export const NATURES: Record<string, Natures> = {
   'categorie:fr': {
     seo: NATURE_SEO,
@@ -120,8 +144,19 @@ export const NATURES: Record<string, Natures> = {
     couleurAccent: 'scalaire',
     ordreAffichage: 'scalaire',
     imageHero: 'media',
+    alternativeHero: 'scalaire',
   },
-  'categorie:en': { seo: NATURE_SEO, nom: 'scalaire', slug: 'scalaire', description: 'scalaire' },
+  'categorie:en': {
+    seo: NATURE_SEO,
+    nom: 'scalaire',
+    slug: 'scalaire',
+    description: 'scalaire',
+    alternativeHero: 'scalaire',
+    /* LOCALISE depuis le 2026-08-14 : le bandeau grave le nom de la rubrique, donc il ne
+       peut pas etre partage. Non declare ici, `comparerCorps` le traiterait en nature
+       inconnue et REECRIRAIT chaque entree a chaque passe. */
+    imageHero: 'media',
+  },
   'tag:fr': { nom: 'scalaire', slug: 'scalaire' },
   'tag:en': { nom: 'scalaire', slug: 'scalaire' },
   'auteur:fr': {
@@ -130,9 +165,15 @@ export const NATURES: Record<string, Natures> = {
     fonction: 'scalaire',
     bio: 'scalaire',
     photo: 'media',
+    alternativePhoto: 'scalaire',
     reseaux: { repete: { plateforme: 'scalaire', url: 'scalaire' } },
   },
-  'auteur:en': { slug: 'scalaire', fonction: 'scalaire', bio: 'scalaire' },
+  'auteur:en': {
+    slug: 'scalaire',
+    fonction: 'scalaire',
+    bio: 'scalaire',
+    alternativePhoto: 'scalaire',
+  },
   'dossier:fr': {
     seo: NATURE_SEO,
     titre: 'scalaire',
@@ -140,8 +181,16 @@ export const NATURES: Record<string, Natures> = {
     introduction: 'scalaire',
     dateOuverture: 'date',
     imageHero: 'media',
+    alternativeHero: 'scalaire',
   },
-  'dossier:en': { seo: NATURE_SEO, titre: 'scalaire', slug: 'scalaire', introduction: 'scalaire' },
+  'dossier:en': {
+    seo: NATURE_SEO,
+    titre: 'scalaire',
+    slug: 'scalaire',
+    introduction: 'scalaire',
+    alternativeHero: 'scalaire',
+    imageHero: 'media',
+  },
   configuration: {
     nomSite: 'scalaire',
     baseline: 'scalaire',
@@ -152,6 +201,8 @@ export const NATURES: Record<string, Natures> = {
     logoSombre: 'media',
     favicon: 'media',
     imagePartageDefaut: 'media',
+    alternativeLogo: 'scalaire',
+    alternativePartageDefaut: 'scalaire',
     reseaux: { repete: { plateforme: 'scalaire', url: 'scalaire' } },
   },
   article: {
@@ -162,6 +213,7 @@ export const NATURES: Record<string, Natures> = {
     contenu: { zone: NATURES_BLOCS },
     imageCouverture: 'media',
     legendeCouverture: 'scalaire',
+    alternativeCouverture: 'scalaire',
     auteur: 'relation',
     categorie: 'relation',
     tags: 'relations',
@@ -395,6 +447,7 @@ export async function executerSeed(
       couleurAccent: c.couleurAccent,
       ordreAffichage: c.ordreAffichage,
       imageHero: c.imageHero ? idsMedia.get(c.imageHero) : undefined,
+      alternativeHero: efface(c[l]!.alternativeHero),
       seo: corpsSeo(c[l]!.seo, idsMedia),
     }),
   });
@@ -412,6 +465,10 @@ export async function executerSeed(
       nom: c[l]!.nom,
       slug: c[l]!.slug,
       description: c[l]!.description,
+      alternativeHero: efface(c[l]!.alternativeHero),
+      /* Le bandeau de LA LOCALE, avec repli sur le fichier partage : une locale sans
+         visuel propre continue de servir celui d origine, exactement comme avant. */
+      imageHero: idsMedia.get(c[l]!.imageHero ?? c.imageHero!),
       seo: corpsSeo(c[l]!.seo, idsMedia),
     }),
   });
@@ -451,6 +508,7 @@ export async function executerSeed(
       fonction: a[l]!.fonction,
       bio: a[l]!.bio,
       photo: a.photo ? idsMedia.get(a.photo) : undefined,
+      alternativePhoto: efface(a[l]!.alternativePhoto),
       reseaux: a.reseaux,
     }),
   });
@@ -464,7 +522,12 @@ export async function executerSeed(
     locale: 'en',
     natures: NATURES['auteur:en'],
     documentIdConnus: idsAuteur,
-    corpsDe: (a, l) => ({ slug: a[l]!.slug, fonction: a[l]!.fonction, bio: a[l]!.bio }),
+    corpsDe: (a, l) => ({
+      slug: a[l]!.slug,
+      fonction: a[l]!.fonction,
+      bio: a[l]!.bio,
+      alternativePhoto: efface(a[l]!.alternativePhoto),
+    }),
   });
 
   /* --- dossiers --- */
@@ -480,6 +543,7 @@ export async function executerSeed(
       introduction: d[l]!.introduction,
       dateOuverture: d.dateOuverture,
       imageHero: d.imageHero ? idsMedia.get(d.imageHero) : undefined,
+      alternativeHero: efface(d[l]!.alternativeHero),
       seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
   });
@@ -497,6 +561,8 @@ export async function executerSeed(
       titre: d[l]!.titre,
       slug: d[l]!.slug,
       introduction: d[l]!.introduction,
+      alternativeHero: efface(d[l]!.alternativeHero),
+      imageHero: idsMedia.get(d[l]!.imageHero ?? d.imageHero!),
       seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
   });
@@ -519,7 +585,8 @@ export async function executerSeed(
     chapo: art.chapo,
     contenu: resoudreMedias(art.contenu, idsMedia),
     imageCouverture: idsMedia.get(art.imageCouverture),
-    legendeCouverture: art.legendeCouverture,
+    legendeCouverture: efface(art.legendeCouverture),
+    alternativeCouverture: efface(art.alternativeCouverture),
     auteur: idsAuteur.get(art.auteur),
     categorie: idsCategorie.get(art.categorie),
     tags: art.tags.map((t) => idsTag.get(t)).filter(Boolean),
@@ -617,6 +684,8 @@ export async function executerSeed(
       descriptionDefaut: local.descriptionDefaut,
       texteFooter: local.texteFooter,
       mentionsLegales: local.mentionsLegales,
+      alternativeLogo: efface(local.alternativeLogo),
+      alternativePartageDefaut: efface(local.alternativePartageDefaut),
       ...(locale === 'fr' ? mediasConfig : { reseaux: conf.reseaux }),
     };
     const existant = await client.lireSingle('configuration', {

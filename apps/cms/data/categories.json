@@ -19,7 +19,8 @@
       "seo": {
         "metaTitre": "Territory: decided before it becomes visible",
         "metaDescription": "Planning, water, transport and energy on the Hauts plateau: the rulings and technical files that commit the area, read line by line."
-      }
+      },
+      "imageHero": "heros/rubrique-territoire.en.svg"
     }
   },
   {
@@ -34,7 +35,8 @@
     "en": {
       "nom": "Lives Here",
       "slug": "lives-here",
-      "description": "People of the plateau, at length. Neither puff piece nor news brief: a life, a trade, a decision, told where they stand."
+      "description": "People of the plateau, at length. Neither puff piece nor news brief: a life, a trade, a decision, told where they stand.",
+      "imageHero": "heros/rubrique-vies-d-ici.en.svg"
     }
   },
   {
@@ -49,7 +51,8 @@
     "en": {
       "nom": "Local Economy",
       "slug": "local-economy",
-      "description": "The plateau's books: what fourteen villages produce, what it earns, what it costs, and to whom. Figures first."
+      "description": "The plateau's books: what fourteen villages produce, what it earns, what it costs, and to whom. Figures first.",
+      "imageHero": "heros/rubrique-economie-locale.en.svg"
     }
   },
   {
@@ -64,7 +67,8 @@
     "en": {
       "nom": "Culture & Heritage",
       "slug": "culture-heritage",
-      "description": "What the plateau keeps and what it lets go. Industrial memory, stone, archives, cultural seasons."
+      "description": "What the plateau keeps and what it lets go. Industrial memory, stone, archives, cultural seasons.",
+      "imageHero": "heros/rubrique-culture-patrimoine.en.svg"
     }
   },
   {
@@ -79,7 +83,8 @@
     "en": {
       "nom": "Outdoors",
       "slug": "outdoors",
-      "description": "The mountain as a habitat, not a backdrop: forest, water, snow, wildlife, and the people who measure them."
+      "description": "The mountain as a habitat, not a backdrop: forest, water, snow, wildlife, and the people who measure them.",
+      "imageHero": "heros/rubrique-grand-air.en.svg"
     }
   },
   {
@@ -94,7 +99,8 @@
     "en": {
       "nom": "Public Life",
       "slug": "public-life",
-      "description": "Councils, votes, budgets, school maps, healthcare. What gets passed and what it changes, without the language of the minutes."
+      "description": "Councils, votes, budgets, school maps, healthcare. What gets passed and what it changes, without the language of the minutes.",
+      "imageHero": "heros/rubrique-la-vie-publique.en.svg"
     }
   }
 ]

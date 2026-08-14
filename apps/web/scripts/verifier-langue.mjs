@@ -82,13 +82,20 @@ const OPAQUES = new Set(['script', 'style']);
 const ATTRIBUTS_PARLANTS = new Set(['aria-label', 'title', 'placeholder']);
 
 /**
- * `alt` EST DEHORS, et il faut savoir pourquoi avant de l ajouter. Il vient de
- * `alternativeText` de la mediatheque Strapi, champ NON localise (`i18n.localized: false`,
- * A-06) : les textes de remplacement des images sont donc francais sur les pages
- * anglaises PAR CONSTRUCTION DU MODELE, pas par oubli d un composant. C est un ecart
- * reel, mais il se corrige dans le schema et le corpus ; le faire rougir a chaque build
- * sans pouvoir le corriger ici tuerait la garde. Il est SIGNALE dans le compte rendu, et
- * jamais compte comme manquement.
+ * `alt` EST DEHORS DU VOCABULAIRE, et il faut savoir pourquoi avant de l y ajouter.
+ *
+ * Il vient de l `alternativeText` de la mediatheque Strapi, qui n a qu UNE valeur par
+ * fichier, SANS locale. Ce n est pas un reglage a retourner — ce que ce commentaire a
+ * affirme jusqu au 2026-08-14, en citant un `i18n.localized: false` et un A-06 qui ne
+ * disent ni l un ni l autre cela : `plugin::upload.file` ne porte AUCUNE entree
+ * `pluginOptions.i18n`, il est masque du Content-Type Builder, et le plugin upload ecrit
+ * par `strapi.db.query`, jamais par le Document Service — celui qui porte les locales.
+ * C est A-04, et non A-06, qui a fait porter l alternative par ce champ. La parade, depuis
+ * le 2026-08-14, est une SURCHARGE LOCALISEE posee a cote de chaque media, cote CMS.
+ *
+ * Un alt francais sur une page anglaise reste donc un ecart REEL — mais il ne se corrige
+ * pas ici, dans un composant : le faire rougir a chaque build tuerait la garde. Il est
+ * SIGNALE dans le compte rendu, et jamais compte comme manquement.
  */
 const ATTRIBUT_DONNEE = 'alt';
 
@@ -295,12 +302,121 @@ function manquement(relatif, chaine, locale, fragment) {
   );
 }
 
+/* ── LA RESERVE SUR LES TEXTES D IMAGE ────────────────────────────────────────────────
+ *
+ * CE QUE CES TROIS FONCTIONS REPARENT, mesure le 2026-08-14 (tache `a13a7769`). Le
+ * compteur ne connaissait qu UNE regle : l attribut porte-t-il une lettre accentuee. Or le
+ * manifeste des medias est ECRIT SANS ACCENTS — « Bandeau de courbes de niveau du plateau,
+ * traversees par cinq emprises parcellaires au trace vert ». Sur le build du jour, il
+ * rendait donc **0** pendant que **28 alternatives francaises distinctes** etaient servies
+ * sur les **41 pages `lang="en"`**. La ligne « RESERVE : n attribut(s) alt accentue(s) »
+ * n avait jamais pu s afficher, et la reserve qui a ouvert la tache `377d07a8` avait ete
+ * signalee en prose par un humain lisant le code, pas par ce contrôle.
+ *
+ * Un compteur a zero se lit « rien a signaler », jamais « je ne sais pas regarder ».
+ *
+ * DEUX REGLES, ET LA PREMIERE NE DEVINE PAS LA LANGUE :
+ *
+ *  1. **L EGALITE ENTRE LOCALES.** Un meme media (meme `src`) qui sort avec le MEME texte
+ *     sur une page francaise et sur une page anglaise n a pas ete localise. C est un
+ *     constat, pas une heuristique, et il ne lit rien d autre que `dist/` — donc il
+ *     n emprunte ni au manifeste, que le `Base Directory` de l application `echo-site` ne
+ *     contient pas, ni au droit du role `Redacteur` d editer un texte alternatif
+ *     (avenant A4) : on ne juge JAMAIS un ecart au manifeste, seulement une egalite entre
+ *     deux pages du meme site.
+ *
+ *  2. **L HEURISTIQUE D ACCENTS, CONSERVEE.** Elle seule rattrape un media servi
+ *     UNIQUEMENT en anglais : sans contrepartie francaise, la regle 1 n a rien a comparer.
+ *
+ * Les deux se cumulent SANS compter deux fois le meme attribut — un compte gonfle se
+ * decredibilise aussi surement qu un compte a zero.
+ *
+ * CE QUE NI L UNE NI L AUTRE NE VOIT, ecrit plutot que tu : un texte francais SANS accent,
+ * saisi a la main sur la seule locale anglaise. Il n a pas de contrepartie a egaler et pas
+ * d accent a trahir. Ce trou-la se ferme a l ECRITURE, par la garde de corpus du seed.
+ */
+
+const ACCENTS_FRANCAIS = /[éèêàçôûîœ]/i;
+
+/** Les metas qui portent un texte d image ENTENDU par un lecteur d ecran. */
+const METAS_IMAGE = /<meta[^>]+(?:property|name)="(?:og|twitter):image:alt"[^>]*content="([^"]*)"/g;
+
+function nouveauReleve() {
+  /* cle -> Map(locale -> { texte, page }) ; la cle est le `src` du media, ou le texte
+     lui-meme pour une meta, qui n en a pas. */
+  return { parMedia: new Map(), parMeta: new Map(), accentues: new Set() };
+}
+
+function noter(index, cle, locale, texte, page) {
+  if (!index.has(cle)) index.set(cle, new Map());
+  if (!index.get(cle).has(locale)) index.get(cle).set(locale, { texte, page });
+}
+
+/** Releve les textes d image d une page, sans rien juger : le jugement a besoin de tout. */
+function releverTextesDImage(html, languePage, page, releve) {
+  const locale = languePage === '' ? 'fr' : languePage;
+
+  for (const trouve of html.matchAll(/<img\b[^>]*>/g)) {
+    const balise = trouve[0];
+    const alt = /\salt="([^"]*)"/.exec(balise);
+    const src = /\ssrc="([^"]*)"/.exec(balise);
+    if (!alt || !src) continue;
+    const texte = decoder(alt[1]).trim();
+    if (texte === '') continue; // une image decorative se tait dans toutes les langues
+    noter(releve.parMedia, src[1], locale, texte, page);
+    if (locale !== 'fr' && ACCENTS_FRANCAIS.test(texte)) {
+      releve.accentues.add(`${page} — ${src[1]} : « ${texte} »`);
+    }
+  }
+
+  for (const trouve of html.matchAll(METAS_IMAGE)) {
+    const texte = decoder(trouve[1]).trim();
+    if (texte === '') continue;
+    noter(releve.parMeta, texte, locale, texte, page);
+    if (locale !== 'fr' && ACCENTS_FRANCAIS.test(texte)) {
+      releve.accentues.add(`${page} — og:image:alt : « ${texte} »`);
+    }
+  }
+}
+
+/** Rend le compte et la LISTE NOMMEE : un chiffre seul ne se verifie pas. */
+function jugerTextesDImage(releve) {
+  const signales = new Set();
+
+  for (const [src, parLocale] of releve.parMedia) {
+    const francais = parLocale.get('fr');
+    if (!francais) continue;
+    for (const [locale, servi] of parLocale) {
+      if (locale === 'fr' || servi.texte !== francais.texte) continue;
+      signales.add(`${servi.page} — ${src} : « ${servi.texte} », identique a la page francaise`);
+    }
+  }
+
+  for (const [, parLocale] of releve.parMeta) {
+    const francais = parLocale.get('fr');
+    if (!francais) continue;
+    for (const [locale, servi] of parLocale) {
+      if (locale === 'fr') continue;
+      signales.add(`${servi.page} — og:image:alt : « ${servi.texte} », identique a la page francaise`);
+    }
+  }
+
+  /* L heuristique n ajoute que ce que l egalite n a pas deja vu — d ou le rapprochement
+     sur le couple (page, media), et non sur la phrase entiere. */
+  const deja = new Set([...signales].map((l) => l.split(' : ')[0]));
+  for (const ligne of releve.accentues) {
+    if (!deja.has(ligne.split(' : ')[0])) signales.add(ligne);
+  }
+
+  return { total: signales.size, signales: [...signales] };
+}
+
 /**
  * @param {string} dist Chemin du repertoire de sortie.
  * @param {Record<string, object>} [dictionnaire] Le dictionnaire de reference.
  */
 export function inspecterLangue(dist, dictionnaire = LIBELLES) {
-  const vide = { pages: 0, chaines: 0, altsNonLocalises: 0 };
+  const vide = { pages: 0, chaines: 0, altsNonLocalises: 0, altsSignales: [] };
   if (!fs.existsSync(dist)) {
     return { manquements: [`sortie absente : ${dist}`], issue: ISSUES.VERIFICATION_IMPOSSIBLE, ...vide };
   }
@@ -316,9 +432,9 @@ export function inspecterLangue(dist, dictionnaire = LIBELLES) {
 
   const exclusif = vocabulaireExclusif(dictionnaire);
   const manquements = [];
+  const releve = nouveauReleve();
   let pages = 0;
   let chaines = 0;
-  let altsNonLocalises = 0;
 
   for (const relatif of tous) {
     if (!relatif.endsWith('.html')) continue;
@@ -339,12 +455,10 @@ export function inspecterLangue(dist, dictionnaire = LIBELLES) {
       }
     }
 
-    if (languePage !== '' && languePage !== 'fr') {
-      for (const trouve of html.matchAll(new RegExp(`\\s${ATTRIBUT_DONNEE}="([^"]+)"`, 'g'))) {
-        if (/[éèêàçôûîœ]/i.test(decoder(trouve[1]))) altsNonLocalises += 1;
-      }
-    }
+    releverTextesDImage(html, languePage, relatif, releve);
   }
+
+  const { total: altsNonLocalises, signales: altsSignales } = jugerTextesDImage(releve);
 
   return {
     manquements,
@@ -352,16 +466,25 @@ export function inspecterLangue(dist, dictionnaire = LIBELLES) {
     pages,
     chaines,
     altsNonLocalises,
+    altsSignales,
   };
 }
 
 /** Le compte rendu au vert, en une ligne — la reserve comprise. */
 export function resumeLangue(rapport) {
+  /* LA RESERVE NOMME CE QU ELLE COMPTE. Un chiffre seul ne se verifie pas : c est en
+     partie ce qui a laissé vivre le compteur a zero du 2026-08-14 — personne ne pouvait
+     confronter « 0 » a quoi que ce soit. La liste est bornee, la sortie devant rester une
+     ligne de journal ; le compte, lui, est entier. */
+  const signales = rapport.altsSignales ?? [];
+  const extrait = signales.slice(0, 3).join(' · ');
+  const reste = signales.length > 3 ? ` · … et ${signales.length - 3} autre(s)` : '';
   const reserve =
     rapport.altsNonLocalises > 0
-      ? ` — RESERVE : ${rapport.altsNonLocalises} attribut(s) alt accentue(s) hors page francaise, ` +
-        'qui viennent du champ NON localise `alternativeText` de la mediatheque : cela se ' +
-        'corrige au modele et au corpus, pas dans un composant.'
+      ? ` — RESERVE : ${rapport.altsNonLocalises} texte(s) d image non localise(s) hors page ` +
+        `francaise : ${extrait}${reste}. L alternative vient de l \`alternativeText\` de la ` +
+        'mediatheque, qui n a qu UNE valeur sans locale ; cela se corrige par la surcharge ' +
+        'localisee du corpus, pas dans un composant.'
       : '';
   return (
     `${rapport.pages} page(s) HTML, ${rapport.chaines} chaine(s) adressee(s) au lecteur : ` +

@@ -55,7 +55,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CIBLES, cibleDemandee, sourcePourCible } from './cible-preuve.mjs';
-import { articlesDuBanc, inspecterBlocs, TYPES } from './couverture-blocs.mjs';
+import { articlesDuBanc, inspecterBlocs, TYPES, verdictPageComplete } from './couverture-blocs.mjs';
 import { ISSUES } from './issues.mjs';
 import { inspecterMentionsRendues, resumeMentionsRendues } from './mentions-obligatoires.mjs';
 import { inspecterSortie, resume } from './verifier-sortie.mjs';
@@ -196,15 +196,75 @@ const blocs = inspecterBlocs(
   (route) => lirePage(dist, route),
   source.poseur,
 );
+/**
+ * LA LIGNE SE LIT SANS LE BRIEF — reecrite le 2026-08-14, tache `c6e10619`.
+ *
+ * Elle disait « N page(s) rendant les 8 ». Sur l instance reelle elle imprimait donc
+ * « 0 page(s) rendant les 8 » alors que DEUX pages rendaient les sept types disponibles :
+ * `bloc.video` n a plus aucun porteur depuis l avenant A5 du 2026-08-10, et personne ne
+ * peut le deviner en lisant ce rapport. Qui l ouvrait pour juger le controle 13 du §11 du
+ * plan editorial y lisait un « 0 » et concluait l inverse du vrai.
+ *
+ * Deux choses changent, et rien d autre : le denominateur suit ce que le corpus EXERCE
+ * (cf. `couverture-blocs.mjs`), et la ligne NOMME les types sans porteur au lieu de
+ * laisser un « 7/8 » muet.
+ */
 for (const locale of LOCALES) {
   const compte = blocs.inspectees[locale];
+  if (compte === undefined) {
+    console.log(`  [${locale}] locale non inspectee`);
+    continue;
+  }
+  const trou =
+    compte.sansPorteur.length === 0 ? '' : `, aucun porteur pour ${compte.sansPorteur.join(', ')}`;
   console.log(
-    compte === undefined
-      ? `  [${locale}] locale non inspectee`
-      : `  [${locale}] ${compte.pages} page(s) article, ${compte.typesExerces}/${TYPES.length} ` +
-          `types exerces par ${source.poseur}, ${compte.pagesCompletes} page(s) rendant les ${TYPES.length}`,
+    `  [${locale}] ${compte.pages} page(s) article, ${compte.typesExerces} des ${TYPES.length} ` +
+      `types du §3.6 exerces par ${source.poseur}${trou} — ${compte.pagesCompletes} page(s) ` +
+      `rendant ces ${compte.typesExerces} types A ELLE SEULE`,
   );
 }
+
+/**
+ * CONTROLE 13 du §11 du plan editorial — devenu une ASSERTION le 2026-08-14.
+ *
+ * L avenant A11 (decision `b5ef48c3`) exige qu AU MOINS UNE page article rendue affiche
+ * les types de blocs ayant un porteur au corpus. Le compte ci-dessus n en etait qu un
+ * `console.log` : la preuve ne rougissait pas, elle mentait par omission. Un indicateur
+ * que rien n exerce finit par deriver sans que personne ne le voie.
+ *
+ * POURQUOI `1` ET NON `2`. La verification a bien eu lieu et elle a trouve quelque chose :
+ * c est la definition de l anomalie dans `issues.mjs`. `2` dirait « je n ai pas pu juger »,
+ * ce qui serait faux — on a lu chaque page. Ce n est pas non plus un defaut de RENDU : le
+ * site rend fidelement ce qu on lui pose. Ce qui manque est un article qui porte tous les
+ * types a lui seul, donc du CONTENU. Le message le dit, pour ne pas envoyer chercher une
+ * regression de rendu qui n existe pas.
+ *
+ * LA MARGE EST NULLE, ET C EST VOULU (objection O25 de l avenant) : au 2026-08-14 une
+ * seule page tient ce controle par locale, la suivante portant 5 types sur 7. Retirer un
+ * bloc a l article `14-juin-1983-le-dernier-jour-de-la-filature` fera rougir ici. C est
+ * exactement ce qu on attend d un filet : il tient tant que la demonstration tient.
+ *
+ * LA REGLE ELLE-MEME VIT DANS `couverture-blocs.mjs`, ou elle s exerce dans les deux sens
+ * en quelques millisecondes. Ici on ne fait que la lire et l imprimer : un seuil enfoui
+ * dans un script qui construit le site ne se prouverait qu en cassant le corpus.
+ */
+const controle13 = verdictPageComplete(blocs.inspectees);
+if (controle13.issue !== ISSUES.CONFORME) {
+  console.error(
+    '\n✖ CONTROLE 13 du §11 (plan editorial) — AUCUNE page article ne rend a elle seule ' +
+      `les types de blocs ayant un porteur, dans aucune des ${LOCALES.length} locales.`,
+  );
+  console.error(
+    "\n  Ce n est ni un defaut de rendu ni une incapacite de mesure : le site rend ce qu on\n" +
+      '  lui pose, et chaque page a bien ete lue. Ce qui manque est un ARTICLE qui porte tous\n' +
+      '  ces types a lui seul. Avenant A11, decision `b5ef48c3`.\n',
+  );
+  process.exit(controle13.issue);
+}
+console.log(
+  `\n▸ Controle 13 du §11 : TENU — ${controle13.pagesCompletes} page(s) rendent a elles seules ` +
+    'tous les types de blocs ayant un porteur.',
+);
 
 /**
  * Les liens de reseaux, lus DANS LA SORTIE et pas dans le composant.

@@ -1,6 +1,5 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import { loadEnv } from 'vite';
 
 import gardeCascadeTitres from './integrations/garde-cascade-titres.mjs';
 import gardeImages from './integrations/garde-images.mjs';
@@ -12,6 +11,7 @@ import gardeSeo from './integrations/garde-seo.mjs';
 import gardeStylesEnLigne from './integrations/garde-styles-en-ligne.mjs';
 import gardeT09 from './integrations/garde-t09.mjs';
 import mediasLocaux from './integrations/medias-locaux.mjs';
+import { resoudreEnvDuBuild } from './scripts/env-du-build.mjs';
 import { ORIGINE_PAR_DEFAUT } from './scripts/origine.mjs';
 
 /**
@@ -26,11 +26,14 @@ import { ORIGINE_PAR_DEFAUT } from './scripts/origine.mjs';
  * Astro n expose a `import.meta.env` que les variables prefixees `PUBLIC_`, et le jeton
  * de build est en lecture seule mais reste un secret — il ne doit atteindre AUCUN
  * bundle client. Les lire cote Node, au build, est ce qui le garantit.
+ *
+ * CET APPEL FAIT PLUS QUE CHARGER : c est lui qui fait converger les DEUX lecteurs de
+ * `ECHO_STRAPI_URL` — le producteur des chemins de medias (dans Vite, `import.meta.env`
+ * d abord) et le deposeur de leurs octets (hors Vite, `process.env` seul). L argument
+ * complet, la mesure qui l etablit et ce qui le romprait vivent dans
+ * `scripts/env-du-build.mjs` ; `tests/medias-locaux.test.ts` le verrouille.
  */
-const env = loadEnv(process.env.NODE_ENV ?? 'production', process.cwd(), '');
-for (const [cle, valeur] of Object.entries(env)) {
-  if (cle.startsWith('ECHO_') && process.env[cle] === undefined) process.env[cle] = valeur;
-}
+resoudreEnvDuBuild();
 
 /**
  * L ORDRE DES INTEGRATIONS EST UNE DEPENDANCE, pas une preference. Toutes accrochent

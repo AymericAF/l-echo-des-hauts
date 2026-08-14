@@ -39,6 +39,7 @@ import path from 'node:path';
    bouge — et un script qui ne trouve rien ne signale rien. */
 import { cheminArticle, cheminIndex } from '../src/lib/routes/chemins.ts';
 import { ISSUES } from './issues.mjs';
+import { decoder, designeLeMedia, normaliserNom } from './verifier-alternatives.mjs';
 
 const ICI = import.meta.dirname;
 const DIST = process.argv[2] ?? path.join(ICI, '..', 'dist');
@@ -123,20 +124,49 @@ function lirePage(dist, chemin) {
   return null;
 }
 
-const titreDe = (html) => html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? null;
+/* Le decodage des entites et le rapprochement d un media servi a sa cle de
+ * manifeste vivent tous deux dans `verifier-alternatives.mjs`, qui les a mesures
+ * contre Strapi et les documente. Les recopier ici en ferait une seconde copie —
+ * exactement ce que la convention `Pointer, jamais dupliquer` interdit, et pour la
+ * raison qui s est verifiee ici : deux copies divergent. */
 
-function meta(html, attribut, valeur) {
-  const motif = new RegExp(
-    `<meta[^>]*${attribut}=["']${valeur}["'][^>]*content=["']([^"']*)["']|` +
-      `<meta[^>]*content=["']([^"']*)["'][^>]*${attribut}=["']${valeur}["']`,
-    'i'
-  );
-  const trouve = html.match(motif);
-  return trouve ? (trouve[1] ?? trouve[2]) : null;
+const titreDe = (html) => {
+  const trouve = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return trouve ? decoder(trouve[1].trim()) : null;
+};
+
+/** Les balises `<nom …>` du document, chacune entiere : une valeur d attribut peut
+    porter un `>` (`&gt;` n est pas obligatoire dans un attribut), et s arreter au
+    premier `>` couperait la balise en deux. */
+const balisesDe = (html, nom) =>
+  html.match(new RegExp(`<${nom}\\b(?:"[^"]*"|'[^']*'|[^>"'])*>`, 'gi')) ?? [];
+
+/**
+ * La valeur d un attribut, decodee.
+ *
+ * Le motif borne la valeur sur le MEME guillemet que l ouvrant. Une classe qui
+ * exclut les deux (`[^"']`) tronque a la premiere apostrophe INTERNE : c est ainsi
+ * que « … 19,8 demandes : l ecart qui decidera du parc » se lisait « … : l », et que
+ * le script rapportait des ecarts qui n existaient pas.
+ */
+function valeurAttribut(balise, nom) {
+  const trouve = balise.match(new RegExp(`\\b${nom}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'));
+  return trouve ? decoder(trouve[1] ?? trouve[2]) : null;
 }
 
-const canoniqueDe = (html) =>
-  html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*)["']/i)?.[1] ?? null;
+function meta(html, attribut, valeur) {
+  for (const balise of balisesDe(html, 'meta')) {
+    if (valeurAttribut(balise, attribut) === valeur) return valeurAttribut(balise, 'content');
+  }
+  return null;
+}
+
+function canoniqueDe(html) {
+  for (const balise of balisesDe(html, 'link')) {
+    if (valeurAttribut(balise, 'rel') === 'canonical') return valeurAttribut(balise, 'href');
+  }
+  return null;
+}
 
 /** Toutes les URL declarees par les segments de sitemap presents dans dist/. */
 function urlsDuSitemap(dist) {
@@ -228,9 +258,14 @@ export function verifierSurchargeSeo(dist = DIST, corpus = CORPUS) {
       );
     }
 
+    /* Strapi RENOMME a l upload : `partage/A01-col-des-trois-vents.png` est servi
+       `/medias/A01_col_des_trois_vents_ec2b979fb1.png`. Comparer le nom brut faisait
+       donc manquer tout media a tiret — constate sur l instance le 2026-08-14, ou
+       l image surchargee SORTAIT et ce controle la declarait absente. */
     if (seo.imagePartage !== undefined) {
       const nom = path.basename(seo.imagePartage);
-      if (ogImage === null || !ogImage.includes(nom)) {
+      const servi = ogImage === null ? null : normaliserNom(path.posix.basename(ogImage));
+      if (servi === null || !designeLeMedia(servi, normaliserNom(nom))) {
         signaler(
           `${entree.quoi} : og:image vaut « ${ogImage} » et ne designe pas l image ` +
             `surchargee « ${nom} » — c est la carte generee ou le defaut qui sort`

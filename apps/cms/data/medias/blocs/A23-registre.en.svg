@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <rect width="1600" height="900" fill="#EFEBE3"/>
+  <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
+  <rect x="220" y="170" width="420" height="18" fill="#5B3E7A"/>
+  <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Workshop register, June 1983 — reconstruction</text>
+  <text x="220" y="272" font-family="Georgia, serif" font-size="24" fill="#1A1A1A" opacity="0.65">La Rive-Haute mill — workshop register 1971-1983, last page</text>
+  <line x1="580" y1="300" x2="580" y2="694" stroke="#1A1A1A" stroke-opacity="0.18" stroke-width="2"/>
+  <line x1="700" y1="300" x2="700" y2="694" stroke="#1A1A1A" stroke-opacity="0.18" stroke-width="2"/>
+  <text x="236" y="330" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Time</text>
+  <text x="560" y="330" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Reading</text>
+  <text x="690" y="330" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Stoppages</text>
+  <text x="720" y="330" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Notes</text>
+  <line x1="220" y1="346" x2="1380" y2="346" stroke="#1A1A1A" stroke-opacity="0.3" stroke-width="2"/>
+  <text x="236" y="396" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">5.50 a.m.</text>
+  <text x="720" y="396" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.75">Morning shift clocks in, target unchanged</text>
+  <line x1="220" y1="416" x2="1380" y2="416" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="458" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">9.25 a.m.</text>
+  <text x="560" y="458" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">412 kg</text>
+  <text x="720" y="458" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.75">Interim reading, 35 kg above the rate</text>
+  <line x1="220" y1="478" x2="1380" y2="478" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="520" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">12.10 p.m.</text>
+  <text x="720" y="520" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.75">Record of attendance, inventory begun (different hand)</text>
+  <line x1="220" y1="540" x2="1380" y2="540" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="582" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">5.40 p.m.</text>
+  <text x="560" y="582" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">1,214 kg</text>
+  <text x="690" y="582" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">9</text>
+  <text x="720" y="582" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.75">Last stoppage — 103 % of the 1,180 kg target</text>
+  <line x1="220" y1="602" x2="1380" y2="602" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="674" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.4">—</text>
+  <text x="720" y="674" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.45">Daily total not carried over</text>
+  <line x1="220" y1="694" x2="1380" y2="694" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <line x1="220" y1="745" x2="1380" y2="745" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="236" y="778" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.75">Nine machine stoppages that day, against an average of seventeen — ordinary close around 4.50 p.m.</text>
+  <text x="236" y="806" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.5">Page of 14 June 1983 — 214 staff, 168 of them women</text>
+</svg>

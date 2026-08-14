@@ -284,3 +284,167 @@ test('les trois issues sortent AUSSI en ligne de commande, pas seulement en fonc
     ISSUES.VERIFICATION_IMPOSSIBLE
   );
 });
+
+/* ------------------------------------------------------------------ */
+/* Le HTML REEL, avec ses entites et ses apostrophes                    */
+/*                                                                      */
+/* Tout ce qui precede travaille sur des textes sans apostrophe ni      */
+/* esperluette (« Eolien : le verrou n est pas l enquete »), et c est   */
+/* exactement pour cela que le defaut a survecu : la fixture evitait le */
+/* seul caractere qui casse. Le corpus reel, lui, est du francais.      */
+/*                                                                      */
+/* Deux encodages DISTINCTS, constates sur echo.ayfiweb.fr le           */
+/* 2026-08-14 : dans le <title>, Astro echappe l apostrophe en `&#39;`  */
+/* et l esperluette en `&amp;` ; dans un attribut `content="…"` borne   */
+/* par des guillemets doubles, l apostrophe reste BRUTE. Un seul des    */
+/* deux defauts se voit a chaque endroit, d ou des tests separes.       */
+/* ------------------------------------------------------------------ */
+
+const REEL = {
+  metaTitre: "Éolien aux Trois-Vents : le vrai verrou n'est pas l'enquête",
+  metaDescription:
+    "8,4 MW disponibles au poste source, 19,8 demandés : l'écart qui décidera du parc éolien.",
+};
+
+/** Ce qu Astro ecrit dans un noeud TEXTE (le <title>). */
+const commeTitre = (t: string) => t.replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+
+test('un <title> aux apostrophes encodees porte quand meme la surcharge', () => {
+  const { manquements } = inspecter(
+    (d) => {
+      d['article/col-des-trois-vents/index.html'] = [
+        '<!doctype html><html lang="fr"><head>',
+        `<title>${commeTitre(REEL.metaTitre)} — L&#39;Écho des Hauts</title>`,
+        `<meta name="description" content="${REEL.metaDescription}">`,
+        `<meta property="og:title" content="${REEL.metaTitre} — L'Écho des Hauts">`,
+        '<meta property="og:image" content="/uploads/A01-og.png">',
+        '</head><body></body></html>',
+      ].join('\n');
+    },
+    (c) => {
+      c.a01.seo = {
+        metaTitre: REEL.metaTitre,
+        metaDescription: REEL.metaDescription,
+        imagePartage: 'partage/A01-og.png',
+      };
+    }
+  );
+
+  assert.deepEqual(manquements, []);
+});
+
+test('une valeur d attribut qui porte une apostrophe est lue en ENTIER', () => {
+  const { manquements } = inspecter(
+    (d) => {
+      d['article/col-des-trois-vents/index.html'] = [
+        '<!doctype html><html lang="fr"><head>',
+        `<title>${commeTitre(REEL.metaTitre)} — L&#39;Écho</title>`,
+        `<meta name="description" content="${REEL.metaDescription}">`,
+        `<meta property="og:title" content="${REEL.metaTitre} — L'Écho">`,
+        '<meta property="og:image" content="/uploads/A01-og.png">',
+        '</head><body></body></html>',
+      ].join('\n');
+    },
+    (c) => {
+      c.a01.seo = {
+        metaTitre: REEL.metaTitre,
+        metaDescription: REEL.metaDescription,
+        imagePartage: 'partage/A01-og.png',
+      };
+    }
+  );
+
+  /* Le defaut se lisait dans le TEXTE du manquement : la description etait
+     rapportee « … 19,8 demandés : l », tronquee au premier caractere apostrophe. */
+  assert.deepEqual(manquements, []);
+});
+
+test('une description qui differe APRES l apostrophe reste attrapee', () => {
+  const { manquements } = inspecter(
+    (d) => {
+      d['article/col-des-trois-vents/index.html'] = [
+        '<!doctype html><html lang="fr"><head>',
+        `<title>${commeTitre(REEL.metaTitre)} — L&#39;Écho</title>`,
+        '<meta name="description" content="8,4 MW disponibles au poste source, 19,8 demandés : l\'inverse de ce que dit le corpus.">',
+        `<meta property="og:title" content="${REEL.metaTitre} — L'Écho">`,
+        '<meta property="og:image" content="/uploads/A01-og.png">',
+        '</head><body></body></html>',
+      ].join('\n');
+    },
+    (c) => {
+      c.a01.seo = {
+        metaTitre: REEL.metaTitre,
+        metaDescription: REEL.metaDescription,
+        imagePartage: 'partage/A01-og.png',
+      };
+    }
+  );
+
+  /* Sans ce test, « corriger » en tronquant LES DEUX cotes au premier
+     caractere apostrophe rendrait tout vert — et ne verifierait plus rien. */
+  assert.match(manquements.join('\n'), /meta description vaut/);
+});
+
+test('un repli qui porte une esperluette n est pas pris pour une fuite de surcharge', () => {
+  const { manquements } = inspecter(
+    (d) => {
+      d['categorie/culture-patrimoine/index.html'] = page({
+        titre: 'Culture &amp; patrimoine — L&#39;Écho des Hauts',
+      });
+    },
+    (c) => {
+      c.categorie = { nom: 'Culture & patrimoine', slug: 'culture-patrimoine' };
+    }
+  );
+
+  assert.deepEqual(manquements, []);
+});
+
+test('une canonique surchargee dont l URL porte &amp; est honoree', () => {
+  const cible = `${ORIGINE}/dossier/l-eau-du-plateau?de=A02&vers=dossier`;
+  const { manquements } = inspecter(
+    (d) => {
+      d['article/le-plui-de-2027/index.html'] = page({
+        titre: 'Ce que le PLUi de 2027 promet — L Echo',
+        canonique: cible.replace(/&/g, '&amp;'),
+      });
+    },
+    (c) => {
+      c.a02.seo = { canonique: cible };
+    }
+  );
+
+  assert.deepEqual(manquements, []);
+});
+
+test('un og:image servi sous le nom que STRAPI lui donne designe bien l image surchargee', () => {
+  /* Constate sur l instance le 2026-08-14 : le corpus demande
+     `partage/A01-col-des-trois-vents.png`, et le site sert
+     `/medias/A01_col_des_trois_vents_ec2b979fb1.png`. Strapi renomme a l upload —
+     `nameToSlug(basename, {separator:'_'})` + dix caracteres hexadecimaux — donc
+     comparer le nom BRUT fait manquer TOUT media a tiret. Le rapprochement est
+     celui, deja mesure et documente, de `verifier-alternatives.mjs`. */
+  const { manquements } = inspecter((d) => {
+    d['article/col-des-trois-vents/index.html'] = page({
+      titre: `${SURCHARGE.metaTitre} — L Echo`,
+      description: SURCHARGE.metaDescription,
+      ogImage: 'https://echo.test/medias/A01_og_a1b2c3d4e5.png',
+    });
+  });
+
+  assert.deepEqual(manquements, []);
+});
+
+test('un og:image qui porte un AUTRE media reste un manquement', () => {
+  /* La borne du suffixe n est pas du confort : sans elle, `A01_og` se rapprocherait
+     aussi de `A01_og_poste_source_a1b2c3d4e5`, un autre media. */
+  const { manquements } = inspecter((d) => {
+    d['article/col-des-trois-vents/index.html'] = page({
+      titre: `${SURCHARGE.metaTitre} — L Echo`,
+      description: SURCHARGE.metaDescription,
+      ogImage: 'https://echo.test/medias/A01_og_poste_source_a1b2c3d4e5.png',
+    });
+  });
+
+  assert.match(manquements.join('\n'), /og:image/);
+});

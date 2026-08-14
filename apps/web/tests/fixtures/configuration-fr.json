@@ -49,17 +49,57 @@
       "mime": "image/jpeg"
     },
     "reseaux": [
-      { "id": 310, "plateforme": "mastodon", "url": "https://exemple.invalid/@echodeshauts" },
-      { "id": 311, "plateforme": "bluesky", "url": "https://exemple.invalid/profile/echodeshauts" },
-      { "id": 312, "plateforme": "linkedin", "url": "https://exemple.invalid/company/echodeshauts" },
-      { "id": 313, "plateforme": "x", "url": "https://exemple.invalid/echodeshauts" },
-      { "id": 314, "plateforme": "instagram", "url": "https://exemple.invalid/echodeshauts" },
-      { "id": 315, "plateforme": "youtube", "url": "https://exemple.invalid/@echodeshauts" },
-      { "id": 316, "plateforme": "facebook", "url": "https://exemple.invalid/echodeshauts" },
-      { "id": 317, "plateforme": "site", "url": "https://exemple.invalid" }
+      {
+        "id": 310,
+        "plateforme": "mastodon",
+        "url": "https://exemple.invalid/@echodeshauts"
+      },
+      {
+        "id": 311,
+        "plateforme": "bluesky",
+        "url": "https://exemple.invalid/profile/echodeshauts"
+      },
+      {
+        "id": 312,
+        "plateforme": "linkedin",
+        "url": "https://exemple.invalid/company/echodeshauts"
+      },
+      {
+        "id": 313,
+        "plateforme": "x",
+        "url": "https://exemple.invalid/echodeshauts"
+      },
+      {
+        "id": 314,
+        "plateforme": "instagram",
+        "url": "https://exemple.invalid/echodeshauts"
+      },
+      {
+        "id": 315,
+        "plateforme": "youtube",
+        "url": "https://exemple.invalid/@echodeshauts"
+      },
+      {
+        "id": 316,
+        "plateforme": "facebook",
+        "url": "https://exemple.invalid/echodeshauts"
+      },
+      {
+        "id": 317,
+        "plateforme": "site",
+        "url": "https://exemple.invalid"
+      }
     ],
     "texteFooter": [
-      { "type": "paragraph", "children": [{ "type": "text", "text": "Demonstrateur technique. Media fictif." }] }
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "Demonstrateur technique. Media fictif."
+          }
+        ]
+      }
     ],
     "mentionsLegales": [
       {
@@ -216,7 +256,9 @@
           }
         ]
       }
-    ]
+    ],
+    "alternativeLogo": null,
+    "alternativePartageDefaut": null
   },
   "meta": {}
 }

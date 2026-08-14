@@ -32,8 +32,10 @@
  * echec rendraient la meme sortie, sur la seule page du site dont l absence de contenu
  * engage la raison sociale de l editeur. Le build echoue, et c est le point.
  *
- * Le `noindex` est CONSERVE (commit `d369449`), et il ne s ecrit plus ici : il vit dans
- * `src/lib/seo/indexation.ts`, d ou le `<head>` et le sitemap le lisent (A-29).
+ * Le `noindex` est CONSERVE — pose par `8a125e4` (2026-08-03) a la creation de la page, et
+ * NON par `d369449`, qui n a fait que le conserver en remplissant editeur et hebergeur. Il
+ * ne s ecrit plus ici : il vit dans `src/lib/seo/indexation.ts`, d ou le `<head>` et le
+ * sitemap le lisent (A-29).
  */
 import type { Configuration, Locale } from '../../lib/domaine.ts';
 import RichTexte from '../RichTexte.astro';

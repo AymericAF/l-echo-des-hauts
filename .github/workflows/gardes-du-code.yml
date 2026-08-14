@@ -141,6 +141,30 @@ jobs:
         # rougirait pour une cause qui n'est pas la sienne.
         run: node outils/gardes-au-commit.js
 
+      - name: Le crochet AVANT PUSH est versionne, executable, et branche sur son module
+        # Meme raison que pour `commit-msg`, et meme point de vue : l'index, donc
+        # depuis un clone frais. Ce crochet-la garde `main` d'un resultat de FUSION
+        # rouge — 17 des 20 dernieres fusions de ce depot sont des merges LOCAUX
+        # pousses, et le job ne les jugeait donc qu'une fois DEJA sur main.
+        run: |
+          mode="$(git ls-files -s .githooks/pre-push | cut -d' ' -f1)"
+          if [ "$mode" != "100755" ]; then
+            echo "ROUGE : .githooks/pre-push absent de l index ou non executable (mode='$mode')"
+            exit 1
+          fi
+          git show :.githooks/pre-push | grep -q 'gardes-avant-push.js' || {
+            echo "ROUGE : .githooks/pre-push n appelle plus gardes-avant-push.js"
+            exit 1
+          }
+          echo "OK : .githooks/pre-push 100755, et il appelle gardes-avant-push.js"
+
+      - name: La recette de la garde avant push — vrais depots, vrais push, refus exiges
+        # 7 cas : le nominal, une suite rouge qui ARRETE le push, le refus qui nomme
+        # les applications, une branche autre que main qu'on ne juge pas, et les deux
+        # incapacites (arbre sale, HEAD different du commit pousse) qui refusent
+        # plutot que de juger a cote.
+        run: node .githooks/gardes-avant-push.recette.mjs
+
       - name: La recette du declencheur — elle le prouve en le cassant, dans les deux sens
         # 14 cas, depots jetables, vrais `git commit`. Elle tient les deux
         # moities de la garde, et la seconde protege l'adoption autant que la

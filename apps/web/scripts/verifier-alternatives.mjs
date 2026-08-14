@@ -284,6 +284,21 @@ export function normaliserNom(nom) {
 const SUFFIXE_STRAPI = /^[0-9a-f]{10}$/;
 
 /**
+ * Un fichier SERVI designe-t-il la declaration `base` ? Les deux noms sont attendus
+ * NORMALISES (`normaliserNom`).
+ *
+ * Exporte parce que ce rapprochement n est pas propre a cette garde : `preuve-surcharge-
+ * seo.mjs` doit le faire aussi, pour dire si l `og:image` d une page porte bien l image
+ * choisie par la redaction. Le recopier la-bas serait la deuxieme copie d une regle
+ * qui vit dans le renommage de Strapi — et deux copies d une regle finissent toujours
+ * par diverger le jour ou Strapi change de separateur.
+ */
+export function designeLeMedia(servi, base) {
+  if (servi === base) return true;
+  return servi.startsWith(`${base}_`) && SUFFIXE_STRAPI.test(servi.slice(base.length + 1));
+}
+
+/**
  * Le nom de fichier servi, normalise — ou `null` quand l URL ne designe pas la
  * mediatheque du site (`data:`, `/favicon.svg`, une image de partage) : aucune de
  * celles-la n a de declaration a confronter.
@@ -304,13 +319,7 @@ export function nomServi(url) {
 function rapprocher(declarations, servi) {
   const trouvees = [];
   for (const [base, lot] of declarations) {
-    if (servi === base) {
-      trouvees.push(...lot);
-      continue;
-    }
-    if (servi.startsWith(`${base}_`) && SUFFIXE_STRAPI.test(servi.slice(base.length + 1))) {
-      trouvees.push(...lot);
-    }
+    if (designeLeMedia(servi, base)) trouvees.push(...lot);
   }
   return trouvees;
 }

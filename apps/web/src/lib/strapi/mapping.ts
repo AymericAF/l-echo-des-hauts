@@ -91,6 +91,36 @@ function media(brut: unknown, chemin: string): Media {
   };
 }
 
+/**
+ * LA SURCHARGE LOCALISEE DE L ALTERNATIVE — appliquee ICI, une fois, pour tout le site.
+ *
+ * L `alternativeText` de la mediatheque est UNE valeur par fichier, sans locale :
+ * `plugin::upload.file` ne porte aucune entree i18n, et le plugin upload ecrit par
+ * `strapi.db.query`, jamais par le Document Service. Les pages anglaises servaient donc
+ * des alternatives FRANCAISES — 28 textes distincts sur 41 pages, mesure le 2026-08-14.
+ * La parade est un champ LOCALISE pose a cote du media (`alternativeCouverture`,
+ * `alternativeHero`, `alternativePhoto`, `alternativeLogo`, `alternative` du bloc).
+ *
+ * POURQUOI LE REPLI EST ICI ET PAS DANS LES COMPOSANTS. Il y a sept endroits ou un `alt`
+ * sort d un media. Leur demander a chacun de se souvenir du repli, c est sept occasions
+ * de l oublier — et l oubli serait SILENCIEUX, un alt francais restant un alt valide.
+ * Applique au mapping, le rendu ignore d ou vient l alternative : il n y a plus rien a
+ * oublier, et la garde tient sur `mapper*` plutot que sur sept fichiers `.astro`.
+ *
+ * `texteOptionnel` ramene `null` sur une chaine blanche : une surcharge blanche ne
+ * remplace donc RIEN, et l alternative native passe. C est la meme doctrine qu ailleurs
+ * — refuser a l entree (la garde du seed refuse d ecrire une surcharge blanche), etre
+ * honnete a la sortie.
+ */
+function avecSurcharge(media: Media, surcharge: string | null): Media {
+  return surcharge === null ? media : { ...media, alternative: surcharge };
+}
+
+/** La meme chose sur un media FACULTATIF : pas de media, rien a surcharger. */
+function surchargerOptionnel(media: Media | null, surcharge: string | null): Media | null {
+  return media === null ? null : avecSurcharge(media, surcharge);
+}
+
 function mediaRequis(source: unknown, cle: string, chemin: string): Media {
   return media(objetRequis(source, cle, chemin), `${chemin}.${cle}`);
 }
@@ -208,7 +238,10 @@ function articlesLies(source: unknown, chemin: string): ReferenceArticle[] {
         titre: texteRequis(brut, 'titre', ici),
         slug: slugRequis(brut, 'slug', ici),
         chapo: texteRequis(brut, 'chapo', ici),
-        imageCouverture: mediaRequis(brut, 'imageCouverture', ici),
+        imageCouverture: avecSurcharge(
+          mediaRequis(brut, 'imageCouverture', ici),
+          texteOptionnel(brut, 'alternativeCouverture', ici),
+        ),
       };
     });
 }
@@ -261,7 +294,10 @@ function bloc(brut: unknown, chemin: string): Bloc {
     case 'bloc.image-legendee':
       return {
         type: 'bloc.image-legendee',
-        image: mediaRequis(brut, 'image', chemin),
+        image: avecSurcharge(
+          mediaRequis(brut, 'image', chemin),
+          texteOptionnel(brut, 'alternative', chemin),
+        ),
         legende: texteOptionnel(brut, 'legende', chemin),
         credit: texteOptionnel(brut, 'credit', chemin),
       };
@@ -312,7 +348,10 @@ export function mapperArticle(brut: unknown): Article {
     contenu: listeRequise(brut, 'contenu', chemin).map((element, index) =>
       bloc(element, `${chemin}.contenu[${index}]`),
     ),
-    imageCouverture: mediaRequis(brut, 'imageCouverture', chemin),
+    imageCouverture: avecSurcharge(
+      mediaRequis(brut, 'imageCouverture', chemin),
+      texteOptionnel(brut, 'alternativeCouverture', chemin),
+    ),
     legendeCouverture: texteOptionnel(brut, 'legendeCouverture', chemin),
     auteur: referenceAuteur(brut, chemin),
     categorie: referenceCategorie(brut, chemin),
@@ -337,7 +376,10 @@ export function mapperAuteur(brut: unknown): Auteur {
     slug: slugRequis(brut, 'slug', chemin),
     fonction: texteOptionnel(brut, 'fonction', chemin),
     bio: blocksOptionnel(brut, 'bio', chemin) as NoeudRichTexte[] | null,
-    photo: mediaOptionnel(brut, 'photo', chemin),
+    photo: surchargerOptionnel(
+      mediaOptionnel(brut, 'photo', chemin),
+      texteOptionnel(brut, 'alternativePhoto', chemin),
+    ),
     reseaux: reseaux(brut, chemin),
     updatedAt: texteRequis(brut, 'updatedAt', chemin),
     localisations: localisations(brut, chemin),
@@ -353,7 +395,10 @@ export function mapperCategorie(brut: unknown): Categorie {
     slug: slugRequis(brut, 'slug', chemin),
     description: texteOptionnel(brut, 'description', chemin),
     couleurAccent: couleurAccent(brut, chemin),
-    imageHero: mediaOptionnel(brut, 'imageHero', chemin),
+    imageHero: surchargerOptionnel(
+      mediaOptionnel(brut, 'imageHero', chemin),
+      texteOptionnel(brut, 'alternativeHero', chemin),
+    ),
     ordreAffichage: entierRequis(brut, 'ordreAffichage', chemin),
     seo: seo(brut, chemin),
     updatedAt: texteRequis(brut, 'updatedAt', chemin),
@@ -394,7 +439,10 @@ export function mapperDossier(brut: unknown): Dossier {
     titre: texteRequis(brut, 'titre', chemin),
     slug: slugRequis(brut, 'slug', chemin),
     introduction: blocksOptionnel(brut, 'introduction', chemin) as NoeudRichTexte[] | null,
-    imageHero: mediaOptionnel(brut, 'imageHero', chemin),
+    imageHero: surchargerOptionnel(
+      mediaOptionnel(brut, 'imageHero', chemin),
+      texteOptionnel(brut, 'alternativeHero', chemin),
+    ),
     articles,
     dateOuverture: texteOptionnel(brut, 'dateOuverture', chemin),
     seo: seo(brut, chemin),
@@ -405,16 +453,25 @@ export function mapperDossier(brut: unknown): Dossier {
 
 export function mapperConfiguration(brut: unknown): Configuration {
   const chemin = 'configuration';
+  /* UNE seule surcharge pour les DEUX logos, et c est voulu : dans le `<picture>` de
+     `EnTete.astro`, le logo sombre est un `<source srcset>` — qui n a pas d attribut
+     `alt`. L alternative rendue vient toujours du `<img>` de repli, donc du logo clair.
+     Un second champ laisserait croire qu il sert a quelque chose. Le `favicon` n en
+     porte aucune : un `<link rel="icon">` ne rend jamais d alternative. */
+  const alternativeLogo = texteOptionnel(brut, 'alternativeLogo', chemin);
   return {
     documentId: documentId(brut, chemin),
     locale: locale(brut, chemin),
     nomSite: texteRequis(brut, 'nomSite', chemin),
     baseline: texteOptionnel(brut, 'baseline', chemin),
-    logo: mediaRequis(brut, 'logo', chemin),
-    logoSombre: mediaOptionnel(brut, 'logoSombre', chemin),
+    logo: avecSurcharge(mediaRequis(brut, 'logo', chemin), alternativeLogo),
+    logoSombre: surchargerOptionnel(mediaOptionnel(brut, 'logoSombre', chemin), alternativeLogo),
     favicon: mediaOptionnel(brut, 'favicon', chemin),
     descriptionDefaut: texteRequis(brut, 'descriptionDefaut', chemin),
-    imagePartageDefaut: mediaRequis(brut, 'imagePartageDefaut', chemin),
+    imagePartageDefaut: avecSurcharge(
+      mediaRequis(brut, 'imagePartageDefaut', chemin),
+      texteOptionnel(brut, 'alternativePartageDefaut', chemin),
+    ),
     reseaux: reseaux(brut, chemin),
     texteFooter: blocksOptionnel(brut, 'texteFooter', chemin) as NoeudRichTexte[] | null,
     mentionsLegales: richTexte(blocksRequis(brut, 'mentionsLegales', chemin)),

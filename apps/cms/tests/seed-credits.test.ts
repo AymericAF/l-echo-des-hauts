@@ -246,3 +246,34 @@ test('LE CAS NORMAL EST INTACT — « Œuvre du projet » reste l AYANT DROIT de
   assert.equal(credit, 'Œuvre du projet — CC0 1.0');
   assert.equal(verifierFormatCredit(credit).conforme, true);
 });
+
+/* ------------------------------------------------------------------ */
+/* Le refus NOMME LE SEGMENT qu il controle — sinon il envoie lire une  */
+/* contradiction qui n existe pas.                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Le §6.2 du plan editorial est une table EDITORIALE : elle recense ce qu on a
+ * le droit d employer comme SOURCE, licences ET statuts d ayant droit. « Œuvre
+ * du projet » y figure sous « Convient », et il y reste (§13, point 4).
+ *
+ * `LICENCES_ADMISES`, elle, n est opposee qu au SECOND segment de la ligne de
+ * credit. Les deux enonces sont compatibles — mais un motif de refus qui
+ * n oppose que « le §6.2 » envoie le lecteur y verifier un ecart qui n existe
+ * pas, et ce qu il y trouvera lui donnera l air d avoir raison. Le motif doit
+ * donc dire de lui-meme QUEL segment il juge, sans qu on ait a ouvrir le plan.
+ */
+test('le refus nomme le SECOND segment, et le distingue du PREMIER', () => {
+  const verdict = verifierFormatCredit('Œuvre du projet — Œuvre du projet');
+  assert.equal(verdict.conforme, false);
+  assert.match(verdict.motif, /second segment/i, 'le motif doit nommer le segment controle');
+  assert.match(verdict.motif, /premier segment/i, 'et le distinguer de celui de l ayant droit');
+});
+
+test('composerCredit nomme lui aussi le segment — c est le message que lit qui ajoute un media', () => {
+  const erreur = capturer(() =>
+    composerCredit({ ayantDroit: 'X', licence: 'Unsplash' }, 'blocs/A01-poste-source.svg')
+  );
+  assert.match(erreur.message, /second segment/i);
+  assert.match(erreur.message, /premier segment/i);
+});

@@ -621,6 +621,23 @@ if (credits.ecarts.length > 0 || credits.controles === 0) {
  * 2026-08-10 (aucune video a licence maitrisee, les 8 composants restent implementes).
  * Rendre `1` la-dessus enverrait chercher une regression de rendu qui n existe pas.
  */
+/*
+ * ON IMPRIME LES DEUX FAMILLES AVANT DE SORTIR (2026-08-14, tache `6919564b`).
+ *
+ * ~~Chaque famille sortait immediatement, la source d abord.~~ Sur la cible `--reel`,
+ * `blocs.banc` est TOUJOURS non vide : `bloc.video` n a aucun porteur au corpus depuis
+ * l avenant A5, et n en aura pas (decision `5292ac7f`). Le premier `if` tirait donc a
+ * CHAQUE execution sur l instance, et le second n etait JAMAIS atteint.
+ *
+ * Consequence, et c est le defaut : une page qui cesserait de rendre un bloc que l instance
+ * lui pose produisait un ecart dans `blocs.site` qui n etait NI IMPRIME NI COMPTE. La sortie
+ * affichait le meme code 2 qu un jour sain. La cible qui mesure le vrai corpus — la seule qui
+ * compte pour une recette — ne pouvait STRUCTURELLEMENT jamais accuser le site.
+ *
+ * Les deux constats sont INDEPENDANTS et portent sur des objets differents : une incapacite
+ * sur `bloc.video` ne dit rien des sept autres types. On les imprime donc tous les deux, sous
+ * leurs intitules distincts — les confondre ferait chercher un defaut la ou il n y en a pas.
+ */
 if (blocs.banc.length > 0) {
   console.error(`\n✖ ${source.poseur.toUpperCase()}, PAS LE SITE — ces types ne sont exerces nulle part :`);
   for (const ecart of blocs.banc) console.error(`  - ${ecart}`);
@@ -628,14 +645,32 @@ if (blocs.banc.length > 0) {
     `\n  VERIFICATION IMPOSSIBLE sur ces types (code ${ISSUES.VERIFICATION_IMPOSSIBLE}) : le site` +
       ' n est pas mis en cause, c est le corpus qui ne permet pas de conclure.\n',
   );
-  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
 }
 
 if (blocs.site.length > 0) {
   console.error('\n✖ Types de blocs rendus, locale par locale :');
   for (const ecart of blocs.site) console.error(`  - ${ecart}`);
-  process.exit(ISSUES.ANOMALIE);
 }
+
+/*
+ * ET C EST `1` QUI PRIME QUAND LES DEUX COEXISTENT.
+ *
+ * Un defaut de rendu constate est un FAIT ETABLI ; l incapacite, elle, ne porte que sur les
+ * types qu on n a PAS PU juger. Sortir en `2` reviendrait a dire « je n ai pas pu conclure »
+ * alors qu on vient de conclure sur sept types — et `2` envoie corriger CE AVEC QUOI ON JUGE,
+ * donc a cote.
+ *
+ * CE QUE CE CHOIX CHANGE POUR LA CI, verifie et non suppose : RIEN aujourd hui. Le pas
+ * `preuve-rendu` de `gardes-du-code.yml` lance `npm run preuve:rendu` — la cible BANC, sur
+ * fixtures — ou les huit types sont exerces, donc ou `blocs.banc` est vide et ce cas ne peut
+ * pas se presenter. Le tri en trois seaux que `tests/integration-continue.test.ts` verrouille
+ * porte sur le pas `verificateurs-de-sortie`, pas sur celui-ci, et il n est pas touche. Si la
+ * cible `--reel` etait un jour cablee en CI, un `2` devenu `1` l enverrait corriger le SITE au
+ * lieu de l ENVIRONNEMENT — ce qui serait alors le bon aiguillage, puisqu un defaut de rendu
+ * aurait ete etabli.
+ */
+if (blocs.site.length > 0) process.exit(ISSUES.ANOMALIE);
+if (blocs.banc.length > 0) process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
 
 console.log(
   `\n✔ [${source.libelle}] Dans chacune des ${LOCALES.length} locales (${LOCALES.join(', ')}), ` +

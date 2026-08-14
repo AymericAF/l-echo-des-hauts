@@ -28,7 +28,7 @@
     "recette:pagination-corpus": "node scripts/preuve-pagination-corpus.mjs",
     "verifier:seo": "node scripts/verifier-seo.mjs",
     "preuve:encre-og": "node scripts/preuve-encre-og.mjs",
-    "preuve:surcharge-seo": "node scripts/preuve-surcharge-seo.mjs"
+    "recette:surcharge-seo": "node scripts/preuve-surcharge-seo.mjs"
   },
   "dependencies": {
     "astro": "^7.1.6",

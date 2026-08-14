@@ -10,14 +10,17 @@
  * D ou ce module : les DEUX points de lecture (le `<head>` d une page, la construction
  * du sitemap) appellent la meme fonction. Avant lui, le `noindex` de
  * `/mentions-legales` etait ecrit en dur dans `src/pages/mentions-legales.astro`
- * (commit `d369449`) — une decision qu aucun autre code ne pouvait lire sans la
- * recopier. Le sitemap aurait donc porte sa propre liste, et le jour ou l une des deux
- * bouge, l autre ne le sait pas : c est la contradiction exacte qu A-29 interdit.
+ * (commit `8a125e4`, 2026-08-03 — cf. l en-tete de `STATIQUES_NOINDEX` ci-dessous pour
+ * la mauvaise attribution qui a longtemps circule) — une decision qu aucun autre code ne
+ * pouvait lire sans la recopier. Le sitemap aurait donc porte sa propre liste, et le jour
+ * ou l une des deux bouge, l autre ne le sait pas : c est la contradiction exacte
+ * qu A-29 interdit.
  *
  * Ce module ne TRANCHE aucune politique : il transcrit celle du code en place. En
- * particulier, `/mentions-legales` reste `noindex` — la decision `463b2551` qui arbitre
- * cet ecart avec la table de volumetrie du protocole de mesure attend Aymeric, et un
- * run autonome ne la prend pas a sa place.
+ * particulier, `/mentions-legales` reste `noindex` — et depuis le 2026-08-10 ce n est
+ * plus un simple etat de fait : la decision `463b2551`, qui arbitrait cet ecart avec la
+ * table de volumetrie du protocole de mesure, a ete tranchee par Aymeric en branche B
+ * (garder le `noindex`, corriger la table).
  */
 import type { Auteur, Categorie, Dossier, Seo, Tag } from '../domaine.ts';
 import type { Famille, PageStatique } from '../routes/chemins.ts';
@@ -28,9 +31,14 @@ import type { DescripteurPage } from '../routes/contrepartie.ts';
  *
  *   - `/404` : elle n a pas a etre indexee, et le protocole de mesure la range
  *     explicitement « hors sitemap ».
- *   - `/mentions-legales` : `noindex` depuis le commit `d369449`. Ecart connu avec la
- *     table de volumetrie du protocole, qui la compte parmi les pages du sitemap —
- *     decision `463b2551`, en attente. Le code fait foi ici, pas la table.
+ *   - `/mentions-legales` : `noindex` depuis le commit `8a125e4` (2026-08-03), qui a cree
+ *     la page AVEC sa balise `robots`. CE N EST PAS `d369449` (2026-08-06), longtemps cite
+ *     ici et dans la decision `463b2551` : ce commit-la n a rempli que l editeur et
+ *     l hebergeur, et a CONSERVE une balise deja presente (verifie le 2026-08-12 par la
+ *     tache de controle `70b67e23`, et rejouable : `git log -S 'noindex' -- apps/web/src`
+ *     ne le fait pas apparaitre). L ecart avec la table de volumetrie du protocole, qui
+ *     compte la page parmi celles du sitemap, est tranche depuis le 2026-08-10 —
+ *     decision `463b2551`, branche B : le `noindex` reste, c est la table qui se corrige.
  */
 export const STATIQUES_NOINDEX: readonly PageStatique[] = ['404', 'mentions-legales'];
 

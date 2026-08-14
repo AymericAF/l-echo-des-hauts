@@ -2,10 +2,13 @@
 /**
  * `/mentions-legales` (§4.2).
  *
- * `noindex` conserve depuis le commit `d369449`, mais il n est plus ecrit ici : la
- * politique d indexation vit dans `src/lib/seo/indexation.ts`, d ou le `<head>` ET le
- * sitemap la lisent (A-29 : une seule decision, deux points de lecture). L ecart avec la
- * table de volumetrie du protocole de mesure reste ouvert — decision `463b2551`.
+ * `noindex` pose par le commit `8a125e4` (2026-08-03, creation de la page) et conserve
+ * depuis — `d369449` (2026-08-06), longtemps cite a sa place, n a rempli que l editeur et
+ * l hebergeur. Il n est plus ecrit ici : la politique d indexation vit dans
+ * `src/lib/seo/indexation.ts`, d ou le `<head>` ET le sitemap la lisent (A-29 : une seule
+ * decision, deux points de lecture). L ecart avec la table de volumetrie du protocole de
+ * mesure est tranche depuis le 2026-08-10 — decision `463b2551`, branche B : le `noindex`
+ * reste, c est la table qui se corrige.
  *
  * LA CONFIGURATION EST LUE ICI, PAS DANS LE COMPOSANT. C est la convention du depot — les
  * routes lisent, les composants recoivent des props — et c est le seul lot du site ou le

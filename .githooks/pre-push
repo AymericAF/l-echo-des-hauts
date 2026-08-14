@@ -1,0 +1,32 @@
+#!/bin/sh
+# Garde jouee par git AVANT d'envoyer quoi que ce soit vers `main`.
+#
+# Enveloppe /bin/sh volontaire, meme raison que `pre-commit` : sous Git for
+# Windows les hooks tournent dans le sh embarque, et un shebang
+# "#!/usr/bin/env node" ne resout pas toujours node selon le PATH du processus
+# appelant. On resout node ici, et on ECHOUE BRUYAMMENT s'il manque : une garde
+# qui s'efface quand son moteur est absent ne garde rien.
+#
+# git passe sur stdin une ligne par reference poussee :
+#   <ref locale> <sha local> <ref distante> <sha distant>
+# On la transmet telle quelle : c'est le module qui decide ce qui le concerne.
+
+repo="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+if command -v node >/dev/null 2>&1; then
+    node "$repo/.githooks/gardes-avant-push.js"
+    exit $?
+fi
+
+for n in "/c/Program Files/nodejs/node.exe" "$LOCALAPPDATA/Programs/nodejs/node.exe"; do
+    if [ -x "$n" ]; then
+        "$n" "$repo/.githooks/gardes-avant-push.js"
+        exit $?
+    fi
+done
+
+echo "" >&2
+echo "PUSH REFUSE : node est introuvable, les suites n ont pas pu etre jouees." >&2
+echo "Installe node, ou passe outre en connaissance de cause avec" >&2
+echo "git push --no-verify (voir .githooks/README.md)." >&2
+exit 1

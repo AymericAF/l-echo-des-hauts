@@ -475,7 +475,7 @@ test('un `caption` ecrit a la main est refuse — il serait une seconde copie de
   assert.match(message, /caption/);
 });
 
-test('les 103 medias VERSIONNES portent une ligne de credit au format, ayant droit et licence', () => {
+test('les 125 medias VERSIONNES portent une ligne de credit au format, ayant droit et licence', () => {
   const corpus = chargerCorpus(DATA_REEL);
   const horsFormat: string[] = [];
   for (const media of corpus.medias) {
@@ -484,13 +484,12 @@ test('les 103 medias VERSIONNES portent une ligne de credit au format, ayant dro
     if (media.ayantDroit.trim() === '') horsFormat.push(`${media.cle} : ayant droit vide`);
   }
   assert.deepEqual(horsFormat, []);
-  // 103 et non 106 : les 3 vignettes de `bloc.video` du §6.4 sont SANS OBJET
-  // depuis l avenant A5. Le compte attendu est tenu, famille par famille, par
-  // `tests/repartition-6-4.test.ts`.
-  //
-  // Passe de 102 a 103 le 2026-08-14 (decision `426812f2`, branche A) : la carte
-  // de partage dediee de A01 est le 103e, et le §6.4 annonce desormais 106.
-  assert.equal(corpus.medias.length, 103);
+  // 125 = 102 + les 22 VERSIONS ANGLAISES des visuels porteurs de texte (tache
+  // `f011a634`) + la carte de partage dediee de A01 (decision `426812f2`, branche A,
+  // §6.4 porte a 128 annoncees). Et 125 et non 128 : les 3 vignettes de `bloc.video`
+  // du §6.4 sont SANS OBJET depuis l avenant A5. Le compte attendu est tenu, famille par
+  // famille, par `tests/repartition-6-4.test.ts`.
+  assert.equal(corpus.medias.length, 125);
 });
 
 /* ------------------------------------------------------------------ */

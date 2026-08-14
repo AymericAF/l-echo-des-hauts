@@ -1,7 +1,7 @@
 /**
  * LA REPARTITION DU §6.4, TENUE PAR UN COMPTAGE ET NON PAR UNE PHRASE.
  *
- * CE QUE CE FICHIER TRANCHE. Le plan editorial §6.4 annonce **106 entrees
+ * CE QUE CE FICHIER TRANCHE. Le plan editorial §6.4 annonce **128 entrees
  * media**, reparties en neuf familles. Le manifeste en portait **94**, et rien
  * ne disait si les onze manquantes existaient sans etre decrites — auquel cas
  * ce seraient des visuels publies sans credit — ou si elles restaient a
@@ -30,7 +30,7 @@
  * qui l explique : si un jour il rougit, c est qu une video est revenue, et
  * c est ce jour-la que les vignettes se produisent.
  *
- * LE PLAFOND ATTEIGNABLE EST DONC 103, PAS 106, tant que le recomptage du §6.4
+ * LE PLAFOND ATTEIGNABLE EST DONC 125, PAS 128, tant que le recomptage du §6.4
  * n est pas arbitre. Ecrit ici pour que personne ne cherche onze fichiers
  * fantomes.
  *
@@ -38,9 +38,9 @@
  * `seo.imagePartage` etait le seul des cinq champs de `partage.seo` qu aucune
  * entree du corpus reel n exercait — le chemin etait prouve sur corpus fabrique,
  * mais AUCUNE page du site ne servait une carte de partage choisie par la
- * redaction. Les deux gardes de ce fichier avaient raison de refuser le 103e
- * media tant que le §6.4 en annoncait 105 : c est le PLAN qui a bouge, porte a
- * 106 entrees, et ce comptage-ci le suit. Le nouveau media ne porte QUE le
+ * redaction. Les deux gardes de ce fichier avaient raison de refuser le media
+ * de trop tant que le §6.4 n en annoncait pas la place : c est le PLAN qui a
+ * bouge, et ce comptage-ci le suit. Le nouveau media ne porte QUE le
  * placement `partage-seo` — la carte par defaut de la Configuration reste dans
  * sa famille, ce sont deux choses differentes (cf. `voies.ts`).
  */
@@ -56,12 +56,19 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 const DATA_REEL = path.join(ICI, '..', 'data');
 
 /** La table du §6.4, recopiee ligne a ligne — c'est elle qui fait foi. */
+/* LES EFFECTIFS MONTENT DE 22 LE 2026-08-14 (tache `f011a634`), et aucun media NOUVEAU
+   n est entre au corpus : ce sont les VERSIONS ANGLAISES des visuels porteurs de texte,
+   un fichier par locale la ou il n y en avait qu un partage. Le §6.4 du plan editorial
+   compte donc desormais par locale servie, pas par image. Familles touchees : les
+   couvertures des 8 articles traduits, les 6 heros de rubrique, les 2 de dossier et les 6
+   images de `bloc.image-legendee` servies en anglais. Les galeries, les portraits et la
+   Configuration ne bougent pas — le lot ne les couvre pas. */
 const REPARTITION_6_4: { famille: string; placement: Placement; attendu: number }[] = [
-  { famille: "Couvertures d'article (`imageCouverture`)", placement: 'couverture', attendu: 40 },
-  { famille: '`imageHero` de rubrique', placement: 'hero-categorie', attendu: 6 },
-  { famille: '`imageHero` de dossier', placement: 'hero-dossier', attendu: 2 },
+  { famille: "Couvertures d'article (`imageCouverture`)", placement: 'couverture', attendu: 48 },
+  { famille: '`imageHero` de rubrique', placement: 'hero-categorie', attendu: 12 },
+  { famille: '`imageHero` de dossier', placement: 'hero-dossier', attendu: 4 },
   { famille: 'Images de `bloc.galerie`', placement: 'galerie', attendu: 22 },
-  { famille: 'Images de `bloc.image-legendee`', placement: 'image-legendee', attendu: 23 },
+  { famille: 'Images de `bloc.image-legendee`', placement: 'image-legendee', attendu: 29 },
   { famille: "Portraits d'auteur (`Auteur.photo`)", placement: 'auteur-photo', attendu: 5 },
   { famille: '`Configuration` : logo, logoSombre, favicon, imagePartageDefaut', placement: 'configuration', attendu: 4 },
   { famille: 'Carte de partage surchargee (`seo.imagePartage`)', placement: 'partage-seo', attendu: 1 },
@@ -70,7 +77,7 @@ const REPARTITION_6_4: { famille: string; placement: Placement; attendu: number 
 /** La huitieme ligne du §6.4, laissee a 3 a dessein et sans objet depuis A5. */
 const VIGNETTES_VIDEO = { placement: 'video-vignette' as Placement, annonce: 3, exigible: 0 };
 
-const TOTAL_ANNONCE = 106;
+const TOTAL_ANNONCE = 128;
 
 function compter(): Map<Placement, number> {
   const corpus = chargerCorpus(DATA_REEL);
@@ -108,10 +115,10 @@ test('AUCUN `bloc.video` dans le corpus — c est ce qui rend les 3 vignettes sa
   assert.equal(compter().get(VIGNETTES_VIDEO.placement) ?? 0, VIGNETTES_VIDEO.exigible);
 });
 
-test('le total atteignable est 103 — 106 annonces moins les 3 vignettes sans objet', () => {
+test('le total atteignable est 125 — 128 annonces moins les 3 vignettes sans objet', () => {
   const corpus = chargerCorpus(DATA_REEL);
   const attendu = REPARTITION_6_4.reduce((s, l) => s + l.attendu, 0);
-  assert.equal(attendu + VIGNETTES_VIDEO.annonce, TOTAL_ANNONCE, 'la table recopiee doit sommer a 106');
+  assert.equal(attendu + VIGNETTES_VIDEO.annonce, TOTAL_ANNONCE, 'la table recopiee doit sommer a 128');
   assert.equal(attendu, TOTAL_ANNONCE - VIGNETTES_VIDEO.annonce);
   assert.equal(corpus.medias.length, attendu, 'un media au manifeste hors des familles du §6.4');
 });

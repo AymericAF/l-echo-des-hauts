@@ -53,7 +53,7 @@
       "multiple": false,
       "pluginOptions": {
         "i18n": {
-          "localized": false
+          "localized": true
         }
       }
     },

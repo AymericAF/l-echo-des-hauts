@@ -157,3 +157,55 @@ test('et la regle ne vide PAS ce que le corpus declare — les 7 surcharges rest
   assert.equal(typeof config!.data.alternativeLogo, 'string');
   assert.equal(typeof config!.data.alternativePartageDefaut, 'string');
 });
+
+/**
+ * LE MEME PIEGE, SUR UN REPETABLE — decision `b2517199` branche B, 2026-08-14.
+ *
+ * `Auteur.reseaux` a ete VIDE dans le corpus versionne. Le fichier `auteurs.json` porte
+ * desormais `[]`, et `seed-corpus.test.ts` l exige. Mais un corpus vide ne prouve RIEN de
+ * la base : c est exactement la lecon en tete de ce fichier — le seed a dit « termine » et
+ * la production a continue de servir les anciennes valeurs pendant des jours.
+ *
+ * Ce qui rend le cas DIFFERENT des scalaires ci-dessus, et pourquoi il vaut son test : ici
+ * la cle est bien declaree par `corpsDe`, avec un tableau vide pour valeur. Elle ne peut
+ * donc pas disparaitre du `JSON.stringify` — mais ca reste une deduction tant qu on ne
+ * regarde pas le corps reellement emis, et le retrait dependait d elle.
+ *
+ * Le corps ANGLAIS n en porte pas, et c est CORRECT : `reseaux` est non localise (A-06),
+ * les deux locales lisent la meme valeur, l ecriture francaise suffit a la vider pour les
+ * deux. C est d ailleurs cette non-localisation qui avait cause le defaut d origine.
+ */
+test('PREUVE : le vidage de `Auteur.reseaux` est bien TRANSMIS, pas seulement ecrit au corpus', async () => {
+  const ecritures = await ecrituresDuCorpusReel();
+
+  const auteursFr = ecritures.filter(
+    (e) => e.plural === 'auteurs' && e.locale === 'fr' && 'slug' in e.data,
+  );
+  assert.equal(auteursFr.length, 5, 'les cinq auteurs francais doivent avoir ete ecrits');
+
+  for (const ecriture of auteursFr) {
+    assert.ok(
+      'reseaux' in ecriture.data,
+      `${ecriture.data.slug} : « reseaux » doit etre DANS le corps — absent, il ne serait jamais vide en base`,
+    );
+    assert.deepEqual(
+      ecriture.data.reseaux,
+      [],
+      `${ecriture.data.slug} : le corps doit porter un tableau VIDE`,
+    );
+  }
+
+  /* Le corps anglais n en porte pas : rien a exiger, mais on le CONSTATE plutot que de le
+     supposer — si une refonte du seed venait a l y ajouter avec une valeur, ce serait le
+     signe que le champ a ete localise sans que ce test le sache. */
+  const auteursEn = ecritures.filter((e) => e.plural === 'auteurs' && e.locale === 'en');
+  assert.equal(
+    auteursEn.every((e) => !('reseaux' in e.data) || deepVide(e.data.reseaux)),
+    true,
+    'le corps anglais ne doit pas reintroduire de reseaux',
+  );
+});
+
+function deepVide(valeur: unknown): boolean {
+  return Array.isArray(valeur) && valeur.length === 0;
+}

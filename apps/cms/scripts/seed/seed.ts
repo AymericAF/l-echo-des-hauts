@@ -119,6 +119,22 @@ const NATURE_SEO: Nature = {
   },
 };
 
+/**
+ * UN CHAMP QUE LE CORPUS NE DECLARE PLUS DOIT ETRE VIDE EN BASE.
+ *
+ * `JSON.stringify` supprime les cles `undefined`, et un PUT Strapi ne touche QUE ce qu on
+ * lui donne : un champ retire du corpus SURVIT donc en base, et le seed le declare
+ * « inchange » parce qu il ne le compare a rien. Mesure en production le 2026-08-14 — les
+ * 22 surcharges d alternative retirees ce jour-la sont restees servies, dont celle de A23,
+ * devenue FAUSSE puisque son image affichait desormais l anglais.
+ *
+ * Ce que ca coute, ecrit plutot que tu : une valeur saisie a la main dans le back-office
+ * sur un champ que le corpus porte sera ECRASEE au seed suivant. C etait deja vrai de tout
+ * champ RENSEIGNE ; ce l est desormais aussi de ceux qu on a cesse de renseigner. Le
+ * corpus versionne fait autorite — c est la regle du seed depuis le premier jour.
+ */
+const efface = <T>(valeur: T | undefined): T | null => valeur ?? null;
+
 export const NATURES: Record<string, Natures> = {
   'categorie:fr': {
     seo: NATURE_SEO,
@@ -431,7 +447,7 @@ export async function executerSeed(
       couleurAccent: c.couleurAccent,
       ordreAffichage: c.ordreAffichage,
       imageHero: c.imageHero ? idsMedia.get(c.imageHero) : undefined,
-      alternativeHero: c[l]!.alternativeHero,
+      alternativeHero: efface(c[l]!.alternativeHero),
       seo: corpsSeo(c[l]!.seo, idsMedia),
     }),
   });
@@ -449,7 +465,7 @@ export async function executerSeed(
       nom: c[l]!.nom,
       slug: c[l]!.slug,
       description: c[l]!.description,
-      alternativeHero: c[l]!.alternativeHero,
+      alternativeHero: efface(c[l]!.alternativeHero),
       /* Le bandeau de LA LOCALE, avec repli sur le fichier partage : une locale sans
          visuel propre continue de servir celui d origine, exactement comme avant. */
       imageHero: idsMedia.get(c[l]!.imageHero ?? c.imageHero!),
@@ -492,7 +508,7 @@ export async function executerSeed(
       fonction: a[l]!.fonction,
       bio: a[l]!.bio,
       photo: a.photo ? idsMedia.get(a.photo) : undefined,
-      alternativePhoto: a[l]!.alternativePhoto,
+      alternativePhoto: efface(a[l]!.alternativePhoto),
       reseaux: a.reseaux,
     }),
   });
@@ -510,7 +526,7 @@ export async function executerSeed(
       slug: a[l]!.slug,
       fonction: a[l]!.fonction,
       bio: a[l]!.bio,
-      alternativePhoto: a[l]!.alternativePhoto,
+      alternativePhoto: efface(a[l]!.alternativePhoto),
     }),
   });
 
@@ -527,7 +543,7 @@ export async function executerSeed(
       introduction: d[l]!.introduction,
       dateOuverture: d.dateOuverture,
       imageHero: d.imageHero ? idsMedia.get(d.imageHero) : undefined,
-      alternativeHero: d[l]!.alternativeHero,
+      alternativeHero: efface(d[l]!.alternativeHero),
       seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
   });
@@ -545,7 +561,7 @@ export async function executerSeed(
       titre: d[l]!.titre,
       slug: d[l]!.slug,
       introduction: d[l]!.introduction,
-      alternativeHero: d[l]!.alternativeHero,
+      alternativeHero: efface(d[l]!.alternativeHero),
       imageHero: idsMedia.get(d[l]!.imageHero ?? d.imageHero!),
       seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
@@ -569,8 +585,8 @@ export async function executerSeed(
     chapo: art.chapo,
     contenu: resoudreMedias(art.contenu, idsMedia),
     imageCouverture: idsMedia.get(art.imageCouverture),
-    legendeCouverture: art.legendeCouverture,
-    alternativeCouverture: art.alternativeCouverture,
+    legendeCouverture: efface(art.legendeCouverture),
+    alternativeCouverture: efface(art.alternativeCouverture),
     auteur: idsAuteur.get(art.auteur),
     categorie: idsCategorie.get(art.categorie),
     tags: art.tags.map((t) => idsTag.get(t)).filter(Boolean),
@@ -668,8 +684,8 @@ export async function executerSeed(
       descriptionDefaut: local.descriptionDefaut,
       texteFooter: local.texteFooter,
       mentionsLegales: local.mentionsLegales,
-      alternativeLogo: local.alternativeLogo,
-      alternativePartageDefaut: local.alternativePartageDefaut,
+      alternativeLogo: efface(local.alternativeLogo),
+      alternativePartageDefaut: efface(local.alternativePartageDefaut),
       ...(locale === 'fr' ? mediasConfig : { reseaux: conf.reseaux }),
     };
     const existant = await client.lireSingle('configuration', {

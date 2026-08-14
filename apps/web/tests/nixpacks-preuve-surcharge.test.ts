@@ -48,27 +48,42 @@ function commandesDeBuild(): string[] {
   return [...(phase as RegExpMatchArray)[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]);
 }
 
-test('la phase build lance la preuve de surcharge SEO', () => {
+test('la phase build ne lance PLUS la preuve — son contexte n a jamais porte le corpus', () => {
+  /* ~~la phase build lance la preuve de surcharge SEO~~ — INVERSE le 2026-08-14 a 21h, sur
+     un fait mesure et non sur un avis.
+
+     Coolify construit `echo-site` avec `base_directory = /apps/web` : `apps/cms/data` n est
+     PAS dans le contexte de construction. La preuve rendait donc `2` (« absent :
+     /cms/data/articles ») et, echouant en ferme, faisait echouer le BUILD. Le commit qui l a
+     ajoutee est date de 17h48 UTC, le premier deploiement en echec est le 470 a 17h49 —
+     puis 474, 476, 478. Quatre de suite, plus de trois heures : publier ne remettait plus le
+     site en ligne, et personne ne le voyait.
+
+     Ce test tient desormais l INVERSE, pour la meme raison qu il tenait l endroit : que la
+     decision ne se defasse pas par distraction. La remettre suppose d avoir change ce qui la
+     rendait aveugle — decision ouverte, tache `49e9fc1a`. */
   const cmds = commandesDeBuild();
   assert.ok(
-    cmds.some((c) => c.includes(PREUVE)),
-    `aucune commande de la phase build ne lance ${PREUVE}. Declarees : ` +
-      `${cmds.join(' | ') || '(aucune)'}.`,
+    !cmds.some((c) => c.includes(PREUVE)),
+    `la phase build lance ${PREUVE}, alors que son contexte ne porte pas le corpus : le build `
+      + `echouera en « VERIFICATION IMPOSSIBLE ». Declarees : ${cmds.join(' | ') || '(aucune)'}. `
+      + 'Si le contexte a change, dis-le ici avant de remettre la commande (tache 49e9fc1a).',
   );
 });
 
-test('elle CONSTRUIT avant de juger — sinon elle jugerait un dist qui n existe pas', () => {
-  /* Declarer `cmds` REMPLACE la commande detectee par le fournisseur Node. Une phase qui
-     ne porterait que la preuve supprimerait le build lui-meme : le deploiement servirait
-     une sortie vide, et la preuve rendrait `2` sur le vide qu elle vient de causer. */
+test('la phase build porte la CONSTRUCTION elle-meme — l invariant qui survit au retrait', () => {
+  /* Celui-ci ne change pas, et il est le plus dangereux a perdre : declarer `cmds` REMPLACE
+     la commande detectee par le fournisseur Node. Une phase `cmds` qui ne porterait pas
+     `npm run build` supprimerait la construction, et le deploiement servirait une sortie
+     vide — sans que rien n echoue. C etait vrai quand la preuve suivait ; ca l est encore
+     maintenant qu elle ne suit plus. */
   const cmds = commandesDeBuild();
   const construction = cmds.findIndex((c) => /npm (run )?build/.test(c));
-  const jugement = cmds.findIndex((c) => c.includes(PREUVE));
-
-  assert.notEqual(construction, -1, 'la phase build doit porter la construction elle-meme');
-  assert.ok(
-    construction < jugement,
-    `la construction (position ${construction}) doit preceder la preuve (position ${jugement})`,
+  assert.notEqual(
+    construction,
+    -1,
+    `la phase build ne porte pas la construction. Declarees : ${cmds.join(' | ') || '(aucune)'}. `
+      + 'Sans elle, le deploiement servirait un dist vide en silence.',
   );
 });
 
@@ -94,15 +109,23 @@ test('le script npm `build` ne porte PAS la preuve — la CI construit sur fixtu
   );
 });
 
-test('le fichier que la phase build nomme existe reellement', () => {
-  /* Un chemin faux dans nixpacks.toml ne se voit qu au deploiement, et il s y voit sous
-     la forme la plus couteuse : un build casse en production. */
-  const commande = commandesDeBuild().find((c) => c.includes(PREUVE)) as string;
-  const chemin = (commande.match(/(scripts\/[\w-]+\.mjs)/) as RegExpMatchArray)[1];
+test('TOUT script que la phase build nomme existe reellement', () => {
+  /* Un chemin faux dans nixpacks.toml ne se voit qu au deploiement, et il s y voit sous la
+     forme la plus couteuse : un build casse en production.
 
-  assert.equal(
-    fs.existsSync(path.join(RACINE, chemin)),
-    true,
-    `nixpacks.toml lance ${chemin}, qui n existe pas sous apps/web`,
-  );
+     2026-08-14 : il ne cherchait QUE la preuve, et devenait donc muet des qu elle sortait des
+     `cmds`. Il balaie desormais toutes les commandes — un test qui ne juge plus rien parce que
+     son unique objet a disparu est exactement ce que ce depot appelle une garde inerte. */
+  const chemins = commandesDeBuild()
+    .flatMap((c) => [...c.matchAll(/(scripts\/[\w-]+\.mjs)/g)].map((m) => m[1]));
+
+  for (const chemin of chemins) {
+    assert.equal(
+      fs.existsSync(path.join(RACINE, chemin)),
+      true,
+      `nixpacks.toml lance ${chemin}, qui n existe pas sous apps/web`,
+    );
+  }
+  /* Aucun script nomme est un etat LEGITIME depuis le retrait de la preuve : la phase ne
+     porte alors que `npm run build`, verrouille par le test precedent. */
 });

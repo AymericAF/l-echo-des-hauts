@@ -30,7 +30,28 @@
 [phases.setup]
 aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 
-# LA SURCHARGE `partage.seo` SE PROUVE ICI, ET C EST LE SEUL ENDROIT QUI LE PERMET.
+# ~~LA SURCHARGE `partage.seo` SE PROUVE ICI, ET C EST LE SEUL ENDROIT QUI LE PERMET.~~
+#
+# 2026-08-14, 21h — CETTE PREMISSE EST FAUSSE, ET ELLE A CASSE LA PUBLICATION.
+# Coolify construit `echo-site` avec `base_directory = /apps/web` (releve en base,
+# `applications.base_directory`) : le contexte de construction ne contient PAS
+# `apps/cms/data`. La preuve rend donc `2` -- « absent : /cms/data/articles » -- et
+# comme elle echoue en ferme, le BUILD echoue avec elle.
+#
+# MESURE : le commit qui a ajoute la commande est date de 17h48 UTC ; le premier
+# deploiement en echec est le 470 a 17h49, puis 474, 476 et 478. QUATRE de suite,
+# plus de trois heures, et personne ne l a vu -- les runs qui poussaient ne
+# regardaient pas le deploiement. Publier ne remettait plus le site en ligne.
+#
+# La commande est RETIREE ci-dessous (validation d Aymeric en session, 2026-08-14).
+# Le fichier de la preuve n est PAS touche : il reste jouable par
+# `npm run recette:surcharge-seo`. Ou elle doit vivre desormais est une DECISION
+# ouverte -- tache `49e9fc1a`, qui porte les quatre options et le fait mesure.
+#
+# Le texte d origine est conserve ci-dessous, barre, parce qu il dit exactement ce
+# qu on croyait vrai -- et c est ce qu il faut relire avant de la remettre.
+#
+# ~~[texte d origine]~~
 #
 # `scripts/preuve-surcharge-seo.mjs` croise DEUX sources reelles : le corpus versionne
 # (`../cms/data`, ce que la REDACTION a ecrit) et le `dist/` construit. Elle est la seule
@@ -57,4 +78,4 @@ aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 # le fournisseur Node. L omettre supprimerait la construction elle-meme, et la preuve
 # jugerait le vide qu elle vient de causer. Verrouille par `tests/nixpacks-preuve-surcharge.test.ts`.
 [phases.build]
-cmds = ['npm run build', 'node scripts/preuve-surcharge-seo.mjs']
+cmds = ['npm run build']

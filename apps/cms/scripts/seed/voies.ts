@@ -85,6 +85,13 @@ export type Placement =
   | 'auteur-photo'
   | 'hero-categorie'
   | 'hero-dossier'
+  /**
+   * Carte de partage SURCHARGEE par la redaction (`partage.seo.imagePartage`),
+   * distincte de `configuration` — qui, elle, designe le repli servi a tout le site.
+   * Les deux se ressemblent au fichier et ne disent pas la meme chose au registre :
+   * l une est un choix editorial porte par UNE entree, l autre un defaut global.
+   */
+  | 'partage-seo'
   | 'configuration';
 
 /** Les deux placements interdits a la voie C — §6.7, condition 5. */

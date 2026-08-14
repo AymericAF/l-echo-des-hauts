@@ -60,7 +60,25 @@ export type MediaCorpus = {
   emplois: string[];
 };
 
-export type CategorieLocale = { nom: string; slug: string; description?: string };
+/**
+ * La surcharge editoriale `partage.seo`, telle qu elle s ecrit dans le corpus.
+ *
+ * Tout est optionnel, et l ABSENCE est une information : « pas de surcharge,
+ * calcule au build » (A-07). Un champ absent ne se remplace donc jamais par un
+ * defaut ici — ce serait figer en base ce que le build sait recalculer.
+ *
+ * `imagePartage` porte une cle du manifeste, comme `imageCouverture` ou
+ * `imageHero` : elle est resolue en id de mediatheque au seed.
+ */
+export type SeoCorpus = {
+  metaTitre?: string;
+  metaDescription?: string;
+  imagePartage?: string;
+  noindex?: boolean;
+  canonique?: string;
+};
+
+export type CategorieLocale = { nom: string; slug: string; description?: string; seo?: SeoCorpus };
 export type CategorieCorpus = {
   ordreAffichage: number;
   couleurAccent?: string;
@@ -81,7 +99,12 @@ export type AuteurCorpus = {
   en?: AuteurLocale;
 };
 
-export type DossierLocale = { titre: string; slug: string; introduction?: unknown[] };
+export type DossierLocale = {
+  titre: string;
+  slug: string;
+  introduction?: unknown[];
+  seo?: SeoCorpus;
+};
 export type DossierCorpus = {
   dateOuverture?: string;
   imageHero?: string;
@@ -103,6 +126,7 @@ export type ArticleLocale = {
   imageCouverture: string;
   legendeCouverture?: string;
   contenu: Record<string, any>[];
+  seo?: SeoCorpus;
 };
 export type ArticleCorpus = { code: string; fr: ArticleLocale; en?: ArticleLocale };
 
@@ -422,6 +446,125 @@ function renvoisMediaDe(contenu: Record<string, any>[]): { cle: string; placemen
 }
 
 /* ------------------------------------------------------------------ */
+/* Surcharge SEO (`partage.seo`)                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Les seules cles du component `partage.seo` (src/components/partage/seo.json).
+ *
+ * La liste est CLOSE : une cle hors de cette liste est refusee. Sans ce refus,
+ * un `metaTitle` ecrit a l anglaise — ou n importe quelle faute de frappe — serait
+ * charge, transmis, et jete par Strapi sans un mot. La surcharge ne sortirait pas,
+ * et rien dans la chaine ne le dirait.
+ */
+const CLES_SEO = ['metaTitre', 'metaDescription', 'imagePartage', 'noindex', 'canonique'] as const;
+
+/** A-26 : la contrainte `maxLength` du champ Strapi, tenue des la LECTURE. */
+const LONGUEUR_META_TITRE = 60;
+const LONGUEUR_META_DESCRIPTION = 160;
+
+/**
+ * Lit et valide une surcharge `partage.seo`, ou rend `undefined` si l entree n en
+ * porte pas.
+ *
+ * Tout est verifie ICI, avant la moindre ecriture : le seed sert a reconstruire
+ * l environnement depuis le depot, et un corpus qui casse a mi-parcours laisserait
+ * une base a moitie remplie. Une longueur refusee par Strapi au 40e article serait
+ * decouverte exactement au pire moment.
+ */
+function lireSeo(
+  brut: unknown,
+  contexte: string,
+  exigerMedia: (cle: string, contexte: string, placement: Placement, entite: string) => string,
+  entite: string
+): SeoCorpus | undefined {
+  if (brut === undefined || brut === null) return undefined;
+  if (typeof brut !== 'object' || Array.isArray(brut)) {
+    throw new ErreurCorpus(`${contexte} : seo doit etre un objet`);
+  }
+
+  const seo = brut as Record<string, unknown>;
+  for (const cle of Object.keys(seo)) {
+    if (!(CLES_SEO as readonly string[]).includes(cle)) {
+      throw new ErreurCorpus(
+        `${contexte} : seo porte la cle inconnue "${cle}" — les seules cles du component ` +
+          `partage.seo sont ${CLES_SEO.join(', ')}`
+      );
+    }
+  }
+
+  const texteBorne = (cle: 'metaTitre' | 'metaDescription', maximum: number): string | undefined => {
+    const valeur = seo[cle];
+    if (valeur === undefined) return undefined;
+    if (typeof valeur !== 'string' || valeur.trim() === '') {
+      throw new ErreurCorpus(`${contexte} : seo.${cle} doit etre un texte non vide`);
+    }
+    if (valeur.length > maximum) {
+      throw new ErreurCorpus(
+        `${contexte} : seo.${cle} fait ${valeur.length} caracteres, le maximum est ${maximum} ` +
+          `(A-26 ; le champ Strapi porte la meme borne et refuserait l ecriture)`
+      );
+    }
+    return valeur;
+  };
+
+  const noindex = seo.noindex;
+  if (noindex !== undefined && typeof noindex !== 'boolean') {
+    throw new ErreurCorpus(
+      `${contexte} : seo.noindex doit etre un booleen — « ${String(noindex)} » n en est pas un, ` +
+        'et une chaine non vide serait vraie partout ou elle est relue'
+    );
+  }
+
+  const canonique = seo.canonique;
+  if (canonique !== undefined) {
+    if (typeof canonique !== 'string' || !/^https?:\/\//.test(canonique)) {
+      throw new ErreurCorpus(
+        `${contexte} : seo.canonique doit etre une URL ABSOLUE (A-27) — « ${String(canonique)} » ` +
+          'ne l est pas, et une canonique relative est ignoree par Google'
+      );
+    }
+  }
+
+  const imagePartage = seo.imagePartage;
+  if (imagePartage !== undefined) {
+    if (typeof imagePartage !== 'string') {
+      throw new ErreurCorpus(`${contexte} : seo.imagePartage doit etre une cle du manifeste`);
+    }
+    exigerMedia(imagePartage, `${contexte} : seo.imagePartage`, 'partage-seo', entite);
+    // Meme exigence que `imagePartageDefaut` : une carte de partage doit etre
+    // rasterisable, sinon les plateformes n affichent aucune image sans qu aucun
+    // fichier ne manque.
+    exigerFormatDePartage(imagePartage, `${contexte} : seo.imagePartage`);
+  }
+
+  return {
+    metaTitre: texteBorne('metaTitre', LONGUEUR_META_TITRE),
+    metaDescription: texteBorne('metaDescription', LONGUEUR_META_DESCRIPTION),
+    imagePartage: imagePartage as string | undefined,
+    noindex: noindex as boolean | undefined,
+    canonique: canonique as string | undefined,
+  };
+}
+
+/**
+ * A-08 : `Auteur` et `Tag` n ont PAS de component `seo`, et c est un arbitrage —
+ * leurs pages recoivent un SEO 100 % calcule au build.
+ *
+ * On refuse donc explicitement plutot que d ignorer : une surcharge posee la ne
+ * partirait nulle part, et son auteur croirait l avoir posee. Si le besoin apparait
+ * un jour, c est un ajout de champ au modele, pas un contournement par le corpus.
+ */
+function refuserSeo(porteur: unknown, contexte: string): void {
+  if (porteur && typeof porteur === 'object' && 'seo' in (porteur as Record<string, unknown>)) {
+    throw new ErreurCorpus(
+      `${contexte} : cette famille ne porte pas de component seo (A-08). Son SEO est ` +
+        'entierement calcule au build ; une surcharge ecrite ici ne serait jamais lue.'
+    );
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Chargement                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -516,15 +659,30 @@ export function chargerCorpus(racine: string): Corpus {
     if (c.imageHero) {
       exigerMedia(c.imageHero, `Categorie ${c.fr.slug}`, 'hero-categorie', `Categorie/${c.fr.slug}`);
     }
+    refuserSeo(c, `Categorie ${c.fr?.slug} : seo hors locale`);
+    for (const locale of LOCALES) {
+      const localisee = c[locale];
+      if (!localisee) continue;
+      localisee.seo = lireSeo(
+        localisee.seo,
+        `Categorie ${localisee.slug} ${locale}`,
+        exigerMedia,
+        `Categorie/${localisee.slug}`
+      );
+    }
   }
   for (const t of tags) {
     exigerTexte(t.fr?.nom, `Tag ${t.fr?.slug} fr : nom`);
     if (t.en) exigerTexte(t.en.nom, `Tag ${t.en.slug} en : nom`);
+    refuserSeo(t, `Tag ${t.fr?.slug}`);
+    for (const locale of LOCALES) refuserSeo(t[locale], `Tag ${t.fr?.slug} ${locale}`);
   }
 
   const auteurs: AuteurCorpus[] = auteursBruts.map((a) => {
     exigerTexte(a.nom, `Auteur ${a.fr?.slug} : nom`);
     if (a.photo) exigerMedia(a.photo, `Auteur ${a.fr.slug}`, 'auteur-photo', `Auteur/${a.fr.slug}`);
+    refuserSeo(a, `Auteur ${a.fr?.slug}`);
+    for (const locale of LOCALES) refuserSeo(a[locale], `Auteur ${a.fr?.slug} ${locale}`);
     const localiser = (l: any) =>
       l && { slug: l.slug, fonction: l.fonction, bio: l.bio ? markdownVersBlocks(l.bio) : undefined };
     return {
@@ -545,6 +703,7 @@ export function chargerCorpus(racine: string): Corpus {
         titre: exigerTexte(l.titre, `Dossier ${l.slug} : titre`),
         slug: l.slug,
         introduction: l.introduction ? markdownVersBlocks(l.introduction) : undefined,
+        seo: lireSeo(l.seo, `Dossier ${l.slug}`, exigerMedia, `Dossier/${l.slug}`),
       };
     return {
       dateOuverture: d.dateOuverture,
@@ -610,6 +769,7 @@ export function chargerCorpus(racine: string): Corpus {
       imageCouverture: enTete.imageCouverture,
       legendeCouverture: enTete.legendeCouverture,
       contenu,
+      seo: lireSeo(enTete.seo, contexte, exigerMedia, `Article/${code} ${locale}`),
     };
 
     const existant = parCode.get(code) ?? ({ code } as ArticleCorpus);

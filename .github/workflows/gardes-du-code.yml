@@ -421,6 +421,22 @@ jobs:
           npm run preuve:encre-og || code=$?
           node scripts/journal-des-preuves.mjs --consigner preuve:encre-og "$code"
 
+      - name: La surcharge `partage.seo` sort bien dans le HTML, et le repli calculé aussi
+        id: preuve-surcharge-seo
+        # Ce pas LIT `dist/`, contrairement aux deux suivants : il est donc placé après le
+        # build réel de `preuve:rendu`. Il ne s'y ENCHAÎNE pas pour autant — `always()`, comme
+        # tous les pas qui jugent : c'est le verdict final qui relit les codes, jamais la file.
+        # Un `dist/` absent ne le rend pas vert : il rend 2, la convention des trois issues étant
+        # précisément ce qui distingue « rien à juger » de « tout va bien ».
+        if: always() && steps.installation.outcome == 'success'
+        # Il croise DEUX sources — le corpus versionné et le HTML produit — et vérifie les deux
+        # sens : l'entrée surchargée sort surchargée, ET l'entrée non surchargée sort en repli
+        # calculé. Sans le second, un bug qui appliquerait la surcharge partout passerait.
+        run: |
+          code=0
+          npm run preuve:surcharge-seo || code=$?
+          node scripts/journal-des-preuves.mjs --consigner preuve:surcharge-seo "$code"
+
       - name: La garde de surface publique sait encore rougir sur une fuite EN PROFONDEUR
         id: preuve-surface-profondeur
         # `always()` : ce pas ne lit AUCUNE sortie construite et ne joint AUCUN reseau —

@@ -23,11 +23,12 @@
  *    quand rien ne differe. Toute incertitude fait reecrire, jamais sauter.
  */
 import type { ClientStrapi, Parametres } from './client.ts';
-import type { Corpus, ArticleLocale } from './corpus.ts';
+import type { Corpus, ArticleLocale, SeoCorpus } from './corpus.ts';
 import { indexerParSlug, decider } from './rapprochement.ts';
 import {
   comparerCorps,
   parametresPopulate,
+  type Nature,
   type Natures,
   type SlugAttendu,
 } from './difference.ts';
@@ -80,8 +81,34 @@ const NATURES_BLOCS: Record<string, Natures> = {
   },
 };
 
+/**
+ * Le composant `partage.seo`, ECRIT PAR LE SEED sur article, categorie et dossier.
+ *
+ * POURQUOI IL EST DECLARE, ET CE QUE SON ABSENCE COUTAIT. `comparerCorps` reecrit par prudence
+ * tout champ dont la nature est inconnue — un fail-safe voulu. Tant que `seo` n etait pas
+ * declare, la SECONDE passe du seed reecrivait donc TOUS les articles, toutes les categories et
+ * tous les dossiers : le seed differentiel cessait d etre differentiel, en silence. Constate a la
+ * fusion du 2026-08-14 (tache `fb7e972e`), ou six tests de `seed-difference` sont passes au rouge
+ * — deux branches vertes separement, rouges ensemble.
+ *
+ * `repete` convient a un composant UNIQUE : les deux cotes passent par `enTableau`, qui enveloppe
+ * un objet seul dans un tableau d un element. Et le `populate` se DERIVE de ces natures, donc
+ * declarer le champ ici suffit aussi a le faire relire — sans quoi la comparaison le lirait
+ * absent, donc different, donc reecriture perpetuelle.
+ */
+const NATURE_SEO: Nature = {
+  repete: {
+    metaTitre: 'scalaire',
+    metaDescription: 'scalaire',
+    noindex: 'scalaire',
+    canonique: 'scalaire',
+    imagePartage: 'media',
+  },
+};
+
 export const NATURES: Record<string, Natures> = {
   'categorie:fr': {
+    seo: NATURE_SEO,
     nom: 'scalaire',
     slug: 'scalaire',
     description: 'scalaire',
@@ -89,7 +116,7 @@ export const NATURES: Record<string, Natures> = {
     ordreAffichage: 'scalaire',
     imageHero: 'media',
   },
-  'categorie:en': { nom: 'scalaire', slug: 'scalaire', description: 'scalaire' },
+  'categorie:en': { seo: NATURE_SEO, nom: 'scalaire', slug: 'scalaire', description: 'scalaire' },
   'tag:fr': { nom: 'scalaire', slug: 'scalaire' },
   'tag:en': { nom: 'scalaire', slug: 'scalaire' },
   'auteur:fr': {
@@ -102,13 +129,14 @@ export const NATURES: Record<string, Natures> = {
   },
   'auteur:en': { slug: 'scalaire', fonction: 'scalaire', bio: 'scalaire' },
   'dossier:fr': {
+    seo: NATURE_SEO,
     titre: 'scalaire',
     slug: 'scalaire',
     introduction: 'scalaire',
     dateOuverture: 'date',
     imageHero: 'media',
   },
-  'dossier:en': { titre: 'scalaire', slug: 'scalaire', introduction: 'scalaire' },
+  'dossier:en': { seo: NATURE_SEO, titre: 'scalaire', slug: 'scalaire', introduction: 'scalaire' },
   configuration: {
     nomSite: 'scalaire',
     baseline: 'scalaire',
@@ -122,6 +150,7 @@ export const NATURES: Record<string, Natures> = {
     reseaux: { repete: { plateforme: 'scalaire', url: 'scalaire' } },
   },
   article: {
+    seo: NATURE_SEO,
     titre: 'scalaire',
     slug: 'scalaire',
     chapo: 'scalaire',
@@ -159,6 +188,34 @@ function resoudreMedias<T>(valeur: T, ids: Map<string, number>): T {
     return sortie as unknown as T;
   }
   return valeur;
+}
+
+/**
+ * Le composant `partage.seo` tel que Strapi l attend, ou `undefined`.
+ *
+ * Deux details qui ne se voient pas a la relecture, et qui echouent en silence :
+ *
+ *   - `imagePartage` porte une CLE DE MANIFESTE dans le corpus et doit partir en
+ *     ID de mediatheque. Envoyee telle quelle, Strapi la refuse — ou l ignore.
+ *   - une surcharge dont AUCUN champ n est renseigne ne doit pas partir du tout.
+ *     Ecrire un composant vide creerait en base la ligne que A-07 interdit
+ *     precisement : celle qui fait croire, plus tard, a un choix editorial.
+ */
+function corpsSeo(
+  seo: SeoCorpus | undefined,
+  idsMedia: Map<string, number>
+): Record<string, any> | undefined {
+  if (seo === undefined) return undefined;
+
+  const corps = {
+    metaTitre: seo.metaTitre,
+    metaDescription: seo.metaDescription,
+    noindex: seo.noindex,
+    canonique: seo.canonique,
+    imagePartage: seo.imagePartage ? idsMedia.get(seo.imagePartage) : undefined,
+  };
+
+  return Object.values(corps).every((v) => v === undefined) ? undefined : corps;
 }
 
 export async function executerSeed(
@@ -333,6 +390,7 @@ export async function executerSeed(
       couleurAccent: c.couleurAccent,
       ordreAffichage: c.ordreAffichage,
       imageHero: c.imageHero ? idsMedia.get(c.imageHero) : undefined,
+      seo: corpsSeo(c[l]!.seo, idsMedia),
     }),
   });
   for (const c of corpus.categories) {
@@ -345,7 +403,12 @@ export async function executerSeed(
     locale: 'en',
     natures: NATURES['categorie:en'],
     documentIdConnus: idsCategorie,
-    corpsDe: (c, l) => ({ nom: c[l]!.nom, slug: c[l]!.slug, description: c[l]!.description }),
+    corpsDe: (c, l) => ({
+      nom: c[l]!.nom,
+      slug: c[l]!.slug,
+      description: c[l]!.description,
+      seo: corpsSeo(c[l]!.seo, idsMedia),
+    }),
   });
 
   /* --- tags --- */
@@ -412,6 +475,7 @@ export async function executerSeed(
       introduction: d[l]!.introduction,
       dateOuverture: d.dateOuverture,
       imageHero: d.imageHero ? idsMedia.get(d.imageHero) : undefined,
+      seo: corpsSeo(d[l]!.seo, idsMedia),
     }),
   });
   for (const d of corpus.dossiers) {
@@ -424,7 +488,12 @@ export async function executerSeed(
     locale: 'en',
     natures: NATURES['dossier:en'],
     documentIdConnus: idsDossier,
-    corpsDe: (d, l) => ({ titre: d[l]!.titre, slug: d[l]!.slug, introduction: d[l]!.introduction }),
+    corpsDe: (d, l) => ({
+      titre: d[l]!.titre,
+      slug: d[l]!.slug,
+      introduction: d[l]!.introduction,
+      seo: corpsSeo(d[l]!.seo, idsMedia),
+    }),
   });
 
   /* ---------------------------------------------------------------- */
@@ -452,6 +521,7 @@ export async function executerSeed(
     dossier: art.dossier ? idsDossier.get(art.dossier) : undefined,
     datePublication: art.datePublication,
     aLaUne: art.aLaUne,
+    seo: corpsSeo(art.seo, idsMedia),
   });
 
   const paramsArticle: Parametres = { status: 'published' };

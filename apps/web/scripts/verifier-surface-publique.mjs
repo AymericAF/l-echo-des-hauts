@@ -123,6 +123,15 @@ export function sondesAttendues(surface) {
     for (const role of ['public', 'jeton']) {
       sondes.push({ chemin: racine, role, brouillon: false, brouillonsActifs: entree.brouillons });
       sondes.push({ chemin: `${racine}?status=draft`, role, brouillon: true, brouillonsActifs: entree.brouillons });
+      /* LES SONDES DE PROFONDEUR. Le middleware `global::statut-publie` impose
+         `status=published` sur la query RACINE ; que la contrainte se propage aux relations
+         ramenees par `?populate=*` est un RAISONNEMENT sur le comportement de Strapi, pas un
+         fait mesure — c etait le seul point du lot « role Public » a ne reposer sur rien
+         d autre. Sans ces deux sondes, une relation imbriquee qui fuirait rendrait le meme
+         vert qu une instance saine : le defaut de l etape 21, deplace d un cran en
+         profondeur. */
+      sondes.push({ chemin: `${racine}?populate=*`, role, brouillon: false, brouillonsActifs: entree.brouillons, profond: true });
+      sondes.push({ chemin: `${racine}?populate=*&status=draft`, role, brouillon: true, brouillonsActifs: entree.brouillons, profond: true });
     }
   }
   /* La surface que mesurait l ANCIENNE preuve. Elle reste sondee — elle n a jamais ete
@@ -144,29 +153,65 @@ export function sondesAttendues(surface) {
  * il est ouvert. C est la QUALIFICATION qui change, pas le verdict.
  */
 /**
- * Les entrees NON PUBLIEES d une reponse Strapi, collection ou type unique.
+ * TOUS les `publishedAt` d un document, racine ET relations imbriquees, a toute profondeur.
+ *
+ * POURQUOI LA PROFONDEUR, ET PAS LA SEULE RACINE. Le middleware impose `status=published`
+ * sur la query RACINE. Que Strapi propage cette contrainte aux relations ramenees par
+ * `?populate=*` est un raisonnement sur son comportement interne, pas un fait mesure. Un
+ * scan limite a la racine declarerait donc « propre » une reponse dont un tag, un auteur ou
+ * un article lie serait un brouillon — et rendrait un vert rigoureusement identique a celui
+ * d une instance saine. C est le defaut de l etape 21 refait un cran plus bas.
+ *
+ * Le CHEMIN de chaque occurrence est conserve : « il y a une fuite dans la reponse » se
+ * discute, `$[0].tags[0].publishedAt` se corrige.
+ *
+ * @param {unknown} noeud
+ * @param {string} chemin
+ * @param {{chemin: string, valeur: unknown}[]} trouves
+ * @returns {{chemin: string, valeur: unknown}[]}
+ */
+export function recenserPublishedAt(noeud, chemin = '$', trouves = []) {
+  if (Array.isArray(noeud)) {
+    noeud.forEach((valeur, i) => recenserPublishedAt(valeur, `${chemin}[${i}]`, trouves));
+    return trouves;
+  }
+  if (!noeud || typeof noeud !== 'object') return trouves;
+  for (const [cle, valeur] of Object.entries(noeud)) {
+    if (cle === 'publishedAt') {
+      trouves.push({ chemin: `${chemin}.publishedAt`, valeur });
+      continue;
+    }
+    recenserPublishedAt(valeur, `${chemin}.${cle}`, trouves);
+  }
+  return trouves;
+}
+
+/**
+ * Les occurrences NON PUBLIEES d une reponse Strapi, collection ou type unique, a toute
+ * profondeur.
  *
  * C EST LE DISCRIMINANT DU MIDDLEWARE `global::statut-publie`, et il tient a une seule
  * propriete : il impose `status=published` a l appelant sans credence, donc la reponse ne
- * peut porter que des versions publiees. Une entree a `publishedAt: null` prouve que
- * `?status=draft` a ete HONORE — c est la fuite du 2026-08-10, celle qui rendait un article
- * non publie titre et corps compris a n importe qui.
+ * peut porter que des versions publiees. Un `publishedAt: null` prouve que `?status=draft` a
+ * ete HONORE — c est la fuite du 2026-08-10, celle qui rendait un article non publie titre
+ * et corps compris a n importe qui.
  *
  * `undefined` (et non un tableau vide) quand le corps n est pas lisible : ne pas pouvoir
  * juger n est pas juger conforme.
  *
  * @param {unknown} corps
- * @returns {{id: unknown}[] | undefined}
+ * @returns {{inspectes: {chemin: string, valeur: unknown}[], nonPublies: {chemin: string}[]} | undefined}
  */
-export function entreesNonPubliees(corps) {
+export function nonPubliesEnProfondeur(corps) {
   if (!corps || typeof corps !== 'object' || !('data' in corps)) return undefined;
   const donnees = corps.data;
-  if (donnees === null) return [];
+  if (donnees === null) return { inspectes: [], nonPublies: [] };
   const entrees = Array.isArray(donnees) ? donnees : [donnees];
   if (entrees.some((e) => !e || typeof e !== 'object')) return undefined;
+  const inspectes = recenserPublishedAt(donnees);
   /* `publishedAt` ABSENT et `publishedAt: null` ne se confondent pas : le premier arrive sur
      un type sans brouillon/publie (rien a conclure), le second est une version brouillon. */
-  return entrees.filter((e) => 'publishedAt' in e && e.publishedAt === null);
+  return { inspectes, nonPublies: inspectes.filter((x) => x.valeur === null) };
 }
 
 function manquementOuvert(sonde) {
@@ -203,11 +248,25 @@ function manquementOuvert(sonde) {
  * corrige. Le geste, lui, n est plus « fermer la permission » mais « regarder le
  * middleware » — sous la branche A, l ouverture est voulue, c est la protection qui manque.
  */
-function manquementFuiteContenu(sonde, combien) {
+function manquementFuiteContenu(sonde, nonPublies) {
+  /* LES CHEMINS SONT NOMMES, et c est ce qui rend le rouge actionnable en profondeur : une
+     fuite a la racine et une fuite dans `$[0].tags[0]` n envoient pas au meme endroit. La
+     seconde ne se corrige PAS en refermant la permission du type sonde — le tag fuit par la
+     relation d un article, pas par `/api/tags`. */
+  const ou = nonPublies.slice(0, 3).map((x) => x.chemin).join(', ');
+  const reste = nonPublies.length > 3 ? `, … (+${nonPublies.length - 3})` : '';
+  const profond = nonPublies.some((x) => x.chemin !== '$.publishedAt' && !/^\$\[\d+\]\.publishedAt$/.test(x.chemin));
+
   return (
-    `${sonde.chemin} → 200 SANS AUCUN JETON, et la reponse porte ${combien} entree(s) non ` +
-    'publiee(s) (`publishedAt: null`) : c est une FUITE EDITORIALE. Un article non publie y est ' +
-    'lisible titre et corps compris par n importe qui. Le middleware `global::statut-publie` ' +
+    `${sonde.chemin} → 200 SANS AUCUN JETON, et la reponse porte ${nonPublies.length} entree(s) non ` +
+    `publiee(s) (\`publishedAt: null\`) en ${ou}${reste} : c est une FUITE EDITORIALE. Un article ` +
+    'non publie y est lisible titre et corps compris par n importe qui. ' +
+    (profond
+      ? 'ELLE EST DANS UNE RELATION IMBRIQUEE, pas a la racine : refermer la permission du type ' +
+        'sonde ne la fermerait PAS — le document non publie arrive par le `populate` d un autre ' +
+        'type. C est le middleware qui doit propager `status=published` a la relation. '
+      : '') +
+    'Le middleware `global::statut-publie` ' +
     'doit imposer `status=published` a tout appelant sans credence — verifier qu il est bien ' +
     'declare dans `apps/cms/config/middlewares.ts` ET que l instance a REDEMARRE avec. En ' +
     'attendant la correction, refermer `find`/`findOne` de ce type dans Settings → Users & ' +
@@ -243,6 +302,8 @@ export function jugerSondes(sondes) {
     brouillonsReelsRefuses: 0,
     servies: 0,
     brouillonsServisProteges: 0,
+    profondesExercees: 0,
+    publishedAtInspectes: 0,
   });
 
   if (!Array.isArray(sondes) || sondes.length === 0) {
@@ -263,6 +324,12 @@ export function jugerSondes(sondes) {
      est le seul compte qui prouve le middleware — un refus, lui, ne prouve que la fermeture. */
   let servies = 0;
   let brouillonsServisProteges = 0;
+  /* Les deux comptes de la PROFONDEUR. `profondesExercees` prouve que le plan portait bien
+     des sondes `?populate=*` et qu elles ont abouti a un verdict ; `publishedAtInspectes`
+     prouve que l arbre a reellement ete parcouru — une reponse PLATE (populate ignore par
+     l instance, relations absentes) rendrait sinon le meme vert qu une reponse parcourue. */
+  let profondesExercees = 0;
+  let publishedAtInspectes = 0;
 
   for (const sonde of sondes) {
     if (sonde.erreur) {
@@ -280,8 +347,8 @@ export function jugerSondes(sondes) {
            IMMESURABLE : « 0 avec le role ouvert » etait inatteignable, et rouvrir les 11
            permissions produisait une douzaine de manquements que le middleware travaille ou
            non. C est desormais le CONTENU qui tranche. */
-        const nonPubliees = entreesNonPubliees(sonde.corps);
-        if (nonPubliees === undefined) {
+        const lecture = nonPubliesEnProfondeur(sonde.corps);
+        if (lecture === undefined) {
           incapacites.push(
             `${sonde.chemin} (sans jeton) → 200, mais son corps n a pas pu etre lu : impossible ` +
               'de distinguer une reponse protegee d une fuite. Un vert rendu ici serait un vert ' +
@@ -289,13 +356,18 @@ export function jugerSondes(sondes) {
           );
           continue;
         }
-        if (nonPubliees.length > 0) {
-          manquements.push(manquementFuiteContenu(sonde, nonPubliees.length));
+        publishedAtInspectes += lecture.inspectes.length;
+        if (lecture.nonPublies.length > 0) {
+          if (sonde.profond) profondesExercees += 1;
+          manquements.push(manquementFuiteContenu(sonde, lecture.nonPublies));
           continue;
         }
         servies += 1;
         if (sonde.brouillon && sonde.brouillonsActifs) brouillonsServisProteges += 1;
-        verifies.push(`${sonde.chemin} servi (200), aucune entree non publiee`);
+        if (sonde.profond) profondesExercees += 1;
+        verifies.push(
+          `${sonde.chemin} servi (200), ${lecture.inspectes.length} publishedAt inspecte(s), aucun non publie`,
+        );
         continue;
       }
       if (!CODES_DE_REFUS.has(sonde.statut)) {
@@ -311,6 +383,10 @@ export function jugerSondes(sondes) {
         brouillonsRefuses += 1;
         if (sonde.brouillonsActifs) brouillonsReelsRefuses += 1;
       }
+      /* Un refus exerce le critere de profondeur aussi bien qu une reponse verifiee : il
+         prouve que rien n est servi, donc qu aucune relation ne peut fuir. Meme logique que
+         `brouillonsReelsRefuses` un cran plus haut — c est ZERO des deux qui doit bloquer. */
+      if (sonde.profond) profondesExercees += 1;
       verifies.push(`${sonde.chemin} refuse (${sonde.statut})`);
       continue;
     }
@@ -340,7 +416,28 @@ export function jugerSondes(sondes) {
      verifie propre. Les deux prouvent quelque chose — la fermeture pour l un, le middleware
      pour l autre — mais zero des deux ne prouve rien, et c est cela seul qui doit bloquer. */
   const brouillonReelExerce = brouillonsReelsRefuses > 0 || brouillonsServisProteges > 0;
-  const comptes = { chemins, refusees, ouvertes, brouillonsRefuses, brouillonsReelsRefuses, servies, brouillonsServisProteges };
+  const comptes = { chemins, refusees, ouvertes, brouillonsRefuses, brouillonsReelsRefuses, servies, brouillonsServisProteges, profondesExercees, publishedAtInspectes };
+
+  /* LE VERT NE S OBTIENT PAS SANS AVOIR SONDE LES RELATIONS. Meme exigence que celle du
+     brouillon, un cran plus bas : un plan qui perdrait ses sondes `?populate=*` — refonte,
+     filtre, regression — rendrait un vert rigoureusement identique a celui d une instance
+     dont les relations imbriquees ont ete verifiees. Le compte n est pas decoratif : c est
+     la seule chose qui distingue « aucune relation ne fuit » de « aucune relation n a ete
+     regardee ». */
+  if (manquements.length === 0 && profondesExercees === 0) {
+    return {
+      manquements: [
+        'aucune sonde `?populate=*` n a ete ni refusee ni servie : les relations imbriquees ' +
+          'n ont pas ete regardees. Le middleware `global::statut-publie` impose ' +
+          '`status=published` sur la query RACINE ; que la contrainte se propage au `populate` ' +
+          'est un raisonnement, pas une mesure. Un vert obtenu sans ces sondes ne dit rien du ' +
+          'brouillon qui arriverait par la relation d un autre type.',
+      ],
+      verifies,
+      issue: ISSUES.VERIFICATION_IMPOSSIBLE,
+      ...comptes,
+    };
+  }
 
   if (manquements.length === 0 && !brouillonReelExerce) {
     return {
@@ -386,11 +483,19 @@ export function resumeSurface(rapport) {
   const servis =
     `${rapport.brouillonsServisProteges ?? 0} brouillon(s) SERVI(S) et verifie(s) sans aucune ` +
     'entree non publiee';
+  /* LA PROFONDEUR SE COMPTE, SINON ELLE NE SE VOIT PAS. Une sonde `?populate=*` qui
+     ramenerait un document PLAT — relations absentes, populate ignore par l instance — rend
+     le meme verdict qu une sonde qui a parcouru tout l arbre. Le compte des `publishedAt`
+     rencontres est la seule chose qui les distingue : 12 sondes a 1 chacune et 12 sondes a
+     26 chacune ne decrivent pas la meme mesure. */
+  const profondeur =
+    `${rapport.profondesExercees ?? 0} sonde(s) ?populate=* exercee(s), ` +
+    `${rapport.publishedAtInspectes ?? 0} publishedAt inspecte(s) racine et relations comprises`;
   return (
     `${rapport.refusees} sonde(s) publique(s) refusee(s) — dont ${rapport.brouillonsRefuses} en ` +
     `?status=draft, ${rapport.brouillonsReelsRefuses} sur un type qui porte reellement le ` +
     `brouillon/publie —, ${rapport.servies ?? 0} sonde(s) publique(s) SERVIE(S) dont ${servis}, ` +
-    `et ${rapport.ouvertes} sonde(s) ouverte(s) par le jeton de build. ` +
+    `et ${rapport.ouvertes} sonde(s) ouverte(s) par le jeton de build. ${profondeur}. ` +
     `Chemins confrontes : ${rapport.chemins.join(', ')}.`
   );
 }

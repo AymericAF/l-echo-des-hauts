@@ -184,6 +184,45 @@ function exigerTexte(valeur: unknown, contexte: string): string {
 }
 
 /* ------------------------------------------------------------------ */
+/* L ALPHABET DES BLANCS — copie DELIBEREE, et gardee                   */
+/*                                                                      */
+/* LE DEFAUT QU IL FERME. Ce fichier testait `.trim()`, qui couvre bien  */
+/* l espace insecable U+00A0 mais LAISSE PASSER les caracteres de        */
+/* largeur nulle — U+200B, U+200C, U+200D, U+2060. Un `alternativeText`  */
+/* fait d un seul U+200B entrait donc au corpus sans un mot : la lecture */
+/* le normalisait en absent, donc le site restait correct, mais le       */
+/* corpus portait une valeur invisible que rien n avait signalee a       */
+/* l ECRITURE. L alphabet explicite, lui, vivait deja dans               */
+/* `apps/web/src/lib/strapi/lecture.ts` (`estBlanc`).                    */
+/*                                                                      */
+/* POURQUOI UNE COPIE, ET PAS UN MODULE PARTAGE. Les deux applications   */
+/* ne peuvent PAS s importer, et ce n est pas un choix de style : le     */
+/* depot n a aucun `package.json` a sa racine ni aucun `workspaces`, et  */
+/* chaque application est construite par Coolify avec sa PROPRE          */
+/* `Base Directory` (`/apps/web`, `/apps/cms`). Un `import` d une        */
+/* application vers l autre casserait le build — la seconde n existe pas */
+/* dans l arbre de la premiere. Faire importer le seed depuis `apps/web` */
+/* aurait le meme defaut, en plus d inverser le sens du flux.            */
+/*                                                                      */
+/* CE QUI REND LA COPIE ACCEPTABLE, et c est tout le point : elle est    */
+/* GARDEE. `tests/alphabet-des-blancs.test.ts` lit les DEUX fichiers et  */
+/* echoue si un caractere diverge. Un test PEUT lire d une application a */
+/* l autre la ou un build ne le peut pas : il tourne dans le depot       */
+/* entier, pas depuis une `Base Directory`. La duplication cesse donc    */
+/* d etre silencieuse — ce qui est exactement ce que ce depot corrige    */
+/* partout ailleurs, et ce que la divergence d origine demontrait.       */
+/* ------------------------------------------------------------------ */
+
+/** Doit rester IDENTIQUE, caractere pour caractere, a celui de `apps/web/src/lib/strapi/lecture.ts`. */
+const BLANCS_INVISIBLES =
+  '\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200d\\u2028\\u2029\\u202f\\u205f\\u2060\\u3000\\ufeff';
+
+/** Vrai si la chaine ne contient QUE des caracteres sans trace visible (chaine vide comprise). */
+export function estBlanc(valeur: string): boolean {
+  return new RegExp(`^[${BLANCS_INVISIBLES}]*$`, 'u').test(valeur);
+}
+
+/* ------------------------------------------------------------------ */
 /* Medias                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -235,7 +274,7 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
           `  Recu ${JSON.stringify(alternativeText)}.`
       );
     }
-    if (decoratif !== true && alternativeText.trim() === '') {
+    if (decoratif !== true && estBlanc(alternativeText)) {
       throw new ErreurCorpus(
         `manifeste des medias, "${cle}" : alternativeText vide.\n` +
           `  L'alternative textuelle vient de la mediatheque, jamais d'une legende (A-04),\n` +

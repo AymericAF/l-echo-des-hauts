@@ -60,6 +60,15 @@ const APPS = ['apps/web', 'apps/cms'];
 // sous-arbre). Tout ce qui est atteint par `import` est deja couvert et n'a
 // rien a faire ici.
 const LECTURES = {
+    'apps/cms/tests/alphabet-des-blancs.test.ts': [
+        // Il lit l'alphabet des blancs de l'AUTRE application, par chemin — un graphe
+        // d'imports ne peut pas le voir, et les deux applications ne peuvent de toute
+        // facon pas s'importer (aucun workspace, une Base Directory Coolify chacune).
+        // C'est precisement pour cela que la copie existe et que ce test la garde.
+        // Sans cette ligne, editer l'alphabet cote web ne declencherait RIEN, et la
+        // divergence reviendrait par la porte que ce test ferme.
+        'apps/web/src/lib/strapi/lecture.ts',
+    ],
     'apps/web/tests/astro-config.test.ts': [
         // Il IMPORTE `astro.config.mjs` — donc tout ce que le tableau
         // `integrations:` atteint est deja couvert par le graphe. Ce qu'il lit

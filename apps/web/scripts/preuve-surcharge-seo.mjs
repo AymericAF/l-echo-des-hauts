@@ -123,20 +123,65 @@ function lirePage(dist, chemin) {
   return null;
 }
 
-const titreDe = (html) => html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? null;
+/**
+ * Le HTML n est pas du texte, et c est tout le sujet de ce fichier.
+ *
+ * Astro echappe l apostrophe en `&#39;` dans un noeud texte — donc dans le <title> —
+ * et l esperluette en `&amp;` partout. Comparer la sortie BRUTE a ce que la redaction
+ * a ecrit fait donc echouer TOUTE valeur portant l un des deux caracteres, soit, sur
+ * un corpus francais, la quasi-totalite des titres. Le 2026-08-14 cette absence de
+ * decodage a produit 15 manquements dont AUCUN n etait reel.
+ *
+ * L esperluette se decode EN DERNIER : dans l autre ordre, `&amp;#39;` — qui doit
+ * rendre le texte litteral `&#39;` — deviendrait une apostrophe.
+ */
+const ENTITES = { quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ' };
 
-function meta(html, attribut, valeur) {
-  const motif = new RegExp(
-    `<meta[^>]*${attribut}=["']${valeur}["'][^>]*content=["']([^"']*)["']|` +
-      `<meta[^>]*content=["']([^"']*)["'][^>]*${attribut}=["']${valeur}["']`,
-    'i'
-  );
-  const trouve = html.match(motif);
-  return trouve ? (trouve[1] ?? trouve[2]) : null;
+function decoder(texte) {
+  return texte
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&(quot|apos|lt|gt|nbsp);/g, (_, nom) => ENTITES[nom])
+    .replace(/&amp;/g, '&');
 }
 
-const canoniqueDe = (html) =>
-  html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*)["']/i)?.[1] ?? null;
+const titreDe = (html) => {
+  const trouve = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return trouve ? decoder(trouve[1].trim()) : null;
+};
+
+/** Les balises `<nom …>` du document, chacune entiere : une valeur d attribut peut
+    porter un `>` (`&gt;` n est pas obligatoire dans un attribut), et s arreter au
+    premier `>` couperait la balise en deux. */
+const balisesDe = (html, nom) =>
+  html.match(new RegExp(`<${nom}\\b(?:"[^"]*"|'[^']*'|[^>"'])*>`, 'gi')) ?? [];
+
+/**
+ * La valeur d un attribut, decodee.
+ *
+ * Le motif borne la valeur sur le MEME guillemet que l ouvrant. Une classe qui
+ * exclut les deux (`[^"']`) tronque a la premiere apostrophe INTERNE : c est ainsi
+ * que « … 19,8 demandes : l ecart qui decidera du parc » se lisait « … : l », et que
+ * le script rapportait des ecarts qui n existaient pas.
+ */
+function valeurAttribut(balise, nom) {
+  const trouve = balise.match(new RegExp(`\\b${nom}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'));
+  return trouve ? decoder(trouve[1] ?? trouve[2]) : null;
+}
+
+function meta(html, attribut, valeur) {
+  for (const balise of balisesDe(html, 'meta')) {
+    if (valeurAttribut(balise, attribut) === valeur) return valeurAttribut(balise, 'content');
+  }
+  return null;
+}
+
+function canoniqueDe(html) {
+  for (const balise of balisesDe(html, 'link')) {
+    if (valeurAttribut(balise, 'rel') === 'canonical') return valeurAttribut(balise, 'href');
+  }
+  return null;
+}
 
 /** Toutes les URL declarees par les segments de sitemap presents dans dist/. */
 function urlsDuSitemap(dist) {

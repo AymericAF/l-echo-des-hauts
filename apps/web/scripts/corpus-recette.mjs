@@ -22,11 +22,18 @@
  *   | Entite                 | FR  | EN | Ce que la borne attrape                          |
  *   |------------------------|-----|----|--------------------------------------------------|
  *   | categorie `treize`     | 13  | 2  | page 2 existe et ne porte qu un article           |
- *   | categorie `douze`      | 12  | 0  | **frontiere** : aucune page 2 vide                |
+ *   | categorie `douze`      | 12  | 13 | **frontiere** FR ; et la SEULE page 2 sous /en/   |
  *   | categorie `cinq`       |  5  | —  | moins d une page ; aucune pagination rendue       |
  *   | categorie `vide`       |  0  | 0  | index vide : AUCUNE route emise (§10.3)           |
- *   | tag `large`            | 25  | 2  | trois pages : une page du MILIEU, avec ses bornes |
+ *   | tag `large`            | 25  | 15 | trois pages FR ; deux pages EN, dont une du bout  |
  *   | tag `sans-en`          |  3  | 0  | tag FR emis, contrepartie EN non emise            |
+ *
+ * LA DISSYMETRIE DE `douze` EST VOULUE (2026-08-14, tache f1f1f7ac). Jusque-la, aucune
+ * adresse paginee n etait exercee sous prefixe de langue : les routes `/en/.../page/n`
+ * ne figuraient que dans `interdites`, donc verifiees ABSENTES et jamais correctes. Le
+ * corpus anglais etait structurellement trop petit pour paginer. 12 francais contre 13
+ * anglais donnent d un seul coup la page 2 anglaise ET le miroir du repli T-05 — une
+ * page 2 dont la contrepartie n a qu une page, dans l autre sens que la borne existante.
  */
 
 import {
@@ -118,7 +125,14 @@ const SEO_VIDE = null;
 /** Categories : `[cle, slugFr, slugEn|null, nombreArticlesFr, nombreArticlesEn]`. */
 const CATEGORIES = [
   ['treize', 'rubrique-treize', 'section-thirteen', 13, 2],
-  ['douze', 'rubrique-douze', 'section-twelve', 12, 0],
+  /* 13 ARTICLES ANGLAIS, contre 12 francais — et c est la dissymetrie qui compte.
+     Elle donne la seule route paginee du banc SOUS PREFIXE (`/en/categorie/
+     section-twelve/page/2`), et son exact miroir de la borne 4 de T-05 : une page 2
+     anglaise dont la contrepartie francaise n a qu une page, donc un repli sur la
+     derniere page francaise. Avant le 2026-08-14 cette locale portait 0 article et
+     l index anglais n etait pas emis (§10.3) — regle qui reste exercee par
+     `section-empty` et `tag-without-english`, deux fois plutot que trois. */
+  ['douze', 'rubrique-douze', 'section-twelve', 12, 13],
   ['cinq', 'rubrique-cinq', null, 5, 0],
   ['vide', 'rubrique-vide', 'section-empty', 0, 0],
 ];
@@ -131,6 +145,16 @@ const TAGS = [
 /** Sur combien d articles FR, dans l ordre global, chaque etiquette est posee. */
 const PORTEE_TAG_LARGE = 25;
 const PORTEE_TAG_SANS_EN = 3;
+
+/**
+ * Combien d articles anglais sont apparies a leur equivalent francais.
+ *
+ * DEUX, et ce nombre ne suit PAS le nombre d articles anglais : les bornes de la bascule
+ * distinguent l article traduit (`fr-treize-1`) de l article qui ne l est pas
+ * (`fr-treize-5`). Les faire varier ensemble ferait disparaitre la seconde des le jour ou
+ * le corpus anglais grossit — exactement ce qui s est produit le 2026-08-14.
+ */
+const TRADUCTIONS_APPARIEES = 2;
 
 function localisation(documentId, locale, slug) {
   return { id: 1, documentId, locale, slug };
@@ -280,8 +304,15 @@ export function corpusRecette() {
 
   /* Les deux traductions : la localisation se declare DES DEUX COTES, avec le slug propre
      de chaque locale — c est ce que le mapping lit, et c est le piege n° 1 de T-05. Les
-     documentId se rejoignent, comme en Strapi 5. */
-  for (let index = 0; index < articles.en.length; index += 1) {
+     documentId se rejoignent, comme en Strapi 5.
+
+     LE COMPTE EST ECRIT, il n est plus l effet de bord du nombre d articles anglais.
+     La boucle allait jusqu a `articles.en.length` : porter `section-twelve` a 13 articles
+     anglais (2026-08-14) aurait donc apparie les QUINZE premiers articles francais, et
+     `fr-treize-5` — l article dont la borne dit qu il n est PAS traduit — serait devenu
+     traduit en silence. La borne « article non traduit : la bascule remonte sur la
+     rubrique anglaise » aurait rougi sans que rien ne dise pourquoi. */
+  for (let index = 0; index < Math.min(TRADUCTIONS_APPARIEES, articles.en.length); index += 1) {
     const anglais = articles.en[index];
     const francais = articles.fr[index];
     const partage = `art-traduit-${index + 1}`;
@@ -347,14 +378,22 @@ export const ROUTES_ATTENDUES = {
 
     // Miroir anglais : 2 articles dans une seule rubrique.
     '/en/categorie/section-thirteen',
-    '/en/tag/wide-tag',
     '/en/auteur/camille-recette',
+
+    /* SOUS PREFIXE DE LANGUE — la borne que ce banc n exercait pas (2026-08-14).
+       `section-twelve` porte 13 articles ANGLAIS : c est la seule facon d obtenir une
+       route paginee sous `/en/`, et donc de juger sa composition sur la sortie plutot
+       que de la verifier ABSENTE. Le tag `wide-tag` les porte tous (15 avec ceux de
+       `section-thirteen`), d ou sa page 2 : deux familles paginees, pas une. */
+    '/en/categorie/section-twelve',
+    '/en/categorie/section-twelve/page/2',
+    '/en/tag/wide-tag',
+    '/en/tag/wide-tag/page/2',
   ],
   interdites: [
     // §10.3 — un index vide n est pas emis, dans aucune des deux locales.
     '/categorie/rubrique-vide',
     '/en/categorie/section-empty',
-    '/en/categorie/section-twelve',
     '/en/tag/tag-without-english',
     // La frontiere : 12 articles ne font pas naitre une page 2 vide.
     '/categorie/rubrique-douze/page/2',
@@ -363,6 +402,11 @@ export const ROUTES_ATTENDUES = {
     '/categorie/rubrique-treize/page/3',
     '/tag/etiquette-large/page/4',
     '/en/categorie/section-thirteen/page/2',
+    // Les memes bornes, SOUS PREFIXE : ni au-dela de la derniere, ni en `/page/1`.
+    '/en/categorie/section-twelve/page/3',
+    '/en/tag/wide-tag/page/3',
+    '/en/categorie/section-twelve/page/1',
+    '/en/tag/wide-tag/page/1',
     // La page 1 ne s ecrit jamais `/page/1`.
     '/categorie/rubrique-treize/page/1',
     '/tag/etiquette-large/page/1',

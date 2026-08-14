@@ -357,6 +357,122 @@ for (const route of ['/categorie/rubrique-treize', '/categorie/rubrique-treize/p
   verifier(`${route} : ${cibles.length} lien(s) de pagination, tous vivants`, mortes.length === 0, mortes.join(', '));
 }
 
+console.log('\n─────────────  BORNES DE PAGINATION SOUS PREFIXE DE LANGUE  ─────────────\n');
+
+/*
+ * CE QUE CETTE SECTION AJOUTE, ET POURQUOI ELLE N EXISTAIT PAS (releve du 2026-08-10,
+ * tache f1f1f7ac). Toutes les bornes ci-dessus portent sur des adresses SANS prefixe :
+ * `/categorie/...`, `/tag/...`. Les adresses paginees ANGLAISES ne figuraient que dans
+ * `interdites` — elles etaient verifiees ABSENTES, jamais correctes. La composition
+ * d une adresse paginee sous prefixe n etait donc jugee nulle part sur une sortie
+ * construite : une erreur y serait restee invisible hors ligne jusqu au jour ou le
+ * corpus anglais grossit, c est-a-dire quand plus personne n y pense.
+ *
+ * La raison en etait structurelle et non un oubli : le corpus anglais comptait deux
+ * articles, trop peu pour paginer. `section-twelve` en porte desormais 13 — dans le
+ * BANC, jamais dans le seed (le nombre d articles publies est un choix du cadrage).
+ *
+ * LE MODE D ECHEC VISE est une locale perdue en chemin : `Pagination.astro` recoit sa
+ * locale en propriete et la passe a `cheminIndex`. Un composant qui la perd, ou un
+ * appel qui code `fr` en dur, rend une navigation dont les liens sortent de `/en/` —
+ * le lecteur anglais atterrit en francais, ou sur une 404. La verification qui
+ * l attrape n est donc pas « le lien aboutit » (il aboutirait) mais « le lien PORTE le
+ * prefixe ».
+ */
+
+/**
+ * La page, ou un ECHEC NOMME — jamais une trace de pile.
+ *
+ * `html()` leve quand la page manque, et c est exactement ce qui se produit quand la
+ * composition sous prefixe casse : la route attendue n est plus emise. La preuve
+ * s interrompait alors sur une exception, sans verdict ni compte rendu des bornes
+ * suivantes. Or l absence d une route ATTENDUE est une anomalie du SITE (code 1), pas
+ * une incapacite du banc : le geste est de corriger la composition, pas l environnement.
+ * Le meme partage que `preuve-pagination-corpus.mjs` fait pour la `/page/1` fantome.
+ */
+function pageOuEchec(route) {
+  try {
+    return html(SORTIE, route);
+  } catch {
+    echecs.push(`${route} : attendue, absente de la sortie — la composition ne l a pas produite`);
+    return null;
+  }
+}
+
+const enPage1 = pageOuEchec('/en/categorie/section-twelve');
+const enPage2 = pageOuEchec('/en/categorie/section-twelve/page/2');
+
+if (enPage1 !== null && enPage2 !== null) {
+  const cartesEnPage1 = (enPage1.match(/class="carte"/g) ?? []).length;
+  const cartesEnPage2 = (enPage2.match(/class="carte"/g) ?? []).length;
+  verifier('la page 1 de section-twelve porte 12 articles', cartesEnPage1 === 12, `${cartesEnPage1} carte(s)`);
+  verifier('la page 2 de section-twelve porte 1 article', cartesEnPage2 === 1, `${cartesEnPage2} carte(s)`);
+
+  // Les memes bornes qu en francais, sur une adresse prefixee.
+  verifier('EN page 1 : aucun rel="prev"', !/rel="prev"/.test(enPage1));
+  verifier('EN page 1 : un rel="next"', /rel="next"/.test(enPage1));
+  verifier('EN derniere page : aucun rel="next"', !/rel="next"/.test(enPage2));
+  verifier('EN derniere page : un rel="prev"', /rel="prev"/.test(enPage2));
+}
+
+// Une page du MILIEU sous prefixe : `wide-tag` porte les 15 articles anglais (2 + 13).
+const enMilieu = pageOuEchec('/en/tag/wide-tag');
+if (enMilieu !== null) {
+  verifier(
+    'EN page du milieu : un rel="next", aucun rel="prev"',
+    /rel="next"/.test(enMilieu) && !/rel="prev"/.test(enMilieu),
+  );
+}
+
+/**
+ * LA BORNE QUI PORTE LA TACHE : tout lien de pagination rendu sur une page anglaise
+ * commence par `/en/`. C est la seule qui distingue une composition correcte d une
+ * composition qui a perdu sa locale — les autres passeraient au vert sur des liens
+ * francais parfaitement vivants.
+ */
+for (const route of [
+  '/en/categorie/section-twelve',
+  '/en/categorie/section-twelve/page/2',
+  '/en/tag/wide-tag',
+  '/en/tag/wide-tag/page/2',
+]) {
+  const contenu = pageOuEchec(route);
+  if (contenu === null) continue;
+  const nav = contenu.match(/<nav class="pagination"[\s\S]*?<\/nav>/);
+  const cibles = nav ? liensDe(nav[0], /href="([^"]+)"/g) : [];
+  verifier(`${route} : une navigation de pagination est rendue`, cibles.length > 0, 'aucun lien');
+
+  const horsPrefixe = cibles.filter((cible) => !cible.startsWith('/en/'));
+  verifier(
+    `${route} : les ${cibles.length} lien(s) portent le prefixe /en/`,
+    horsPrefixe.length === 0,
+    `hors prefixe : ${horsPrefixe.join(', ')}`,
+  );
+
+  const mortes = cibles.filter((cible) => !routes.has(cible.replace(/\/$/, '') || '/'));
+  verifier(`${route} : ${cibles.length} lien(s) de pagination, tous vivants`, mortes.length === 0, mortes.join(', '));
+
+  // Aucun lien ne pointe la forme `/page/1` : la borne du doublon, sous prefixe aussi.
+  const versPage1 = cibles.filter((cible) => cible.replace(/\/$/, '').endsWith('/page/1'));
+  verifier(`${route} : aucun lien vers /page/1`, versPage1.length === 0, versPage1.join(', '));
+}
+
+/*
+ * LE MIROIR DU REPLI T-05, dans l autre sens. La borne 4 de la section suivante exerce
+ * « page 2 FR sans page 2 EN ». `section-twelve` fournit son exact symetrique : 13
+ * articles anglais contre 12 francais, donc une page 2 ANGLAISE dont la contrepartie
+ * francaise n a qu une page. Le repli doit viser la derniere page francaise existante,
+ * sans `hreflang` puisque ce n est pas la meme page.
+ */
+if (enPage2 !== null) {
+  verifier(
+    'page 2 EN sans page 2 FR : la bascule replie sur la derniere page francaise',
+    bascule(enPage2) === '/categorie/rubrique-douze',
+    `recu ${bascule(enPage2)}`,
+  );
+  verifier('ce repli sous prefixe n emet aucun hreflang', alternates(enPage2).length === 0);
+}
+
 console.log('\n─────────────  BASCULE FR / EN  ─────────────\n');
 
 /** Le lien de bascule d une page : c est le seul `<a>` de la nav `bascule`. */

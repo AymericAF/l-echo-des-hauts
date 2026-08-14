@@ -69,6 +69,13 @@ const COLLECTIONS = ['articles', 'auteurs', 'categories', 'tags', 'dossiers'] as
  *   - `sansEcart`  : sous-ensemble de `localises` qu on n exige PAS different. `seo` est
  *                    un component a champs tous optionnels, legitimement vide dans les
  *                    deux locales : exiger un ecart forcerait a inventer une valeur.
+ *                    Les champs `alternative*` y sont pour la MEME raison, et il faut la
+ *                    lire dans le bon sens : ils sont bien LOCALISES — c est tout leur
+ *                    objet, surcharger par locale l `alternativeText` de la mediatheque,
+ *                    qui n en porte qu une. Mais ils sont FACULTATIFS, et ce banc les
+ *                    laisse vides des deux cotes : c est le corpus versionne, pas les
+ *                    fixtures, qui porte les alternatives anglaises. Exiger un ecart ici
+ *                    ferait inventer au banc une valeur que le site ne sert pas.
  */
 const PARTITION: Record<
   string,
@@ -82,7 +89,7 @@ const PARTITION: Record<
 > = {
   articles: {
     partages: ['imageCouverture', 'datePublication', 'aLaUne'],
-    localises: ['titre', 'chapo', 'contenu', 'legendeCouverture', 'seo'],
+    localises: ['titre', 'chapo', 'contenu', 'legendeCouverture', 'alternativeCouverture', 'seo'],
     relations: ['auteur', 'categorie', 'tags', 'dossier', 'articlesLies'],
     techniques: [
       'id',
@@ -94,21 +101,21 @@ const PARTITION: Record<
       'publishedAt',
       'localizations',
     ],
-    sansEcart: ['seo'],
+    sansEcart: ['seo', 'alternativeCouverture'],
   },
   auteurs: {
     partages: ['nom', 'photo', 'reseaux'],
-    localises: ['fonction', 'bio'],
+    localises: ['fonction', 'bio', 'alternativePhoto'],
     relations: [],
     techniques: ['id', 'documentId', 'slug', 'locale', 'updatedAt', 'localizations'],
-    sansEcart: [],
+    sansEcart: ['alternativePhoto'],
   },
   categories: {
     partages: ['couleurAccent', 'imageHero', 'ordreAffichage'],
-    localises: ['nom', 'description', 'seo'],
+    localises: ['nom', 'description', 'alternativeHero', 'seo'],
     relations: [],
     techniques: ['id', 'documentId', 'slug', 'locale', 'updatedAt', 'localizations'],
-    sansEcart: ['seo'],
+    sansEcart: ['seo', 'alternativeHero'],
   },
   tags: {
     partages: [],
@@ -119,18 +126,26 @@ const PARTITION: Record<
   },
   dossiers: {
     partages: ['imageHero', 'dateOuverture'],
-    localises: ['titre', 'introduction', 'seo'],
+    localises: ['titre', 'introduction', 'alternativeHero', 'seo'],
     relations: ['articles'],
     techniques: ['id', 'documentId', 'slug', 'locale', 'updatedAt', 'localizations'],
-    sansEcart: ['seo'],
+    sansEcart: ['seo', 'alternativeHero'],
   },
   configuration: {
     partages: ['logo', 'logoSombre', 'favicon', 'imagePartageDefaut', 'reseaux'],
-    localises: ['nomSite', 'baseline', 'descriptionDefaut', 'texteFooter', 'mentionsLegales'],
+    localises: [
+      'nomSite',
+      'baseline',
+      'descriptionDefaut',
+      'texteFooter',
+      'mentionsLegales',
+      'alternativeLogo',
+      'alternativePartageDefaut',
+    ],
     relations: [],
     // Le Single Type ne peuple PAS `localizations` (`src/lib/strapi/requete.ts`).
     techniques: ['id', 'documentId', 'locale', 'updatedAt'],
-    sansEcart: [],
+    sansEcart: ['alternativeLogo', 'alternativePartageDefaut'],
   },
 };
 

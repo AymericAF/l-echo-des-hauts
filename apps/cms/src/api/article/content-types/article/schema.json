@@ -83,6 +83,14 @@
         }
       }
     },
+    "alternativeCouverture": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
     "auteur": {
       "type": "relation",
       "relation": "manyToOne",

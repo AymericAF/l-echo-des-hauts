@@ -36,7 +36,8 @@
           "locale": "fr",
           "slug": "amenagement"
         }
-      ]
+      ],
+      "alternativeHero": null
     }
   ],
   "meta": {

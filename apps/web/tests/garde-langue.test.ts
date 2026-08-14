@@ -40,6 +40,7 @@ import {
   inspecterLangue,
   langueDuDocument,
   LONGUEUR_MINIMALE,
+  resumeLangue,
   vocabulaireExclusif,
 } from '../scripts/verifier-langue.mjs';
 import { LIBELLES } from '../src/lib/i18n/libelles.ts';
@@ -282,16 +283,121 @@ test('le texte alternatif de l image de partage est juge, parce qu il est ENTEND
 // ── 4. La reserve sur `alt` : signalee, jamais comptee comme manquement ───────────────
 
 test('un alt francais sur une page anglaise est une RESERVE, pas un manquement', () => {
-  /* `alternativeText` est un champ NON localise de la mediatheque (A-06) : les textes de
-     remplacement sont francais sur les pages anglaises par construction du MODELE. Le
-     faire rougir a chaque build sans pouvoir le corriger ici tuerait la garde ; le taire
-     serait pire. Il est donc COMPTE et dit dans le compte rendu. */
+  /* L `alternativeText` de la mediatheque n a qu UNE valeur, sans locale : les textes de
+     remplacement peuvent donc sortir en francais sur les pages anglaises. Le faire rougir
+     a chaque build tuerait la garde ; le taire serait pire. Il est donc COMPTE et dit dans
+     le compte rendu. */
   const dist = distFactice({
     'en/index.html': page('en', '<img src="/a.png" alt="Une grue au-dessus des toits gelés" width="1" height="1">'),
   });
   const rapport = inspecterLangue(dist);
   assert.equal(rapport.issue, ISSUES.CONFORME);
   assert.equal(rapport.altsNonLocalises, 1);
+  fs.rmSync(dist, { recursive: true, force: true });
+});
+
+/* ── 4 bis. LE COMPTEUR NE PEUT PLUS RENDRE 0 SUR UN CORPUS SANS ACCENTS ──────────────
+ *
+ * LE DEFAUT QUE CES CAS FERMENT, mesure le 2026-08-14 (tache `a13a7769`). Le compteur ne
+ * connaissait qu UNE regle : l attribut porte-t-il une lettre accentuee. Or le manifeste
+ * des medias est ECRIT SANS ACCENTS — « Bandeau de courbes de niveau du plateau,
+ * traversees par cinq emprises parcellaires au trace vert ». Sur le build du jour, il
+ * rendait donc 0 pendant que 28 alternatives francaises distinctes etaient servies sur les
+ * 41 pages `lang="en"`. Un compteur a zero se lit « rien a signaler », jamais « je ne sais
+ * pas regarder » : c est le mode d echec ou succes et echec rendent la meme sortie.
+ *
+ * LA REGLE AJOUTEE NE DEVINE PAS LA LANGUE, ELLE CONSTATE UNE EGALITE : un meme media
+ * (meme `src`) qui sort avec le MEME texte sur une page francaise et sur une page
+ * anglaise n a pas ete localise. Elle ne lit rien d autre que `dist/`, donc elle
+ * n emprunte ni au manifeste — que le `Base Directory` de l application ne contient pas —
+ * ni au droit du role `Redacteur` d editer un texte alternatif (avenant A4).
+ *
+ * CE QU ELLE NE VOIT PAS, ecrit plutot que tu : un media servi UNIQUEMENT en anglais n a
+ * pas de contrepartie a comparer. C est l heuristique d accents, CONSERVEE, qui le
+ * rattrape — et elle seule. Les deux regles se cumulent sans se compter deux fois.
+ */
+
+test('MEME src, MEME alt en fr et en en : compte, la ou l heuristique d accents rendait 0', () => {
+  const sansAccent = 'Bandeau de courbes de niveau du plateau, traversees par cinq emprises';
+  const dist = distFactice({
+    'index.html': page('fr', `<img src="/medias/hero.svg" alt="${sansAccent}" width="1" height="1">`),
+    'en/index.html': page('en', `<img src="/medias/hero.svg" alt="${sansAccent}" width="1" height="1">`),
+  });
+
+  const rapport = inspecterLangue(dist);
+
+  assert.equal(rapport.issue, ISSUES.CONFORME, 'reserve, jamais manquement');
+  assert.equal(rapport.altsNonLocalises, 1);
+  assert.ok(
+    rapport.altsSignales.some((s: string) => s.includes('/medias/hero.svg')),
+    'le compte rendu doit NOMMER le media, pas seulement le compter'
+  );
+  fs.rmSync(dist, { recursive: true, force: true });
+});
+
+test('PREUVE EN CASSANT : le meme media avec une alternative TRADUITE ne compte plus', () => {
+  const dist = distFactice({
+    'index.html': page('fr', '<img src="/medias/hero.svg" alt="Bandeau de courbes de niveau" width="1" height="1">'),
+    'en/index.html': page('en', '<img src="/medias/hero.svg" alt="Banner of contour lines" width="1" height="1">'),
+  });
+
+  const rapport = inspecterLangue(dist);
+
+  assert.equal(rapport.altsNonLocalises, 0);
+  assert.deepEqual(rapport.altsSignales, []);
+  fs.rmSync(dist, { recursive: true, force: true });
+});
+
+test('un media servi des DEUX cotes en alt VIDE ne compte pas — une image decorative se tait dans les deux langues', () => {
+  const dist = distFactice({
+    'index.html': page('fr', '<img src="/medias/deco.svg" alt="" width="1" height="1">'),
+    'en/index.html': page('en', '<img src="/medias/deco.svg" alt="" width="1" height="1">'),
+  });
+
+  assert.equal(inspecterLangue(dist).altsNonLocalises, 0);
+  fs.rmSync(dist, { recursive: true, force: true });
+});
+
+test('og:image:alt et twitter:image:alt sont juges aussi — ils sont ENTENDUS, et echappaient a l attribut alt', () => {
+  const texte = 'Carte de partage par defaut de L Echo des Hauts';
+  const meta = (t: string) =>
+    `<meta property="og:image:alt" content="${t}"><meta name="twitter:image:alt" content="${t}">`;
+  const dist = distFactice({
+    'index.html': `<!doctype html><html lang="fr"><head><title>t</title>${meta(texte)}</head><body></body></html>`,
+    'en/index.html': `<!doctype html><html lang="en"><head><title>t</title>${meta(texte)}</head><body></body></html>`,
+  });
+
+  const rapport = inspecterLangue(dist);
+
+  assert.ok(rapport.altsNonLocalises >= 1, 'un texte de partage identique des deux cotes doit compter');
+  assert.equal(rapport.issue, ISSUES.CONFORME);
+  fs.rmSync(dist, { recursive: true, force: true });
+});
+
+test('les deux regles ne comptent pas DEUX FOIS le meme attribut', () => {
+  const accentue = 'Une grue au-dessus des toits gelés';
+  const dist = distFactice({
+    'index.html': page('fr', `<img src="/medias/a.png" alt="${accentue}" width="1" height="1">`),
+    'en/index.html': page('en', `<img src="/medias/a.png" alt="${accentue}" width="1" height="1">`),
+  });
+
+  /* Il est accentue ET identique des deux cotes : les deux regles le voient, il ne doit
+     etre compte qu une fois — un compte gonfle se decredibilise aussi surement qu un
+     compte a zero. */
+  assert.equal(inspecterLangue(dist).altsNonLocalises, 1);
+  fs.rmSync(dist, { recursive: true, force: true });
+});
+
+test('le resume NOMME ce qui est signale — un chiffre seul ne se verifie pas', () => {
+  const dist = distFactice({
+    'index.html': page('fr', '<img src="/medias/hero.svg" alt="Bandeau de courbes" width="1" height="1">'),
+    'en/index.html': page('en', '<img src="/medias/hero.svg" alt="Bandeau de courbes" width="1" height="1">'),
+  });
+
+  const resume = resumeLangue(inspecterLangue(dist));
+
+  assert.match(resume, /RESERVE/);
+  assert.match(resume, /hero\.svg/);
   fs.rmSync(dist, { recursive: true, force: true });
 });
 

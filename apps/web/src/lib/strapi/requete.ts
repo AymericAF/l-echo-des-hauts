@@ -67,7 +67,13 @@ const CONTENU: PopulateDynamicZone = {
     'bloc.galerie': { fields: ['legende', 'disposition'], populate: { images: MEDIA } },
     'bloc.encadre': { fields: ['titre', 'contenu', 'variante'] },
     'bloc.video': { fields: ['url', 'legende'], populate: { vignette: MEDIA } },
-    'bloc.image-legendee': { fields: ['legende', 'credit'], populate: { image: MEDIA } },
+    /* `alternative` : la surcharge LOCALISEE de l alternative textuelle. Un champ non
+       demande n arrive JAMAIS, et son absence ne se voit pas — le repli retomberait en
+       silence sur l alternative francaise du media. */
+    'bloc.image-legendee': {
+      fields: ['legende', 'alternative', 'credit'],
+      populate: { image: MEDIA },
+    },
     'bloc.separateur': { fields: ['style'] },
     // Ce bloc n a aucun champ scalaire : `fields: ['id']` demande donc le strict minimum
     // plutot que de laisser Strapi decider — c est la meme discipline, pas une exception.
@@ -85,6 +91,7 @@ export const REQUETES = {
       'slug',
       'chapo',
       'legendeCouverture',
+      'alternativeCouverture',
       'datePublication',
       'aLaUne',
       'locale',
@@ -98,7 +105,9 @@ export const REQUETES = {
       tags: { fields: ['nom', 'slug'] },
       dossier: { fields: ['titre', 'slug'] },
       articlesLies: {
-        fields: ['titre', 'slug', 'chapo'],
+        /* Une carte d article lie rend un `alt` (`PageArticle.astro`) : sans la
+           surcharge ici, ces cartes-la resteraient francaises sur une page anglaise. */
+        fields: ['titre', 'slug', 'chapo', 'alternativeCouverture'],
         populate: { imageCouverture: MEDIA },
       },
       contenu: CONTENU,
@@ -110,7 +119,7 @@ export const REQUETES = {
   },
 
   auteurs: {
-    fields: ['nom', 'slug', 'fonction', 'bio', 'locale', 'updatedAt'],
+    fields: ['nom', 'slug', 'fonction', 'bio', 'alternativePhoto', 'locale', 'updatedAt'],
     populate: {
       photo: MEDIA,
       reseaux: LIEN_SOCIAL,
@@ -121,7 +130,16 @@ export const REQUETES = {
   },
 
   categories: {
-    fields: ['nom', 'slug', 'description', 'couleurAccent', 'ordreAffichage', 'locale', 'updatedAt'],
+    fields: [
+      'nom',
+      'slug',
+      'description',
+      'couleurAccent',
+      'ordreAffichage',
+      'alternativeHero',
+      'locale',
+      'updatedAt',
+    ],
     populate: {
       imageHero: MEDIA,
       seo: SEO,
@@ -140,7 +158,15 @@ export const REQUETES = {
   },
 
   dossiers: {
-    fields: ['titre', 'slug', 'introduction', 'dateOuverture', 'locale', 'updatedAt'],
+    fields: [
+      'titre',
+      'slug',
+      'introduction',
+      'dateOuverture',
+      'alternativeHero',
+      'locale',
+      'updatedAt',
+    ],
     populate: {
       imageHero: MEDIA,
       // Tri par datePublication croissante (A-18) : fait au mapping, la relation n etant pas triable ici.
@@ -153,7 +179,17 @@ export const REQUETES = {
   },
 
   configuration: {
-    fields: ['nomSite', 'baseline', 'descriptionDefaut', 'texteFooter', 'mentionsLegales', 'locale', 'updatedAt'],
+    fields: [
+      'nomSite',
+      'baseline',
+      'descriptionDefaut',
+      'texteFooter',
+      'mentionsLegales',
+      'alternativeLogo',
+      'alternativePartageDefaut',
+      'locale',
+      'updatedAt',
+    ],
     populate: {
       logo: MEDIA,
       logoSombre: MEDIA,

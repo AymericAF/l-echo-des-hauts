@@ -547,7 +547,8 @@ test('§13 point 4 applique : les 5 portraits d auteur portent « Œuvre du proj
  *
  * Il ne dit RIEN des auteurs (`auteurs.json`), dont les `reseaux` pointent vers
  * leur propre page du meme site : ce ne sont pas des marques tierces, et ils ne
- * sont pas l objet de cet arbitrage.
+ * sont pas l objet de cet arbitrage. Ce que les auteurs doivent porter, LUI, est
+ * garde par le test suivant — pose le 2026-08-14 (tache 6e8578be).
  *
  * Il ne dit rien non plus du registre des glyphes ni de l enum a huit
  * plateformes d A-30, qui restent entiers : ce que le journal PUBLIE et ce que
@@ -560,6 +561,54 @@ test('la Configuration versionnee ne porte QU UN lien social, le LinkedIn d Ayme
   assert.deepEqual(corpus.configuration.reseaux, [
     { plateforme: 'linkedin', url: 'https://www.linkedin.com/in/aymeric-filliot-37442a17a/' },
   ]);
+});
+
+/* ------------------------------------------------------------------ */
+/* Les liens des AUTEURS : circulaires, oui — geles sur une origine, non. */
+/* ------------------------------------------------------------------ */
+
+/**
+ * LE DEFAUT DU 2026-08-11, MESURE et non deduit (tache 6e8578be). Sous
+ * `astro build --site https://autre-origine.test`, `garde-liens` comptait 3577
+ * liens internes au lieu de 3587. Les DIX manquants — cinq auteurs x deux
+ * locales — portaient `https://echo.ayfiweb.fr/auteur/<slug>` EN DUR et
+ * devenaient genuinement externes sous une autre origine.
+ *
+ * CE QUI EST DECIDE, ET RESTE INTACT. Le § `reseaux` de `docs/plan-editorial.md`
+ * tranche le FOND : « aucun de ces cinq personnages ne porte de compte sur une
+ * plateforme reelle […] c est volontairement circulaire, et c est le seul choix
+ * qui ne fabrique pas de fausse identite en ligne ». Ce test ne revient pas
+ * dessus — il exige justement que le lien pointe la page de l auteur.
+ *
+ * CE QUI NE L ETAIT PAS. Le plan ecrit `https://<sous-domaine>/auteur/<slug>` :
+ * un EMPLACEMENT, pas une valeur. C est la donnee qui a gele l origine, et rien
+ * ne pouvait l attraper — sous l origine de production, ces liens sont
+ * parfaitement internes et valides ; ils ne sont fautifs que par rapport a une
+ * intention. ARBITRAGE D AYMERIC du 2026-08-14, session supervisee : la valeur
+ * passe en RELATIF.
+ *
+ * Pourquoi le relatif suffit, et pourquoi ce test tient : `verifier-liens.mjs`
+ * ne confronte a l origine que les href PORTANT UN SCHEMA (ligne 146). Un chemin
+ * relatif est donc compte interne sous n importe quelle origine — c est ce qui
+ * referme l ecart de dix, mecaniquement.
+ *
+ * ⚠️ CE QUE CE TEST NE FERME PAS. `Auteur.reseaux` est NON localise (A-06) : les
+ * deux locales lisent la meme valeur, donc `/en/auteur/<slug>` continue de
+ * pointer la page FRANCAISE. C est un defaut distinct, ouvert a part le
+ * 2026-08-14 ; il n a pas de solution dans la donnee tant que le champ n est pas
+ * localise. Sa moitie SEO, elle, est deja fermee par `profilsExternes` dans
+ * `apps/web/src/lib/seo/donnees-structurees.ts`.
+ */
+test('aucun reseau d auteur ne porte une URL ABSOLUE — l origine ne se gele pas dans la donnee', () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  assert.equal(corpus.auteurs.length, 5);
+  for (const auteur of corpus.auteurs) {
+    assert.deepEqual(
+      auteur.reseaux,
+      [{ plateforme: 'site', url: `/auteur/${auteur.fr.slug}` }],
+      `${auteur.nom} : le lien doit etre le chemin RELATIF de sa propre page`,
+    );
+  }
 });
 
 // --- l image de partage par defaut doit etre RASTERISEE par les plateformes -----------

@@ -294,6 +294,136 @@ test('un auteur sans fonction, sans portrait et sans reseau ne porte pas de cle 
   assert.ok(!('sameAs' in personne));
 });
 
+/* --- `sameAs` n admet que l EXTERNE, et le mecanisme le tient ------------------------
+ *
+ * LE DEFAUT DU 2026-08-11 (tache 6e8578be), sur la donnee REELLE. Les cinq auteurs
+ * portent dans `reseaux` l URL de LEUR PROPRE page — un choix editorial assume, ecrit
+ * en toutes lettres au § `reseaux` de `docs/plan-editorial.md` : « c est volontairement
+ * circulaire, et c est le seul choix qui ne fabrique pas de fausse identite en ligne ».
+ * Ce choix vaut pour la NAV, ou un lien vers soi est inutile mais inoffensif.
+ *
+ * Il ne vaut PAS pour `sameAs`, dont la ligne 260 dit deja l inverse : « `sameAs` porte
+ * les profils EXTERNES de la personne ». Un `sameAs` egal a la canonique de la page
+ * n affirme rien — au mieux du bruit, au pire une identite circulaire. Cette regle
+ * n etait tenue que par un COMMENTAIRE, et la donnee reelle le violait sur les dix pages
+ * auteur de la production. Elle est desormais tenue par un mecanisme.
+ *
+ * La NAV n est pas concernee : elle recoit `auteur.reseaux` telle quelle
+ * (`PageIndex.astro:113`), et le dernier test ci-dessous garde cette separation.
+ */
+
+test('sameAs ecarte une URL RELATIVE — elle designe une page du site', () => {
+  const personne = noeuds(
+    donneesStructurees(
+      contexte({
+        canonique: `${ORIGINE}/auteur/theo-brissac`,
+        titre: 'Theo Brissac',
+        sujet: {
+          genre: 'auteur',
+          fonction: 'Reporter',
+          portrait: null,
+          reseaux: ['/auteur/theo-brissac', 'https://www.linkedin.com/in/exemple'],
+        },
+        filAriane: FIL_ARTICLE,
+      }),
+    )!,
+  ).get('Person')!;
+  assert.deepEqual(personne.sameAs, ['https://www.linkedin.com/in/exemple']);
+});
+
+test('sameAs ecarte une URL ABSOLUE posee sur l origine du site', () => {
+  const personne = noeuds(
+    donneesStructurees(
+      contexte({
+        canonique: `${ORIGINE}/auteur/theo-brissac`,
+        titre: 'Theo Brissac',
+        sujet: {
+          genre: 'auteur',
+          fonction: 'Reporter',
+          portrait: null,
+          reseaux: [`${ORIGINE}/auteur/theo-brissac`, 'https://mastodon.exemple/@theo'],
+        },
+        filAriane: FIL_ARTICLE,
+      }),
+    )!,
+  ).get('Person')!;
+  assert.deepEqual(personne.sameAs, ['https://mastodon.exemple/@theo']);
+});
+
+test('sameAs disparait quand TOUS les reseaux sont internes — jamais un tableau vide', () => {
+  /* L etat REEL de la production le 2026-08-11 : une seule entree, interne. Ecrire
+     `"sameAs":[]` serait pire que ne rien ecrire — cf. le contrat de `noeud()`. */
+  const personne = noeuds(
+    donneesStructurees(
+      contexte({
+        canonique: `${ORIGINE}/auteur/theo-brissac`,
+        titre: 'Theo Brissac',
+        sujet: {
+          genre: 'auteur',
+          fonction: 'Reporter',
+          portrait: null,
+          reseaux: [`${ORIGINE}/auteur/theo-brissac`],
+        },
+        filAriane: FIL_ARTICLE,
+      }),
+    )!,
+  ).get('Person')!;
+  assert.ok(!('sameAs' in personne));
+});
+
+test('sameAs ecarte l origine du site MEME sur une page d une AUTRE langue', () => {
+  /* `Auteur.reseaux` est NON localise (A-06) : les deux locales lisent la meme URL
+     francaise. Sur `/en/auteur/<slug>`, l URL interne ne vaut donc pas la canonique de
+     la page — et un filtre qui comparerait a la CANONIQUE, et non a l ORIGINE, la
+     laisserait passer. C est le defaut C de la tache 6e8578be, dont la moitie SEO se
+     ferme ici. */
+  const personne = noeuds(
+    donneesStructurees(
+      contexte({
+        locale: 'en',
+        canonique: `${ORIGINE}/en/auteur/theo-brissac`,
+        titre: 'Theo Brissac',
+        sujet: {
+          genre: 'auteur',
+          fonction: 'Reporter',
+          portrait: null,
+          reseaux: [`${ORIGINE}/auteur/theo-brissac`],
+        },
+        filAriane: FIL_ARTICLE,
+      }),
+    )!,
+  ).get('Person')!;
+  assert.ok(!('sameAs' in personne));
+});
+
+test('une URL d un AUTRE hote qui contient le nom du site reste EXTERNE', () => {
+  /* Le filtre compare des ORIGINES, jamais des chaines : `echo.ayfiweb.fr.exemple.test`
+     et `exemple.test/?u=echo.ayfiweb.fr` sont des hotes tiers. Un `startsWith` sur
+     l origine les avalerait tous les deux, et effacerait un vrai profil externe. */
+  const personne = noeuds(
+    donneesStructurees(
+      contexte({
+        canonique: `${ORIGINE}/auteur/theo-brissac`,
+        titre: 'Theo Brissac',
+        sujet: {
+          genre: 'auteur',
+          fonction: 'Reporter',
+          portrait: null,
+          reseaux: [
+            'https://echo.ayfiweb.fr.exemple.test/theo',
+            `https://exemple.test/?u=${ORIGINE}/auteur/theo-brissac`,
+          ],
+        },
+        filAriane: FIL_ARTICLE,
+      }),
+    )!,
+  ).get('Person')!;
+  assert.deepEqual(personne.sameAs, [
+    'https://echo.ayfiweb.fr.exemple.test/theo',
+    `https://exemple.test/?u=${ORIGINE}/auteur/theo-brissac`,
+  ]);
+});
+
 test('aucune valeur null ni tableau vide ne subsiste dans le graphe entier', () => {
   const graphe = donneesStructurees(
     contexte({ description: null, logo: null, sujet: SUJET_ARTICLE, filAriane: FIL_ARTICLE }),

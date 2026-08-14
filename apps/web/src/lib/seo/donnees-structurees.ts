@@ -159,6 +159,53 @@ function urlAccueil(origine: string): string {
   return `${origine.replace(/\/+$/, '')}/`;
 }
 
+/**
+ * Les seuls liens qu un `sameAs` a le droit de porter : ceux qui designent la personne
+ * AILLEURS QUE SUR CE SITE.
+ *
+ * LE DEFAUT DU 2026-08-11 (tache 6e8578be), releve sur la production. Les cinq auteurs
+ * portent dans `reseaux` l URL de leur propre page — un choix EDITORIAL assume et ecrit
+ * (§ `reseaux` de `docs/plan-editorial.md`), qui vaut pour la nav et pour elle seule.
+ * Verse tel quel dans `sameAs`, il produisait `sameAs[0] === url` sur les dix pages
+ * auteur : une declaration d identite circulaire, qui n apprend rien a personne.
+ *
+ * La regle etait ecrite juste en dessous, en commentaire — et un commentaire ne tient
+ * rien. Elle est ici, et elle juge la DONNEE plutot que l intention.
+ *
+ * Deux pieges, tous deux couverts par un test :
+ *
+ *  1. Comparer a la CANONIQUE ne suffit pas. `Auteur.reseaux` est NON localise (A-06),
+ *     donc la page `/en/auteur/<slug>` porte l URL FRANCAISE : elle differe de sa
+ *     canonique tout en restant une page de ce site. La reference est donc l ORIGINE.
+ *  2. Un `startsWith` sur l origine avalerait `https://echo.ayfiweb.fr.exemple.test/…`,
+ *     qui est un hote TIERS, et effacerait un vrai profil externe. On compare des
+ *     origines resolues, jamais des chaines.
+ *
+ * Un lien relatif n a pas d origine propre : il designe forcement ce site, donc il sort.
+ */
+function profilsExternes(reseaux: readonly string[], origine: string): string[] {
+  let racine: URL;
+  try {
+    racine = new URL(origine);
+  } catch {
+    /* Sans origine lisible, rien ne peut etre declare interne : on ne SUPPRIME pas sur
+       une reference qu on n a pas su lire. Laisser passer est le defaut recuperable ;
+       vider `sameAs` par accident ne se verrait nulle part. */
+    return [...reseaux];
+  }
+  return reseaux.filter((lien) => {
+    let cible: URL;
+    try {
+      cible = new URL(lien, racine);
+    } catch {
+      /* Ni une URL absolue ni un chemin resolvable — ce n est pas un profil. */
+      return false;
+    }
+    /* `new URL('/auteur/x', racine)` prend l origine de `racine` : le relatif sort ici. */
+    return cible.origin !== racine.origin;
+  });
+}
+
 /** L identifiant de l editeur — un seul pour tout le site, cite par chaque Article. */
 function idOrganisation(origine: string): string {
   return `${origine.replace(/\/+$/, '')}/#organisation`;
@@ -258,8 +305,11 @@ function personne(
     jobTitle: renseignee(sujet.fonction),
     image: imageObject(sujet.portrait),
     /* `sameAs` porte les profils EXTERNES de la personne. Les liens de reseaux du modele
-       sont exactement cela ; un lien interne s y glisserait comme une affirmation fausse. */
-    sameAs: [...sujet.reseaux],
+       ne le sont PAS tous — les cinq auteurs y portent leur propre page (§ `reseaux` du
+       plan editorial) —, et un lien interne s y glisse comme une affirmation fausse.
+       `profilsExternes` ecarte ce qui designe ce site ; `noeud` omet la cle si rien ne
+       reste, plutot que d ecrire un `sameAs: []` qui affirmerait un vide. */
+    sameAs: profilsExternes(sujet.reseaux, contexte.origine),
     mainEntityOfPage: { '@type': 'WebPage', '@id': contexte.canonique },
   });
 }

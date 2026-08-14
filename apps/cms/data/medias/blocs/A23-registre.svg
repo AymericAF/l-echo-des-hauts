@@ -2,23 +2,34 @@
   <rect width="1600" height="900" fill="#EFEBE3"/>
   <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
   <rect x="220" y="170" width="420" height="18" fill="#5B3E7A"/>
-  <rect x="220" y="250" width="605" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="282" width="733" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="314" width="736" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="346" width="1025" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="378" width="384" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="410" width="632" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="442" width="705" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="474" width="1039" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="506" width="1045" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="538" width="654" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="570" width="1064" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="602" width="695" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="634" width="697" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="666" width="478" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="698" width="1026" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="730" width="697" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="762" width="982" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="794" width="870" height="10" fill="#1A1A1A" opacity="0.16"/>
   <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Registre d'atelier, juin 1983 — reconstitution</text>
+  <text x="220" y="272" font-family="Georgia, serif" font-size="24" fill="#1A1A1A" opacity="0.65">Filature de La Rive-Haute — registre d'atelier 1971-1983, derniere page</text>
+  <line x1="580" y1="300" x2="580" y2="694" stroke="#1A1A1A" stroke-opacity="0.18" stroke-width="2"/>
+  <line x1="700" y1="300" x2="700" y2="694" stroke="#1A1A1A" stroke-opacity="0.18" stroke-width="2"/>
+  <text x="236" y="330" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Heure</text>
+  <text x="560" y="330" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Releve</text>
+  <text x="690" y="330" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Arrets</text>
+  <text x="720" y="330" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Observations</text>
+  <line x1="220" y1="346" x2="1380" y2="346" stroke="#1A1A1A" stroke-opacity="0.3" stroke-width="2"/>
+  <text x="236" y="396" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">5 h 50</text>
+  <text x="720" y="396" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.75">Entree de l'equipe du matin, objectif inchange</text>
+  <line x1="220" y1="416" x2="1380" y2="416" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="458" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">9 h 25</text>
+  <text x="560" y="458" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">412 kg</text>
+  <text x="720" y="458" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.75">Releve intermediaire, 35 kg au-dessus de la cadence</text>
+  <line x1="220" y1="478" x2="1380" y2="478" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="520" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">12 h 10</text>
+  <text x="720" y="520" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.75">Constat de presence, inventaire commence (autre ecriture)</text>
+  <line x1="220" y1="540" x2="1380" y2="540" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="582" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">17 h 40</text>
+  <text x="560" y="582" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">1 214 kg</text>
+  <text x="690" y="582" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.9">9</text>
+  <text x="720" y="582" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.75">Dernier arret — 103 % de l'objectif de 1 180 kg</text>
+  <line x1="220" y1="602" x2="1380" y2="602" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <text x="236" y="674" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A" opacity="0.4">—</text>
+  <text x="720" y="674" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.45">Total journalier non reporte</text>
+  <line x1="220" y1="694" x2="1380" y2="694" stroke="#1A1A1A" stroke-opacity="0.12" stroke-width="2"/>
+  <line x1="220" y1="745" x2="1380" y2="745" stroke="#1A1A1A" stroke-opacity="0.4" stroke-width="3"/>
+  <text x="236" y="778" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.75">Neuf arrets machine ce jour-la, contre une moyenne de dix-sept — cloture ordinaire vers 16 h 50</text>
+  <text x="236" y="806" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.5">Page du 14 juin 1983 — 214 salaries, dont 168 femmes</text>
 </svg>

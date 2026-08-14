@@ -2,23 +2,42 @@
   <rect width="1600" height="900" fill="#EFEBE3"/>
   <rect x="180" y="120" width="1240" height="700" fill="#FBFAF7" stroke="#1A1A1A" stroke-opacity="0.25" stroke-width="3"/>
   <rect x="220" y="170" width="420" height="18" fill="#B4472A"/>
-  <rect x="220" y="250" width="708" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="282" width="812" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="314" width="989" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="346" width="592" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="378" width="823" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="410" width="725" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="442" width="960" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="474" width="859" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="506" width="922" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="538" width="670" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="570" width="709" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="602" width="794" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="634" width="635" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="666" width="467" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="698" width="1018" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="730" width="567" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="762" width="540" height="10" fill="#1A1A1A" opacity="0.16"/>
-  <rect x="220" y="794" width="448" height="10" fill="#1A1A1A" opacity="0.16"/>
   <text x="220" y="230" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1A1A1A">Dossier de maladie professionnelle — reconstitution</text>
+  <text x="220" y="272" font-family="Georgia, serif" font-size="24" fill="#1A1A1A" opacity="0.65">Filature de La Rive-Haute — six situations, une seule reconnaissance</text>
+  <text x="236" y="322" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Pieces reclamees par le dossier</text>
+  <text x="1364" y="322" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Disponible</text>
+  <line x1="220" y1="338" x2="1380" y2="338" stroke="#1A1A1A" stroke-opacity="0.3" stroke-width="2"/>
+  <rect x="236" y="364" width="24" height="24" fill="none" fill-opacity="0" stroke="#1A1A1A" stroke-opacity="0.45" stroke-width="2"/>
+  <rect x="241" y="369" width="14" height="14" fill="#1A1A1A" fill-opacity="0.75"/>
+  <text x="284" y="386" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.9">Certificat medical initial</text>
+  <text x="284" y="412" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.6">nommant la pathologie et la rattachant au travail</text>
+  <text x="1364" y="386" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1F5C4A" opacity="1">oui</text>
+  <line x1="236" y1="426" x2="1380" y2="426" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <rect x="236" y="426" width="24" height="24" fill="none" fill-opacity="0" stroke="#1A1A1A" stroke-opacity="0.45" stroke-width="2"/>
+  <text x="284" y="448" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.9">Preuve de l'exposition</text>
+  <text x="284" y="474" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.6">nature du poste, duree, nuisance subie</text>
+  <text x="1364" y="448" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#8C2F39" opacity="1">a reconstituer</text>
+  <line x1="236" y1="488" x2="1380" y2="488" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <rect x="236" y="488" width="24" height="24" fill="none" fill-opacity="0" stroke="#1A1A1A" stroke-opacity="0.45" stroke-width="2"/>
+  <text x="284" y="510" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.9">Attestation d'exposition de l'employeur</text>
+  <text x="284" y="536" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.6">obligation posterieure a la fermeture de 1983</text>
+  <text x="1364" y="510" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#8C2F39" opacity="1">non</text>
+  <line x1="236" y1="550" x2="1380" y2="550" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <rect x="236" y="550" width="24" height="24" fill="none" fill-opacity="0" stroke="#1A1A1A" stroke-opacity="0.45" stroke-width="2"/>
+  <text x="284" y="572" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.9">Registres de personnel</text>
+  <text x="284" y="598" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.6">disparus avec la liquidation — l'entreprise n'existe plus</text>
+  <text x="1364" y="572" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#8C2F39" opacity="1">non</text>
+  <line x1="236" y1="612" x2="1380" y2="612" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <rect x="236" y="612" width="24" height="24" fill="none" fill-opacity="0" stroke="#1A1A1A" stroke-opacity="0.45" stroke-width="2"/>
+  <text x="284" y="634" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.9">Releve sonore de l'atelier</text>
+  <text x="284" y="660" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.6">aucun : la reglementation est posterieure a la fermeture</text>
+  <text x="1364" y="634" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#8C2F39" opacity="1">non</text>
+  <line x1="236" y1="674" x2="1380" y2="674" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <rect x="236" y="674" width="24" height="24" fill="none" fill-opacity="0" stroke="#1A1A1A" stroke-opacity="0.45" stroke-width="2"/>
+  <text x="284" y="696" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#1A1A1A" opacity="0.9">Delai de prise en charge du tableau</text>
+  <text x="284" y="722" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.6">expire pour l'epaule et le poignet ; pour la surdite, il court a partir de la constatation</text>
+  <text x="1364" y="696" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#8C2F39" opacity="1">non</text>
+  <line x1="236" y1="736" x2="1380" y2="736" stroke="#1A1A1A" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="284" y="782" font-family="Helvetica, Arial, sans-serif" font-size="21" fill="#1A1A1A" opacity="0.7">Deux des cinq dossiers non aboutis ne sont pas prescrits : les audiogrammes ont moins de sept ans</text>
+  <text x="236" y="806" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#1A1A1A" opacity="0.5">La sixieme a abouti par un numero de sinistre de 1979, qui prouvait le poste</text>
 </svg>

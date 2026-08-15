@@ -10,8 +10,20 @@
  * CE QU IL PROUVE, ET CE QU IL NE PROUVE PAS. Il exerce la chaine entiere — client →
  * mapping → corpus → loader → page → `dist/` → garde T-09 — sur des donnees de forme
  * Strapi. Il ne prouve RIEN sur l instance reelle : ni les permissions, ni le populate
- * accepte par la version en place, ni le contenu du seed. Le jour ou la base sera
- * garnie, la preuve se refait sur elle, et celle-ci ne la remplace pas.
+ * accepte par la version en place, ni le contenu du seed. ~~Le jour ou la base sera
+ * garnie, la preuve se refait sur elle, et celle-ci ne la remplace pas.~~
+ *
+ * CE JOUR EST VENU, ET LA PHRASE CI-DESSUS EST PERIMEE (marquee le 2026-08-15, tache
+ * `f564a83e`). L instance rend 40 articles fr et 8 en. La preuve SUR INSTANCE existe : elle
+ * se lance par `npm run preuve:rendu -- --reel` (equivalent `PREUVE_CIBLE=instance`), et
+ * c est desormais un GESTE DE RECETTE joue a chaque campagne P3 — regle R-10 du
+ * `docs/protocole-mesure.md` (decision `b68ddeb5`, branche A).
+ *
+ * CE QUI N A PAS CHANGE, en revanche : ce serveur reste le DEFAUT, celui que la CI lance a
+ * chaque push, parce qu elle n a aucune instance a interroger et qu un rouge du a une
+ * coupure reseau ferait apprendre a ignorer la garde. Et il ne remplace toujours pas la
+ * preuve sur instance — les deux cibles ne jugent pas la meme chose, ce que R-03 du meme
+ * protocole dit autrement : le banc ne vaut qu en DELTA, jamais en absolu.
  *
  * Il ne sert JAMAIS en production : aucun code de `src/` ne l importe.
  */

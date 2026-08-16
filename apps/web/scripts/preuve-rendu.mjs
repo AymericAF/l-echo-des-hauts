@@ -259,12 +259,19 @@ if (controle13.issue !== ISSUES.CONFORME) {
       '  lui pose, et chaque page a bien ete lue. Ce qui manque est un ARTICLE qui porte tous\n' +
       '  ces types a lui seul. Avenant A11, decision `b5ef48c3`.\n',
   );
-  process.exit(controle13.issue);
+  // LE VERDICT N EST PAS PERDU : il est rendu au bloc final, apres `blocs.site` et
+  // `blocs.banc`. Voir le commentaire qui precede ces trois lignes.
+} else {
+  // DANS UN `else`, ET CE N EST PAS DU STYLE : le `process.exit` retire ci-dessus tenait
+  // AUSSI lieu de garde pour ce message. Sans lui, la premiere mesure du 2026-08-16 a
+  // imprime « CONTROLE 13 … AUCUNE page » puis, sept lignes plus bas, « Controle 13 : TENU
+  // — 0 page(s) ». Une sortie qui se contredit dans le meme souffle est pire qu une sortie
+  // muette : on croit avoir mal lu.
+  console.log(
+    `\n▸ Controle 13 du §11 : TENU — ${controle13.pagesCompletes} page(s) rendent a elles seules ` +
+      'tous les types de blocs ayant un porteur.',
+  );
 }
-console.log(
-  `\n▸ Controle 13 du §11 : TENU — ${controle13.pagesCompletes} page(s) rendent a elles seules ` +
-    'tous les types de blocs ayant un porteur.',
-);
 
 /**
  * Les liens de reseaux, lus DANS LA SORTIE et pas dans le composant.
@@ -669,8 +676,30 @@ if (blocs.site.length > 0) {
  * lieu de l ENVIRONNEMENT — ce qui serait alors le bon aiguillage, puisqu un defaut de rendu
  * aurait ete etabli.
  */
+/*
+ * LE CONTROLE 13 N INTERROMPT PLUS, ET C EST LE COEUR DE CE LOT (tache `d29240e1`).
+ *
+ * Il jugeait le CORPUS — « aucun article ne porte tous les types a lui seul » — et sortait la.
+ * Or ce qui suit juge le RENDU : `blocs.site` dit que le site a cesse de rendre un type qu on
+ * lui pose. DEUX OBJETS DIFFERENTS, et le premier masquait le second.
+ *
+ * CE QUE CA COUTAIT, mesure le 2026-08-14 en TENTANT de fabriquer l ecart : rendre la signature
+ * d un type introuvable faisait tirer le controle 13 EN PREMIER, avec « aucune page ne rend a
+ * elle seule tous les types ». Un vrai defaut de rendu produit EXACTEMENT ce message — on serait
+ * alle chercher un article manquant au plan editorial la ou le site avait cesse de rendre.
+ *
+ * LES AUTRES SORTIES PRECOCES RESTENT, et ce n est pas un oubli. Cible refusee, instance
+ * injoignable, build echoue portent sur le MEME objet que tout l aval : sans cible, sans acces
+ * ou sans `dist/`, ce qui suit ne juge rien. Les accumuler ne produirait que des incapacites en
+ * cascade — du bruit qui fait desactiver le dispositif.
+ *
+ * L ORDRE DES CODES est inchange : `1` (anomalie de rendu) prime sur `2` (incapacite). Le
+ * verdict du controle 13 vient APRES les deux : il ne peut plus les masquer, et il n est plus
+ * perdu.
+ */
 if (blocs.site.length > 0) process.exit(ISSUES.ANOMALIE);
 if (blocs.banc.length > 0) process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
+if (controle13.issue !== ISSUES.CONFORME) process.exit(controle13.issue);
 
 console.log(
   `\n✔ [${source.libelle}] Dans chacune des ${LOCALES.length} locales (${LOCALES.join(', ')}), ` +

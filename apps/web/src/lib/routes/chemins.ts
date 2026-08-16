@@ -36,7 +36,13 @@ export const FAMILLES_PAGINEES: readonly Famille[] = ['categorie', 'tag'];
  * distingue — elle est la seule autorisee a charger du JavaScript (§5.4) — ne se lit ni
  * ici ni dans le registre : cela se joue dans son gabarit et dans la garde T-09.
  */
-export const PAGES_STATIQUES = ['a-propos', 'mentions-legales', 'recherche', '404'] as const;
+export const PAGES_STATIQUES = [
+  'a-propos',
+  'mentions-legales',
+  'coulisses',
+  'recherche',
+  '404',
+] as const;
 export type PageStatique = (typeof PAGES_STATIQUES)[number];
 
 export function prefixeLocale(locale: Locale): string {

@@ -124,3 +124,63 @@ test('le remplacement compte comme une MISE A JOUR, pas comme un inchange', asyn
     'le rapport doit compter le remplacement parmi les mises a jour'
   );
 });
+
+/* ------------------------------------------------------------------ */
+/* CE QUE LA MEDIATHEQUE RETRAITE N EST PAS COMPARABLE                  */
+/*                                                                      */
+/* Mesure sur l instance le 2026-08-16, APRES le premier passage du     */
+/* correctif : deux fichiers revenaient a CHAQUE seed. Les deux PNG du  */
+/* corpus, et eux seuls. Strapi recompresse les images matricielles et  */
+/* leur genere quatre formats derives — `partage-defaut.png` pese 21 660*/
+/* octets dans le depot et 6 835 servis ; `A01-col-des-trois-vents.png`,*/
+/* 40 701 contre 13 751. Les octets servis ne sont donc JAMAIS ceux du  */
+/* depot, et une comparaison octet a octet ne peut pas converger : le   */
+/* seed cessait d etre idempotent, et chaque passage regenerait quatre  */
+/* derives pour rien.                                                   */
+/*                                                                      */
+/* LE SIGNAL EST DONNE PAR L API ELLE-MEME : `formats` n est renseigne  */
+/* que sur les images que Strapi a retraitees. On ne devine pas par     */
+/* l extension — c est la mediatheque qui dit ce qu elle a touche.      */
+/* ------------------------------------------------------------------ */
+
+test('un media RETRAITE par la mediatheque n est pas remplace en boucle', async () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const faux = new FauxStrapi();
+  await executerSeed(faux, corpus);
+
+  /* L etat exact mesure sur l instance : le fichier servi ne pese pas ce que
+     pese celui du depot, parce que Strapi l a recompresse, et il porte les
+     quatre formats derives qui le prouvent. */
+  const matriciel = corpus.medias.find((m) => m.nom.endsWith('.png'))!;
+  const enBase = faux.medias.get(matriciel.nom)!;
+  enBase.octets = Buffer.from('octets RECOMPRESSES par la mediatheque, plus legers');
+  enBase.formats = { thumbnail: {}, small: {}, medium: {}, large: {} };
+
+  const avant = remplacements(faux);
+  await executerSeed(faux, corpus);
+
+  assert.equal(
+    remplacements(faux),
+    avant,
+    'un fichier que la mediatheque retraite ne doit PAS etre remplace : ses octets ne sont pas comparables, ' +
+      'et le remplacer a chaque passage rend le seed non idempotent'
+  );
+});
+
+test('le trou est NOMME, pas tu : le journal dit qu un media retraite echappe a la comparaison', async () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const faux = new FauxStrapi();
+  await executerSeed(faux, corpus);
+
+  const matriciel = corpus.medias.find((m) => m.nom.endsWith('.png'))!;
+  faux.medias.get(matriciel.nom)!.formats = { thumbnail: {} };
+
+  const lignes: string[] = [];
+  await executerSeed(faux, corpus, (l) => lignes.push(l));
+
+  assert.ok(
+    lignes.some((l) => l.includes(matriciel.cle) && /retrait/i.test(l)),
+    'le seed doit DIRE qu il ne peut pas juger ce fichier — sinon le trou se referme en silence, ' +
+      'et un redessin de PNG dormira comme les quinze fac-similes'
+  );
+});

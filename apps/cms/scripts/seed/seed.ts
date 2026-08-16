@@ -329,9 +329,27 @@ export async function executerSeed(
       // quinze fac-similes redessines dormaient dans `main` pendant que le seed
       // les declarait « inchanges » et que le site servait l'ancien dessin —
       // aucun signal rouge nulle part (tache `9faa4193`).
-      const servis = await client.octetsMedia(enBase);
+      // CE QUE LA MEDIATHEQUE RETRAITE N EST PAS COMPARABLE, et c est elle qui
+      // le dit : `formats` n est renseigne que sur les images que Strapi a
+      // recompressees et declinees. Mesure le 2026-08-16 sur l instance —
+      // `partage-defaut.png` pese 21 660 octets dans le depot et 6 835 servis.
+      // Comparer les octets de ceux-la ne peut pas converger : le seed les
+      // remplacerait a CHAQUE passage, regenerant quatre derives pour rien.
+      // On ne devine pas par l extension : le signal vient de l API.
+      const retraite = Object.keys(enBase.formats ?? {}).length > 0;
+      const servis = retraite ? null : await client.octetsMedia(enBase);
       const locaux = fs.readFileSync(media.chemin);
-      const memesOctets = servis !== null && servis.equals(locaux);
+      const memesOctets = retraite || (servis !== null && servis.equals(locaux));
+
+      if (retraite) {
+        // ECRIT PLUTOT QUE TU : sans cette ligne, le trou se refermerait en
+        // silence et un PNG redessine dormirait exactement comme les quinze
+        // fac-similes du 2026-08-16.
+        journal(
+          `media RETRAITE par la mediatheque, octets non comparables : ${media.cle} — ` +
+            'un redessin de ce fichier ne sera PAS detecte par le seed'
+        );
+      }
 
       if (!memesOctets) {
         await client.remplacerFichierMedia(enBase.id, {

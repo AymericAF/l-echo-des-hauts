@@ -28,20 +28,16 @@ import { formesHorsCadre } from '../scripts/seed/visuels.ts';
 const MEDIAS = path.join(import.meta.dirname, '..', 'data', 'medias');
 
 /**
- * LE SEUL VISUEL EXEMPTE, ET IL EST NOMME.
+ * PLUS AUCUNE EXEMPTION — et c est la garde qui a impose son retrait.
  *
- * `A22-emplacements.svg` sort du cadre par le BAS : sa seconde serie (« Bas de la rue
- * Basse — 15 etals ») est dessinee en colonne verticale contre le bord droit et descend
- * jusqu a y=1018 pour un cadre de 900. Ce n est pas une etiquette a repositionner, c est
- * la composition du graphique a refaire — travail suivi par la tache `8334c17d`, avec le
- * rendu a l appui.
- *
- * L exemption est NOMMEE plutot que le test restreint : un test qui ne parcourrait qu une
- * partie du corpus redeviendrait l angle mort qu il vient de fermer. Ici le trou est
- * visible, date, et rattache a la tache qui le comblera — et qui doit retirer ces lignes
- * en meme temps que le defaut.
+ * `A22-emplacements.svg` en a porte une du 2026-08-16 au meme jour : sa colonne de 19
+ * emplacements descendait jusqu a y=1018 pour un cadre de 900. Elle etait accompagnee
+ * d un test qui exigeait que le defaut exempte EXISTE encore ; quand la colonne a ete
+ * recomposee (tache `8334c17d`), ce test a rougi et a force le nettoyage — ce pour quoi
+ * il avait ete ecrit. L ensemble vide est garde volontairement plutot que supprime : la
+ * prochaine exemption devra passer par ce meme couple, jamais par un test restreint.
  */
-const EXEMPTES = new Set(['blocs/A22-emplacements.svg']);
+const EXEMPTES = new Set<string>();
 
 function tousLesVisuels(racine: string): string[] {
   const trouves: string[] = [];
@@ -70,22 +66,29 @@ test('aucune forme ne sort de son cadre, sur les 123 visuels du corpus', () => {
 });
 
 /**
- * L EXEMPTION N EST PAS UN CHEQUE EN BLANC : le defaut qu elle couvre doit EXISTER.
- * Le jour ou `A22-emplacements.svg` sera recompose, ce test rougira et forcera le retrait
- * des lignes devenues inutiles — sans quoi l exemption survivrait a sa cause et
- * masquerait le prochain defaut du meme fichier.
+ * UNE EXEMPTION N EST JAMAIS UN CHEQUE EN BLANC : le defaut qu elle couvre doit EXISTER.
+ * Sans cette garde, une exemption survit a sa cause et masque le prochain defaut du meme
+ * fichier. Elle ne juge rien tant que `EXEMPTES` est vide — ce qui est le cas depuis que
+ * A22-emplacements a ete recompose, et c est precisement elle qui l a fait retirer.
  */
-test('l exemption de A22-emplacements couvre un defaut REEL, et pas plus', () => {
-  const exempte = path.join(MEDIAS, 'blocs', 'A22-emplacements.svg');
-  const sortantes = formesHorsCadre(exempte);
-  assert.ok(
-    sortantes.length > 0,
-    'A22-emplacements ne deborde plus : retirer son exemption et cette garde (tache 8334c17d)',
-  );
-  assert.deepEqual(
-    sortantes.map((f) => f.bas).sort((a, b) => a - b),
-    [938, 978, 1018],
-  );
+function exemptionsPerimees(exemptes: Iterable<string>): string[] {
+  const perimees: string[] = [];
+  for (const relatif of exemptes) {
+    if (formesHorsCadre(path.join(MEDIAS, relatif)).length === 0) perimees.push(relatif);
+  }
+  return perimees;
+}
+
+test('aucune exemption ne survit au defaut qu elle couvre', () => {
+  assert.deepEqual(exemptionsPerimees(EXEMPTES), [], 'ces fichiers ne debordent plus : retirer leur exemption');
+});
+
+/**
+ * PREUVE EN CASSANT — sans elle, la garde ci-dessus serait verte pour la seule raison que
+ * `EXEMPTES` est vide, et le resterait le jour ou une exemption periee y dormirait.
+ */
+test('PREUVE EN CASSANT — une exemption posee sur un fichier SAIN est vue comme perimee', () => {
+  assert.deepEqual(exemptionsPerimees(['couvertures/A04.svg']), ['couvertures/A04.svg']);
 });
 
 /**

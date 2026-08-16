@@ -1,3 +1,8 @@
+# sortie de mesure : la provenance de preuve:encre-og est RELEVEE a chaque passage,
+# elle depend de la machine qui rasterise. La versionner ferait croire a un etat du
+# depot ; ce qui l atteste est le fichier depose A COTE de la mesure, ce jour-la.
+mesures/
+
 # build output
 dist/
 # generated types

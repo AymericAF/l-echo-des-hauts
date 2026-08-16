@@ -90,6 +90,85 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 
 import { dispositionOg, svgOg, TAILLES_TITRE } from '../src/lib/seo/gabarit-og.ts';
+
+/* ------------------------------------------------------------------------------------
+ * LA PROVENANCE : ce que cette preuve ATTESTE d elle-meme
+ *
+ * R-07 distingue un champ ATTESTE — depose par l instrument qui a produit la mesure —
+ * d un champ SUPPOSE, recopie d un depot par celui qui remplit le carnet. Le champ
+ * `sharp` du gabarit etait du second genre, et il ne pouvait pas etre du premier : un
+ * PNG ne porte pas la version qui l a rendu.
+ *
+ * CE SCRIPT EST LE SEUL ENDROIT DU DEPOT OU LA QUESTION AIT UNE REPONSE SURE : il tient
+ * Sharp en main a l instant ou il rasterise. Il depose donc lui-meme ce qu il constate.
+ *
+ * ON DEPOSE `sharp.versions` ENTIER, sans reformater ni filtrer. La cle qui compte n est
+ * pas `sharp` mais `vips` — c est libvips qui rasterise, le wrapper JS ne fait que
+ * l appeler ; deux wrappers identiques sur deux libvips differents ne rendent pas
+ * forcement la meme image. Choisir les cles a garder reviendrait a choisir ce qu on
+ * atteste, donc a supposer le reste.
+ * ---------------------------------------------------------------------------------- */
+
+/** Ou le fichier atterrit, relativement a `apps/web`. */
+export const PROVENANCE = './mesures/preuve-encre-og.provenance.json';
+
+/** Ce que cette preuve constate d elle-meme, a l instant ou elle mesure. */
+export function provenanceEncreOg() {
+  return {
+    _lisez_moi:
+      'Versions RELEVEES PAR L INSTRUMENT au moment ou il rasterise, pas recopiees d un ' +
+      'depot. C est ce qui rend le champ `sharp` du carnet R-07 ATTESTE plutot que ' +
+      'SUPPOSE : un PNG ne porte pas la version qui l a rendu, et c est `vips` — non le ' +
+      'wrapper — qui fait le rendu.',
+    instrument: 'apps/web/scripts/preuve-encre-og.mjs',
+    node: process.version,
+    sharp: { versions: sharp.versions },
+  };
+}
+
+/**
+ * Ce qu une provenance DOIT porter. Rend la liste des manquements, vide si conforme.
+ *
+ * Le champ est OBLIGATOIRE et non optionnel : un champ facultatif disparait en silence au
+ * premier remaniement, et l attestation redevient une supposition sans que rien ne
+ * rougisse. C est exactement le defaut que R-07 existe pour empecher.
+ */
+export function verifierProvenance(provenance) {
+  const manquements = [];
+  const versions = provenance?.sharp?.versions;
+  if (!versions) {
+    manquements.push('`sharp.versions` absent : la version qui a rasterise n est pas attestee');
+    return manquements;
+  }
+  if (typeof versions.vips !== 'string') {
+    manquements.push(
+      '`sharp.versions.vips` absent : c est libvips qui RASTERISE — attester le wrapper ' +
+        'sans le moteur laisse passer ce que R-07 veut fermer',
+    );
+  }
+  if (typeof versions.sharp !== 'string') {
+    manquements.push('`sharp.versions.sharp` absent : la version que le depot declare');
+  }
+  if (!provenance.instrument) {
+    manquements.push('`instrument` absent : une version sans le nom de ce qui l a constatee');
+  }
+  return manquements;
+}
+
+/** Ecrit la provenance a cote des artefacts, et REFUSE d ecrire ce qui ne s atteste pas. */
+export function ecrireProvenanceEncreOg(racine) {
+  const provenance = provenanceEncreOg();
+  const manquements = verifierProvenance(provenance);
+  if (manquements.length > 0) {
+    throw new Error(
+      'provenance incomplete, rien n est ecrit :\n  - ' + manquements.join('\n  - '),
+    );
+  }
+  const cible = path.resolve(racine, PROVENANCE);
+  fs.mkdirSync(path.dirname(cible), { recursive: true });
+  fs.writeFileSync(cible, `${JSON.stringify(provenance, null, 2)}\n`, 'utf8');
+  return cible;
+}
 import {
   HAUTEUR_MINIMALE_GLYPHES,
   SONDE_RATIO_MINIMAL,
@@ -363,6 +442,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.stdout.write(JSON.stringify(await mesurerLeCorpus()));
   } else {
     const tiragesVide = nombreDeTirages(TIRAGES_SANS_FONTE, process.argv);
+
+    /* AVANT DE MESURER, PAS APRES : si la mesure echoue, on veut quand meme savoir avec
+       quoi elle a ete tentee. Et le depot echoue FORT si la provenance est incomplete —
+       une preuve qui ne sait pas dire ce qui l a produite n a rien a mesurer. */
+    const depose = ecrireProvenanceEncreOg(RACINE);
+    console.log(
+      `provenance deposee : ${path.relative(RACINE, depose).split(path.sep).join('/')} — ` +
+        `sharp ${sharp.versions.sharp}, vips ${sharp.versions.vips}`,
+    );
 
     const avec = [];
     for (let tour = 0; tour < TIRAGES_AVEC_FONTES; tour += 1) avec.push(await mesurerLeCorpus());

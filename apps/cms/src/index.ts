@@ -1,4 +1,5 @@
 import { poserLocales } from './locales';
+import { poserReglagesMedias } from './reglages-medias';
 
 export default {
   /**
@@ -29,5 +30,6 @@ export default {
    */
   async bootstrap({ strapi }: { strapi: any }) {
     await poserLocales(strapi);
+    await poserReglagesMedias(strapi);
   },
 };

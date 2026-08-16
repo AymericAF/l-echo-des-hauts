@@ -44,13 +44,61 @@ export { ISSUES };
  * IL N EST PAS DECORATIF. Depuis T-01, le build TELECHARGE les medias qu il reference et
  * les depose dans la sortie (`integrations/medias-locaux.mjs`) : un Strapi de
  * substitution qui ne servirait pas `/uploads/` ferait echouer tout build sur fixtures,
- * et surtout laisserait le telechargement hors de portee des preuves hors ligne. Les
- * octets importent peu, l aboutissement de la requete est ce qui est exerce.
+ * et surtout laisserait le telechargement hors de portee des preuves hors ligne.
+ *
+ * ~~Les octets importent peu, l aboutissement de la requete est ce qui est exerce.~~
+ * **FAUX, et mesure le 2026-08-14 (taches `c094568d` puis `a974c024`)** : ce SVG partait
+ * pour TOUT nom demande, donc en `Content-Type: image/jpeg` sur un `.jpg` — et Chromium
+ * refusait de le decoder, `naturalWidth === 0`. Sur le banc, **86 des 134 images
+ * declarees n etaient jamais peintes** (64 %), contre **0 sur 1328** en production. La
+ * seule qui se peignait etait le logo, seul media dont l extension disait la verite.
  */
 export const MEDIA = Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="9" viewBox="0 0 16 9">' +
     '<rect width="16" height="9" fill="#d9d4c8"/></svg>',
 );
+
+/**
+ * UN MEDIA PAR FORMAT, choisi sur l EXTENSION DEMANDEE.
+ *
+ * Ce ne sont pas des octets decoratifs : ils portent la SIGNATURE de leur format, et
+ * c est la seule chose qui compte. Annoncer `image/jpeg` sur un SVG etait deja le cas
+ * avant ce lot — l en-tete etait juste, les octets non, et le decodeur ne regarde que
+ * les octets.
+ *
+ * CE QUE CHACUN EST, verifiable a l oeil : un JPEG 1x1 et un PNG 1x1, les plus petits
+ * que leur format autorise. Le banc n a besoin d aucune image REELLE — il a besoin
+ * d images que le navigateur PEINT, pour que `img_non_peintes` puisse valoir zero sans
+ * mentir. Un banc dont 64 % des images ne sont jamais peintes ne peut pas servir de
+ * terrain a une regle qui dependrait du rendu.
+ *
+ * L extension inconnue retombe sur le SVG : mieux vaut un media que le navigateur ignore
+ * qu une requete non servie, qui ferait echouer TOUT build sur fixtures.
+ */
+const MEDIAS_PAR_EXTENSION = {
+  '.svg': { type: 'image/svg+xml', octets: MEDIA },
+  '.jpg': { type: 'image/jpeg', octets: JPEG_1x1() },
+  '.jpeg': { type: 'image/jpeg', octets: JPEG_1x1() },
+  '.png': { type: 'image/png', octets: PNG_1x1() },
+};
+
+/** Le plus petit JPEG valide : signature `FF D8 FF`, une image 1x1 grise. */
+function JPEG_1x1() {
+  return Buffer.from(
+    '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+      'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+      'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
+    'base64',
+  );
+}
+
+/** Le plus petit PNG valide : signature `89 50 4E 47`, une image 1x1 transparente. */
+function PNG_1x1() {
+  return Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  );
+}
 
 /**
  * Le meme `/uploads/` pour TOUT Strapi de substitution de ce depot.
@@ -67,8 +115,10 @@ export const MEDIA = Buffer.from(
 export function servirMedia(requete, reponse) {
   const chemin = new URL(requete.url ?? '/', 'http://localhost').pathname;
   if (!chemin.startsWith('/uploads/')) return false;
-  reponse.writeHead(200, { 'content-type': 'image/svg+xml' });
-  reponse.end(MEDIA);
+  const extension = chemin.slice(chemin.lastIndexOf('.')).toLowerCase();
+  const { type, octets } = MEDIAS_PAR_EXTENSION[extension] ?? MEDIAS_PAR_EXTENSION['.svg'];
+  reponse.writeHead(200, { 'content-type': type });
+  reponse.end(octets);
   return true;
 }
 

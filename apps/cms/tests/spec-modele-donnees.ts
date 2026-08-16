@@ -396,6 +396,9 @@ export const COMPONENTS: Record<string, ComponentSpec> = {
       metaTitre: { type: 'string', maxLength: 60 },
       metaDescription: { type: 'text', maxLength: 160 },
       imagePartage: { type: 'media', multiple: false },
+      // A-04 amende : le champ LOCALISE pose a cote du media. Le composant `seo` etant
+      // lui-meme localise sur chaque entite qui le porte, ce champ l est de fait.
+      alternativePartage: { type: 'string' },
       noindex: { type: 'boolean', default: false }, // A-29
       canonique: { type: 'string' }, // A-27
     },
@@ -432,5 +435,7 @@ export const INVENTAIRE = {
   componentImbrique: 1,
   componentsPartages: 2,
   schemas: 17,
-  champs: 82,
+  /* 83 depuis le 2026-08-16 : `partage.seo.alternativePartage` (A-04 amende). Le §1 de
+     docs/modele-donnees.md porte le meme compte, et le marqueur qui l accompagne. */
+  champs: 83,
 };

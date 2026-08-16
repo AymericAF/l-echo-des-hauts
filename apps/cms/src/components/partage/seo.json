@@ -3,7 +3,7 @@
   "info": {
     "displayName": "Seo",
     "icon": "search",
-    "description": "Surcharge SEO. Tout est optionnel et reste VIDE par defaut : les valeurs par defaut sont calculees au build, jamais ecrites en base (A-07)."
+    "description": "Surcharge SEO. Tout est optionnel et reste VIDE par defaut : les valeurs par defaut sont calculees au build, jamais ecrites en base (A-07). `alternativePartage` est le champ localise pose a cote d `imagePartage` : l `alternativeText` d un media est UNE valeur par fichier, sans locale (A-04 amende)."
   },
   "options": {},
   "attributes": {
@@ -18,6 +18,9 @@
     "imagePartage": {
       "type": "media",
       "multiple": false
+    },
+    "alternativePartage": {
+      "type": "string"
     },
     "noindex": {
       "type": "boolean",

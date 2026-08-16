@@ -74,6 +74,11 @@ export type SeoCorpus = {
   metaTitre?: string;
   metaDescription?: string;
   imagePartage?: string;
+  /**
+   * La surcharge LOCALISEE de l alternative de la carte (A-04 amende). Elle ne se pose
+   * jamais sans `imagePartage` : sans carte, elle ne surchargerait rien.
+   */
+  alternativePartage?: string;
   noindex?: boolean;
   canonique?: string;
 };
@@ -547,7 +552,14 @@ function renvoisMediaDe(contenu: Record<string, any>[]): { cle: string; placemen
  * charge, transmis, et jete par Strapi sans un mot. La surcharge ne sortirait pas,
  * et rien dans la chaine ne le dirait.
  */
-const CLES_SEO = ['metaTitre', 'metaDescription', 'imagePartage', 'noindex', 'canonique'] as const;
+const CLES_SEO = [
+  'metaTitre',
+  'metaDescription',
+  'imagePartage',
+  'alternativePartage',
+  'noindex',
+  'canonique',
+] as const;
 
 /** A-26 : la contrainte `maxLength` du champ Strapi, tenue des la LECTURE. */
 const LONGUEUR_META_TITRE = 60;
@@ -628,10 +640,38 @@ function lireSeo(
     exigerFormatDePartage(imagePartage, `${contexte} : seo.imagePartage`);
   }
 
+  /* LA SURCHARGE LOCALISEE DE L ALTERNATIVE DE LA CARTE (A-04 amende, 2026-08-16).
+     Deux refus a l entree, pour la meme raison que partout ailleurs : une surcharge
+     BLANCHE ecraserait l alternative de la mediatheque par du silence, et une surcharge
+     SANS carte ne surchargerait rien — le site retomberait sur l image generee au build
+     ou sur celle par defaut, avec l alternative de celles-ci, pendant que son auteur
+     croirait avoir traduit. Dans les deux cas, refuser ici est le seul endroit ou
+     quelqu un le voit : plus loin, tout se passe sans erreur. */
+  const alternativePartage = seo.alternativePartage;
+  if (alternativePartage !== undefined) {
+    if (typeof alternativePartage !== 'string' || estBlanc(alternativePartage)) {
+      throw new ErreurCorpus(
+        `${contexte} : seo.alternativePartage doit etre un texte non blanc — recu ` +
+          `${JSON.stringify(alternativePartage)}.\n` +
+          `  Une surcharge blanche n est pas « pas de surcharge » : elle ECRASE l alternative\n` +
+          `  de la mediatheque par du silence. Pour ne pas surcharger, OMETTRE le champ.`
+      );
+    }
+    if (imagePartage === undefined) {
+      throw new ErreurCorpus(
+        `${contexte} : seo.alternativePartage est pose SANS seo.imagePartage.\n` +
+          `  Il n y a alors aucune carte a surcharger : la page servira l image generee au\n` +
+          `  build ou celle par defaut, avec l alternative de CELLES-CI, et cette surcharge\n` +
+          `  ne partira nulle part.`
+      );
+    }
+  }
+
   return {
     metaTitre: texteBorne('metaTitre', LONGUEUR_META_TITRE),
     metaDescription: texteBorne('metaDescription', LONGUEUR_META_DESCRIPTION),
     imagePartage: imagePartage as string | undefined,
+    alternativePartage: alternativePartage as string | undefined,
     noindex: noindex as boolean | undefined,
     canonique: canonique as string | undefined,
   };

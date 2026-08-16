@@ -139,3 +139,66 @@ export function largeurEstimee(chemin: string): MesureTexte[] {
   }
   return mesures;
 }
+
+export interface FormeHorsCadre {
+  /** L element fautif, tel qu il est ecrit dans le fichier. */
+  balise: string;
+  /** Ou il finit reellement, en unites du viewBox. */
+  droite: number;
+  bas: number;
+}
+
+/**
+ * LES FORMES QUI SORTENT DU CADRE — ce que `largeurEstimee` ne peut pas voir.
+ *
+ * `largeurEstimee` ne regarde que les `<text>`. Un `<rect>` pose hors du viewBox lui est
+ * donc INVISIBLE, et c est exactement par la qu un defaut est passe (2026-08-16, tache
+ * `7352bbe7`) : la dixieme vitrine de `A20.svg` etait posee a `x="1596"` sur une largeur
+ * de 156, donc coupee net a 1600, sur un graphique dont le titre annonce « dix locaux ».
+ * Seul son libelle, entierement hors champ, etait signale — et il ne l etait que parce
+ * qu il portait du texte. Une barre muette serait passee sans un mot.
+ *
+ * A la difference de la mesure de texte, celle-ci n est PAS une estimation : les
+ * coordonnees sont ecrites dans le fichier, on les additionne. Elle n a donc pas besoin
+ * de marge de securite — seulement d une tolerance d un demi-pixel pour les arrondis.
+ *
+ * Ce qu elle ne couvre pas, ecrit plutot que taire : les formes placees dans un `<g
+ * transform>`, les `<path>` (dont la boite demanderait d interpreter le `d`), et le
+ * debordement par l epaisseur du trait. Le corpus n emploie aucun des trois ; le jour ou
+ * il en emploiera, cette garde se taira sur eux plutot que de mentir.
+ */
+export function formesHorsCadre(chemin: string): FormeHorsCadre[] {
+  const svg = fs.readFileSync(chemin, 'utf8');
+  const cadre = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg);
+  if (!cadre) return [];
+  const [largeurCadre, hauteurCadre] = [Number(cadre[1]), Number(cadre[2])];
+  const TOLERANCE = 0.5;
+
+  const sortantes: FormeHorsCadre[] = [];
+  for (const trouve of svg.matchAll(/<(rect|line|circle)\s([^>]*?)\/?>/g)) {
+    const attributs = trouve[2];
+    const lire = (cle: string): number | null => {
+      const valeur = new RegExp(`\\b${cle}="([\\d.-]+)"`).exec(attributs);
+      return valeur ? Number(valeur[1]) : null;
+    };
+
+    let droite: number;
+    let bas: number;
+    if (trouve[1] === 'rect') {
+      droite = (lire('x') ?? 0) + (lire('width') ?? 0);
+      bas = (lire('y') ?? 0) + (lire('height') ?? 0);
+    } else if (trouve[1] === 'line') {
+      droite = Math.max(lire('x1') ?? 0, lire('x2') ?? 0);
+      bas = Math.max(lire('y1') ?? 0, lire('y2') ?? 0);
+    } else {
+      const rayon = lire('r') ?? 0;
+      droite = (lire('cx') ?? 0) + rayon;
+      bas = (lire('cy') ?? 0) + rayon;
+    }
+
+    if (droite > largeurCadre + TOLERANCE || bas > hauteurCadre + TOLERANCE) {
+      sortantes.push({ balise: trouve[0], droite, bas });
+    }
+  }
+  return sortantes;
+}

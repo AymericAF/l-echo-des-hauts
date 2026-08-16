@@ -36,8 +36,8 @@
   <circle cx="1265" cy="470" r="10" fill="#1F5C4A"/>
   <text x="1279" y="338" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="#1A1A1A">Vaubernier 2027</text>
   <rect x="1305" y="330" width="14" height="280" fill="#1F5C4A" opacity="0.3"/>
-  <text x="1335" y="370" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#1A1A1A" opacity="0.55">Echarmes — sans date</text>
-  <text x="1335" y="416" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#1A1A1A" opacity="0.55">La Fauge — sans date</text>
-  <text x="1335" y="462" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#1A1A1A" opacity="0.55">Roche-Vieille — sans date</text>
+  <text x="1530" text-anchor="end" y="370" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Echarmes — sans date</text>
+  <text x="1530" text-anchor="end" y="416" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">La Fauge — sans date</text>
+  <text x="1530" text-anchor="end" y="462" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#1A1A1A" opacity="0.55">Roche-Vieille — sans date</text>
   <text x="120" y="838" font-family="Helvetica, Arial, sans-serif" font-size="30" fill="#1F5C4A">Onze communes raccordees, trois hors critere</text>
 </svg>

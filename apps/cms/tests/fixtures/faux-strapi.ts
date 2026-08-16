@@ -10,6 +10,8 @@
  * factorisation de l'amorcage a deja coute une fois dans l'autre depot. Une meme mecanique en deux
  * implementations diverge ; celle-ci n'en a plus qu'une.
  */
+import fs from 'node:fs';
+
 import type { ClientStrapi } from '../../scripts/seed/client.ts';
 import { COLLECTIONS, rendre, type Base } from './rendu-strapi.ts';
 
@@ -125,10 +127,30 @@ export class FauxStrapi implements ClientStrapi {
       name: f.nom,
       alternativeText: f.alternativeText,
       caption: f.caption,
+      // Les OCTETS sont portes ici, comme la mediatheque les porte : sans eux,
+      // ce faux client ne pourrait pas distinguer un fichier redessine d un
+      // fichier intact, et le test le plus utile serait inerte.
+      octets: fs.readFileSync(f.chemin),
+      url: `/uploads/${f.nom}`,
     };
     this.medias.set(f.nom, media);
     this.journal.push(`upload ${f.nom}`);
     return media;
+  }
+
+  async octetsMedia(media: { id: number; url?: string }) {
+    for (const m of this.medias.values()) if (m.id === media.id) return m.octets ?? null;
+    return null;
+  }
+
+  async remplacerFichierMedia(id: number, fichier: { nom: string; chemin: string }) {
+    for (const media of this.medias.values()) {
+      if (media.id !== id) continue;
+      media.octets = fs.readFileSync(fichier.chemin);
+      this.journal.push(`octets ${media.name}`);
+      return media;
+    }
+    throw new Error(`media inconnu : ${id}`);
   }
 
   async majInfosMedia(id: number, infos: { alternativeText: string; caption: string }) {

@@ -22,6 +22,8 @@
  *    compare a l'entree deja lue (`difference.ts`), et l'ecriture est SAUTEE
  *    quand rien ne differe. Toute incertitude fait reecrire, jamais sauter.
  */
+import fs from 'node:fs';
+
 import type { ClientStrapi, Parametres } from './client.ts';
 import type { Corpus, ArticleLocale, SeoCorpus } from './corpus.ts';
 import { indexerParSlug, decider } from './rapprochement.ts';
@@ -321,6 +323,28 @@ export async function executerSeed(
       // depuis le 2026-08-10, la ligne de credit rendue sous le portrait.
       // On ne reecrit que ce qui differe : une ecriture systematique ferait
       // 94 requetes a chaque passage et ferait mentir le comptage.
+      // LES OCTETS, ET PAS SEULEMENT LA FICHE. Comparer les metadonnees ne
+      // suffit pas : un fichier REDESSINE sous le meme nom garde les memes, et
+      // restait donc celui du premier televersement pour toujours. Le 2026-08-16,
+      // quinze fac-similes redessines dormaient dans `main` pendant que le seed
+      // les declarait « inchanges » et que le site servait l'ancien dessin —
+      // aucun signal rouge nulle part (tache `9faa4193`).
+      const servis = await client.octetsMedia(enBase);
+      const locaux = fs.readFileSync(media.chemin);
+      const memesOctets = servis !== null && servis.equals(locaux);
+
+      if (!memesOctets) {
+        await client.remplacerFichierMedia(enBase.id, {
+          nom: media.nom,
+          chemin: media.chemin,
+        });
+        compter(misAJour, 'media');
+        journal(
+          `media REDESSINE, octets remplaces : ${media.cle}` +
+            (servis === null ? ' (octets servis illisibles — remplace par prudence)' : '')
+        );
+      }
+
       if (
         enBase.alternativeText !== media.alternativeText ||
         enBase.caption !== media.caption
@@ -329,9 +353,9 @@ export async function executerSeed(
           alternativeText: media.alternativeText,
           caption: media.caption,
         });
-        compter(misAJour, 'media');
+        if (memesOctets) compter(misAJour, 'media');
         journal(`media remis a jour : ${media.cle} — « ${media.caption} »`);
-      } else {
+      } else if (memesOctets) {
         // Le rapprochement comptait 94 « mises a jour » de medias sans en
         // ecrire une seule : la meme fiction que celle des articles, un cran
         // plus tot. Un fichier retrouve et laisse tel quel est INCHANGE.

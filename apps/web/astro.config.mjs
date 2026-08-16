@@ -5,6 +5,7 @@ import gardeCascadeTitres from './integrations/garde-cascade-titres.mjs';
 import gardeImages from './integrations/garde-images.mjs';
 import gardeLangue from './integrations/garde-langue.mjs';
 import gardeLiens from './integrations/garde-liens.mjs';
+import origineDuBuild from './integrations/origine-du-build.mjs';
 import gardeOrigineMedias from './integrations/garde-origine-medias.mjs';
 import gardeRepartiteur from './integrations/garde-repartiteur.mjs';
 import gardeSeo from './integrations/garde-seo.mjs';
@@ -85,6 +86,13 @@ export default defineConfig({
     gardeStylesEnLigne(),
     gardeCascadeTitres(),
     gardeLangue(),
+    /**
+     * EN DERNIER, et ce n est pas un rangement : elle n inspecte rien, elle ARCHIVE.
+     * Placee ici, l artefact qu elle depose atteste d un build alle jusqu au bout —
+     * une sortie produite par un build que les gardes ci-dessus ont fait echouer n a
+     * pas a etre jugee, et n a donc pas a porter de reference.
+     */
+    origineDuBuild(),
   ],
   output: 'static',
   site: process.env.ECHO_SITE_URL ?? ORIGINE_PAR_DEFAUT,

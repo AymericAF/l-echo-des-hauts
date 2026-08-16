@@ -172,6 +172,36 @@ jobs:
         # et un amendement qui ne corrige qu'un message ne lance RIEN.
         run: node outils/gardes-au-commit.recette.mjs
 
+      - name: La recette du retrait de worktree REFUSE de se declarer conforme sur ubuntu
+        # Elle ne peut pas tourner ici : son objet est une jonction NTFS, qui n existe
+        # que sur Windows — et le job tourne sur ubuntu-latest. Ce pas n exerce donc pas
+        # le retrait ; il exerce la GARDE DE PLATEFORME de la recette.
+        #
+        # Pourquoi ce pas existe quand meme. Une recette dont l objet est absent de la
+        # plateforme est a un cheveu de passer au vert en ne testant RIEN — 0 cas joues,
+        # 0 echec, code 0 — soit exactement la forme d echec que ce depot traque : une
+        # incapacite qui rend la meme sortie qu un succes. La recette sort donc en code 2
+        # (« non jouee »), distinct de 0 (conforme) et de 1 (echec), et ce pas verifie
+        # qu elle le fait vraiment. Le jour ou quelqu un « simplifierait » cette sortie
+        # en code 0, la CI le dirait ici.
+        #
+        # La preuve reelle du retrait, elle, est LOCALE (machine Windows). Cette limite
+        # est assumee et ecrite : la CI ne la porte pas.
+        run: |
+          set +e
+          sortie="$(node outils/retirer-worktree.recette.mjs 2>&1)"
+          code=$?
+          echo "$sortie"
+          if [ "$code" != "2" ]; then
+            echo "ROUGE : attendu le code 2 (non jouee) sur $(uname -s), obtenu $code"
+            exit 1
+          fi
+          echo "$sortie" | grep -q 'NON JOUÉE' || {
+            echo "ROUGE : le code 2 est rendu, mais la sortie ne DIT pas qu elle n a rien prouve"
+            exit 1
+          }
+          echo "OK : hors Windows, la recette refuse de se declarer conforme, et le dit."
+
       - name: Aucun fichier de test n est absent du `npm test` de son application
         # Le `test` de package.json ENUMERE les fichiers. Un test ajoute dans
         # tests/ mais oublie dans cette liste ne tournerait NULLE PART — ni au

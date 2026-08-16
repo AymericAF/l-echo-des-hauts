@@ -196,7 +196,9 @@ jobs:
             echo "ROUGE : attendu le code 2 (non jouee) sur $(uname -s), obtenu $code"
             exit 1
           fi
-          echo "$sortie" | grep -q 'NON JOUÉE' || {
+          # `NON JOU` et pas `NON JOUÉE` : un accent qui traverse mal un encodage
+          # rendrait ce pas rouge pour une raison qui n a rien a voir avec la garde.
+          echo "$sortie" | grep -q 'NON JOU' || {
             echo "ROUGE : le code 2 est rendu, mais la sortie ne DIT pas qu elle n a rien prouve"
             exit 1
           }

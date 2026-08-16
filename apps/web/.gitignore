@@ -4,7 +4,13 @@ dist/
 .astro/
 
 # dependencies
-node_modules/
+# SANS barre oblique finale, et ce n est pas cosmetique : `node_modules/` ne couvre que les
+# REPERTOIRES. Depuis que les worktrees partagent ces dependances par un lien SYMBOLIQUE
+# (2026-08-16 — une jonction se faisait traverser par `git worktree remove`, qui effacait la
+# cible), git voit `node_modules` comme un FICHIER : avec la barre, il ressortait en `??`
+# dans chaque worktree, et la garde avant push refuse un arbre sale. Sans la barre, les deux
+# formes sont couvertes. `apps/cms/.gitignore` l ecrit deja ainsi.
+node_modules
 
 # logs
 npm-debug.log*

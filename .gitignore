@@ -38,7 +38,9 @@ bower_components
 build/Release
 
 # Dependency directories
-node_modules/
+# Sans barre oblique finale : un `node_modules` partage par lien SYMBOLIQUE est un FICHIER
+# pour git, que `node_modules/` ne couvre pas. Cf. le commentaire d apps/web/.gitignore.
+node_modules
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)

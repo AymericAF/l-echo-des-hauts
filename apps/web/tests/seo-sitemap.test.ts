@@ -174,10 +174,7 @@ test('un segment vide n est pas emis du tout', () => {
     // `/recherche` y figure comme `/a-propos` : elle est indexable, et la table de
     // volumetrie de `docs/protocole-mesure.md` la compte au sitemap (1 FR + 1 EN).
     // `/404` et `/mentions-legales` en sortent par A-29, pas par leur nature.
-    // `/coulisses` s y ajoute le 2026-08-16 (livrable 3 du CDC §10) : c est une page
-    // publique et indexable, au meme titre qu `/a-propos`. Elle porte donc la volumetrie
-    // du sitemap de 6 a 8 chemins sur un corpus vide — 1 FR + 1 EN de plus.
-    ['/', '/a-propos', '/coulisses', '/en', '/en/a-propos', '/en/coulisses', '/en/recherche', '/recherche'],
+    ['/', '/a-propos', '/en', '/en/a-propos', '/en/recherche', '/recherche'],
   );
 });
 

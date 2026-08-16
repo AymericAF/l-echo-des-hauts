@@ -30,7 +30,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { PREFIXE_MEDIAS, sourceDistanteMedia } from '../src/lib/media.ts';
+import { CARACTERES_MEDIA, PREFIXE_MEDIAS, sourceDistanteMedia } from '../src/lib/media.ts';
 
 /** Les extensions ou une reference de media peut apparaitre en clair. */
 const TEXTES = /\.(html|xml|txt|css|json|webmanifest)$/i;
@@ -64,14 +64,29 @@ const TEXTES = /\.(html|xml|txt|css|json|webmanifest)$/i;
  * distinguer l espace separateur d un `srcset` de l espace d un nom de fichier, ce que rien
  * ne permet.
  *
- * LA LIMITE, ECRITE PLUTOT QUE TUE : cette garantie reste une CONVENTION. Aucun test ne la
- * verrouille, parce que `@strapi/utils` vit dans `apps/cms/node_modules` et n est pas
- * resolvable d ici — un test qui pointerait ce chemin rougirait dans toute CI qui n installe
- * que `apps/web`. Si la slugification de Strapi change, rien ici ne rougira : c est
- * `cheminLocalMedia` (`src/lib/media.ts`), qui ne filtre AUCUN caractere, qui ecrira le
- * chemin, et cette classe qui le lira mal.
+ * ~~LA LIMITE, ECRITE PLUTOT QUE TUE : cette garantie reste une CONVENTION. Aucun test ne la
+ * verrouille … Si la slugification de Strapi change, rien ici ne rougira : c est
+ * `cheminLocalMedia`, qui ne filtre AUCUN caractere, qui ecrira le chemin, et cette classe qui
+ * le lira mal.~~ — **REECRIT LE 2026-08-16 (tache `57a94366`) : le cas SILENCIEUX est ferme.**
+ *
+ * CE QUI RESTE VRAI, ET NE CHANGERA PAS : on ne verrouille TOUJOURS PAS la slugification de
+ * Strapi elle-meme. `@strapi/utils` vit dans `apps/cms/node_modules` et n est pas resolvable
+ * d ici ; l installer cote `apps/web` mesurerait une SECONDE COPIE, independante de celle du
+ * producteur reel, et resterait verte le jour ou celui-ci changerait de version (voie ecartee
+ * par Aymeric le 2026-08-14). Si la slugification change, rien ici ne le PREDIRA.
+ *
+ * CE QUI N EST PLUS VRAI : que rien ne rougirait. La classe vit desormais dans UN SEUL
+ * litteral — `CARACTERES_MEDIA` de `../src/lib/media.ts` —, lu ici et ecrit la-bas, et
+ * `cheminLocalMedia` LEVE si un chemin en sort. Les deux formes du defaut sont donc couvertes :
+ * un caractere hors classe AU MILIEU tronquait la reference et faisait deja rougir le build par
+ * le 404 ; un caractere hors classe en PREMIERE POSITION ne matchait RIEN et passait en
+ * silence — c est ce second cas, le seul muet, qui est ferme cote producteur.
  */
-const REFERENCE = new RegExp(`${PREFIXE_MEDIAS}[A-Za-z0-9._~%\\-/]+`, 'g');
+// La regex de RELECTURE, construite sur la classe PARTAGEE. Elle est EXPORTEE pour que le test
+// de non-divergence puisse la confronter a ce que `cheminLocalMedia` ECRIT. Sans cet export, le
+// test comparerait la classe a elle-meme et resterait vert alors que les deux cotes ont diverge —
+// constate en cassant, le 2026-08-16 (tache 57a94366).
+export const REFERENCE = new RegExp(`${PREFIXE_MEDIAS}[${CARACTERES_MEDIA}]+`, 'g');
 
 function fichiersDe(dossier) {
   const trouves = [];

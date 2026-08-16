@@ -35,6 +35,37 @@ import type { Media } from './domaine.ts';
 /** Le prefixe sous lequel le SITE sert ses medias. */
 export const PREFIXE_MEDIAS = '/medias/';
 
+/**
+ * LA CLASSE DE CARACTÈRES DES CHEMINS DE MÉDIAS — un seul littéral, deux usages.
+ *
+ * Elle est **ÉCRITE** par `cheminLocalMedia` (ci-dessous, qui lève si un chemin en sort) et
+ * **LUE** par `scripts/medias-locaux.mjs`, qui construit sa regex de relecture à partir d'elle.
+ * Les deux côtés lisaient auparavant DEUX littéraux identiques, et rien ne garantissait qu'ils
+ * le restent : la coïncidence était une **convention** écrite dans un docblock.
+ *
+ * ⚠️ CE QUE LA DIVERGENCE COÛTERAIT, ET POURQUOI UNE SEULE DES DEUX FORMES EST SILENCIEUSE.
+ * Si un caractère hors classe apparaissait dans un nom de fichier :
+ *   · **au MILIEU** — la relecture tronque la référence, le téléchargement part sur un chemin
+ *     coupé, Strapi rend 404, et le build ROUGIT. Ce cas se voit tout seul.
+ *   · **en PREMIÈRE position** après `/medias/` — la regex ne matche **rien du tout**. Aucun
+ *     téléchargement n'est tenté, la page pointe un fichier jamais déposé, le build est **VERT**
+ *     et l'image morte en ligne. **C'est le seul cas silencieux**, et c'est celui que
+ *     l'assertion de `cheminLocalMedia` ferme.
+ *
+ * ON LÈVE, ON NE RÉPARE PAS. Filtrer, normaliser ou échapper masquerait un changement du
+ * producteur — c'est-à-dire précisément l'événement qu'on veut voir. La médiathèque ne peut
+ * aujourd'hui rien émettre hors de cette classe (`@strapi/upload` remplace le nom par
+ * `nameToSlug` + 10 hexadécimaux, mesuré au contrôle `9181da31`) ; le jour où ce ne serait plus
+ * vrai, le build doit s'arrêter, pas s'adapter.
+ *
+ * La classe n'est **pas élargie** : distinguer l'espace séparateur d'un `srcset` de l'espace
+ * d'un nom de fichier est impossible, et c'est ce qui a fait écarter cette voie.
+ */
+export const CARACTERES_MEDIA = 'A-Za-z0-9._~%\\-/';
+
+/** La même classe, compilée une fois, pour vérifier qu'un chemin y tient ENTIÈREMENT. */
+const CHEMIN_CONFORME = new RegExp(`^[${CARACTERES_MEDIA}]+$`);
+
 /** Le prefixe sous lequel STRAPI sert les siens (provider local, runbook etapes 7 et 14). */
 export const PREFIXE_UPLOADS = '/uploads/';
 
@@ -80,6 +111,19 @@ export function cheminLocalMedia(url: string): string {
   const reste = sousCheminMediatheque(url);
   if (reste === null) {
     throw new Error(`URL de media hors de la mediatheque : « ${url} ». ${RENVOI_T01}`);
+  }
+  if (!CHEMIN_CONFORME.test(reste)) {
+    // Le caractère est NOMMÉ : « un chemin invalide » enverrait relire toute la chaîne, alors
+    // que la seule chose à regarder est ce que la médiathèque a émis.
+    const fautif = [...reste].find((c) => !CHEMIN_CONFORME.test(c));
+    throw new Error(
+      `Nom de media hors de la classe de caracteres : « ${fautif} » dans « ${url} ». `
+      + `Le lecteur de scripts/medias-locaux.mjs ne saurait pas relire ce chemin — s il est en `
+      + `PREMIERE position, sa regex ne matche RIEN, aucun telechargement n est tente, et la page `
+      + `pointerait un fichier JAMAIS DEPOSE avec un build vert. On leve donc, sans filtrer ni `
+      + `normaliser : reparer masquerait un changement du producteur, qui est justement ce qu il `
+      + `faut voir. Classe attendue : [${CARACTERES_MEDIA}] (cf. CARACTERES_MEDIA ci-dessus).`,
+    );
   }
   return `${PREFIXE_MEDIAS}${reste}`;
 }

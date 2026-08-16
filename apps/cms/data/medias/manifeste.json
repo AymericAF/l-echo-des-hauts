@@ -54,7 +54,7 @@
     "note": "Portrait graphique genere ; aucune personne reelle n'est representee"
   },
   "couvertures/A01.svg": {
-    "alternativeText": "Le col des Trois-Vents en courbes de niveau, avec l'implantation des six mats du projet eolien",
+    "alternativeText": "Le col des Trois-Vents en courbes de niveau vertes : le dessin ne porte que le relief, sans aucun mat figure",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le releve est invente"
@@ -66,7 +66,7 @@
     "note": "Trace genere a graine fixe ; le releve est invente — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A05.svg": {
-    "alternativeText": "Bassin versant de l'Ambre, perimetres des cinq echelons de competence superposes",
+    "alternativeText": "Le bassin versant de l'Ambre en courbes de niveau vertes : le dessin ne porte que le relief, sans aucun perimetre trace",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le bassin est invente"
@@ -102,7 +102,7 @@
     "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A18.svg": {
-    "alternativeText": "Les niveaux de salaire de la filature en 1983 et de la scierie en 2026, en euros constants",
+    "alternativeText": "Des niveaux de salaire en euros constants : quatorze barres sans libelle, de la plus pale a la plus dense",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"

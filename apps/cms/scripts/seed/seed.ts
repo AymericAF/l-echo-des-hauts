@@ -136,6 +136,12 @@ const NATURE_SEO: Nature = {
     noindex: 'booleen',
     canonique: 'scalaire',
     imagePartage: 'media',
+    /* Ajoute le 2026-08-17. Son absence ici ne se voyait pas : `corpsSeo` ne l envoyait
+       pas non plus, et `seed-natures-exhaustives` n ecoute que ce qui est ECRIT — un
+       champ jamais ecrit n a jamais de nature manquante. C est le champ, pas la nature,
+       qui manquait d abord ; les deux se declarent ensemble ou le seed rebasculerait en
+       reecriture perpetuelle des 69 entrees. */
+    alternativePartage: 'scalaire',
   },
 };
 
@@ -277,6 +283,15 @@ function resoudreMedias<T>(valeur: T, ids: Map<string, number>): T {
  *   - une surcharge dont AUCUN champ n est renseigne ne doit pas partir du tout.
  *     Ecrire un composant vide creerait en base la ligne que A-07 interdit
  *     precisement : celle qui fait croire, plus tard, a un choix editorial.
+ *
+ * ⚠️ CETTE ENUMERATION EST MANUELLE, ET C EST PAR ELLE QUE LE DEFAUT ENTRE. Le
+ * 2026-08-17, `alternativePartage` y manquait : il etait lu par le corpus, valide,
+ * refuse s il etait mal forme — puis JETE ici, sans un mot. La page anglaise de A01
+ * servait donc un `og:image:alt` francais, celui de la mediatheque, pendant que le
+ * corpus versionne portait l anglais. Tout champ ajoute a `partage/seo.json` doit
+ * etre ajoute ICI et dans `NATURE_SEO` ; le test « CHAQUE attribut de `partage.seo`
+ * est TRANSMIS par le seed » de `seed-seo-transmission` confronte desormais les deux
+ * au schema, pour que l oubli suivant rougisse au lieu de se servir en ligne.
  */
 function corpsSeo(
   seo: SeoCorpus | undefined,
@@ -290,6 +305,7 @@ function corpsSeo(
     noindex: seo.noindex,
     canonique: seo.canonique,
     imagePartage: seo.imagePartage ? idsMedia.get(seo.imagePartage) : undefined,
+    alternativePartage: seo.alternativePartage,
   };
 
   return Object.values(corps).every((v) => v === undefined) ? undefined : corps;

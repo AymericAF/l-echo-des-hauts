@@ -22,6 +22,8 @@
  *    compare a l'entree deja lue (`difference.ts`), et l'ecriture est SAUTEE
  *    quand rien ne differe. Toute incertitude fait reecrire, jamais sauter.
  */
+import fs from 'node:fs';
+
 import type { ClientStrapi, Parametres } from './client.ts';
 import type { Corpus, ArticleLocale, SeoCorpus } from './corpus.ts';
 import { indexerParSlug, decider } from './rapprochement.ts';
@@ -339,6 +341,46 @@ export async function executerSeed(
       // depuis le 2026-08-10, la ligne de credit rendue sous le portrait.
       // On ne reecrit que ce qui differe : une ecriture systematique ferait
       // 94 requetes a chaque passage et ferait mentir le comptage.
+      // LES OCTETS, ET PAS SEULEMENT LA FICHE. Comparer les metadonnees ne
+      // suffit pas : un fichier REDESSINE sous le meme nom garde les memes, et
+      // restait donc celui du premier televersement pour toujours. Le 2026-08-16,
+      // quinze fac-similes redessines dormaient dans `main` pendant que le seed
+      // les declarait « inchanges » et que le site servait l'ancien dessin —
+      // aucun signal rouge nulle part (tache `9faa4193`).
+      // CE QUE LA MEDIATHEQUE RETRAITE N EST PAS COMPARABLE, et c est elle qui
+      // le dit : `formats` n est renseigne que sur les images que Strapi a
+      // recompressees et declinees. Mesure le 2026-08-16 sur l instance —
+      // `partage-defaut.png` pese 21 660 octets dans le depot et 6 835 servis.
+      // Comparer les octets de ceux-la ne peut pas converger : le seed les
+      // remplacerait a CHAQUE passage, regenerant quatre derives pour rien.
+      // On ne devine pas par l extension : le signal vient de l API.
+      const retraite = Object.keys(enBase.formats ?? {}).length > 0;
+      const servis = retraite ? null : await client.octetsMedia(enBase);
+      const locaux = fs.readFileSync(media.chemin);
+      const memesOctets = retraite || (servis !== null && servis.equals(locaux));
+
+      if (retraite) {
+        // ECRIT PLUTOT QUE TU : sans cette ligne, le trou se refermerait en
+        // silence et un PNG redessine dormirait exactement comme les quinze
+        // fac-similes du 2026-08-16.
+        journal(
+          `media RETRAITE par la mediatheque, octets non comparables : ${media.cle} — ` +
+            'un redessin de ce fichier ne sera PAS detecte par le seed'
+        );
+      }
+
+      if (!memesOctets) {
+        await client.remplacerFichierMedia(enBase.id, {
+          nom: media.nom,
+          chemin: media.chemin,
+        });
+        compter(misAJour, 'media');
+        journal(
+          `media REDESSINE, octets remplaces : ${media.cle}` +
+            (servis === null ? ' (octets servis illisibles — remplace par prudence)' : '')
+        );
+      }
+
       if (
         enBase.alternativeText !== media.alternativeText ||
         enBase.caption !== media.caption
@@ -347,9 +389,9 @@ export async function executerSeed(
           alternativeText: media.alternativeText,
           caption: media.caption,
         });
-        compter(misAJour, 'media');
+        if (memesOctets) compter(misAJour, 'media');
         journal(`media remis a jour : ${media.cle} — « ${media.caption} »`);
-      } else {
+      } else if (memesOctets) {
         // Le rapprochement comptait 94 « mises a jour » de medias sans en
         // ecrire une seule : la meme fiction que celle des articles, un cran
         // plus tot. Un fichier retrouve et laisse tel quel est INCHANGE.

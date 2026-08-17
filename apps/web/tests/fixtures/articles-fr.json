@@ -383,6 +383,44 @@
               ]
             }
           ]
+        },
+        {
+          "__component": "bloc.galerie",
+          "id": 113,
+          "legende": "La bande defilante : trois pieces de l atelier, de gauche a droite.",
+          "disposition": "carrousel",
+          "images": [
+            {
+              "id": 60,
+              "documentId": "med0000000000000000060",
+              "url": "/uploads/bande_1_cc33.jpg",
+              "alternativeText": "Les mains d une ouvriere sur un metier a tisser",
+              "caption": "Oeuvre du projet — CC0 1.0",
+              "width": 1200,
+              "height": 800,
+              "mime": "image/jpeg"
+            },
+            {
+              "id": 61,
+              "documentId": "med0000000000000000061",
+              "url": "/uploads/bande_2_dd44.jpg",
+              "alternativeText": "Une navette de bois posee sur une piece de drap",
+              "caption": "Oeuvre du projet — CC0 1.0",
+              "width": 1200,
+              "height": 800,
+              "mime": "image/jpeg"
+            },
+            {
+              "id": 62,
+              "documentId": "med0000000000000000062",
+              "url": "/uploads/bande_3_ee55.jpg",
+              "alternativeText": "Le carnet d atelier ouvert sur une page de comptes",
+              "caption": "Oeuvre du projet — CC0 1.0",
+              "width": 1200,
+              "height": 800,
+              "mime": "image/jpeg"
+            }
+          ]
         }
       ],
       "seo": null,

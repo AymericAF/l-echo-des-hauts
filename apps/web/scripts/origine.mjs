@@ -47,6 +47,9 @@
  *     de documentation : un `$ECHO_*` vide a l execution, qui ne casse pas la commande
  *     mais la fait MENTIR.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { ISSUES } from './issues.mjs';
 
 /**
@@ -177,4 +180,54 @@ export function lireOrigine(origine) {
   }
 
   return { lisible: true, issue: ISSUES.CONFORME, hote };
+}
+
+/**
+ * LE NOM DU FICHIER QUE LE BUILD DEPOSE DANS SA SORTIE.
+ *
+ * Il vit DANS `dist/` et pas a cote, pour une raison de transport : c est `dist/` que
+ * l integration continue archive et retelecharge pour le job `sortie`. Un artefact pose
+ * hors du dossier ne suivrait pas la sortie qu il decrit, et le job qui juge un `dist/`
+ * telecharge — la porte meme que ce mecanisme ferme — se retrouverait sans reference.
+ *
+ * Il est donc PUBLIE avec le site. C est assume : il ne porte que l origine publique,
+ * celle qui figure deja dans chaque canonique de chaque page.
+ */
+export const FICHIER_ORIGINE_BUILD = 'origine-du-build.json';
+
+/**
+ * L ORIGINE QUE LE BUILD A REELLEMENT RESOLUE, relue depuis la sortie qu il a produite —
+ * ou `null` si elle n y est pas.
+ *
+ * POURQUOI CE MECANISME EXISTE (2026-08-16, tache `4d2dd1d3`). Les trois verificateurs en
+ * ligne de commande resolvaient chacun `process.argv[3] ?? ECHO_SITE_URL ?? repli`. Hors
+ * d un build c est correct — il n y a aucune configuration Astro a lire. Mais RIEN ne les
+ * reliait a l origine que le build avait employee : un `npm run verifier:*` lance apres un
+ * `astro build --site <autre-origine>` jugeait contre la mauvaise reference et rendait le
+ * MEME signe de conformite qu un verdict valide. C est la classe de defaut fermee cote
+ * integrations le 2026-08-11 (`origine-des-gardes.test.ts`), restee ouverte ici.
+ *
+ * `null` PLUTOT QU UNE VALEUR DE REPLI, et c est tout le soin de cette fonction : elle ne
+ * decide de rien. Elle rend ce qu elle a lu, ou rien. L appelant garde sa chaine de repli
+ * — argument explicite, puis artefact, puis environnement, puis defaut — et reste le seul
+ * a choisir. Une lecture qui fabriquerait une origine en cas d absence rejouerait
+ * exactement la faute que `lireOrigine` existe pour empecher : rendre une incapacite sous
+ * la forme d une reponse plausible.
+ *
+ * UN ARTEFACT ILLISIBLE EST TRAITE COMME ABSENT, delibarement. Le fichier est ecrit par
+ * notre propre build ; s il est corrompu, c est que la sortie a ete manipulee ou tronquee,
+ * et la conduite sure est de retomber sur la chaine ordinaire plutot que de faire echouer
+ * une verification pour un artefact accessoire.
+ *
+ * @param {string} dist Le dossier de sortie a inspecter.
+ * @returns {string|null} L origine archivee, ou `null` si elle est absente ou illisible.
+ */
+export function lireOrigineArchivee(dist) {
+  try {
+    const brut = readFileSync(join(dist, FICHIER_ORIGINE_BUILD), 'utf8');
+    const origine = JSON.parse(brut)?.origine;
+    return typeof origine === 'string' && origine !== '' ? origine : null;
+  } catch {
+    return null;
+  }
 }

@@ -31,7 +31,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ISSUES, manquementCorpusVide } from './issues.mjs';
-import { lireOrigine, ORIGINE_PAR_DEFAUT } from './origine.mjs';
+import { lireOrigine, lireOrigineArchivee, ORIGINE_PAR_DEFAUT } from './origine.mjs';
 
 /** Protocoles qui ne designent pas une page du site. */
 const HORS_PERIMETRE = /^(mailto:|tel:|javascript:|data:|#)/i;
@@ -194,7 +194,16 @@ export function resumeLiens(rapport) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const racine = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
   const dist = process.argv[2] ?? path.join(racine, 'dist');
-  const origine = process.argv[3] ?? process.env.ECHO_SITE_URL ?? ORIGINE_PAR_DEFAUT;
+  /* L ORIGINE DU BUILD PASSE AVANT L ENVIRONNEMENT (2026-08-16, tache `4d2dd1d3`).
+     `dist/` porte desormais l origine que le producteur a REELLEMENT resolue ; la lire
+     ici est ce qui relie ce script au build qui a produit la sortie qu il juge. Sans
+     cela, un `npm run verifier:*` lance apres un `astro build --site <autre-origine>`
+     jugeait contre la mauvaise reference en rendant le meme signe de conformite qu un
+     verdict valide.
+     L ARGUMENT EXPLICITE RESTE SOUVERAIN : un operateur qui nomme son origine sait ce
+     qu il fait. Et sans artefact, la chaine d avant est intacte — environnement, puis
+     repli —, ce qui garde le cas normal inchange. */
+  const origine = process.argv[3] ?? lireOrigineArchivee(dist) ?? process.env.ECHO_SITE_URL ?? ORIGINE_PAR_DEFAUT;
   const rapport = inspecterLiens(dist, origine);
   if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
     console.error('⛔ VERIFICATION IMPOSSIBLE — aucun lien n a ete juge :');

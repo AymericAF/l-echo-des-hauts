@@ -159,6 +159,10 @@ const SEO_ARTICLE = {
   canonique: 'https://exemple.test/dossier/l-eau-du-plateau',
   noindex: false,
   imagePartage: 'partage/A05-og.png',
+  /* A-04 amende : la surcharge localisee de l alternative de la carte. Elle figure ici
+     parce que cette constante enumere le composant ENTIER — c est ce qui fait que ce
+     test voit un champ nouvellement ajoute plutot que de l ignorer. */
+  alternativePartage: 'Sharing card: five tiers of decision, one bill',
 };
 
 /* ------------------------------------------------------------------ */

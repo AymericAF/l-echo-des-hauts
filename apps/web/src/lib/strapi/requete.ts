@@ -46,7 +46,10 @@ const CHAMPS_MEDIA = ['url', 'alternativeText', 'caption', 'width', 'height', 'm
 const MEDIA: FeuillePopulate = { fields: CHAMPS_MEDIA };
 
 const SEO: FeuillePopulate = {
-  fields: ['metaTitre', 'metaDescription', 'noindex', 'canonique'],
+  /* `alternativePartage` : la surcharge localisee de la carte de partage. Elle vit DANS
+     le composant, pas a la racine de l entite — demandee au mauvais niveau, elle ne
+     remonterait jamais, et l `og:image:alt` retomberait en silence sur le francais. */
+  fields: ['metaTitre', 'metaDescription', 'noindex', 'canonique', 'alternativePartage'],
   populate: { imagePartage: MEDIA },
 };
 

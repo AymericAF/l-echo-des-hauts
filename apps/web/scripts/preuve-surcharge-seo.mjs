@@ -316,6 +316,32 @@ export function verifierSurchargeSeo(dist = DIST, corpus = CORPUS) {
       }
     }
 
+    /* LE TEXTE QUI ACCOMPAGNE LA CARTE, et pas seulement la carte (2026-08-16).
+       Le 2026-08-14, l image surchargee de A01 SORTAIT — le controle ci-dessus etait
+       vert — pendant que son `og:image:alt` restait FRANCAIS sur la page anglaise. Ce
+       texte est ENTENDU : un lecteur d ecran l annonce quand l image ne charge pas, et
+       il voyage dans les apercus de partage. Les DEUX metas sont lues, parce que les
+       plateformes ne lisent pas la meme : laisser diverger `twitter:image:alt` de
+       `og:image:alt` ferait servir deux textes differents selon le reseau. */
+    if (seo.alternativePartage !== undefined) {
+      const ogAlt = meta(html, 'property', 'og:image:alt');
+      const twAlt = meta(html, 'name', 'twitter:image:alt');
+      if (ogAlt !== seo.alternativePartage) {
+        signaler(
+          `${entree.quoi} : og:image:alt vaut ${ogAlt === null ? 'RIEN' : `« ${ogAlt} »`} au ` +
+            `lieu de la surcharge « ${seo.alternativePartage} » — c est l alternative de la ` +
+            'mediatheque qui sort, donc du francais sur une page anglaise'
+        );
+      }
+      if (twAlt !== ogAlt) {
+        signaler(
+          `${entree.quoi} : twitter:image:alt (${twAlt === null ? 'RIEN' : `« ${twAlt} »`}) ` +
+            `DIVERGE de og:image:alt (${ogAlt === null ? 'RIEN' : `« ${ogAlt} »`}) — deux ` +
+            'reseaux, deux textes'
+        );
+      }
+    }
+
     /* 2. Ce qui n est pas surcharge sort en repli calcule. */
     if (seo.metaTitre === undefined && titre !== null) {
       const debut = entree.repli.slice(0, 20);

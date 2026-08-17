@@ -66,6 +66,10 @@ type Options = {
   partageEn?: string;
   /** Rend DECORATIVE l image du bloc `image-legendee` (alternative native vide). */
   blocDecoratif?: boolean;
+  /** Surcharge portee par la carte de partage EDITORIALE de l article EN (`partage.seo`). */
+  seoPartageEn?: string;
+  /** Pose `seoPartageEn` SANS `seo.imagePartage` : la surcharge ne surchargerait rien. */
+  seoSansImage?: boolean;
 };
 
 function ecrireCorpus(options: Options = {}): string {
@@ -189,6 +193,12 @@ function ecrireCorpus(options: Options = {}): string {
     if (locale === 'en' && surcharges.couvertureEn !== undefined) {
       enTete.alternativeCouverture = surcharges.couvertureEn;
     }
+    if (locale === 'en' && surcharges.seoPartageEn !== undefined) {
+      enTete.seo = {
+        ...(surcharges.seoSansImage ? {} : { imagePartage: 'identite/partage.png' }),
+        alternativePartage: surcharges.seoPartageEn,
+      };
+    }
     const attributsBloc =
       locale === 'en' && surcharges.blocEn !== undefined
         ? ` alternative="${surcharges.blocEn}"`
@@ -311,6 +321,7 @@ test('GARDE 1 — elle vaut pour un bloc, un hero, une photo et la Configuration
     { photoAuteurEn: '\t' },
     { logoEn: '   ' },
     { partageEn: '' },
+    { seoPartageEn: '  ' },
   ] as Options[]) {
     assert.throws(
       () => chargerCorpus(ecrireCorpus(options)),
@@ -326,6 +337,33 @@ test('GARDE 1 — PREUVE EN CASSANT : une surcharge NON BLANCHE passe, la garde 
   assert.equal(corpus.articles[0].en?.alternativeCouverture, 'A');
   assert.equal(blocImage(corpus.articles[0].en!.contenu)?.alternative, 'B');
   assert.equal(corpus.categories[0].en?.alternativeHero, 'C');
+});
+
+test('GARDE 1 — PREUVE EN CASSANT : une surcharge de carte de partage NON BLANCHE se charge', () => {
+  const corpus = chargerCorpus(
+    ecrireCorpus({ seoPartageEn: 'Sharing card: five tiers, one bill' })
+  );
+
+  assert.equal(corpus.articles[0].en?.seo?.alternativePartage, 'Sharing card: five tiers, one bill');
+});
+
+/* Le mode d echec propre a CE champ : la surcharge est posee, elle a l air d etre prise,
+   et elle ne surcharge RIEN — il n y a pas de carte a surcharger. Le repli du site
+   servirait alors l image generee au build ou celle par defaut, avec leur alternative a
+   elles, et le redacteur croirait avoir traduit quelque chose. On refuse a l entree. */
+test('GARDE 3 — `alternativePartage` SANS `seo.imagePartage` est REFUSE : elle ne surchargerait rien', () => {
+  assert.throws(
+    () =>
+      chargerCorpus(
+        ecrireCorpus({ seoPartageEn: 'Sharing card that has no file behind it', seoSansImage: true })
+      ),
+    (e: unknown) => {
+      assert.ok(e instanceof ErreurCorpus, 'doit etre une ErreurCorpus');
+      assert.match((e as Error).message, /alternativePartage/);
+      assert.match((e as Error).message, /imagePartage/);
+      return true;
+    }
+  );
 });
 
 /* ------------------------------------------------------------------ */
@@ -409,6 +447,32 @@ test('le composant `bloc.image-legendee` porte `alternative` — il herite de la
   );
 });
 
+test('le composant `partage.seo` porte `alternativePartage` — la carte de partage est le SEPTIEME porteur', () => {
+  const composant = JSON.parse(
+    fs.readFileSync(path.join(RACINE_CMS, 'src/components/partage/seo.json'), 'utf8')
+  );
+
+  assert.ok(composant.attributes.alternativePartage, 'le composant doit porter `alternativePartage`');
+  assert.equal(composant.attributes.alternativePartage.type, 'string');
+  /* Meme raison que pour le bloc : un attribut de composant ne declare pas ses propres
+     options i18n. Ce qui rend celui-ci localise est l attribut `seo` de chaque entite
+     porteuse, declare `localized: true` — verifie par le test suivant. */
+  assert.equal(composant.attributes.alternativePartage.pluginOptions, undefined);
+  assert.notEqual(composant.attributes.alternativePartage.required, true);
+});
+
+test('l attribut `seo` est localise sur les trois entites qui le portent — sans quoi le champ ne servirait a rien', () => {
+  for (const chemin of [
+    'api/article/content-types/article/schema.json',
+    'api/categorie/content-types/categorie/schema.json',
+    'api/dossier/content-types/dossier/schema.json',
+  ]) {
+    const seo = schema(chemin).attributes.seo;
+    assert.equal(seo.component, 'partage.seo');
+    assert.ok(localise(seo), `${chemin} : la localisation d \`alternativePartage\` DEPEND de celle-ci`);
+  }
+});
+
 test('la dynamic zone `contenu` de l article est bien localisee — sans quoi le champ du bloc ne servirait a rien', () => {
   const contenu = schema('api/article/content-types/article/schema.json').attributes.contenu;
 
@@ -445,6 +509,19 @@ function porteursAnglais(corpus: ReturnType<typeof chargerCorpus>) {
       media: a.en.imageCouverture,
       surcharge: a.en.alternativeCouverture,
     });
+    /* LA CARTE DE PARTAGE EDITORIALE, ajoutee a cette liste le 2026-08-16 — et c est
+       l ABSENCE de cette ligne qui a laisse passer le defaut. La carte de A01 a ete
+       posee le 2026-08-14, APRES le chiffrage des visuels anglais, et servait son
+       `og:image:alt` francais sur la page anglaise : la recette est restee verte tout
+       du long, parce qu elle ne regardait pas la. Verifie en cassant le 2026-08-16 —
+       sans cette ligne, retirer la surcharge de A01 laisse les 361 tests au vert. */
+    if (a.en.seo?.imagePartage) {
+      porteurs.push({
+        quoi: `article ${a.code} : carte de partage (seo.imagePartage)`,
+        media: a.en.seo.imagePartage,
+        surcharge: a.en.seo.alternativePartage,
+      });
+    }
     for (const bloc of a.en.contenu) {
       if (bloc.__component === 'bloc.image-legendee') {
         porteurs.push({
@@ -567,7 +644,7 @@ test('RECETTE — aucune surcharge anglaise ne recopie l alternative francaise, 
   assert.deepEqual(recopies.map((p) => p.quoi), []);
 });
 
-test('RECETTE — le corpus versionne porte 7 surcharges, celles des medias PARTAGES, et AUCUNE en francais', () => {
+test('RECETTE — le corpus versionne porte 8 surcharges, celles des medias PARTAGES, et AUCUNE en francais', () => {
   const corpus = chargerCorpus(path.join(RACINE_CMS, 'data'));
   const porteurs = porteursAnglais(corpus);
 
@@ -575,8 +652,14 @@ test('RECETTE — le corpus versionne porte 7 surcharges, celles des medias PART
      de texte ont desormais un fichier par locale : leur alternative anglaise vit au
      manifeste, avec le fichier, et la surcharge a ete RETIREE — deux porteurs du meme
      texte finissent par diverger. Restent les medias vraiment partages : les cinq
-     portraits d auteur, le logo et l image de partage. */
-  assert.equal(porteurs.filter((p) => p.surcharge).length, 7);
+     portraits d auteur, le logo et l image de partage par defaut.
+
+     HUIT DEPUIS LE 2026-08-16 : la carte de partage EDITORIALE de A01 s ajoute a eux.
+     Elle est partagee entre les deux locales par une decision ecrite au manifeste — « UN
+     SEUL fichier pour les deux locales […] aucune PHRASE n y est gravee : deux noms
+     propres, deux nombres, une unite » —, donc la surcharge localisee est bien le seul
+     moyen, exactement comme pour le logo. */
+  assert.equal(porteurs.filter((p) => p.surcharge).length, 8);
   assert.equal(porteurs.filter((p) => p.media.endsWith('.en.svg')).length, 22);
   assert.equal(
     porteurs.filter((p) => p.surcharge && p.media.endsWith('.en.svg')).length,
@@ -597,6 +680,7 @@ test('RECETTE — le corpus versionne porte 7 surcharges, celles des medias PART
     ...corpus.categories.map((c) => c.fr.alternativeHero),
     ...corpus.dossiers.map((d) => d.fr.alternativeHero),
     ...corpus.auteurs.map((a) => a.fr.alternativePhoto),
+    ...corpus.articles.map((a) => a.fr.seo?.alternativePartage),
     corpus.configuration.fr?.alternativeLogo,
     corpus.configuration.fr?.alternativePartageDefaut,
   ].filter((v) => v !== undefined);

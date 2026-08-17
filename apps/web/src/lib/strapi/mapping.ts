@@ -99,7 +99,8 @@ function media(brut: unknown, chemin: string): Media {
  * `strapi.db.query`, jamais par le Document Service. Les pages anglaises servaient donc
  * des alternatives FRANCAISES — 28 textes distincts sur 41 pages, mesure le 2026-08-14.
  * La parade est un champ LOCALISE pose a cote du media (`alternativeCouverture`,
- * `alternativeHero`, `alternativePhoto`, `alternativeLogo`, `alternative` du bloc).
+ * `alternativeHero`, `alternativePhoto`, `alternativeLogo`, `alternative` du bloc,
+ * `alternativePartage` du composant `partage.seo`).
  *
  * POURQUOI LE REPLI EST ICI ET PAS DANS LES COMPOSANTS. Il y a sept endroits ou un `alt`
  * sort d un media. Leur demander a chacun de se souvenir du repli, c est sept occasions
@@ -141,7 +142,10 @@ function seo(source: unknown, chemin: string): Seo | null {
   return {
     metaTitre: texteOptionnel(brut, 'metaTitre', ici),
     metaDescription: texteOptionnel(brut, 'metaDescription', ici),
-    imagePartage: mediaOptionnel(brut, 'imagePartage', ici),
+    imagePartage: surchargerOptionnel(
+      mediaOptionnel(brut, 'imagePartage', ici),
+      texteOptionnel(brut, 'alternativePartage', ici),
+    ),
     noindex: booleenRequis(brut, 'noindex', ici),
     canonique: texteOptionnel(brut, 'canonique', ici),
   };

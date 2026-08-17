@@ -26,6 +26,7 @@ const SURCHARGE = {
   metaTitre: 'Eolien : le verrou n est pas l enquete',
   metaDescription: 'L ecart de raccordement qui decidera du parc.',
   imagePartage: 'partage/A01-og.png',
+  alternativePartage: 'Sharing card: six turbines on the ridge of the pass',
 };
 
 /* ------------------------------------------------------------------ */
@@ -68,6 +69,7 @@ function page(opts: {
   titre: string;
   description?: string;
   ogImage?: string;
+  ogImageAlt?: string;
   canonique?: string;
   robots?: string;
 }): string {
@@ -77,6 +79,8 @@ function page(opts: {
     opts.description ? `<meta name="description" content="${opts.description}">` : '',
     `<meta property="og:title" content="${opts.titre}">`,
     `<meta property="og:image" content="${opts.ogImage ?? '/og/fr/defaut.png'}">`,
+    opts.ogImageAlt === undefined ? '' : `<meta property="og:image:alt" content="${opts.ogImageAlt}">`,
+    opts.ogImageAlt === undefined ? '' : `<meta name="twitter:image:alt" content="${opts.ogImageAlt}">`,
     opts.canonique ? `<link rel="canonical" href="${opts.canonique}">` : '',
     opts.robots ? `<meta name="robots" content="${opts.robots}">` : '',
     '</head><body></body></html>',
@@ -91,6 +95,7 @@ function distSain(retouche: (d: Record<string, string | null>) => void = () => {
       titre: `${SURCHARGE.metaTitre} — L Echo`,
       description: SURCHARGE.metaDescription,
       ogImage: '/uploads/A01-og.png',
+      ogImageAlt: SURCHARGE.alternativePartage,
     }),
     'article/le-plui-de-2027/index.html': page({
       titre: 'Ce que le PLUi de 2027 promet — L Echo',
@@ -168,6 +173,52 @@ test('un og:image qui ignore l image surchargee est un manquement', () => {
   });
 
   assert.match(manquements.join('\n'), /og:image/);
+});
+
+/* LE DEFAUT DU 2026-08-14, ET IL EST PASSE AU TRAVERS DE TOUT : la carte de partage de
+   A01 SORTAIT bien — `og:image` la designait —, mais son `og:image:alt` restait FRANCAIS
+   sur la page anglaise. Le controle regardait l image et pas le texte qui l accompagne.
+   Ce texte est ENTENDU : un lecteur d ecran l annonce quand l image ne charge pas. */
+test('un og:image:alt reste au texte FRANCAIS la ou le corpus surcharge est un manquement', () => {
+  const { manquements } = inspecter((d) => {
+    d['article/col-des-trois-vents/index.html'] = page({
+      titre: `${SURCHARGE.metaTitre} — L Echo`,
+      description: SURCHARGE.metaDescription,
+      ogImage: '/uploads/A01-og.png',
+      ogImageAlt: 'Carte de partage de A01 : six eoliennes sur la crete du col',
+    });
+  });
+
+  assert.match(manquements.join('\n'), /og:image:alt/);
+});
+
+test('un og:image:alt ABSENT alors que le corpus surcharge est un manquement — le silence n est pas un repli', () => {
+  const { manquements } = inspecter((d) => {
+    d['article/col-des-trois-vents/index.html'] = page({
+      titre: `${SURCHARGE.metaTitre} — L Echo`,
+      description: SURCHARGE.metaDescription,
+      ogImage: '/uploads/A01-og.png',
+    });
+  });
+
+  assert.match(manquements.join('\n'), /og:image:alt/);
+});
+
+test('un twitter:image:alt qui DIVERGE de l og:image:alt est un manquement — les deux sont lus', () => {
+  const { manquements } = inspecter((d) => {
+    d['article/col-des-trois-vents/index.html'] = [
+      '<!doctype html><html lang="fr"><head>',
+      `<title>${SURCHARGE.metaTitre} — L Echo</title>`,
+      `<meta name="description" content="${SURCHARGE.metaDescription}">`,
+      `<meta property="og:title" content="${SURCHARGE.metaTitre} — L Echo">`,
+      '<meta property="og:image" content="/uploads/A01-og.png">',
+      `<meta property="og:image:alt" content="${SURCHARGE.alternativePartage}">`,
+      '<meta name="twitter:image:alt" content="Carte de partage de A01">',
+      '</head><body></body></html>',
+    ].join('\n');
+  });
+
+  assert.match(manquements.join('\n'), /twitter:image:alt/);
 });
 
 test('une canonique surchargee non honoree est un manquement (A-27)', () => {
@@ -476,6 +527,7 @@ test('un og:image servi sous le nom que STRAPI lui donne designe bien l image su
       titre: `${SURCHARGE.metaTitre} — L Echo`,
       description: SURCHARGE.metaDescription,
       ogImage: 'https://echo.test/medias/A01_og_a1b2c3d4e5.png',
+      ogImageAlt: SURCHARGE.alternativePartage,
     });
   });
 

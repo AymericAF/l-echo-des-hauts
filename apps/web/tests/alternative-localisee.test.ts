@@ -142,6 +142,40 @@ test('le logo et l image de partage de la Configuration servent les leurs — le
   }
 });
 
+/* La carte de partage EDITORIALE, ajoutee le 2026-08-14 par la decision 426812f2 —
+   donc APRES le chiffrage des visuels anglais, ce qui explique qu elle soit passee au
+   travers. C etait le DERNIER texte francais servi par une page anglaise : sur les 39
+   pages `lang="en"` de la production, plus aucun `alt` n en portait, et cette meta-la
+   restait. Elle n est pas moins ENTENDUE que les autres — un lecteur d ecran l annonce
+   quand l image ne charge pas, et elle voyage dans les apercus de partage. */
+test('la carte de partage SURCHARGEE d un article sert son alternative anglaise (A-04 amende)', () => {
+  const brut = fixture('articles-en');
+  brut.seo.imagePartage = {
+    url: '/uploads/A01_col_des_trois_vents_a1b2c3d4e5.png',
+    alternativeText:
+      'Carte de partage de A01 : six eoliennes sur la crete du col, la capacite ' +
+      'residuelle de 8,4 MW en barre pleine sous les 19,8 MW demandes en barre evidee',
+    caption: null,
+    width: 1200,
+    height: 630,
+    mime: 'image/png',
+  };
+  brut.seo.alternativePartage =
+    'Sharing card for A01: six wind turbines on the ridge of the pass, the residual ' +
+    'capacity of 8.4 MW as a solid bar below the 19.8 MW requested as a hollow bar';
+
+  const rendu = mapperArticle(brut).seo;
+
+  assert.equal(
+    rendu.imagePartage.alternative,
+    'Sharing card for A01: six wind turbines on the ridge of the pass, the residual ' +
+      'capacity of 8.4 MW as a solid bar below the 19.8 MW requested as a hollow bar'
+  );
+  /* Le fichier de la mediatheque n a pas bouge : c est UN media pour DEUX locales, et
+     c est bien pour cela que la surcharge existe. */
+  assert.match(brut.seo.imagePartage.alternativeText, /^Carte de partage/);
+});
+
 /* ------------------------------------------------------------------ */
 /* SENS 3 — une surcharge BLANCHE ne s applique pas                    */
 /* ------------------------------------------------------------------ */
@@ -157,6 +191,35 @@ test('une surcharge BLANCHE ne remplace rien : elle est traitee comme absente, j
       `une surcharge ${JSON.stringify(blanc)} doit laisser passer l alternative native`
     );
   }
+});
+
+test('une surcharge BLANCHE de la carte de partage ne remplace rien non plus', () => {
+  for (const blanc of ['', '   ', '\t']) {
+    const brut = fixture('articles-en');
+    brut.seo.imagePartage = {
+      url: '/uploads/A01_col_des_trois_vents_a1b2c3d4e5.png',
+      alternativeText: 'Carte de partage de A01',
+      caption: null,
+    width: 1200,
+      height: 630,
+      mime: 'image/png',
+    };
+    brut.seo.alternativePartage = blanc;
+
+    assert.equal(
+      mapperArticle(brut).seo.imagePartage.alternative,
+      'Carte de partage de A01',
+      `une surcharge ${JSON.stringify(blanc)} doit laisser passer l alternative native`
+    );
+  }
+});
+
+test('sans carte de partage surchargee, la surcharge ne fabrique aucun media — elle ne cree rien', () => {
+  const brut = fixture('articles-en');
+  brut.seo.imagePartage = null;
+  brut.seo.alternativePartage = 'Sharing card that has no file behind it';
+
+  assert.equal(mapperArticle(brut).seo.imagePartage, null);
 });
 
 /* ------------------------------------------------------------------ */
@@ -192,6 +255,19 @@ test('les requetes des categories, dossiers, auteurs et de la Configuration dema
   assert.ok(REQUETES.auteurs.fields.includes('alternativePhoto'));
   assert.ok(REQUETES.configuration.fields.includes('alternativeLogo'));
   assert.ok(REQUETES.configuration.fields.includes('alternativePartageDefaut'));
+});
+
+test('la requete des articles demande la surcharge de la carte de partage, DANS le composant seo', () => {
+  /* Le champ vit dans `partage.seo`, pas a la racine de l article : c est le `fields` du
+     populate SEO qu il faut, et lui seul. Demande au mauvais niveau, il ne remonterait
+     jamais — et le repli retomberait en silence sur le francais, exactement le defaut
+     que ce lot ferme. */
+  for (const requete of [REQUETES.articles, REQUETES.categories, REQUETES.dossiers]) {
+    assert.ok(
+      requete.populate.seo.fields.includes('alternativePartage'),
+      'sans ce champ dans le populate du composant seo, Strapi ne le renvoie pas'
+    );
+  }
 });
 
 test('AUCUNE requete ne demande de surcharge par un joker — la contrainte dure du populate explicite tient', () => {

@@ -43,8 +43,62 @@
 'use strict';
 
 const { execFileSync, spawnSync } = require('node:child_process');
-const { existsSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
+const { homedir } = require('node:os');
 const { join } = require('node:path');
+
+// ---------------------------------------------------------------- verrou de campagne (R-09)
+//
+// POURQUOI CE DÉPÔT REGARDE UN FICHIER ÉCRIT PAR L AUTRE. R-09 de `docs/protocole-mesure.md`
+// interdit tout build pendant une campagne de mesure. Or un push vers `main` ICI déclenche un
+// déploiement Coolify, donc un build, donc occupe le budget de builds du serveur que la campagne
+// exige au repos. Le 2026-08-17 au matin, `47d499e1` est parti pendant la campagne §10
+// (déploiements 502 et 503) : la passe n a pas été refusée, elle a été FAUSSÉE ET ARCHIVÉE COMME
+// VALIDE. Une règle écrite depuis juillet, que rien ne lisait de ce côté.
+//
+// LA DUPLICATION EST DÉLIBÉRÉE ET BORNÉE. `scripts/lib/verrou-campagne.mjs` du dépôt de mesure
+// fait autorité sur le format ; il est ESM, dans un autre dépôt, et ce crochet ne doit dépendre
+// d aucun des deux. On recopie donc la LECTURE (un JSON, une date), jamais la logique de pose.
+// Si le format bouge, c est ici qu il faut suivre — et la recette le dit en cassant.
+//
+// EXPIRÉ = ON LAISSE PASSER. Un verrou sans expiration transformerait un `p3-chrono` tué en
+// blocage définitif de ce dépôt, et le premier bloqué le supprimerait pour de bon.
+// ILLISIBLE = ON REFUSE. « Je n ai pas pu lire » ne veut pas dire « il n y a pas de campagne ».
+
+const CHEMIN_VERROU = process.env.ECHO_VERROU_CAMPAGNE
+  || join(homedir(), '.claude', 'etat', 'echo-r09-campagne.json');
+
+/**
+ * Rend `null` si le push peut partir, ou le motif du refus. `lire` est injecté pour que la
+ * recette exerce les cinq états sans poser un fichier sur le chemin de production — en poser un
+ * y bloquerait un push réel, ou pire, masquerait une campagne en vol.
+ */
+function jugerCampagneEnVol({ lire = () => { try { return readFileSync(CHEMIN_VERROU, 'utf8'); } catch (e) { if (e.code === 'ENOENT') return null; throw e; } }, maintenant = new Date() } = {}) {
+  const brut = lire();
+  if (brut === null || brut === undefined || String(brut).trim() === '') return null;
+
+  let v;
+  try {
+    v = JSON.parse(brut);
+  } catch (e) {
+    return `verrou de campagne R-09 ILLISIBLE (${e.message}). On refuse plutôt que de deviner : `
+      + 'ne pas savoir lire n est pas savoir qu il n y a pas de campagne.';
+  }
+
+  const campagne = (typeof v?.campagne === 'string' && v.campagne.trim()) || '(campagne non nommée)';
+  if (typeof v?.expire_a !== 'string') {
+    return `verrou de campagne R-09 sans \`expire_a\` (« ${campagne} ») : un bail ne se devine pas.`;
+  }
+  const expire = new Date(v.expire_a);
+  if (Number.isNaN(+expire)) {
+    return `verrou de campagne R-09 dont l \`expire_a\` (« ${v.expire_a} ») n est pas une date lisible.`;
+  }
+  if (maintenant.getTime() > expire.getTime()) return null; // bail dépassé : la campagne est finie.
+
+  return `une CAMPAGNE DE MESURE est en vol — « ${campagne} », bail jusqu à ${expire.toISOString()}. `
+    + 'R-09 interdit tout build pendant une campagne ; ce push déclencherait un déploiement Coolify, '
+    + 'donc un build, et la passe serait faussée sans rien annoncer.';
+}
 
 /** Les deux suites, dans l'ordre où la CI les joue. Même liste que la matrice du workflow. */
 const APPLICATIONS = ['apps/cms', 'apps/web'];
@@ -128,6 +182,22 @@ function principal(stdin) {
   console.error('');
   console.error(`Garde avant push — ${shaPousse.slice(0, 10)} part vers main, les deux suites sont jouées d abord.`);
 
+  // R-09 EN PREMIER, avant les suites : refuser ici coûte une milliseconde, refuser après aurait
+  // coûté les quinze minutes des deux suites — et surtout, pendant ce temps, rien n aurait empêché
+  // le push de partir si la garde avait été placée plus loin.
+  const campagne = jugerCampagneEnVol();
+  if (campagne) {
+    console.error('');
+    console.error(`PUSH REFUSÉ — ${campagne}`);
+    console.error('');
+    console.error('  Ce n est pas un échec des tests : le code peut être parfait, c est le MOMENT qui');
+    console.error('  ne va pas. Attends la fin de la campagne, le verrou se lève tout seul.');
+    console.error(`  Pour lever à la main : vérifie qu aucune passe ne tourne (p3-chrono etat), puis`);
+    console.error(`  supprime ${CHEMIN_VERROU}`);
+    console.error('  En connaissance de cause seulement : git push --no-verify.');
+    return 1;
+  }
+
   const incapacite = verifierQueLArbreEstLeCommitPousse(racine, shaPousse);
   if (incapacite) {
     console.error('');
@@ -166,7 +236,10 @@ function principal(stdin) {
   return 1;
 }
 
-module.exports = { lignesAJuger, verifierQueLArbreEstLeCommitPousse, principal, APPLICATIONS, BRANCHE_GARDEE };
+module.exports = {
+  lignesAJuger, verifierQueLArbreEstLeCommitPousse, principal, jugerCampagneEnVol,
+  APPLICATIONS, BRANCHE_GARDEE, CHEMIN_VERROU,
+};
 
 if (require.main === module) {
   let stdin = '';

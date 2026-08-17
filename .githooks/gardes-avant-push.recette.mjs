@@ -70,11 +70,22 @@ function monter() {
 }
 
 /** Pousse, et rend le code + la sortie. `commande` simule le verdict des suites. */
-function pousser(travail, args, commande) {
+function pousser(travail, args, commande, envPlus = {}) {
   const r = spawnSync('git', ['push', ...args], {
     cwd: travail,
     encoding: 'utf8',
-    env: { ...process.env, ...(commande ? { ECHO_PREPUSH_COMMANDE: commande } : {}) },
+    env: {
+      ...process.env,
+      // LA RECETTE NE REGARDE JAMAIS LE VERROU DE PRODUCTION, et ce n'est pas une précaution
+      // théorique : le 2026-08-17, la première exécution de ces cas est tombée pendant une passe
+      // `c12h-t` réelle, et le verrou légitime a fait ROUGIR quatre cas qui n'avaient rien à voir
+      // avec lui (C, E, F, G). Une recette dont le verdict dépend de ce qui tourne dehors ne
+      // prouve rien — elle rougit au hasard, donc on finit par ne plus la croire. Chaque cas
+      // pointe ici un chemin absent du bac à sable ; ceux qui veulent un verrou l'écrivent.
+      ECHO_VERROU_CAMPAGNE: join(base, 'aucun-verrou.json'),
+      ...(commande ? { ECHO_PREPUSH_COMMANDE: commande } : {}),
+      ...envPlus,
+    },
   });
   return { code: r.status, sortie: (r.stdout || '') + (r.stderr || '') };
 }
@@ -164,6 +175,72 @@ try {
     verdict('G. le seam de recette s ANNONCE — une garde qu on peut faire mentir en silence ne garde rien',
       /ECHO_PREPUSH_COMMANDE est pos/i.test(r.sortie) && /n est PAS la garde r/i.test(r.sortie),
       'le crochet dit lui-meme qu il ne joue pas npm test');
+  }
+  // --- H a K. LE VERROU DE CAMPAGNE (R-09) ------------------------------------------
+  //
+  // Ce que ces quatre cas prouvent, et que rien ne prouvait avant le 2026-08-17 : ce depot sait
+  // refuser un push PARCE QU UNE CAMPAGNE DE MESURE TOURNE. Le code peut etre parfait — c est le
+  // MOMENT qui ne va pas. Cas fondateur : `47d499e1`, pousse pendant la campagne §10, qui a
+  // declenche les deploiements 502 et 503 et fausse une passe SANS RIEN ANNONCER.
+  const verrouEcrit = (contenu) => {
+    const f = join(base, 'verrou-campagne.json');
+    writeFileSync(f, contenu, 'utf8');
+    return f;
+  };
+  const dans = (s) => new Date(Date.now() + s * 1000).toISOString();
+
+  {
+    commit(travail, 'un commit vert, mais pendant une campagne');
+    const f = verrouEcrit(JSON.stringify({ campagne: 'P3 c14h-p2', expire_a: dans(900) }));
+    const r = pousser(travail, ['origin', 'main'], 'exit 0', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('H. verrou ACTIF : le push vers main est REFUSE, et le refus nomme la campagne',
+      r.code !== 0 && /CAMPAGNE DE MESURE est en vol/.test(r.sortie) && /P3 c14h-p2/.test(r.sortie),
+      `code ${r.code}`);
+    verdict('H bis. le refus tombe AVANT les suites — quinze minutes de tests ne sont pas brulees',
+      !/Les deux suites passent/.test(r.sortie),
+      'aucune suite jouee avant le refus');
+    verdict('H ter. le refus dit le REMEDE : le fichier a supprimer et l echappatoire',
+      r.sortie.includes('verrou-campagne.json') && /--no-verify/.test(r.sortie),
+      'sans remede ecrit, une garde fermee devient une panne et se fait desarmer');
+  }
+
+  {
+    // Un `p3-chrono` tue ne doit pas bloquer ce depot pour toujours : le bail expire seul.
+    const f = verrouEcrit(JSON.stringify({ campagne: 'P3 passe morte', expire_a: dans(-1) }));
+    const r = pousser(travail, ['origin', 'main'], 'exit 0', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('I. verrou EXPIRE : le push repasse — un verrou qui ne se leve jamais se fait supprimer',
+      r.code === 0 && /Les deux suites passent/.test(r.sortie),
+      `code ${r.code}`);
+  }
+
+  {
+    const f = verrouEcrit('{ ceci n est pas du JSON');
+    commit(travail, 'un commit vert, verrou corrompu');
+    const r = pousser(travail, ['origin', 'main'], 'exit 0', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('J. verrou CORROMPU : refus — ne pas savoir lire n est pas savoir qu il n y a pas de campagne',
+      r.code !== 0 && /ILLISIBLE/.test(r.sortie),
+      `code ${r.code}`);
+  }
+
+  {
+    // Le verrou garde `main`, pas le depot : une branche de travail reste poussable pendant une
+    // campagne, puisqu elle ne declenche aucun deploiement.
+    const f = verrouEcrit(JSON.stringify({ campagne: 'P3 en vol', expire_a: dans(900) }));
+    const r = pousser(travail, ['origin', 'HEAD:refs/heads/travaux-pendant-campagne'], 'exit 1', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('K. verrou actif mais push HORS main : accepte — R-09 vise le build, pas le depot',
+      r.code === 0,
+      `code ${r.code}`);
+  }
+
+  {
+    // Les cas H a K neutralisent `ECHO_VERROU_CAMPAGNE` : ils ne prouvent donc RIEN sur le chemin
+    // que le crochet lit en vrai. Sans ce controle, la garde pourrait pointer n importe ou en
+    // production sans qu un seul cas ne rougisse. Le chemin doit vivre hors des deux depots — le
+    // depot de mesure l ecrit, celui-ci le lit, et un `git clean` ne doit pas l emporter.
+    const { CHEMIN_VERROU } = await import('./gardes-avant-push.js').then((m) => m.default ?? m);
+    verdict('L. le chemin lu EN PRODUCTION est hors des deux depots',
+      !/echo-code|l-echo-des-hauts-magazine/i.test(CHEMIN_VERROU) && CHEMIN_VERROU.includes('.claude'),
+      CHEMIN_VERROU);
   }
 } finally {
   try { rmSync(base, { recursive: true, force: true }); } catch { /* le temporaire s efface seul */ }

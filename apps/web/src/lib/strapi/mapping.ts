@@ -100,7 +100,17 @@ function media(brut: unknown, chemin: string): Media {
  * des alternatives FRANCAISES — 28 textes distincts sur 41 pages, mesure le 2026-08-14.
  * La parade est un champ LOCALISE pose a cote du media (`alternativeCouverture`,
  * `alternativeHero`, `alternativePhoto`, `alternativeLogo`, `alternative` du bloc,
- * `alternativePartage` du composant `partage.seo`).
+ * `alternativePartage` du composant `partage.seo`, `alternativeVignette` de `bloc.video`).
+ *
+ * LES TROIS PORTEURS QUE LA REVUE DES HUIT BLOCS A RELEVES (A-04, 2026-08-17), et ou ils en
+ * sont depuis la decision `5ca1ca4b` (branche A) :
+ *   1. `bloc.video.vignette`      — COUVERT ici, par `alternativeVignette` ;
+ *   2. `bloc.galerie.images`      — COUVERT ici, par le repetable `alternatives` ;
+ *   3. le noeud `image` d un champ `blocks` (`bloc.texte.contenu`, `bloc.encadre.contenu`)
+ *      — NON COUVERT, et il ne peut pas l etre d ici : `richTexte()` est un transtypage,
+ *      il ne traverse pas les noeuds, et un noeud de Blocks n a aucun champ voisin ou
+ *      poser une surcharge. `RichTexte.astro` y lit l `alternativeText` NATIF en clair.
+ *      Trou connu, ecrit plutot que comble — cf. A-04 dans `docs/modele-donnees.md`.
  *
  * POURQUOI LE REPLI EST ICI ET PAS DANS LES COMPOSANTS. Il y a sept endroits ou un `alt`
  * sort d un media. Leur demander a chacun de se souvenir du repli, c est sept occasions
@@ -292,7 +302,10 @@ function bloc(brut: unknown, chemin: string): Bloc {
         type: 'bloc.video',
         url: texteRequis(brut, 'url', chemin),
         legende: texteOptionnel(brut, 'legende', chemin),
-        vignette: mediaOptionnel(brut, 'vignette', chemin),
+        vignette: surchargerOptionnel(
+          mediaOptionnel(brut, 'vignette', chemin),
+          texteOptionnel(brut, 'alternativeVignette', chemin),
+        ),
       };
 
     case 'bloc.image-legendee':

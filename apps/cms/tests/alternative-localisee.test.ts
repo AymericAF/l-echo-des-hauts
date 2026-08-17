@@ -70,6 +70,12 @@ type Options = {
   seoPartageEn?: string;
   /** Pose `seoPartageEn` SANS `seo.imagePartage` : la surcharge ne surchargerait rien. */
   seoSansImage?: boolean;
+  /** Surcharge portee par la VIGNETTE du bloc `video` EN (A-04, decision `5ca1ca4b`). */
+  vignetteEn?: string;
+  /** Rend DECORATIVE la vignette du bloc `video` (alternative native vide). */
+  vignetteDecorative?: boolean;
+  /** Pose `vignetteEn` SANS `vignette` : la surcharge ne surchargerait rien. */
+  videoSansVignette?: boolean;
 };
 
 function ecrireCorpus(options: Options = {}): string {
@@ -90,6 +96,9 @@ function ecrireCorpus(options: Options = {}): string {
   ]) {
     ecrire(rel, svg);
   }
+  /* La vignette n existe QUE si le bloc video la cite : un media au manifeste et employe
+     nulle part est refuse par `chargerCorpus` — c est la garde des orphelins. */
+  if (!options.videoSansVignette) ecrire('medias/blocs/A05-vignette.svg', svg);
   ecrire('medias/identite/partage.png', 'PNG factice');
 
   const duProjet = (alternativeText: string) => ({
@@ -107,6 +116,13 @@ function ecrireCorpus(options: Options = {}): string {
       'blocs/A05-piece.svg': options.blocDecoratif
         ? { ...duProjet(''), decoratif: true }
         : duProjet('Fac-simile d un tableau de repartition'),
+      ...(options.videoSansVignette
+        ? {}
+        : {
+            'blocs/A05-vignette.svg': options.vignetteDecorative
+              ? { ...duProjet(''), decoratif: true }
+              : duProjet('Le canal d amenee vu depuis la passerelle'),
+          }),
       'auteurs/hakim-zerrouki.svg': duProjet('Monogramme HZ'),
       'heros/rubrique-territoire.svg': duProjet('Bandeau de courbes de niveau'),
     })
@@ -203,6 +219,11 @@ function ecrireCorpus(options: Options = {}): string {
       locale === 'en' && surcharges.blocEn !== undefined
         ? ` alternative="${surcharges.blocEn}"`
         : '';
+    const attributsVideo =
+      (surcharges.videoSansVignette ? '' : ' vignette=blocs/A05-vignette.svg') +
+      (locale === 'en' && surcharges.vignetteEn !== undefined
+        ? ` alternativeVignette="${surcharges.vignetteEn}"`
+        : '');
     return [
       '---',
       JSON.stringify(enTete, null, 2),
@@ -213,6 +234,9 @@ function ecrireCorpus(options: Options = {}): string {
       ':::',
       '',
       `::: image-legendee image=blocs/A05-piece.svg legende="Repartition" credit="Œuvre du projet"${attributsBloc}`,
+      ':::',
+      '',
+      `::: video url=https://www.youtube.com/watch?v=aaaaaaaaaaa legende="Le canal, en trois minutes."${attributsVideo}`,
       ':::',
       '',
     ].join('\n');
@@ -229,6 +253,9 @@ function ecrireCorpus(options: Options = {}): string {
 
 const blocImage = (contenu: Record<string, any>[]) =>
   contenu.find((b) => b.__component === 'bloc.image-legendee');
+
+const blocVideo = (contenu: Record<string, any>[]) =>
+  contenu.find((b) => b.__component === 'bloc.video');
 
 /* ------------------------------------------------------------------ */
 /* SENS 1 — la surcharge est LUE, locale par locale                     */
@@ -258,6 +285,26 @@ test('un bloc `image-legendee` porte sa surcharge, et la legende n en est pas to
   assert.equal(bloc?.alternative, 'Facsimile of an allocation table');
   assert.equal(bloc?.legende, 'Repartition', 'A-04 tient : la legende n est pas l alternative');
   assert.equal(blocImage(corpus.articles[0].fr.contenu)?.alternative, undefined);
+});
+
+/* LA VIGNETTE D UN `bloc.video` — le HUITIEME porteur, ouvert le 2026-08-17 (decision
+   `5ca1ca4b`, branche A). Elle se comble EXACTEMENT comme `bloc.image-legendee` : un champ
+   voisin dans le meme composant, que la dynamic zone localise par construction. Le trou
+   etait reste invisible parce que `bloc.video` n a plus aucun porteur au corpus depuis
+   l avenant A5 — l absence de donnee n est pas l absence de defaut. */
+test('un bloc `video` porte la surcharge de sa VIGNETTE, et la legende n en est pas touchee', () => {
+  const corpus = chargerCorpus(
+    ecrireCorpus({ vignetteEn: 'The headrace canal seen from the footbridge' })
+  );
+  const bloc = blocVideo(corpus.articles[0].en!.contenu);
+
+  assert.equal(bloc?.alternativeVignette, 'The headrace canal seen from the footbridge');
+  assert.equal(bloc?.legende, 'Le canal, en trois minutes.', 'A-04 tient : la legende n est pas l alternative');
+  assert.equal(
+    blocVideo(corpus.articles[0].fr.contenu)?.alternativeVignette,
+    undefined,
+    'la locale FR n a pas de surcharge : son alternative native est deja francaise'
+  );
 });
 
 test('le hero d une categorie, la photo d un auteur et les medias de la Configuration portent la leur', () => {
@@ -322,6 +369,7 @@ test('GARDE 1 — elle vaut pour un bloc, un hero, une photo et la Configuration
     { logoEn: '   ' },
     { partageEn: '' },
     { seoPartageEn: '  ' },
+    { vignetteEn: ' ' },
   ] as Options[]) {
     assert.throws(
       () => chargerCorpus(ecrireCorpus(options)),
@@ -366,6 +414,32 @@ test('GARDE 3 — `alternativePartage` SANS `seo.imagePartage` est REFUSE : elle
   );
 });
 
+/* Le meme mode d echec que GARDE 3, sur l autre porteur qui peut ne pas avoir de media :
+   la surcharge est posee, elle a l air d etre prise, et il n y a AUCUNE vignette a
+   surcharger. Le bloc degraderait vers son lien textuel, et le redacteur croirait avoir
+   traduit quelque chose. On refuse a l entree. */
+test('GARDE 3 — `alternativeVignette` SANS `vignette` est REFUSE : elle ne surchargerait rien', () => {
+  assert.throws(
+    () =>
+      chargerCorpus(
+        ecrireCorpus({ vignetteEn: 'A thumbnail with no file behind it', videoSansVignette: true })
+      ),
+    (e: unknown) => {
+      assert.ok(e instanceof ErreurCorpus, 'doit etre une ErreurCorpus');
+      assert.match((e as Error).message, /alternativeVignette/);
+      assert.match((e as Error).message, /vignette/);
+      return true;
+    }
+  );
+});
+
+test('GARDE 3 — PREUVE EN CASSANT : un bloc `video` SANS vignette et SANS surcharge se charge', () => {
+  const corpus = chargerCorpus(ecrireCorpus({ videoSansVignette: true }));
+
+  assert.equal(blocVideo(corpus.articles[0].en!.contenu)?.vignette, undefined);
+  assert.equal(blocVideo(corpus.articles[0].en!.contenu)?.alternativeVignette, undefined);
+});
+
 /* ------------------------------------------------------------------ */
 /* SENS 3 — GARDE 2 : pas de surcharge sur un media DECORATIF           */
 /* ------------------------------------------------------------------ */
@@ -386,6 +460,21 @@ test('GARDE 2 — PREUVE EN CASSANT : le meme media decoratif SANS surcharge se 
   const corpus = chargerCorpus(ecrireCorpus({ blocDecoratif: true }));
 
   assert.equal(blocImage(corpus.articles[0].en!.contenu)?.alternative, undefined);
+});
+
+test('GARDE 2 — elle vaut aussi pour la VIGNETTE d un bloc `video`', () => {
+  assert.throws(
+    () =>
+      chargerCorpus(
+        ecrireCorpus({ vignetteDecorative: true, vignetteEn: 'The headrace canal' })
+      ),
+    (e: unknown) => {
+      assert.ok(e instanceof ErreurCorpus, 'doit etre une ErreurCorpus');
+      assert.match((e as Error).message, /blocs\/A05-vignette\.svg/);
+      assert.match((e as Error).message, /decoratif/);
+      return true;
+    }
+  );
 });
 
 /* ------------------------------------------------------------------ */
@@ -445,6 +534,19 @@ test('le composant `bloc.image-legendee` porte `alternative` — il herite de la
     undefined,
     'un attribut de composant ne declare pas d option i18n : la dynamic zone porte la localisation'
   );
+});
+
+test('le composant `bloc.video` porte `alternativeVignette` — le HUITIEME porteur (A-04, 2026-08-17)', () => {
+  const composant = JSON.parse(
+    fs.readFileSync(path.join(RACINE_CMS, 'src/components/bloc/video.json'), 'utf8')
+  );
+
+  assert.ok(composant.attributes.alternativeVignette, 'le bloc doit porter `alternativeVignette`');
+  assert.equal(composant.attributes.alternativeVignette.type, 'string');
+  /* Meme raison que pour `bloc.image-legendee` : un attribut de composant ne declare pas
+     ses propres options i18n — ce qui le localise est la dynamic zone `contenu`. */
+  assert.equal(composant.attributes.alternativeVignette.pluginOptions, undefined);
+  assert.notEqual(composant.attributes.alternativeVignette.required, true);
 });
 
 test('le composant `partage.seo` porte `alternativePartage` — la carte de partage est le SEPTIEME porteur', () => {

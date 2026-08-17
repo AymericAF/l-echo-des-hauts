@@ -262,6 +262,7 @@ const CHAMPS_IMBRIQUES_ARTICLE = [
   'contenu.3.variante',
   'contenu.4.url',
   'contenu.4.vignette',
+  'contenu.4.alternativeVignette',
   'contenu.5.image',
   'contenu.5.credit',
   'contenu.6.style',

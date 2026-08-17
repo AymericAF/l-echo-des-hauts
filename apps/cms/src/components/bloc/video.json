@@ -3,7 +3,7 @@
   "info": {
     "displayName": "Video",
     "icon": "play-circle",
-    "description": "Vignette + lien sortant, AUCUN lecteur embarque et aucun ecouteur d evenement (objection O1 du brief). Si vignette est vide, elle est derivee de l url au build (A-03 amende par T-03)."
+    "description": "Vignette + lien sortant, AUCUN lecteur embarque et aucun ecouteur d evenement (objection O1 du brief). Si vignette est vide, elle est derivee de l url au build (A-03 amende par T-03). L alternative de la vignette vient de l alternativeText natif de la Media Library (A-04) — sauf si alternativeVignette est renseigne, qui la surcharge pour CETTE locale : la mediatheque ne porte qu une valeur par fichier."
   },
   "options": {},
   "attributes": {
@@ -21,6 +21,9 @@
       "allowedTypes": [
         "images"
       ]
+    },
+    "alternativeVignette": {
+      "type": "string"
     }
   }
 }

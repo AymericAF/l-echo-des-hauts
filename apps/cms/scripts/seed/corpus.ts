@@ -491,6 +491,10 @@ function construireBloc(bloc: BlocBrut, contexte: string): Record<string, any> {
         url: exigerTexte(a.url, `${ctx} : attribut url`),
         legende: a.legende,
         vignette: a.vignette ? media(a.vignette) : undefined,
+        /* La surcharge LOCALISEE de l alternative de la vignette (A-04). Meme raison
+           qu au bloc `image-legendee` : elle n est pas validee ici, sa garde ayant
+           besoin du manifeste pour savoir si le media est DECORATIF. */
+        alternativeVignette: a.alternativeVignette,
       };
 
     default:
@@ -960,13 +964,36 @@ export function chargerCorpus(racine: string): Corpus {
        besoin du manifeste pour savoir si le media est DECORATIF, et `construireBloc`
        ne le connait pas. */
     contenu.forEach((bloc, i) => {
-      if (bloc.__component !== 'bloc.image-legendee') return;
-      bloc.alternative = exigerSurcharge(
-        bloc.alternative,
-        (bloc.image as RenvoiMedia | undefined)?.__media,
-        'alternative',
-        `${contexte} #${i + 1}, bloc \`image-legendee\``
-      );
+      if (bloc.__component === 'bloc.image-legendee') {
+        bloc.alternative = exigerSurcharge(
+          bloc.alternative,
+          (bloc.image as RenvoiMedia | undefined)?.__media,
+          'alternative',
+          `${contexte} #${i + 1}, bloc \`image-legendee\``
+        );
+        return;
+      }
+      if (bloc.__component === 'bloc.video') {
+        const ici = `${contexte} #${i + 1}, bloc \`video\``;
+        const cle = (bloc.vignette as RenvoiMedia | undefined)?.__media;
+        /* Le mode d echec propre a CE porteur : la surcharge est posee, elle a l air
+           d etre prise, et il n y a AUCUNE vignette a surcharger. Le bloc degraderait
+           vers son lien textuel (T-01) et le redacteur croirait avoir traduit quelque
+           chose. Meme refus que pour `alternativePartage` sans `imagePartage`. */
+        if (bloc.alternativeVignette !== undefined && cle === undefined) {
+          throw new ErreurCorpus(
+            `${ici} : \`alternativeVignette\` est pose SANS \`vignette\`.\n` +
+              `  Il n y a aucun media a surcharger : le bloc degraderait vers son lien\n` +
+              `  textuel, et la surcharge ne sortirait nulle part.`
+          );
+        }
+        bloc.alternativeVignette = exigerSurcharge(
+          bloc.alternativeVignette,
+          cle,
+          'alternativeVignette',
+          ici
+        );
+      }
     });
     exigerMedia(
       exigerTexte(enTete.imageCouverture, `${contexte} : imageCouverture`),

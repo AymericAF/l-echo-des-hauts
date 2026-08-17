@@ -335,6 +335,11 @@ export const COMPONENTS: Record<string, ComponentSpec> = {
       url: { type: 'string', required: true, regex: '^https?://' }, // A-20
       legende: { type: 'string' },
       vignette: { type: 'media', multiple: false, allowedTypes: ['images'] }, // A-03 amende par T-03
+      /* A-04 amende une seconde fois (2026-08-17, decision `5ca1ca4b` branche A) : la
+         surcharge LOCALISEE de l alternative de la vignette. Comme pour
+         `bloc.image-legendee.alternative`, AUCUN `pluginOptions.i18n` — un attribut de
+         composant n en porte pas, c est la dynamic zone `contenu` qui localise. */
+      alternativeVignette: { type: 'string' },
     },
   },
   'bloc.image-legendee': {
@@ -436,6 +441,8 @@ export const INVENTAIRE = {
   componentsPartages: 2,
   schemas: 17,
   /* 83 depuis le 2026-08-16 : `partage.seo.alternativePartage` (A-04 amende). Le §1 de
-     docs/modele-donnees.md porte le meme compte, et le marqueur qui l accompagne. */
-  champs: 83,
+     docs/modele-donnees.md porte le meme compte, et le marqueur qui l accompagne.
+     84 depuis le 2026-08-17 : `bloc.video.alternativeVignette` (A-04, decision
+     `5ca1ca4b` branche A). */
+  champs: 84,
 };

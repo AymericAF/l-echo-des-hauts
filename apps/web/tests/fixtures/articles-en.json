@@ -246,6 +246,7 @@
           "id": 155,
           "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa",
           "legende": "Lifting the deck into place, in three minutes.",
+          "alternativeVignette": null,
           "vignette": {
             "id": 60,
             "documentId": "med0000000000000000060",

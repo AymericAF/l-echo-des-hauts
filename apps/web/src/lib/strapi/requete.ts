@@ -69,7 +69,13 @@ const CONTENU: PopulateDynamicZone = {
     'bloc.citation': { fields: ['texte', 'auteurCitation', 'source'] },
     'bloc.galerie': { fields: ['legende', 'disposition'], populate: { images: MEDIA } },
     'bloc.encadre': { fields: ['titre', 'contenu', 'variante'] },
-    'bloc.video': { fields: ['url', 'legende'], populate: { vignette: MEDIA } },
+    /* `alternativeVignette` : la surcharge LOCALISEE de l alternative de la vignette
+       (A-04, decision `5ca1ca4b` branche A). Meme raison que pour `bloc.image-legendee`
+       ci-dessous — un champ non demande n arrive JAMAIS. */
+    'bloc.video': {
+      fields: ['url', 'legende', 'alternativeVignette'],
+      populate: { vignette: MEDIA },
+    },
     /* `alternative` : la surcharge LOCALISEE de l alternative textuelle. Un champ non
        demande n arrive JAMAIS, et son absence ne se voit pas — le repli retomberait en
        silence sur l alternative francaise du media. */

@@ -252,6 +252,7 @@
           "id": 105,
           "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa",
           "legende": "La pose du tablier, en trois minutes.",
+          "alternativeVignette": null,
           "vignette": {
             "id": 60,
             "documentId": "med0000000000000000060",

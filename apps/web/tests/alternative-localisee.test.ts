@@ -48,6 +48,8 @@ function fixture(nom: string): any {
 const blocImage = (article: any) =>
   article.contenu.find((b: any) => b.type === 'bloc.image-legendee');
 
+const blocVideo = (article: any) => article.contenu.find((b: any) => b.type === 'bloc.video');
+
 /* ------------------------------------------------------------------ */
 /* SENS 1 — sans surcharge, RIEN NE CHANGE                             */
 /* ------------------------------------------------------------------ */
@@ -176,6 +178,33 @@ test('la carte de partage SURCHARGEE d un article sert son alternative anglaise 
   assert.match(brut.seo.imagePartage.alternativeText, /^Carte de partage/);
 });
 
+/* La VIGNETTE d un `bloc.video`, ajoutee le 2026-08-17 (decision `5ca1ca4b`, branche A).
+   Elle etait le HUITIEME porteur, et le seul des trois releves par la revue des huit blocs
+   d A-04 qui se comble comme `bloc.image-legendee` : un champ voisin, un `avecSurcharge`,
+   rien de plus. Le trou etait invisible parce que `bloc.video` n a plus aucun porteur au
+   corpus depuis l avenant A5 — mais le BANC de fixtures, lui, en porte un, et il servait
+   bien une alternative FRANCAISE sur sa page anglaise. */
+test('un bloc `video` sert la surcharge de sa VIGNETTE (A-04, revue des huit blocs)', () => {
+  const brut = fixture('articles-en');
+  const bloc = brut.contenu.find((b: any) => b.__component === 'bloc.video');
+  assert.ok(bloc?.vignette, 'la fixture doit porter un bloc video AVEC vignette');
+  bloc.alternativeVignette = 'The deck suspended above the valley, seen from the north bank';
+
+  const rendu = blocVideo(mapperArticle(brut));
+
+  assert.equal(
+    rendu.vignette.alternative,
+    'The deck suspended above the valley, seen from the north bank'
+  );
+  assert.notEqual(
+    rendu.vignette.alternative,
+    bloc.vignette.alternativeText,
+    'la surcharge doit avoir REMPLACE l alternative francaise, pas s ajouter a cote'
+  );
+  assert.equal(rendu.legende, bloc.legende, 'la legende du bloc n est pas l alternative (A-04)');
+  assert.equal(rendu.url, bloc.url, 'le lien sortant est intact');
+});
+
 /* ------------------------------------------------------------------ */
 /* SENS 3 — une surcharge BLANCHE ne s applique pas                    */
 /* ------------------------------------------------------------------ */
@@ -214,6 +243,30 @@ test('une surcharge BLANCHE de la carte de partage ne remplace rien non plus', (
   }
 });
 
+test('une surcharge BLANCHE de la vignette video ne remplace rien non plus', () => {
+  for (const blanc of ['', '   ', '\t']) {
+    const brut = fixture('articles-en');
+    const bloc = brut.contenu.find((b: any) => b.__component === 'bloc.video');
+    const natif = bloc.vignette.alternativeText;
+    bloc.alternativeVignette = blanc;
+
+    assert.equal(
+      blocVideo(mapperArticle(brut)).vignette.alternative,
+      natif,
+      `une surcharge ${JSON.stringify(blanc)} doit laisser passer l alternative native`
+    );
+  }
+});
+
+test('sans vignette, la surcharge de vignette ne fabrique aucun media — elle ne cree rien', () => {
+  const brut = fixture('articles-en');
+  const bloc = brut.contenu.find((b: any) => b.__component === 'bloc.video');
+  bloc.vignette = null;
+  bloc.alternativeVignette = 'A thumbnail that has no file behind it';
+
+  assert.equal(blocVideo(mapperArticle(brut)).vignette, null);
+});
+
 test('sans carte de partage surchargee, la surcharge ne fabrique aucun media — elle ne cree rien', () => {
   const brut = fixture('articles-en');
   brut.seo.imagePartage = null;
@@ -247,6 +300,17 @@ test('la requete des articles demande la surcharge du bloc `image-legendee`', ()
 
   assert.ok(bloc.fields.includes('alternative'));
   assert.ok(bloc.fields.includes('legende'), 'la legende reste demandee : elle n est pas remplacee');
+});
+
+test('la requete des articles demande la surcharge de la vignette du bloc `video`', () => {
+  const bloc = REQUETES.articles.populate.contenu.on['bloc.video'];
+
+  assert.ok(
+    bloc.fields.includes('alternativeVignette'),
+    'un champ non demande n arrive jamais : le repli retomberait en silence sur le francais'
+  );
+  assert.ok(bloc.fields.includes('legende'), 'la legende reste demandee : elle n est pas remplacee');
+  assert.ok(bloc.populate.vignette, 'le media lui-meme reste peuple');
 });
 
 test('les requetes des categories, dossiers, auteurs et de la Configuration demandent les leurs', () => {

@@ -256,6 +256,7 @@ const CHAMPS_IMBRIQUES_ARTICLE = [
   'contenu.1.texte',
   'contenu.1.auteurCitation',
   'contenu.2.images',
+  'contenu.2.alternatives',
   'contenu.2.disposition',
   'contenu.2.legende',
   'contenu.3.contenu',

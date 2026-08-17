@@ -67,7 +67,16 @@ const CONTENU: PopulateDynamicZone = {
   on: {
     'bloc.texte': { fields: ['contenu'] },
     'bloc.citation': { fields: ['texte', 'auteurCitation', 'source'] },
-    'bloc.galerie': { fields: ['legende', 'disposition'], populate: { images: MEDIA } },
+    /* `alternatives` : le repetable des surcharges d alternative, une entree par image
+       SURCHARGEE — jamais une par image (A-04, decision `5ca1ca4b` branche A). Le media
+       de l entree est peuple parce que c est LUI qui apparie, pas le rang. */
+    'bloc.galerie': {
+      fields: ['legende', 'disposition'],
+      populate: {
+        images: MEDIA,
+        alternatives: { fields: ['alternative'], populate: { image: MEDIA } },
+      },
+    },
     'bloc.encadre': { fields: ['titre', 'contenu', 'variante'] },
     /* `alternativeVignette` : la surcharge LOCALISEE de l alternative de la vignette
        (A-04, decision `5ca1ca4b` branche A). Meme raison que pour `bloc.image-legendee`

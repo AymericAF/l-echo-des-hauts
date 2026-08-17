@@ -207,6 +207,7 @@
           "id": 103,
           "legende": "Le chantier, de la premiere pierre a la derniere.",
           "disposition": "grille",
+          "alternatives": [],
           "images": [
             {
               "id": 50,
@@ -390,6 +391,7 @@
           "id": 113,
           "legende": "La bande defilante : trois pieces de l atelier, de gauche a droite.",
           "disposition": "carrousel",
+          "alternatives": [],
           "images": [
             {
               "id": 60,

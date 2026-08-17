@@ -132,6 +132,53 @@ function surchargerOptionnel(media: Media | null, surcharge: string | null): Med
   return media === null ? null : avecSurcharge(media, surcharge);
 }
 
+/**
+ * LA SURCHARGE D UNE GALERIE — N images, une seule legende (A-22), donc un REPETABLE.
+ *
+ * POURQUOI L APPARIEMENT SE FAIT PAR LE MEDIA ET NON PAR LE RANG. Un tableau parallele,
+ * aligne sur l ordre des images, se casse au premier reordonnancement dans l admin : il
+ * servirait alors l alternative d une AUTRE image, en silence, et un alt faux passe toutes
+ * les gardes d accessibilite — elles comptent la presence, pas la justesse. L entree porte
+ * donc SON media, et c est lui qui decide. Le prix, ecrit plutot que tu : le fichier est
+ * designe deux fois dans le meme bloc, une fois dans `images` et une fois dans l entree.
+ *
+ * TROIS REFUS, et aucun n est cosmetique :
+ *   - une entree qui vise un fichier ABSENT de la galerie ne surcharge RIEN. Elle
+ *     disparaitrait sans un mot, et son auteur croirait avoir traduit quelque chose ;
+ *   - DEUX entrees pour un meme fichier : l une des deux serait servie au hasard du rang,
+ *     et le rang est precisement ce a quoi on refuse de se fier ;
+ *   - une entree BLANCHE. Pour ne pas surcharger une image, on n ecrit pas d entree —
+ *     `texteRequis` refuse donc ici, la ou `texteOptionnel` laisse passer ailleurs. La
+ *     difference n est pas une entorse : un champ facultatif a le droit d etre vide, une
+ *     entree de liste qu on a pris la peine de creer, non.
+ */
+function surchargerGalerie(images: Media[], brut: unknown, chemin: string): Media[] {
+  const surcharges = new Map<string, string>();
+  const connues = new Set(images.map((image) => image.url));
+
+  listeOuVide(brut, 'alternatives', chemin).forEach((entree, index) => {
+    const ici = `${chemin}.alternatives[${index}]`;
+    const url = texteRequis(objetRequis(entree, 'image', ici), 'url', `${ici}.image`);
+    if (!connues.has(url)) {
+      throw new ValeurInattendueError(
+        `${ici}.image`,
+        `« ${url} » n appartient pas aux images de cette galerie — la surcharge ne surchargerait ` +
+          'rien, et disparaitrait sans un mot',
+      );
+    }
+    if (surcharges.has(url)) {
+      throw new ValeurInattendueError(
+        `${ici}.image`,
+        `« ${url} » est surcharge DEUX fois — laquelle des deux alternatives serait servie ne ` +
+          'dependrait que du rang',
+      );
+    }
+    surcharges.set(url, texteRequis(entree, 'alternative', ici));
+  });
+
+  return images.map((image) => avecSurcharge(image, surcharges.get(image.url) ?? null));
+}
+
 function mediaRequis(source: unknown, cle: string, chemin: string): Media {
   return media(objetRequis(source, cle, chemin), `${chemin}.${cle}`);
 }
@@ -279,15 +326,17 @@ function bloc(brut: unknown, chemin: string): Bloc {
         source: texteOptionnel(brut, 'source', chemin),
       };
 
-    case 'bloc.galerie':
+    case 'bloc.galerie': {
+      const images = listeRequise(brut, 'images', chemin).map((image, index) =>
+        media(image, `${chemin}.images[${index}]`),
+      );
       return {
         type: 'bloc.galerie',
-        images: listeRequise(brut, 'images', chemin).map((image, index) =>
-          media(image, `${chemin}.images[${index}]`),
-        ),
+        images: surchargerGalerie(images, brut, chemin),
         legende: texteOptionnel(brut, 'legende', chemin),
         disposition: enumRequis(brut, 'disposition', chemin, ['grille', 'carrousel', 'pleine-largeur']),
       };
+    }
 
     case 'bloc.encadre':
       return {

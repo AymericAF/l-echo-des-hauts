@@ -303,6 +303,10 @@ export const COMPONENTS: Record<string, ComponentSpec> = {
     displayName: 'Galerie',
     attributes: {
       images: { type: 'media', multiple: true, allowedTypes: ['images'], required: true },
+      /* A-04 amende une seconde fois (2026-08-17, decision `5ca1ca4b` branche A) : N images
+         pour une seule legende (A-22), donc un REPETABLE, apparie par le MEDIA de l entree
+         et jamais par le rang. Facultatif : sans entree, rien ne change. */
+      alternatives: { type: 'component', repeatable: true, component: 'bloc.alternative-image' },
       legende: { type: 'string' }, // A-22 : une seule legende pour la galerie
       disposition: {
         type: 'enumeration',
@@ -392,6 +396,22 @@ export const COMPONENTS: Record<string, ComponentSpec> = {
       libelle: { type: 'string', required: true },
     },
   },
+  /* SECOND component IMBRIQUE du modele (2026-08-17, A-04 / decision `5ca1ca4b`). Il
+     n entre PAS dans la Dynamic Zone, qui reste a huit blocs — le §8.3 du cahier ne vise
+     que ceux-la. Meme statut que `bloc.chiffre-entree`, qui n a jamais ete un neuvieme
+     bloc non plus. */
+  'bloc.alternative-image': {
+    categorie: 'bloc',
+    nom: 'alternative-image',
+    displayName: 'Alternative d image',
+    attributes: {
+      /* LE MEDIA EST DANS L ENTREE, et c est lui qui apparie. Un repetable de textes seuls
+         serait aligne sur le RANG des images de la galerie : les reordonner servirait
+         l alternative d une AUTRE image, en silence. */
+      image: { type: 'media', multiple: false, allowedTypes: ['images'], required: true },
+      alternative: { type: 'string', required: true },
+    },
+  },
   'partage.seo': {
     categorie: 'partage',
     nom: 'seo',
@@ -437,12 +457,17 @@ export const INVENTAIRE = {
   collectionTypes: 5,
   singleTypes: 1,
   blocsDynamicZone: 8,
-  componentImbrique: 1,
+  /* DEUX depuis le 2026-08-17 : `bloc.alternative-image` rejoint `bloc.chiffre-entree`
+     (A-04, decision `5ca1ca4b` branche A). La Dynamic Zone reste a HUIT blocs — un
+     component imbrique n en est pas un neuvieme. */
+  componentImbrique: 2,
   componentsPartages: 2,
-  schemas: 17,
+  schemas: 18,
   /* 83 depuis le 2026-08-16 : `partage.seo.alternativePartage` (A-04 amende). Le §1 de
      docs/modele-donnees.md porte le meme compte, et le marqueur qui l accompagne.
      84 depuis le 2026-08-17 : `bloc.video.alternativeVignette` (A-04, decision
-     `5ca1ca4b` branche A). */
-  champs: 84,
+     `5ca1ca4b` branche A).
+     87 le meme jour : `bloc.galerie.alternatives` et les DEUX champs du component
+     imbrique `bloc.alternative-image` qu il porte (meme decision, second geste). */
+  champs: 87,
 };

@@ -71,7 +71,15 @@ type Locale = (typeof LOCALES)[number];
 const NATURES_BLOCS: Record<string, Natures> = {
   'bloc.texte': { contenu: 'scalaire' },
   'bloc.citation': { texte: 'scalaire', auteurCitation: 'scalaire', source: 'scalaire' },
-  'bloc.galerie': { images: 'medias', legende: 'scalaire', disposition: 'scalaire' },
+  'bloc.galerie': {
+    images: 'medias',
+    /* Le repetable des surcharges d alternative (A-04, 2026-08-17) : une entree par image
+       SURCHARGEE, jamais une par image. `repete` porte la forme de l entree — le media qui
+       apparie, et le texte. */
+    alternatives: { repete: { image: 'media', alternative: 'scalaire' } },
+    legende: 'scalaire',
+    disposition: 'scalaire',
+  },
   'bloc.encadre': { titre: 'scalaire', contenu: 'scalaire', variante: 'scalaire' },
   'bloc.video': {
     url: 'scalaire',

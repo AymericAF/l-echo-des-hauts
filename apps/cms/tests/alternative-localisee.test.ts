@@ -76,6 +76,14 @@ type Options = {
   vignetteDecorative?: boolean;
   /** Pose `vignetteEn` SANS `vignette` : la surcharge ne surchargerait rien. */
   videoSansVignette?: boolean;
+  /**
+   * Les lignes de surcharge du bloc `galerie` EN, telles qu elles s ecrivent dans le CORPS
+   * du bloc : `<cle du media> | <alternative>`. Le corps est brut a dessein — c est ce qui
+   * permet d y ecrire une cle absente de la galerie, ou deux fois la meme.
+   */
+  galerieEn?: string[];
+  /** Rend DECORATIVES les deux images de la galerie (alternative native vide). */
+  galerieDecorative?: boolean;
 };
 
 function ecrireCorpus(options: Options = {}): string {
@@ -93,6 +101,8 @@ function ecrireCorpus(options: Options = {}): string {
     'medias/blocs/A05-piece.svg',
     'medias/auteurs/hakim-zerrouki.svg',
     'medias/heros/rubrique-territoire.svg',
+    'medias/galeries/A05-1.svg',
+    'medias/galeries/A05-2.svg',
   ]) {
     ecrire(rel, svg);
   }
@@ -125,6 +135,12 @@ function ecrireCorpus(options: Options = {}): string {
           }),
       'auteurs/hakim-zerrouki.svg': duProjet('Monogramme HZ'),
       'heros/rubrique-territoire.svg': duProjet('Bandeau de courbes de niveau'),
+      'galeries/A05-1.svg': options.galerieDecorative
+        ? { ...duProjet(''), decoratif: true }
+        : duProjet('Le seuil du canal, vanne fermee'),
+      'galeries/A05-2.svg': options.galerieDecorative
+        ? { ...duProjet(''), decoratif: true }
+        : duProjet('La chambre de mise en charge, a sec'),
     })
   );
 
@@ -239,6 +255,10 @@ function ecrireCorpus(options: Options = {}): string {
       `::: video url=https://www.youtube.com/watch?v=aaaaaaaaaaa legende="Le canal, en trois minutes."${attributsVideo}`,
       ':::',
       '',
+      '::: galerie images=galeries/A05-1.svg,galeries/A05-2.svg legende="Le canal, en deux plans." disposition=grille',
+      ...(locale === 'en' ? (surcharges.galerieEn ?? []) : []),
+      ':::',
+      '',
     ].join('\n');
   };
 
@@ -256,6 +276,9 @@ const blocImage = (contenu: Record<string, any>[]) =>
 
 const blocVideo = (contenu: Record<string, any>[]) =>
   contenu.find((b) => b.__component === 'bloc.video');
+
+const blocGalerie = (contenu: Record<string, any>[]) =>
+  contenu.find((b) => b.__component === 'bloc.galerie');
 
 /* ------------------------------------------------------------------ */
 /* SENS 1 — la surcharge est LUE, locale par locale                     */
@@ -304,6 +327,83 @@ test('un bloc `video` porte la surcharge de sa VIGNETTE, et la legende n en est 
     blocVideo(corpus.articles[0].fr.contenu)?.alternativeVignette,
     undefined,
     'la locale FR n a pas de surcharge : son alternative native est deja francaise'
+  );
+});
+
+/* LA GALERIE — N images pour une seule legende (A-22), donc un REPETABLE, et l appariement
+   se fait par le MEDIA. Dans le corpus versionne, les lignes de surcharge vivent dans le
+   CORPS du bloc, au format `<cle du media> | <alternative>` : c est le seul endroit ou une
+   cle de media, qui porte un `/` et un `.`, peut s ecrire — un attribut de la ligne
+   d ouverture ne l accepterait pas. La convention `|` est celle de `chiffres-cles`. */
+test('un bloc `galerie` porte les surcharges de ses images, appariees par le media', () => {
+  const corpus = chargerCorpus(
+    ecrireCorpus({
+      galerieEn: [
+        'galeries/A05-2.svg | The surge chamber, drained',
+        'galeries/A05-1.svg | The canal sill, gate closed',
+      ],
+    })
+  );
+  const bloc = blocGalerie(corpus.articles[0].en!.contenu);
+
+  /* L ORDRE DES LIGNES NE DECIDE DE RIEN : elles sont ecrites a l envers des images, et
+     chacune atterrit bien sur SON fichier. C est ce que l appariement par media achete. */
+  assert.deepEqual(
+    (bloc?.alternatives ?? []).map((e: any) => [e.image.__media, e.alternative]),
+    [
+      ['galeries/A05-2.svg', 'The surge chamber, drained'],
+      ['galeries/A05-1.svg', 'The canal sill, gate closed'],
+    ]
+  );
+  assert.equal(bloc?.legende, 'Le canal, en deux plans.', 'A-22 : une seule legende, et ce n est pas une alternative');
+  assert.equal(
+    blocGalerie(corpus.articles[0].fr.contenu)?.alternatives,
+    undefined,
+    'la locale FR n a pas de surcharge : ses alternatives natives sont deja francaises'
+  );
+});
+
+test('une galerie SANS ligne de surcharge se charge — le repetable est facultatif', () => {
+  const corpus = chargerCorpus(ecrireCorpus());
+
+  assert.equal(blocGalerie(corpus.articles[0].en!.contenu)?.alternatives, undefined);
+});
+
+test('GARDE 4 — une ligne de surcharge qui vise un media HORS de la galerie est REFUSEE', () => {
+  assert.throws(
+    () =>
+      chargerCorpus(
+        ecrireCorpus({ galerieEn: ['blocs/A05-piece.svg | Not part of this gallery'] })
+      ),
+    (e: unknown) => {
+      assert.ok(e instanceof ErreurCorpus, 'doit etre une ErreurCorpus');
+      assert.match((e as Error).message, /blocs\/A05-piece\.svg/);
+      assert.match((e as Error).message, /galerie/);
+      return true;
+    }
+  );
+});
+
+test('GARDE 4 — DEUX lignes pour le meme media sont REFUSEES : le rang deciderait', () => {
+  assert.throws(
+    () =>
+      chargerCorpus(
+        ecrireCorpus({
+          galerieEn: ['galeries/A05-1.svg | First reading', 'galeries/A05-1.svg | Second reading'],
+        })
+      ),
+    (e: unknown) => {
+      assert.ok(e instanceof ErreurCorpus, 'doit etre une ErreurCorpus');
+      assert.match((e as Error).message, /galeries\/A05-1\.svg/);
+      return true;
+    }
+  );
+});
+
+test('GARDE 4 — une ligne sans separateur `|` est REFUSEE, format nomme', () => {
+  assert.throws(
+    () => chargerCorpus(ecrireCorpus({ galerieEn: ['galeries/A05-1.svg The canal sill'] })),
+    ErreurCorpus
   );
 });
 
@@ -370,6 +470,7 @@ test('GARDE 1 — elle vaut pour un bloc, un hero, une photo et la Configuration
     { partageEn: '' },
     { seoPartageEn: '  ' },
     { vignetteEn: ' ' },
+    { galerieEn: ['galeries/A05-1.svg |   '] },
   ] as Options[]) {
     assert.throws(
       () => chargerCorpus(ecrireCorpus(options)),
@@ -462,6 +563,30 @@ test('GARDE 2 — PREUVE EN CASSANT : le meme media decoratif SANS surcharge se 
   assert.equal(blocImage(corpus.articles[0].en!.contenu)?.alternative, undefined);
 });
 
+test('GARDE 2 — elle vaut aussi pour une image de GALERIE declaree decorative', () => {
+  assert.throws(
+    () =>
+      chargerCorpus(
+        ecrireCorpus({
+          galerieDecorative: true,
+          galerieEn: ['galeries/A05-1.svg | The canal sill, gate closed'],
+        })
+      ),
+    (e: unknown) => {
+      assert.ok(e instanceof ErreurCorpus, 'doit etre une ErreurCorpus');
+      assert.match((e as Error).message, /galeries\/A05-1\.svg/);
+      assert.match((e as Error).message, /decoratif/);
+      return true;
+    }
+  );
+});
+
+test('GARDE 2 — PREUVE EN CASSANT : la meme galerie decorative SANS surcharge se charge', () => {
+  const corpus = chargerCorpus(ecrireCorpus({ galerieDecorative: true }));
+
+  assert.equal(blocGalerie(corpus.articles[0].en!.contenu)?.alternatives, undefined);
+});
+
 test('GARDE 2 — elle vaut aussi pour la VIGNETTE d un bloc `video`', () => {
   assert.throws(
     () =>
@@ -549,6 +674,33 @@ test('le composant `bloc.video` porte `alternativeVignette` — le HUITIEME port
   assert.notEqual(composant.attributes.alternativeVignette.required, true);
 });
 
+test('le composant `bloc.galerie` porte le repetable `alternatives`, et son composant porte le MEDIA', () => {
+  const galerie = JSON.parse(
+    fs.readFileSync(path.join(RACINE_CMS, 'src/components/bloc/galerie.json'), 'utf8')
+  );
+  const alternatives = galerie.attributes.alternatives;
+
+  assert.ok(alternatives, 'la galerie doit porter `alternatives`');
+  assert.equal(alternatives.type, 'component');
+  assert.equal(alternatives.repeatable, true, 'N images, donc N surcharges possibles (A-22)');
+  assert.equal(alternatives.component, 'bloc.alternative-image');
+  assert.notEqual(alternatives.required, true, 'facultatif : sans entree, rien ne change');
+  assert.equal(alternatives.pluginOptions, undefined, 'la dynamic zone `contenu` porte la localisation');
+
+  const entree = JSON.parse(
+    fs.readFileSync(path.join(RACINE_CMS, 'src/components/bloc/alternative-image.json'), 'utf8')
+  );
+  /* LE MEDIA EST DANS L ENTREE, ET C EST LUI QUI APPARIE. Un repetable de textes seuls
+     serait aligne sur le RANG des images : reordonner la galerie servirait alors
+     l alternative d une autre image, en silence — et un alt faux passe toutes les gardes
+     d accessibilite, qui comptent la presence et non la justesse. */
+  assert.equal(entree.attributes.image.type, 'media');
+  assert.equal(entree.attributes.image.multiple, false);
+  assert.equal(entree.attributes.image.required, true);
+  assert.equal(entree.attributes.alternative.type, 'string');
+  assert.equal(entree.attributes.alternative.required, true, 'une entree creee et vide ne veut rien dire');
+});
+
 test('le composant `partage.seo` porte `alternativePartage` — la carte de partage est le SEPTIEME porteur', () => {
   const composant = JSON.parse(
     fs.readFileSync(path.join(RACINE_CMS, 'src/components/partage/seo.json'), 'utf8')
@@ -632,21 +784,41 @@ function porteursAnglais(corpus: ReturnType<typeof chargerCorpus>) {
           surcharge: bloc.alternative,
         });
       }
-      /* LA GALERIE EST DANS CETTE LISTE, ET ELLE N A PAS DE SURCHARGE — c est voulu,
-         et c est ce qui rend le trou VISIBLE plutot que tacite.
-         `bloc.galerie` porte N images pour une seule legende (A-22) ; lui donner des
-         alternatives par locale demanderait un champ REPETABLE, donc un autre lot. Le
-         corpus n en a pas besoin : ses 22 images de galerie sont toutes
-         `decoratif: true` (commit `d0e3db5`), elles sortent en `alt=""` et il n y a
-         rien a traduire. Le filtre `decoratif` ci-dessous les ecarte donc toutes.
-         Le jour ou une galerie PORTEUSE sera servie en anglais, ce test ROUGIRA en la
-         nommant — et c est le bon moment pour decider d etendre le mecanisme, pas
-         avant. Sans cette ligne, elle serait sortie en francais sans que rien ne bouge.
+      /* LA GALERIE EST DANS CETTE LISTE, et depuis le 2026-08-17 elle a une SURCHARGE.
+         ~~c est voulu, et c est ce qui rend le trou VISIBLE plutot que tacite~~ — le trou
+         est COMBLE (decision `5ca1ca4b`, branche A) : `bloc.galerie` porte N images pour
+         une seule legende (A-22), donc un REPETABLE `alternatives`, apparie par le MEDIA
+         et non par le rang.
+         Ce que ce test juge n a PAS change, et c est ce qui compte : le corpus n a
+         toujours besoin d aucune surcharge de galerie — ses 22 images sont toutes
+         `decoratif: true` (commit `d0e3db5`), elles sortent en `alt=""`, et le filtre
+         `decoratif` ci-dessous les ecarte. Le jour ou une galerie PORTEUSE sera servie en
+         anglais, ce test ROUGIRA en la nommant — a ceci pres qu il existe desormais un
+         mecanisme pour la corriger, la ou il fallait auparavant ouvrir un lot.
          Mesure du 2026-08-14 : sur le banc de fixtures, dont les galeries ne sont PAS
          decoratives, trois alternatives francaises sortaient bien sur les pages EN. */
+      /* LA VIGNETTE D UN BLOC VIDEO, ajoutee le 2026-08-17. Elle est INERTE sur le corpus
+         d aujourd hui — `bloc.video` n a plus aucun porteur depuis l avenant A5 — et c est
+         exactement pourquoi elle doit y etre : le jour ou une vidéo revient, la recette ne
+         doit pas avoir a etre re-decouverte. C est l absence de cette ligne, sur la carte
+         de partage, qui avait laisse passer le defaut du 2026-08-16. */
+      if (bloc.__component === 'bloc.video' && bloc.vignette) {
+        porteurs.push({
+          quoi: `article ${a.code} : vignette du bloc video`,
+          media: bloc.vignette.__media,
+          surcharge: bloc.alternativeVignette,
+        });
+      }
       if (bloc.__component === 'bloc.galerie') {
+        const parImage = new Map<string, string>(
+          (bloc.alternatives ?? []).map((e: any) => [e.image.__media, e.alternative])
+        );
         for (const image of bloc.images) {
-          porteurs.push({ quoi: `article ${a.code} : bloc galerie`, media: image.__media });
+          porteurs.push({
+            quoi: `article ${a.code} : bloc galerie`,
+            media: image.__media,
+            surcharge: parImage.get(image.__media),
+          });
         }
       }
     }

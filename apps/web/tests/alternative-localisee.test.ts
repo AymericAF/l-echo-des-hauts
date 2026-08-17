@@ -36,6 +36,7 @@ import {
   mapperConfiguration,
 } from '../src/lib/strapi/mapping.ts';
 import { REQUETES } from '../src/lib/strapi/requete.ts';
+import { ValeurInattendueError } from '../src/lib/strapi/erreurs.ts';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,6 +50,15 @@ const blocImage = (article: any) =>
   article.contenu.find((b: any) => b.type === 'bloc.image-legendee');
 
 const blocVideo = (article: any) => article.contenu.find((b: any) => b.type === 'bloc.video');
+
+const blocGalerie = (article: any) => article.contenu.find((b: any) => b.type === 'bloc.galerie');
+
+/** La galerie brute de la fixture, et le tableau `alternatives` qu elle porte. */
+function galerieBrute(brut: any): any {
+  const bloc = brut.contenu.find((b: any) => b.__component === 'bloc.galerie');
+  assert.ok(bloc?.images?.length >= 2, 'la fixture doit porter une galerie d au moins deux images');
+  return bloc;
+}
 
 /* ------------------------------------------------------------------ */
 /* SENS 1 — sans surcharge, RIEN NE CHANGE                             */
@@ -205,6 +215,71 @@ test('un bloc `video` sert la surcharge de sa VIGNETTE (A-04, revue des huit blo
   assert.equal(rendu.url, bloc.url, 'le lien sortant est intact');
 });
 
+/* LA GALERIE, ouverte le meme jour et par la meme decision — mais PAS par le meme geste.
+   `bloc.galerie` porte N images pour une seule legende (A-22) : il lui faut un champ
+   REPETABLE, et l appariement se fait par le MEDIA, jamais par le rang. Un appariement
+   positionnel se casserait au premier reordonnancement d images dans l admin, en SILENCE
+   et en servant l alternative d une AUTRE image — pire que pas d alternative du tout. */
+test('un bloc `galerie` sert la surcharge de CHAQUE image, appariee par son media', () => {
+  const brut = fixture('articles-en');
+  const galerie = galerieBrute(brut);
+  galerie.alternatives = [
+    { image: { ...galerie.images[1] }, alternative: 'The deck being lowered into place' },
+  ];
+
+  const rendu = blocGalerie(mapperArticle(brut));
+
+  assert.equal(rendu.images[1].alternative, 'The deck being lowered into place');
+  assert.equal(
+    rendu.images[0].alternative,
+    galerie.images[0].alternativeText,
+    'une image SANS entree de surcharge garde son alternative native — le repli est intact'
+  );
+  assert.equal(rendu.legende, galerie.legende, 'A-22 : la legende de la galerie n est pas une alternative');
+});
+
+test('une surcharge de galerie qui vise une image ABSENTE de la galerie est REFUSEE', () => {
+  const brut = fixture('articles-en');
+  const galerie = galerieBrute(brut);
+  galerie.alternatives = [
+    {
+      image: { ...galerie.images[0], url: '/uploads/une_image_qui_n_est_pas_dans_la_galerie.jpg' },
+      alternative: 'An image that this gallery does not carry',
+    },
+  ];
+
+  assert.throws(
+    () => mapperArticle(brut),
+    (erreur: unknown) =>
+      erreur instanceof ValeurInattendueError &&
+      String((erreur as Error).message).includes('une_image_qui_n_est_pas_dans_la_galerie'),
+    'une surcharge orpheline ne surcharge RIEN : elle doit casser, pas disparaitre'
+  );
+});
+
+test('deux surcharges pour la MEME image de galerie sont REFUSEES', () => {
+  const brut = fixture('articles-en');
+  const galerie = galerieBrute(brut);
+  galerie.alternatives = [
+    { image: { ...galerie.images[0] }, alternative: 'First reading' },
+    { image: { ...galerie.images[0] }, alternative: 'Second reading' },
+  ];
+
+  assert.throws(
+    () => mapperArticle(brut),
+    ValeurInattendueError,
+    'deux surcharges pour un meme fichier : l une des deux serait servie au hasard du rang'
+  );
+});
+
+test('une surcharge de galerie BLANCHE est REFUSEE — pour ne pas surcharger, on OMET la ligne', () => {
+  const brut = fixture('articles-en');
+  const galerie = galerieBrute(brut);
+  galerie.alternatives = [{ image: { ...galerie.images[0] }, alternative: '   ' }];
+
+  assert.throws(() => mapperArticle(brut), ValeurInattendueError);
+});
+
 /* ------------------------------------------------------------------ */
 /* SENS 3 — une surcharge BLANCHE ne s applique pas                    */
 /* ------------------------------------------------------------------ */
@@ -311,6 +386,18 @@ test('la requete des articles demande la surcharge de la vignette du bloc `video
   );
   assert.ok(bloc.fields.includes('legende'), 'la legende reste demandee : elle n est pas remplacee');
   assert.ok(bloc.populate.vignette, 'le media lui-meme reste peuple');
+});
+
+test('la requete des articles demande les surcharges du bloc `galerie`, avec leur media', () => {
+  const bloc = REQUETES.articles.populate.contenu.on['bloc.galerie'];
+
+  assert.ok(bloc.populate.alternatives, 'le repetable doit etre peuple : non demande, il n arrive jamais');
+  assert.ok(bloc.populate.alternatives.fields.includes('alternative'));
+  assert.ok(
+    bloc.populate.alternatives.populate.image,
+    'sans le media de l entree, rien ne dit QUELLE image elle surcharge'
+  );
+  assert.ok(bloc.populate.images, 'les images de la galerie restent peuplees');
 });
 
 test('les requetes des categories, dossiers, auteurs et de la Configuration demandent les leurs', () => {

@@ -415,6 +415,67 @@ function chargerMedias(racine: string): { liste: MediaCorpus[]; parCle: Map<stri
 
 const media = (cle: string): RenvoiMedia => ({ __media: cle });
 
+/**
+ * LES SURCHARGES D ALTERNATIVE D UNE GALERIE, lues dans le CORPS du bloc.
+ *
+ * `bloc.galerie` porte N images pour une seule legende (A-22) : il lui faut un REPETABLE,
+ * et l appariement se fait par le MEDIA, jamais par le rang — un tableau parallele se
+ * casserait au premier reordonnancement, en servant l alternative d une AUTRE image, en
+ * silence, et un alt faux passe toutes les gardes d accessibilite.
+ *
+ * POURQUOI LE CORPS ET PAS UN ATTRIBUT. Une cle de media porte un `/` et un `.`
+ * (`galeries/A05-1.svg`) ; la ligne d ouverture d un bloc n accepte que des noms
+ * d attribut `[A-Za-z][\w-]*`. Le corps est le seul endroit ou la cle s ecrit telle
+ * quelle — et le separateur `|` est deja celui de `chiffres-cles`.
+ *
+ * Une image SANS ligne garde son alternative native : pour ne pas surcharger, on n ecrit
+ * pas de ligne. C est ce qui rend les trois refus ci-dessous sans ambiguite.
+ */
+function lireAlternativesGalerie(
+  corps: string,
+  images: readonly string[],
+  ctx: string
+): Record<string, any>[] | undefined {
+  const lignes = corps
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l !== '');
+  if (lignes.length === 0) return undefined;
+
+  const vues = new Set<string>();
+  return lignes.map((ligne) => {
+    const separateur = ligne.indexOf('|');
+    if (separateur === -1) {
+      throw new ErreurCorpus(
+        `${ctx} : ligne de surcharge illisible — ${JSON.stringify(ligne)}.\n` +
+          `  Format attendu : \`<cle du media> | <alternative>\`, une ligne par image SURCHARGEE.\n` +
+          `  Une image sans ligne garde l alternative de la mediatheque (A-04).`
+      );
+    }
+    const cle = ligne.slice(0, separateur).trim();
+    if (!images.includes(cle)) {
+      throw new ErreurCorpus(
+        `${ctx} : la surcharge vise le media "${cle}", qui n est PAS dans les images de cette galerie.\n` +
+          `  Images de la galerie : ${images.join(', ')}.\n` +
+          `  Elle ne surchargerait rien et disparaitrait sans un mot.`
+      );
+    }
+    if (vues.has(cle)) {
+      throw new ErreurCorpus(
+        `${ctx} : le media "${cle}" est surcharge DEUX fois.\n` +
+          `  Laquelle des deux alternatives serait servie ne dependrait que du rang.`
+      );
+    }
+    vues.add(cle);
+    return {
+      image: media(cle),
+      /* Le texte n est pas valide ici : sa garde a besoin de savoir si le media est
+         DECORATIF, ce que seul le manifeste dit — donc `chargerCorpus`. */
+      alternative: ligne.slice(separateur + 1).trim(),
+    };
+  });
+}
+
 function construireBloc(bloc: BlocBrut, contexte: string): Record<string, any> {
   const a = bloc.attributs;
   const ctx = `${contexte}, bloc \`${bloc.type}\``;
@@ -480,6 +541,7 @@ function construireBloc(bloc: BlocBrut, contexte: string): Record<string, any> {
       return {
         __component: 'bloc.galerie',
         images: images.map(media),
+        alternatives: lireAlternativesGalerie(bloc.corps, images, ctx),
         legende: a.legende,
         disposition: a.disposition ?? 'grille',
       };
@@ -971,6 +1033,14 @@ export function chargerCorpus(racine: string): Corpus {
           'alternative',
           `${contexte} #${i + 1}, bloc \`image-legendee\``
         );
+        return;
+      }
+      if (bloc.__component === 'bloc.galerie') {
+        const ici = `${contexte} #${i + 1}, bloc \`galerie\``;
+        for (const entree of (bloc.alternatives as Record<string, any>[] | undefined) ?? []) {
+          const cle = (entree.image as RenvoiMedia | undefined)?.__media;
+          entree.alternative = exigerSurcharge(entree.alternative, cle, `alternative de "${cle}"`, ici);
+        }
         return;
       }
       if (bloc.__component === 'bloc.video') {

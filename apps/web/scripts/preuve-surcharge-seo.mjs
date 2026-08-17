@@ -89,8 +89,14 @@ export function absencesDuCorpus(racine) {
  * `repli` porte ce que le build DOIT calculer quand rien n est surcharge — le titre
  * de l entree. On ne recalcule pas la troncature ici : la comparer reviendrait a
  * reimplementer `tronquerSurUnMot`, donc a tester le script contre lui-meme.
+ *
+ * EXPORTEE depuis le 2026-08-17 (tache `3d546868`) : `miroir-servi.mjs` doit demander au
+ * site servi EXACTEMENT les pages que cette preuve ira relire. Deriver la liste deux fois
+ * la ferait diverger le jour ou une route bouge — et un miroir qui ne ramene pas une page
+ * ne fait pas rougir la preuve, il la fait SAUTER (`lirePage` rend `null`, la boucle
+ * `continue`). Pointer, jamais dupliquer.
  */
-function entreesDuCorpus(racine) {
+export function entreesDuCorpus(racine) {
   const entrees = [];
 
   for (const fichier of fs.readdirSync(path.join(racine, 'articles')).sort()) {

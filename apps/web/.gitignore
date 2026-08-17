@@ -34,3 +34,9 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 dist-recette/
+
+# Le MIROIR DU SITE SERVI (`scripts/miroir-servi.mjs`) : un instantane du HTML
+# que la production rend, ramene pour donner a `preuve-surcharge-seo.mjs` sa seconde
+# source sur la machine qui joue le seed. Il change a chaque passage et porte le HTML
+# de la production : le versionner ferait croire a un etat du DEPOT.
+.miroir-servi/

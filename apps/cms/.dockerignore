@@ -5,3 +5,11 @@ node_modules/
 build/
 .env
 public/uploads
+
+# Produits localement, jamais versionnes, regeneres DANS le stage de build.
+# Les laisser entrer, c'est offrir a `npm run build` un `dist/tsconfig.tsbuildinfo`
+# qui lui fait croire qu'il n'a rien a recompiler : l'image tourne alors sur un
+# `dist/` anterieur, sans erreur et sans log. Garde par tests/contexte-de-build.test.ts.
+dist/
+types/
+.strapi/

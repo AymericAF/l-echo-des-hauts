@@ -73,7 +73,17 @@ const NATURES_BLOCS: Record<string, Natures> = {
   'bloc.citation': { texte: 'scalaire', auteurCitation: 'scalaire', source: 'scalaire' },
   'bloc.galerie': { images: 'medias', legende: 'scalaire', disposition: 'scalaire' },
   'bloc.encadre': { titre: 'scalaire', contenu: 'scalaire', variante: 'scalaire' },
-  'bloc.video': { url: 'scalaire', legende: 'scalaire', vignette: 'media' },
+  'bloc.video': {
+    url: 'scalaire',
+    legende: 'scalaire',
+    vignette: 'media',
+    /* La surcharge LOCALISEE de l alternative de la vignette (A-04, 2026-08-17). Meme
+       raison qu au bloc `image-legendee` ci-dessous — et son oubli n aurait rougi NULLE
+       PART tant que `bloc.video` n a aucun porteur au corpus (avenant A5). C est ce que
+       ferme la garde de `tests/seed-natures-exhaustives.test.ts` qui lit les SCHEMAS et
+       non la donnee. */
+    alternativeVignette: 'scalaire',
+  },
   'bloc.image-legendee': {
     image: 'media',
     legende: 'scalaire',

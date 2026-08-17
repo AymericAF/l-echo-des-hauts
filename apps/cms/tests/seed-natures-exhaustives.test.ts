@@ -29,6 +29,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -147,6 +148,49 @@ test('le seed n ecrit AUCUN champ dont la nature ne soit declaree', async () => 
     'Un champ ecrit sans nature declaree fait REECRIRE toutes les entrees a chaque passe '
       + '(fail-safe de `comparerCorps`), donc un deploiement par publication. '
       + 'Declare-le dans NATURES / NATURES_BLOCS de `scripts/seed/seed.ts`.'
+  );
+});
+
+/**
+ * L ANGLE MORT DU TEST CI-DESSUS, ferme ici — ajoute le 2026-08-17 (tache `ff62eb9b`,
+ * decision `5ca1ca4b`).
+ *
+ * Le test precedent ecoute ce que le seed ECRIT sur le corpus REEL. Il ne peut donc rien
+ * dire d un bloc que le corpus ne porte pas : `bloc.video` n a plus AUCUN porteur depuis
+ * l avenant A5 du 2026-08-10. Son champ `alternativeVignette` a pu etre ajoute au schema,
+ * au mapping, au populate et au seed sans qu une seule ligne de test ne rougisse a l oubli
+ * de sa nature — et cet oubli aurait fait REECRIRE les 69 entrees le jour ou un bloc video
+ * revient au corpus, donc un deploiement par publication.
+ *
+ * Celui-ci ne regarde pas la donnee : il confronte `NATURES_BLOCS` aux SCHEMAS. Un attribut
+ * declare dans `src/components/bloc/*.json` et absent des natures est nomme, qu il ait un
+ * porteur ou non. Meme question, posee la ou l absence de donnee ne peut pas la faire taire.
+ */
+test('CHAQUE attribut de CHAQUE bloc du modele a une nature declaree — meme sans porteur au corpus', () => {
+  const naturesBlocs = (NATURES.article as any).contenu.zone as Record<string, any>;
+  const dossier = path.join(ICI, '..', 'src', 'components', 'bloc');
+
+  const manquants: string[] = [];
+  for (const fichier of fs.readdirSync(dossier).filter((f) => f.endsWith('.json'))) {
+    const schema = JSON.parse(fs.readFileSync(path.join(dossier, fichier), 'utf8'));
+    const composant = `bloc.${fichier.replace(/\.json$/, '')}`;
+    const natures = naturesBlocs[composant];
+    /* Les composants IMBRIQUES (`bloc.chiffre-entree`, `bloc.alternative-image`) ne sont
+       pas des blocs de la dynamic zone : leurs champs se declarent dans le `repete` de
+       leur porteur, que le test precedent couvre par sa descente recursive. On ne les
+       reclame donc pas ici. */
+    if (natures === undefined) continue;
+    for (const attribut of Object.keys(schema.attributes ?? {})) {
+      if (natures[attribut] === undefined) manquants.push(`${composant}.${attribut}`);
+    }
+  }
+
+  assert.deepEqual(
+    manquants.sort(),
+    [],
+    'ces attributs existent au schema et n ont aucune nature dans NATURES_BLOCS. '
+      + 'Le corpus ne les porte peut-etre pas AUJOURD HUI ; le jour ou il les portera, '
+      + '`comparerCorps` les traitera en nature inconnue et REECRIRA toutes les entrees.'
   );
 });
 

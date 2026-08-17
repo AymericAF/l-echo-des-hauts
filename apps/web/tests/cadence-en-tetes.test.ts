@@ -63,7 +63,9 @@ import {
   MARQUEUR_EMPREINTE,
   POLITIQUE_ATTENDUE,
   URLS_PAR_DEFAUT,
+  empreinteDe,
   politiquePour,
+  scriptsInlineExecutables,
 } from '../scripts/verifier-en-tetes.mjs';
 import { EXEMPTES_DE_L_INTEGRATION_CONTINUE } from '../scripts/verificateurs-de-sortie.mjs';
 
@@ -79,14 +81,19 @@ const WORKFLOW = path.join(DEPOT, '.github', 'workflows', 'gardes-du-code.yml');
  *
  * @param {(chemin: string) => Record<string, string> | null} enTetesDe null -> 404
  */
-function origineDeSubstitution(enTetesDe: (chemin: string) => Record<string, string> | null) {
+function origineDeSubstitution(
+  enTetesDe: (chemin: string) => Record<string, string> | null,
+  corpsDe: (chemin: string) => string = corpsConforme,
+) {
   const serveur = http.createServer((requete, reponse) => {
     const enTetes = enTetesDe(requete.url ?? '/');
     if (enTetes === null) {
       reponse.writeHead(404).end('');
       return;
     }
-    reponse.writeHead(200, { 'content-type': 'text/html; charset=utf-8', ...enTetes }).end('<!doctype html>');
+    reponse
+      .writeHead(200, { 'content-type': 'text/html; charset=utf-8', ...enTetes })
+      .end(corpsDe(requete.url ?? '/'));
   });
   return new Promise<{ base: string; fermer: () => Promise<void> }>((ok) => {
     serveur.listen(0, '127.0.0.1', () => {
@@ -99,8 +106,40 @@ function origineDeSubstitution(enTetesDe: (chemin: string) => Record<string, str
   });
 }
 
-/** Une empreinte bien formee — la garde en juge la FORME, jamais la valeur. */
-const EMPREINTE = "'sha256-urNDGBXjkCXmKLEppFdMdUMasfH9vYiR+8cKV+DrGSc='";
+/**
+ * LE SCRIPT INLINE que l origine de substitution sert sur les pages de recherche.
+ *
+ * Il n est pas decoratif : depuis que la garde RECALCULE l empreinte du script servi, un
+ * corps vide ferait rougir le cas conforme — et a raison, puisque le header declarerait
+ * alors une empreinte que rien ne porte. Ce corps est donc la seule facon d exercer le
+ * recalcul sans toucher a la production.
+ */
+const SCRIPT_INLINE = 'const moteur = "pagefind";\nexport default moteur;\n';
+
+/**
+ * Un BLOC DE DONNEES, servi a cote — c est ce que la production sert vraiment.
+ *
+ * `/recherche` porte DEUX balises `script` : celle-ci en `application/ld+json`, et le
+ * module de la recherche. Un bloc de donnees n est pas execute, donc `script-src` ne le
+ * couvre pas et AUCUN navigateur n en exige l empreinte. Une garde qui reclamerait la
+ * sienne rougirait sur une production saine — mesure du 2026-08-15 : son sha256 est
+ * `io4Wy1makD8Vv1yBuhcLTjDZ9dSeOCvppTumCYQ8/fo=`, et il n est declare nulle part.
+ */
+const BLOC_DE_DONNEES = '{"@context":"https://schema.org","@type":"WebSite"}';
+
+/** L empreinte du script ci-dessus, RECALCULEE et non recopiee — comme la garde le fait. */
+const EMPREINTE = empreinteDe(SCRIPT_INLINE);
+
+/** Le corps qu un serveur conforme rend sur ce chemin. */
+function corpsConforme(chemin = '/'): string {
+  if (!politiquePour(chemin).nom.startsWith('recherche')) return '<!doctype html><p>page</p>';
+  return (
+    '<!doctype html><html><head>' +
+    `<script type="application/ld+json">${BLOC_DE_DONNEES}</script>` +
+    `<script type="module">${SCRIPT_INLINE}</script>` +
+    '</head><body></body></html>'
+  );
+}
 
 /**
  * Les en-tetes qu un serveur conforme servirait SUR CE CHEMIN.
@@ -243,6 +282,93 @@ test('un statut inattendu est une incapacite, pas une politique absente', async 
   try {
     const passe = await lancer(base);
     assert.equal(passe.code, ISSUES.VERIFICATION_IMPOSSIBLE, `code ${passe.code} au lieu de 2`);
+  } finally {
+    await fermer();
+  }
+});
+
+// ── 1 bis. L empreinte est RECALCULEE sur le script servi, pas comparee a une copie ────
+//
+// L arbitrage du 2026-08-14 (tache a0733d45) a tranche que la garde juge la FORME de
+// l empreinte et non sa VALEUR — parce que recopier la valeur ici en ferait une seconde
+// source de verite, qui divergerait en silence de `docs/empreinte-script-recherche.md`.
+// Cet arbitrage est ratifie et ces tests ne le rouvrent pas. Ils ferment ce que son motif
+// (3) nommait sans le couvrir : « l empreinte ne correspond plus au script reellement
+// servi ». Une comparaison a la lettre ne le prouverait pas — deux copies egales d une
+// meme valeur ne disent RIEN du script servi. Un recalcul, si.
+
+test('le script servi change d UN OCTET, le header ne bouge pas : le processus rend 1', async () => {
+  /* C EST LE DEFAUT QUE PERSONNE NE VOIT. Le header est irreprochable, la page repond 200,
+     elle s affiche normalement — et le navigateur refuse d executer le module parce que son
+     empreinte ne correspond plus. La recherche ne cherche pas, sans un mot nulle part. */
+  const { base, fermer } = await origineDeSubstitution(
+    (chemin) => politiqueServie(chemin),
+    (chemin) => corpsConforme(chemin).replace('const moteur', 'const Moteur'),
+  );
+  try {
+    const passe = await lancer(base);
+    assert.equal(passe.code, ISSUES.ANOMALIE, `code ${passe.code} au lieu de 1 :\n${passe.stdout}`);
+    assert.match(passe.stderr, /\/recherche/);
+    assert.match(
+      passe.stderr,
+      /NE CHERCHE PAS/,
+      'le message ne nomme pas la consequence : un porteur de cadence ne lit que ce canal',
+    );
+  } finally {
+    await fermer();
+  }
+});
+
+test('une empreinte declaree que PLUS AUCUN script ne porte est un rouge DISTINCT', async () => {
+  /* Le cas du 2026-08-11, dans l autre sens : le script a disparu de la page (ou n a jamais
+     ete emis) et le header continue de declarer son empreinte. Rien ne casse visiblement.
+     Le distinguer du cas precedent n est pas un confort de message : l un envoie regarder le
+     BUILD qui a change le script, l autre la PAGE qui ne le sert plus. */
+  const { base, fermer } = await origineDeSubstitution(
+    (chemin) => politiqueServie(chemin),
+    (chemin) =>
+      politiquePour(chemin).nom === 'recherche'
+        ? `<!doctype html><html><head><script type="application/ld+json">${BLOC_DE_DONNEES}</script></head></html>`
+        : corpsConforme(chemin),
+  );
+  try {
+    const passe = await lancer(base);
+    assert.equal(passe.code, ISSUES.ANOMALIE, `code ${passe.code} au lieu de 1 :\n${passe.stdout}`);
+    assert.match(passe.stderr, /PERIMEE|ne correspond a AUCUN script/);
+  } finally {
+    await fermer();
+  }
+});
+
+test('un bloc de DONNEES n exige aucune empreinte — sinon la garde rougit sur une production saine', () => {
+  /* `/recherche` sert un `application/ld+json` a cote de son module. Il n est pas execute,
+     `script-src` ne le couvre pas, et son sha256 n est declare nulle part — mesure du
+     2026-08-15 sur la production. Une garde qui le reclamerait rougirait tous les jours. */
+  const scripts = scriptsInlineExecutables(corpsConforme('/recherche'));
+  assert.equal(scripts.length, 1, `${scripts.length} script(s) executable(s) au lieu de 1`);
+  assert.equal(scripts[0], SCRIPT_INLINE);
+});
+
+test('le recalcul porte sur les OCTETS EXACTS — pas sur un texte normalise', () => {
+  /* Le hash CSP porte sur le contenu tel quel. Normaliser les espaces, les fins de ligne ou
+     les entites — ou passer par un parseur qui reserialise — donnerait une empreinte juste
+     sur un script faux, c est-a-dire un VERT sur le defaut meme qu on garde. */
+  const avecEspace = SCRIPT_INLINE + ' ';
+  assert.notEqual(empreinteDe(avecEspace), EMPREINTE, 'un espace de plus rend la meme empreinte');
+  assert.match(empreinteDe(SCRIPT_INLINE), /^'sha256-[A-Za-z0-9+/]{43}='$/);
+});
+
+test('le VERT annonce combien de scripts il a recalcules — un vert muet ressemble a un vert vide', async () => {
+  const { base, fermer } = await origineDeSubstitution((chemin) => politiqueServie(chemin));
+  try {
+    const passe = await lancer(base);
+    assert.equal(passe.code, ISSUES.CONFORME, `code ${passe.code} au lieu de 0 :\n${passe.stderr}`);
+    assert.match(
+      passe.stdout,
+      /script\(s\) inline recalcule\(s\)/,
+      'le compte rendu au vert ne dit pas que le recalcul a eu lieu : il ressemble trait ' +
+        'pour trait a un vert obtenu sans avoir lu un seul corps',
+    );
   } finally {
     await fermer();
   }

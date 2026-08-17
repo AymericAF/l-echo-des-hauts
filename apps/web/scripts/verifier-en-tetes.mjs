@@ -83,8 +83,12 @@
  *   3. surtout, une comparaison a la lettre PROUVERAIT LA MAUVAISE CHOSE. Le defaut qui
  *      coute est « l empreinte ne correspond plus au script servi » — page morte, `200`,
  *      console muette cote page. Deux copies egales d une meme valeur n en disent rien :
- *      seule la confrontation de l empreinte SERVIE au script SERVI le prouverait, et c est
- *      un autre instrument que celui-ci (il lirait un corps, pas des en-tetes).
+ *      seule la confrontation de l empreinte SERVIE au script SERVI le prouverait, ~~et c est
+ *      un autre instrument que celui-ci (il lirait un corps, pas des en-tetes)~~ — **ce que
+ *      ce fichier FAIT depuis le 2026-08-15** (tache `55acab33`) : il lit AUSSI le corps des
+ *      pages de recherche, y recalcule le sha256 de chaque script inline executable, et le
+ *      confronte au `script-src` de la MEME reponse. Aucune valeur n est recopiee, donc
+ *      aucune seconde source de verite, et rien ne se perime — cf. « LE RECALCUL » plus bas.
  *
  * Ce que la forme attrape, et qui est le vrai perimetre de cette garde : l empreinte
  * remplacee par `'unsafe-inline'`, une source ajoutee (`'unsafe-eval'`, un domaine), une
@@ -94,6 +98,7 @@
  *
  * `npm run verifier:en-tetes [base]` mesure la production et rend son verdict.
  */
+import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
 import { ISSUES } from './issues.mjs';
@@ -147,6 +152,149 @@ export const MARQUEUR_EMPREINTE = "'sha256-<empreinte>'";
  * c est une DECISION, et le rouge est precisement la pour qu elle se prenne.
  */
 const FORME_EMPREINTE = /^'sha256-[A-Za-z0-9+/]{43}='$/;
+
+/**
+ * LE RECALCUL — ce que la garde de FORME ne pouvait pas couvrir, et pourquoi.
+ *
+ * L arbitrage du 2026-08-14 (tache de controle `a0733d45`) a tranche que ce fichier juge la
+ * FORME de l empreinte et non sa VALEUR : recopier la valeur ici en ferait une SECONDE
+ * source de verite, qui divergerait en silence du domicile unique
+ * `docs/empreinte-script-recherche.md`. Cet arbitrage est RATIFIE et rien ci-dessous ne le
+ * rouvre : aucune valeur d empreinte n est ecrite dans ce depot.
+ *
+ * Mais son motif (3) nommait un defaut qu il laissait ouvert : « l empreinte ne correspond
+ * plus au script reellement servi ». Une comparaison a la lettre ne l aurait jamais prouve
+ * — deux copies egales d une meme valeur ne disent RIEN du script servi. Un RECALCUL, si :
+ * on lit le script inline que la page rend vraiment, on en calcule le sha256, et on le
+ * confronte aux sources declarees par le `script-src` de LA MEME reponse. Rien n est
+ * recopie, rien ne se perime, et le critere qui coute est exerce.
+ *
+ * CE QUE COUTE CE DEFAUT QUAND IL PASSE : la page repond 200, s affiche normalement, et le
+ * navigateur REFUSE d executer le module dont l empreinte ne correspond plus. La recherche
+ * ne cherche pas, et rien ne le dit — le meme silence que le defaut du 2026-08-10.
+ */
+
+/**
+ * Les `type` sous lesquels une balise `script` est EXECUTEE — les seuls que `script-src`
+ * couvre.
+ *
+ * Ce n est pas une precaution theorique : `/recherche` sert DEUX balises `script`, un bloc
+ * `application/ld+json` et le module de la recherche. Un bloc de donnees n est pas execute,
+ * aucun navigateur n en exige l empreinte, et la production n en declare aucune — mesure du
+ * 2026-08-15 : son sha256 est `io4Wy1makD8Vv1yBuhcLTjDZ9dSeOCvppTumCYQ8/fo=`, absent du
+ * header, sur une page qui fonctionne. Une garde qui le reclamerait rougirait CHAQUE JOUR
+ * sur une production saine, et on apprendrait a l ignorer.
+ */
+const TYPES_EXECUTABLES = new Set([
+  '',
+  'module',
+  'text/javascript',
+  'application/javascript',
+  'text/ecmascript',
+  'application/ecmascript',
+  'text/jscript',
+]);
+
+/**
+ * Extrait le contenu des balises `script` INLINE et EXECUTABLES d un corps HTML.
+ *
+ * PIEGE, et il fait tout echouer s il est manque : le hash d une CSP porte sur les OCTETS
+ * EXACTS du contenu de la balise. On ne normalise donc NI les espaces, NI les fins de
+ * ligne, NI les entites, et on n emploie AUCUN parseur DOM — un parseur reserialise, et
+ * rendrait une empreinte juste sur un script faux, c est-a-dire un VERT sur le defaut meme
+ * qu on garde. Le decoupage se fait a l index sur le texte brut.
+ *
+ * @param {string} corps
+ * @returns {string[]} le contenu de chaque script inline executable, tel quel
+ */
+export function scriptsInlineExecutables(corps) {
+  const texte = String(corps ?? '');
+  const contenus = [];
+  const ouvertures = /<script(\s[^>]*)?>/gi;
+  let ouverture;
+  while ((ouverture = ouvertures.exec(texte)) !== null) {
+    const attributs = ouverture[1] ?? '';
+    const debut = ouvertures.lastIndex;
+    const fin = texte.toLowerCase().indexOf('</script', debut);
+    if (fin === -1) break; // balise non fermee : rien de fiable a mesurer
+    ouvertures.lastIndex = fin;
+    if (/\ssrc\s*=/i.test(attributs)) continue; // script externe : couvert par 'self', pas par une empreinte
+    const type = (/\stype\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attributs) ?? [])
+      .slice(2)
+      .find((valeur) => valeur !== undefined);
+    if (!TYPES_EXECUTABLES.has((type ?? '').trim().toLowerCase())) continue;
+    contenus.push(texte.slice(debut, fin));
+  }
+  return contenus;
+}
+
+/**
+ * L empreinte CSP d un contenu, dans la forme exacte qu une source `script-src` porte —
+ * APOSTROPHES COMPRISES, sans lesquelles la source est invalide et la page morte.
+ *
+ * @param {string} contenu
+ * @returns {string}
+ */
+export function empreinteDe(contenu) {
+  return `'sha256-${createHash('sha256').update(Buffer.from(String(contenu), 'utf8')).digest('base64')}'`;
+}
+
+/**
+ * Confronte les scripts inline SERVIS aux empreintes DECLAREES dans le `script-src` de la
+ * meme reponse.
+ *
+ * Les deux sens sont des defauts, et ils envoient corriger DEUX objets differents :
+ *   - un script servi sans empreinte correspondante -> le BUILD a change le script sans que
+ *     le header suive ;
+ *   - une empreinte declaree que plus aucun script ne porte -> la PAGE ne sert plus ce
+ *     script (cas du 2026-08-11).
+ * Les confondre ferait chercher dans le premier objet un defaut qui vit dans le second.
+ *
+ * @param {string} url
+ * @param {string} corps
+ * @param {string} cspServie La valeur brute de l en-tete `content-security-policy`.
+ * @returns {{manquements: string[], recalcules: number}}
+ */
+export function confronterEmpreintes(url, corps, cspServie) {
+  const manquements = [];
+  const scriptSrc = [...directivesDe(cspServie, ';').entries()].find(
+    ([directive]) => directive === 'script-src',
+  );
+  const declarees = String(scriptSrc?.[1] ?? '')
+    .split(/\s+/)
+    .filter((source) => FORME_EMPREINTE.test(source));
+  const servis = scriptsInlineExecutables(corps);
+  const restantes = [...declarees];
+
+  for (const contenu of servis) {
+    const empreinte = empreinteDe(contenu);
+    const rang = restantes.indexOf(empreinte);
+    if (rang !== -1) {
+      restantes.splice(rang, 1);
+      continue;
+    }
+    manquements.push(
+      `${url} → un script inline SERVI n a aucune empreinte correspondante dans le ` +
+        `script-src de cette reponse (recalculee : ${empreinte}). Le header est ` +
+        'irreprochable, la page repond 200 et s affiche normalement — et le navigateur ' +
+        'REFUSE d executer ce script, donc la RECHERCHE NE CHERCHE PAS. Un octet du ' +
+        'script a bouge sans que l empreinte suive : c est le BUILD qu il faut regarder, ' +
+        'puis reporter la nouvelle valeur dans docs/empreinte-script-recherche.md ET dans ' +
+        'les labels Traefik de l application Coolify (runbook etape 27 point 4).',
+    );
+  }
+
+  for (const perimee of restantes) {
+    manquements.push(
+      `${url} → l empreinte ${perimee} est declaree dans le script-src mais ne correspond ` +
+        'a AUCUN script servi par cette page : elle est PERIMEE. Rien ne casse ' +
+        'visiblement, et c est ce qui la rend durable — arrive le 2026-08-11. Regarder la ' +
+        'PAGE (le script a disparu de la sortie construite), pas le build du header.',
+    );
+  }
+
+  return { manquements, recalcules: servis.length };
+}
 
 /**
  * LA POLITIQUE OUVERTE — celle du second routeur `echo-headers-recherche`, sur le seul
@@ -430,6 +578,7 @@ export function jugerReponse(reponse, attendue = null) {
   const manquements = [];
   const verifies = [];
   const incapacites = [];
+  let recalcules = 0;
 
   if (reponse.erreur) {
     /* UNE INCAPACITE N EST PAS UNE ANOMALIE. « le site est injoignable » envoie regarder
@@ -438,14 +587,14 @@ export function jugerReponse(reponse, attendue = null) {
        `[[quand-succes-et-echec-rendent-la-meme-sortie]]`, en pire : ici c est l echec de
        la MESURE qui se deguiserait en verdict sur l objet mesure. */
     incapacites.push(`${reponse.url} → la reponse n a pas pu etre obtenue : ${reponse.erreur}`);
-    return { manquements, verifies, incapacites, politique: nomPolitique };
+    return { manquements, verifies, incapacites, politique: nomPolitique, recalcules };
   }
   if (reponse.statut !== 200) {
     incapacites.push(
       `${reponse.url} → statut ${reponse.statut} au lieu de 200 : les en-tetes de cette ` +
         'reponse ne disent rien de la politique servie sur la page attendue.',
     );
-    return { manquements, verifies, incapacites, politique: nomPolitique };
+    return { manquements, verifies, incapacites, politique: nomPolitique, recalcules };
   }
 
   for (const [nom, regle] of Object.entries(politique)) {
@@ -500,7 +649,23 @@ export function jugerReponse(reponse, attendue = null) {
     }
   }
 
-  return { manquements, verifies, incapacites, politique: nomPolitique };
+  /* LE RECALCUL, sur la seule politique qui declare une empreinte. Il ne s applique pas a
+     la politique principale, dont le `script-src 'none'` n attend aucun script inline.
+     `corps` absent = reponse fabriquee pour un test d en-tetes : il n y a rien a recalculer,
+     et le CLI garde separement que la MESURE, elle, rapporte toujours un corps. */
+  if (nomPolitique === 'recherche' && reponse.corps !== undefined) {
+    const csp = enTete(reponse.enTetes, 'content-security-policy');
+    if (csp !== undefined) {
+      const rapport = confronterEmpreintes(reponse.url, reponse.corps, csp);
+      manquements.push(...rapport.manquements);
+      if (rapport.manquements.length === 0) {
+        verifies.push(`${rapport.recalcules} script(s) inline recalcule(s) [recherche]`);
+      }
+      recalcules += rapport.recalcules;
+    }
+  }
+
+  return { manquements, verifies, incapacites, politique: nomPolitique, recalcules };
 }
 
 /**
@@ -527,12 +692,14 @@ export function inspecterEnTetes(reponses, attendue = null) {
   const verifies = [];
   const incapacites = [];
   const politiques = [];
+  let recalcules = 0;
   for (const reponse of reponses) {
     const rapport = jugerReponse(reponse, attendue);
     manquements.push(...rapport.manquements);
     verifies.push(...rapport.verifies);
     incapacites.push(...rapport.incapacites);
     politiques.push(rapport.politique);
+    recalcules += rapport.recalcules ?? 0;
   }
 
   /* UNE SEULE incapacite suffit a rendre `2`, meme si les autres URL sont conformes : un
@@ -545,6 +712,7 @@ export function inspecterEnTetes(reponses, attendue = null) {
       issue: ISSUES.VERIFICATION_IMPOSSIBLE,
       reponses: reponses.length,
       urls: reponses.map((r) => r.url),
+      recalcules,
       politiques,
     };
   }
@@ -555,6 +723,7 @@ export function inspecterEnTetes(reponses, attendue = null) {
     issue: manquements.length > 0 ? ISSUES.ANOMALIE : ISSUES.CONFORME,
     reponses: reponses.length,
     urls: reponses.map((r) => r.url),
+    recalcules,
     politiques,
   };
 }
@@ -576,9 +745,14 @@ export function resumeEnTetes(rapport) {
   const urls = rapport.urls.map(
     (url, rang) => `${url} [${rapport.politiques?.[rang] ?? 'principale'}]`,
   );
+  /* Le compte de RECALCULS est annonce a part, et il n est pas decoratif : sans lui, un vert
+     obtenu sans avoir lu un seul corps — parce que `mesurer` aurait cesse d en rapporter —
+     ressemblerait trait pour trait a un vert qui a confronte chaque script servi a son
+     empreinte. C est la meme raison qui fait nommer les URL et compter les directives. */
   return (
     `${rapport.reponses} reponse(s) mesuree(s) — ${urls.join(', ')} — ` +
-    `en-tetes confrontes a la politique attendue : ${parEnTete}.`
+    `en-tetes confrontes a la politique attendue : ${parEnTete}. ` +
+    `${rapport.recalcules ?? 0} script(s) inline recalcule(s) sur les routes de la recherche.`
   );
 }
 
@@ -603,8 +777,17 @@ export async function mesurer(base, chemins = URLS_PAR_DEFAUT) {
          `process.exit()` brutal, dont l abandon des poignees libuv fait avorter Node sous
          Windows AVANT que le code de sortie ne soit rendu. Une garde dont le code de
          sortie est un accident ne garde rien. */
-      await reponse.arrayBuffer();
-      reponses.push({ url, statut: reponse.status, enTetes });
+      const octets = await reponse.arrayBuffer();
+      /* Le corps n est GARDE que la ou il sert a quelque chose : les routes de la recherche,
+         seules a declarer une empreinte a recalculer. Partout ailleurs il est lu puis jete,
+         pour la raison ci-dessus. Le garder pour toutes les routes chargerait la memoire
+         d une garde qui tourne en cadence, sans rien prouver de plus. */
+      const html = String(enTete(enTetes, 'content-type') ?? '').includes('text/html');
+      const corps =
+        politiquePour(url).nom === 'recherche' && html
+          ? Buffer.from(octets).toString('utf8')
+          : undefined;
+      reponses.push({ url, statut: reponse.status, enTetes, corps });
     } catch (erreur) {
       reponses.push({ url, erreur: String(erreur?.cause?.message ?? erreur?.message ?? erreur) });
     }
@@ -616,6 +799,33 @@ export async function mesurer(base, chemins = URLS_PAR_DEFAUT) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const base = process.argv[2] ?? BASE_PAR_DEFAUT;
   const reponses = await mesurer(base);
+
+  /* LE RECALCUL NE DOIT PAS POUVOIR S ETEINDRE EN SILENCE. `jugerReponse` ne recalcule que
+     si la reponse porte un corps — il le faut, parce que les tests d en-tetes fabriquent des
+     reponses sans corps et n ont rien a recalculer. Mais ici, en MESURE reelle, un 200 en
+     `text/html` sur une route de la recherche DOIT en porter un : s il n en porte pas, c est
+     que `mesurer` a cesse d en rapporter, et la garde rendrait un vert sans avoir lu un seul
+     script. C est une INCAPACITE (`2`), pas une anomalie : rien n a ete constate sur le site. */
+  const muettes = reponses.filter(
+    (reponse) =>
+      reponse.statut === 200 &&
+      politiquePour(reponse.url).nom === 'recherche' &&
+      String(enTete(reponse.enTetes, 'content-type') ?? '').includes('text/html') &&
+      reponse.corps === undefined,
+  );
+  if (muettes.length > 0) {
+    console.error('\n⛔ VERIFICATION IMPOSSIBLE — le recalcul des empreintes n a pas eu lieu :');
+    for (const muette of muettes) {
+      console.error(
+        `  - ${muette.url} → page de recherche servie en HTML, mais son corps n a pas ete ` +
+          'rapporte par la mesure. Le sha256 du script inline n a donc pas pu etre confronte ' +
+          "a l empreinte du header. NE PAS lire le reste comme un vert : c est la MESURE qui " +
+          'est incomplete, pas le site qui est conforme.',
+      );
+    }
+    process.exitCode = ISSUES.VERIFICATION_IMPOSSIBLE;
+  }
+
   const rapport = inspecterEnTetes(reponses);
 
   /* `process.exitCode` et NON `process.exit()` : le second coupe le processus alors que le
@@ -623,7 +833,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
      (« Assertion failed: !(handle->flags & UV_HANDLE_CLOSING) ») — le code de sortie rendu
      n est alors plus celui du verdict. Le corps de chaque reponse etant consomme dans
      `mesurer`, le processus se termine seul, avec le bon code. */
-  if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+  if (muettes.length > 0) {
+    /* Deja rendu `2` ci-dessus. On n ecrase pas ce verdict par celui du rapport : une
+       mesure incomplete ne peut pas conclure, meme si tout ce qu elle a vu est conforme. */
+  } else if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
     console.error('\n⛔ VERIFICATION IMPOSSIBLE — aucun verdict sur les en-tetes servis :');
     for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
     process.exitCode = ISSUES.VERIFICATION_IMPOSSIBLE;

@@ -274,15 +274,36 @@ function resoudreMedias<T>(valeur: T, ids: Map<string, number>): T {
 }
 
 /**
- * Le composant `partage.seo` tel que Strapi l attend, ou `undefined`.
+ * Le composant `partage.seo` tel que Strapi l attend, ou `null` pour l EFFACER.
  *
  * Deux details qui ne se voient pas a la relecture, et qui echouent en silence :
  *
  *   - `imagePartage` porte une CLE DE MANIFESTE dans le corpus et doit partir en
  *     ID de mediatheque. Envoyee telle quelle, Strapi la refuse — ou l ignore.
- *   - une surcharge dont AUCUN champ n est renseigne ne doit pas partir du tout.
+ *   - une surcharge dont AUCUN champ n est renseigne ne doit pas partir en OBJET.
  *     Ecrire un composant vide creerait en base la ligne que A-07 interdit
  *     precisement : celle qui fait croire, plus tard, a un choix editorial.
+ *
+ * ⚠️ MAIS `undefined` N EST PAS LA BONNE FACON DE NE PAS L ECRIRE — corrige le
+ * 2026-08-18. `JSON.stringify` supprime la cle, et `updateComponents` de Strapi
+ * ouvre par `if (!has(attributeName, data)) continue;` : la cle absente laisse le
+ * composant EN PLACE. Un bloc `seo` retire du corpus SURVIVAIT donc en base et
+ * continuait d etre servi — la classe de defaut mesuree en production le
+ * 2026-08-14 (cf. `efface()` plus haut), restee ouverte a l interieur du
+ * composant. C est arrive une fois pour de vrai : la canonique de A19, retiree
+ * par le verdict editorial du 2026-08-13 (`b29aed0`), n aurait jamais quitte la
+ * base — elle aurait continue d annoncer a Google un doublon du dossier.
+ *
+ * `null` EFFACE, il n ecrit pas : `deleteOldComponents` supprime la ligne, puis
+ * `updateOrCreateComponent(uid, null)` rend `null`. L etat d arrivee est donc
+ * exactement celui qu A-07 veut — aucun composant — et non un composant vide.
+ * A la creation, `createComponents` saute simplement la valeur `null`.
+ *
+ * Corollaire a ne pas defaire : les six champs ne prennent PAS `efface()`. Le
+ * corps emis ne porte aucun `id` de composant, donc Strapi supprime l ancienne
+ * ligne et en cree une neuve — un champ omis retombe seul a son defaut. Mettre
+ * `efface()` partout rendrait de surcroit le test « tous undefined » toujours
+ * faux, et ecrirait le composant vide que A-07 interdit.
  *
  * ⚠️ CETTE ENUMERATION EST MANUELLE, ET C EST PAR ELLE QUE LE DEFAUT ENTRE. Le
  * 2026-08-17, `alternativePartage` y manquait : il etait lu par le corpus, valide,
@@ -296,8 +317,8 @@ function resoudreMedias<T>(valeur: T, ids: Map<string, number>): T {
 function corpsSeo(
   seo: SeoCorpus | undefined,
   idsMedia: Map<string, number>
-): Record<string, any> | undefined {
-  if (seo === undefined) return undefined;
+): Record<string, any> | null {
+  if (seo === undefined) return null;
 
   const corps = {
     metaTitre: seo.metaTitre,
@@ -308,7 +329,7 @@ function corpsSeo(
     alternativePartage: seo.alternativePartage,
   };
 
-  return Object.values(corps).every((v) => v === undefined) ? undefined : corps;
+  return Object.values(corps).every((v) => v === undefined) ? null : corps;
 }
 
 export async function executerSeed(

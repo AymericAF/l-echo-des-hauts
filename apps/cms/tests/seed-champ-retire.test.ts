@@ -209,3 +209,131 @@ test('PREUVE : le vidage de `Auteur.reseaux` est bien TRANSMIS, pas seulement ec
 function deepVide(valeur: unknown): boolean {
   return Array.isArray(valeur) && valeur.length === 0;
 }
+
+/**
+ * LE MEME PIEGE, A L INTERIEUR DU COMPOSANT `seo` — jamais ferme jusqu ici.
+ *
+ * La regle en tete de ce fichier a ete fermee A LA RACINE des entites (`efface()` sur
+ * `alternativeHero`, `alternativePhoto`, `legendeCouverture`…). Elle ne l a JAMAIS ete
+ * pour `partage.seo` : `corpsSeo` rendait `undefined` des que le corpus ne portait
+ * aucune surcharge, `JSON.stringify` supprimait la cle, et le `PUT` ne touchait donc
+ * pas le composant. Un bloc `seo` retire du corpus SURVIT en base et continue d etre
+ * servi — c est la classe de defaut mesuree en production le 2026-08-14, restee ouverte
+ * dans le composant.
+ *
+ * CE QUI SE PASSE VRAIMENT COTE STRAPI, lu dans la source plutot que suppose
+ * (`@strapi/core/dist/services/document-service/components.mjs`) :
+ *
+ *   - `updateComponents` ligne 90 : `if (!has(attributeName, data)) continue;` — la cle
+ *     absente laisse le composant EN PLACE. C est la survie.
+ *   - `deleteOldComponents` puis `updateOrCreateComponent` : le corps envoye ne porte pas
+ *     d `id`, donc l ancienne ligne est SUPPRIMEE et une neuve creee. Un champ omis du
+ *     composant transmis retombe donc a sa valeur par defaut tout seul : le remede n est
+ *     PAS d appliquer `efface()` aux six champs.
+ *   - `updateOrCreateComponent(uid, null)` rend `null` apres que `deleteOldComponents` a
+ *     supprime l ancienne ligne : `seo: null` EFFACE le composant. Et `createComponents`
+ *     saute la valeur `null` — inoffensif a la creation.
+ *
+ * POURQUOI `null` NE HEURTE PAS A-07 (`docs/arbitrages-techniques.md`, A-07 : « Calcul au
+ * build, jamais d ecriture en base. Tous les champs de `partage.seo` restent vides tant
+ * qu un redacteur ne surcharge pas »). Ce que A-07 interdit, c est d ECRIRE une valeur —
+ * donc, en pratique, de creer la ligne de composant qui fera croire plus tard a un choix
+ * editorial. `seo: null` ne cree rien : il SUPPRIME cette ligne. L etat d arrivee est
+ * exactement celui qu A-07 veut, aucun composant. Ecrire `{}` serait la violation ; le
+ * second test ci-dessous l interdit explicitement.
+ */
+const PORTEURS_DE_SEO = ['articles', 'categories', 'dossiers'];
+
+/** Le corps REELLEMENT emis : le client serialise, et `JSON.stringify` mange `undefined`. */
+const corpsEmis = (data: Record<string, any>): Record<string, any> =>
+  JSON.parse(JSON.stringify(data));
+
+test('le composant `seo` est TOUJOURS dans le corps emis — absent, il survivrait en base', async () => {
+  const ecritures = await ecrituresDuCorpusReel();
+  const absents: string[] = [];
+
+  for (const ecriture of ecritures) {
+    if (!PORTEURS_DE_SEO.includes(ecriture.plural)) continue;
+    if (!('slug' in ecriture.data)) continue; // cf. les ecritures PARTIELLES, plus haut
+    const emis = corpsEmis(ecriture.data);
+    if (!('seo' in emis)) {
+      absents.push(`${ecriture.plural} (${ecriture.locale ?? 'fr'}) « ${emis.slug} »`);
+    }
+  }
+
+  assert.deepEqual(
+    absents,
+    [],
+    'un `seo` absent du corps emis n est jamais efface : le PUT ne touche que ce qu on lui donne'
+  );
+});
+
+test('… et jamais sous la forme d un composant VIDE, que A-07 interdit', async () => {
+  const ecritures = await ecrituresDuCorpusReel();
+  const vides: string[] = [];
+
+  for (const ecriture of ecritures) {
+    if (!PORTEURS_DE_SEO.includes(ecriture.plural)) continue;
+    const emis = corpsEmis(ecriture.data);
+    if (!('seo' in emis) || emis.seo === null) continue;
+    const renseignes = Object.values(emis.seo).filter((v) => v !== null && v !== undefined);
+    if (renseignes.length === 0) {
+      vides.push(`${ecriture.plural} (${ecriture.locale ?? 'fr'}) « ${emis.slug} »`);
+    }
+  }
+
+  assert.deepEqual(
+    vides,
+    [],
+    'A-07 : une entree sans surcharge ne doit porter AUCUN composant — `null`, pas un objet vide'
+  );
+});
+
+/**
+ * LE CAS REEL, ET LE SEUL QUI AIT EXISTE : A19.
+ *
+ * Le 2026-08-13 (commit `b29aed0`), le verdict editorial d Aymeric a RETIRE la canonique
+ * de A19 vers `/dossier/l-eau-du-plateau` — et avec elle le bloc `seo` entier, devenu
+ * vide. Le corpus ne la porte plus. Sans `null`, le seed ne l aurait jamais retiree de la
+ * base : la canonique aurait continue d annoncer a Google que l article est un doublon du
+ * dossier, indefiniment, pendant que le corpus versionne disait le contraire.
+ */
+test('PREUVE PAR LE CAS REEL : A19, dont la canonique a ete retiree, part a `seo: null`', async () => {
+  const ecritures = await ecrituresDuCorpusReel();
+
+  const a19 = ecritures.find(
+    (e) =>
+      e.plural === 'articles' &&
+      e.data.slug === 'irriguer-ou-pas-le-calcul-des-sept-maraichers-du-bas'
+  );
+  assert.ok(a19, 'A19 doit avoir ete ecrit');
+
+  const emis = corpsEmis(a19!.data);
+  assert.ok('seo' in emis, 'A19 : la cle `seo` doit figurer dans le corps emis');
+  assert.equal(
+    emis.seo,
+    null,
+    'A19 : le corpus ne porte plus aucune surcharge — le composant doit etre EFFACE, pas ignore'
+  );
+});
+
+/** Et la regle ne mange PAS ce que le corpus declare : les 6 surcharges reelles passent. */
+test('… et les 6 surcharges que le corpus declare restent intactes', async () => {
+  const ecritures = await ecrituresDuCorpusReel();
+
+  const porteurs = ecritures
+    .filter((e) => PORTEURS_DE_SEO.includes(e.plural) && 'slug' in e.data)
+    .map((e) => corpsEmis(e.data))
+    .filter((d) => d.seo !== null && d.seo !== undefined);
+
+  assert.equal(
+    porteurs.length,
+    6,
+    'le corpus porte six blocs `seo` : A01 fr, A01 en, A40 fr, territoire fr, territory en, l-eau-du-plateau fr'
+  );
+
+  const a01en = porteurs.find((d) => d.slug === 'trois-vents-pass-the-last-lock-on-the-wind-farm');
+  assert.ok(a01en, 'A01 en doit porter sa surcharge');
+  assert.equal(typeof a01en!.seo.metaTitre, 'string');
+  assert.equal(typeof a01en!.seo.alternativePartage, 'string');
+});

@@ -44,7 +44,7 @@
 
 const { execFileSync, spawnSync } = require('node:child_process');
 const { existsSync, readFileSync } = require('node:fs');
-const { homedir } = require('node:os');
+const { homedir, hostname } = require('node:os');
 const { join } = require('node:path');
 
 // ---------------------------------------------------------------- verrou de campagne (R-09)
@@ -64,16 +64,53 @@ const { join } = require('node:path');
 // EXPIRÉ = ON LAISSE PASSER. Un verrou sans expiration transformerait un `p3-chrono` tué en
 // blocage définitif de ce dépôt, et le premier bloqué le supprimerait pour de bon.
 // ILLISIBLE = ON REFUSE. « Je n ai pas pu lire » ne veut pas dire « il n y a pas de campagne ».
+//
+// ── 2026-08-18 : LA FENÊTRE EST LA CAMPAGNE ENTIÈRE, PLUS SEULEMENT LA PASSE ────────────────
+// Le verrou était posé au début d UNE passe et levé à sa fin. Une campagne §10 compte 12 passes,
+// donc ONZE INTERVALLES pendant lesquels ce dépôt était ROUVERT — et un déploiement pris dans un
+// intervalle déborde sur la passe suivante et la fausse. C est exactement par là que `47d499e1`
+// est passé. Le verrou porte donc désormais une `portee` (`campagne` ou `passe`), et ce crochet
+// doit la DIRE : quelqu un qui croit attendre dix minutes alors qu il en attend quatre-vingt-dix
+// supprime le fichier, et la garde meurt.
+//
+// ── ET LE MORT, QU ON CONSTATE PLUTÔT QUE D ATTENDRE ────────────────────────────────────────
+// Le bail d une campagne est COURT et RENOUVELÉ par le lanceur tant qu il vit : un mort ne
+// renouvelle pas, donc le bail expire seul. On ajoute ici un raccourci — si le `pid` inscrit
+// n existe plus SUR CET HÔTE, le verrou est orphelin et on laisse passer sans attendre la fin du
+// bail. Faillible dans un seul sens (un `pid` recyclé se lit « vivant »), et c est le sens
+// inoffensif : on bloque un peu trop longtemps, jusqu à une expiration que plus rien ne repousse.
+// Un `pid` d une AUTRE machine ne se sonde pas : le lire « mort » rouvrirait le dépôt en vol.
 
 const CHEMIN_VERROU = process.env.ECHO_VERROU_CAMPAGNE
   || join(homedir(), '.claude', 'etat', 'echo-r09-campagne.json');
 
+/** Le processus existe-t-il ? `null` = on ne peut pas savoir, et alors on ne prononce pas. */
+function processusVivant(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return null;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    if (e.code === 'ESRCH') return false;
+    if (e.code === 'EPERM') return true;
+    return null;
+  }
+}
+
 /**
- * Rend `null` si le push peut partir, ou le motif du refus. `lire` est injecté pour que la
- * recette exerce les cinq états sans poser un fichier sur le chemin de production — en poser un
- * y bloquerait un push réel, ou pire, masquerait une campagne en vol.
+ * Rend `null` si le push peut partir, ou `{ motif, surLaCampagne }`. La PORTÉE ressort du verdict
+ * plutôt que d'être relue dans la phrase : un appelant qui devrait chercher « CAMPAGNE ENTIÈRE »
+ * dans le motif serait un parseur de prose, et un parseur de prose échoue en silence dès que la
+ * phrase bouge.
+ *
+ * `lire`, `estVivant` et `hote` sont injectés pour que la recette exerce tous les états sans poser
+ * un fichier sur le chemin de production — en poser un y bloquerait un push réel, ou pire,
+ * masquerait une campagne en vol.
  */
-function jugerCampagneEnVol({ lire = () => { try { return readFileSync(CHEMIN_VERROU, 'utf8'); } catch (e) { if (e.code === 'ENOENT') return null; throw e; } }, maintenant = new Date() } = {}) {
+function jugerCampagneEnVol({
+  lire = () => { try { return readFileSync(CHEMIN_VERROU, 'utf8'); } catch (e) { if (e.code === 'ENOENT') return null; throw e; } },
+  maintenant = new Date(), estVivant = processusVivant, hote = hostname(),
+} = {}) {
   const brut = lire();
   if (brut === null || brut === undefined || String(brut).trim() === '') return null;
 
@@ -81,23 +118,41 @@ function jugerCampagneEnVol({ lire = () => { try { return readFileSync(CHEMIN_VE
   try {
     v = JSON.parse(brut);
   } catch (e) {
-    return `verrou de campagne R-09 ILLISIBLE (${e.message}). On refuse plutôt que de deviner : `
-      + 'ne pas savoir lire n est pas savoir qu il n y a pas de campagne.';
+    return { surLaCampagne: false,
+      motif: `verrou de campagne R-09 ILLISIBLE (${e.message}). On refuse plutôt que de deviner : `
+        + 'ne pas savoir lire n est pas savoir qu il n y a pas de campagne.' };
   }
 
   const campagne = (typeof v?.campagne === 'string' && v.campagne.trim()) || '(campagne non nommée)';
   if (typeof v?.expire_a !== 'string') {
-    return `verrou de campagne R-09 sans \`expire_a\` (« ${campagne} ») : un bail ne se devine pas.`;
+    return { surLaCampagne: v?.portee === 'campagne',
+      motif: `verrou de campagne R-09 sans \`expire_a\` (« ${campagne} ») : un bail ne se devine pas.` };
   }
   const expire = new Date(v.expire_a);
   if (Number.isNaN(+expire)) {
-    return `verrou de campagne R-09 dont l \`expire_a\` (« ${v.expire_a} ») n est pas une date lisible.`;
+    return { surLaCampagne: v.portee === 'campagne',
+      motif: `verrou de campagne R-09 dont l \`expire_a\` (« ${v.expire_a} ») n est pas une date lisible.` };
   }
   if (maintenant.getTime() > expire.getTime()) return null; // bail dépassé : la campagne est finie.
 
-  return `une CAMPAGNE DE MESURE est en vol — « ${campagne} », bail jusqu à ${expire.toISOString()}. `
-    + 'R-09 interdit tout build pendant une campagne ; ce push déclencherait un déploiement Coolify, '
-    + 'donc un build, et la passe serait faussée sans rien annoncer.';
+  // Le bail court encore — mais celui qui le tient vit-il ? La question n a de sens que sur
+  // l hôte qui a écrit le verrou, et un verrou d avant le 2026-08-18 ne porte pas ce champ.
+  const memeHote = typeof v.hote === 'string' && v.hote === hote;
+  if (memeHote && estVivant(v.pid) === false) return null; // orphelin : plus personne ne le renouvellera.
+
+  // Un verrou d avant le 2026-08-18 ne porte pas de `portee` : c était forcément une passe.
+  const surLaCampagne = v.portee === 'campagne';
+  const fenetre = surLaCampagne
+    ? 'La fenêtre couvre la CAMPAGNE ENTIÈRE — ses douze passes ET les intervalles entre deux '
+      + 'passes, où ce dépôt était rouvert jusqu au 2026-08-18. Elle se lèvera à la fin de la '
+      + 'campagne, pas à la fin de la passe en cours.'
+    : 'La fenêtre couvre cette PASSE, et elle se lèvera à sa fin.';
+
+  return { surLaCampagne,
+    motif: `une CAMPAGNE DE MESURE est en vol — « ${campagne} », bail jusqu à ${expire.toISOString()}. `
+      + `${fenetre} `
+      + 'R-09 interdit tout build pendant une campagne ; ce push déclencherait un déploiement Coolify, '
+      + 'donc un build, et la passe serait faussée sans rien annoncer.' };
 }
 
 /** Les deux suites, dans l'ordre où la CI les joue. Même liste que la matrice du workflow. */
@@ -188,12 +243,23 @@ function principal(stdin) {
   const campagne = jugerCampagneEnVol();
   if (campagne) {
     console.error('');
-    console.error(`PUSH REFUSÉ — ${campagne}`);
+    console.error(`PUSH REFUSÉ — ${campagne.motif}`);
     console.error('');
     console.error('  Ce n est pas un échec des tests : le code peut être parfait, c est le MOMENT qui');
-    console.error('  ne va pas. Attends la fin de la campagne, le verrou se lève tout seul.');
-    console.error(`  Pour lever à la main : vérifie qu aucune passe ne tourne (p3-chrono etat), puis`);
-    console.error(`  supprime ${CHEMIN_VERROU}`);
+    // CE QU IL FAUT ATTENDRE N EST PAS LA MÊME CHOSE SELON LA PORTÉE, et se tromper ici est ce qui
+    // fait supprimer le fichier : annoncer « la fin de la passe » quand il reste une campagne
+    // entière fait croire à dix minutes d attente là où il y en a quatre-vingt-dix.
+    if (campagne.surLaCampagne) {
+      console.error('  ne va pas. Attends la fin de la CAMPAGNE — pas la fin de la passe en cours. Le');
+      console.error('  verrou se lève tout seul à la fin de la campagne, et son bail expire seul si son');
+      console.error('  lanceur a été tué.');
+    } else {
+      console.error('  ne va pas. Attends la fin de la PASSE — le verrou se lève tout seul à sa sortie,');
+      console.error('  et son bail expire seul si le chronomètre a été tué.');
+    }
+    console.error('  Pour lever à la main : vérifie qu aucune campagne ni aucune passe ne tourne');
+    console.error('  (node scripts/p3-chrono.mjs etat, dans le dépôt de mesure), puis supprime');
+    console.error(`  ${CHEMIN_VERROU}`);
     console.error('  En connaissance de cause seulement : git push --no-verify.');
     return 1;
   }

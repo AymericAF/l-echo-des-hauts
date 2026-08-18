@@ -21,10 +21,21 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const ICI = fileURLToPath(new URL('.', import.meta.url));
+
+/**
+ * UN `pid` REELLEMENT MORT, pas un nombre inventé. Un `99999` pris au hasard peut exister sur la
+ * machine qui joue la recette : le cas « lanceur mort » passerait alors pour une raison qui n'est
+ * pas la sienne, ou échouerait sans que rien ne soit cassé. On en fabrique un vrai — un processus
+ * qu'on lance et qu'on laisse mourir — et on reprend son `pid`.
+ */
+const PID_MORT = (() => {
+  const r = spawnSync(process.execPath, ['-e', 'process.exit(0)']);
+  return r.pid;
+})();
 let anomalies = 0;
 let controles = 0;
 
@@ -229,6 +240,93 @@ try {
     const r = pousser(travail, ['origin', 'HEAD:refs/heads/travaux-pendant-campagne'], 'exit 1', { ECHO_VERROU_CAMPAGNE: f });
     verdict('K. verrou actif mais push HORS main : accepte — R-09 vise le build, pas le depot',
       r.code === 0,
+      `code ${r.code}`);
+  }
+
+  // --- M a P. LA FENETRE EST DESORMAIS LA CAMPAGNE ENTIERE (2026-08-18) -------------------
+  //
+  // CE QUI A CHANGE EN AMONT, ET POURQUOI CE DEPOT DOIT LE DIRE. Jusqu au 2026-08-18, le verrou
+  // etait pose au debut d UNE PASSE et leve a sa fin. Une campagne §10 compte 12 passes, donc
+  // ONZE INTERVALLES pendant lesquels ce depot etait ROUVERT — et un deploiement pris dans un
+  // intervalle DEBORDE sur la passe suivante et la fausse. Depuis, le lanceur de campagne tient
+  // le verrou d un bout a l autre, avec un bail RENOUVELE tant qu il vit.
+  //
+  // CE QUE CES CAS EXIGENT DU MESSAGE. Il doit toujours porter les TROIS informations validees :
+  // QUELLE campagne, JUSQU A QUAND, COMMENT sortir. Et il doit dire que l attente n est plus
+  // « la fin de la passe » mais « la fin de la CAMPAGNE » : quelqu un qui croit attendre 10 min
+  // alors qu il en attend 90 supprimera le fichier — et la garde sera morte.
+  {
+    const f = verrouEcrit(JSON.stringify({
+      campagne: 'P3 campagne creneau-09h', portee: 'campagne', expire_a: dans(900),
+      pid: process.pid, hote: hostname(),
+    }));
+    commit(travail, 'un commit vert, mais pendant une CAMPAGNE');
+    const r = pousser(travail, ['origin', 'main'], 'exit 0', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('M. verrou de PORTEE CAMPAGNE : le push est REFUSE',
+      r.code !== 0 && /CAMPAGNE DE MESURE est en vol/.test(r.sortie),
+      `code ${r.code}`);
+    verdict('M bis. le refus dit QUELLE campagne, et c est la campagne — pas une passe',
+      /P3 campagne creneau-09h/.test(r.sortie), '');
+    verdict('M ter. le refus dit JUSQU A QUAND — le bail, en clair',
+      /bail jusqu/i.test(r.sortie) && /\d{4}-\d{2}-\d{2}T/.test(r.sortie), '');
+    verdict('M quater. le refus dit COMMENT SORTIR — p3-chrono etat, le fichier, --no-verify',
+      /p3-chrono/.test(r.sortie) && r.sortie.includes('verrou-campagne.json') && /--no-verify/.test(r.sortie), '');
+    verdict('M quinquies. CAS DECISIF — le refus dit que la fenetre est la CAMPAGNE ENTIERE, intervalles compris',
+      /CAMPAGNE ENTI[EÈ]RE/i.test(r.sortie) && /entre deux passes|intervalle/i.test(r.sortie),
+      'sans cela, on croit attendre une passe quand on attend une campagne — et on supprime le fichier');
+  }
+
+  {
+    // Une PASSE isolee, elle, n a pas change : sa fenetre est la passe. Le message ne doit pas
+    // annoncer une campagne entiere pour dix minutes d attente, sinon il ment dans l autre sens.
+    const f = verrouEcrit(JSON.stringify({
+      campagne: 'P3 passe-isolee', portee: 'passe', expire_a: dans(900),
+      pid: process.pid, hote: hostname(),
+    }));
+    const r = pousser(travail, ['origin', 'main'], 'exit 0', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('N. verrou de portee PASSE : refus, et la fenetre annoncee est la PASSE',
+      r.code !== 0 && /cette PASSE/i.test(r.sortie) && !/CAMPAGNE ENTI[EÈ]RE/i.test(r.sortie),
+      `code ${r.code}`);
+  }
+
+  {
+    // LE LANCEUR EST MORT. Le bail court encore, mais son processus n existe plus : plus personne
+    // ne le renouvellera. Faire attendre la fin du bail ferait payer a ce depot un blocage dont
+    // on sait deja qu il n a plus d objet — et c est ce qui pousse a supprimer le fichier.
+    const f = verrouEcrit(JSON.stringify({
+      campagne: 'P3 campagne tuee', portee: 'campagne', expire_a: dans(900),
+      pid: PID_MORT, hote: hostname(),
+    }));
+    const r = pousser(travail, ['origin', 'main'], 'exit 0', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('O. lanceur MORT, bail encore valide : le push repasse — un mort ne renouvelle pas son bail',
+      r.code === 0 && /Les deux suites passent/.test(r.sortie),
+      `code ${r.code} (pid mort ${PID_MORT})`);
+  }
+
+  {
+    // ET LE SENS INVERSE, sans quoi le cas O passerait aussi avec une sonde qui rend toujours
+    // « mort » — c est-a-dire avec la garde entierement desarmee.
+    const f = verrouEcrit(JSON.stringify({
+      campagne: 'P3 campagne vivante', portee: 'campagne', expire_a: dans(900),
+      pid: process.pid, hote: hostname(),
+    }));
+    commit(travail, 'un commit vert, campagne vivante');
+    const r = pousser(travail, ['origin', 'main'], 'exit 0', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('O bis. CONTRE-EPREUVE — lanceur VIVANT : le push reste REFUSE',
+      r.code !== 0 && /CAMPAGNE DE MESURE est en vol/.test(r.sortie),
+      `code ${r.code}`);
+  }
+
+  {
+    // UN VERROU D UNE AUTRE MACHINE NE SE SONDE PAS. Un `pid` de la-bas ne veut rien dire ici ;
+    // le lire « mort » rouvrirait ce depot en pleine campagne. On s en tient au bail.
+    const f = verrouEcrit(JSON.stringify({
+      campagne: 'P3 campagne d ailleurs', portee: 'campagne', expire_a: dans(900),
+      pid: PID_MORT, hote: 'une-autre-machine',
+    }));
+    const r = pousser(travail, ['origin', 'main'], 'exit 0', { ECHO_VERROU_CAMPAGNE: f });
+    verdict('P. verrou d un AUTRE hote : la vivacite ne se sonde pas, le bail fait foi -> refus',
+      r.code !== 0 && /CAMPAGNE DE MESURE est en vol/.test(r.sortie),
       `code ${r.code}`);
   }
 

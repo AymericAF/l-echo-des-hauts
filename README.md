@@ -132,7 +132,15 @@ construction **vides**, donc le plan Nixpacks réellement exécuté : `npm ci`, 
 **`npm test` ne tourne nulle part sur ce chemin, et ce workflow non plus** : GitHub Actions et
 Coolify sont deux chemins qui ne se croisent pas.
 
-Le seul crochet qu'exécute la production est donc `npm run build`. Y brancher ce vérificateur-là
+~~Le seul crochet qu'exécute la production est donc `npm run build`.~~ **Depuis le 2026-08-18, la
+phase `build` de `apps/web/nixpacks.toml` en porte deux** : `node --experimental-strip-types
+scripts/attendre-schema.mjs`, **puis** `npm run build`. La sonde fait attendre la construction que
+le Strapi de production serve le nouveau schéma, au lieu de la laisser sortir en `1` sur un
+`400 Invalid key …` (queues `455`, `501`, `506` — écarts mesurés 189 s, 86 s, 275 s). **Ce qui suit
+ne change pas d'un mot** : la sonde interroge le **CMS avant le build**, pas le **site après la
+bascule**, et c'est bien pourquoi elle a le droit d'y vivre quand ce vérificateur-là ne l'a pas.
+
+Y brancher ce vérificateur-là
 ferait **deux** dégâts, pas un : au moment du build la bascule n'a pas eu lieu — le journal du `371`
 place la fin du build à `11:20:15` et le « Rolling update » **après** —, on mesurerait donc
 **l'ancien conteneur** en croyant mesurer le nouveau ; et une coupure réseau ferait **échouer un

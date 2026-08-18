@@ -74,8 +74,62 @@ aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 # le deploiement — l ancienne version reste servie. C est deja le regime des huit gardes
 # portees par les integrations d `astro.config.mjs`.
 #
-# `npm run build` DOIT rester en tete : declarer `cmds` REMPLACE la commande detectee par
+# `npm run build` DOIT rester declare : declarer `cmds` REMPLACE la commande detectee par
 # le fournisseur Node. L omettre supprimerait la construction elle-meme, et la preuve
 # jugerait le vide qu elle vient de causer. Verrouille par `tests/nixpacks-preuve-surcharge.test.ts`.
+#
+# ── 2026-08-18 : LA SONDE DE SCHEMA PASSE DEVANT LA CONSTRUCTION ────────────────────────
+#
+# POURQUOI. Un push qui touche `apps/cms` ET `apps/web` met les deux applications Coolify
+# en file A LA MEME SECONDE (`concurrent_builds = 2` ; Coolify n offre AUCUNE dependance
+# entre applications). Le site est un build STATIQUE : il interroge le Strapi de
+# PRODUCTION pendant sa construction, avant que celui-ci ait fini de redemarrer avec le
+# nouveau schema. Il demande alors un champ que l ANCIEN ne connait pas, recoit un
+# `400 ValidationError`, et sort en 1. TROIS occurrences mesurees :
+#
+#     queue 455 (14/08, 3a8ad72)  Invalid key alternativeCouverture    ecart 189 s
+#     queue 501 (17/08, dadef1d)  Invalid key alternativePartage       ecart  86 s
+#     queue 506 (17/08, 3c7a2fc)  Invalid key alternatives at contenu  ecart 275 s
+#
+# `scripts/attendre-schema.mjs` rejoue LES REQUETES DECLAREES de `src/lib/strapi/requete.ts`
+# et boucle jusqu a ce qu elles repondent — plafond 10 min (pire deploiement `echo-strapi`
+# mesure : 547 s), une passe toutes les 5 s. Au plafond, elle echoue en NOMMANT le champ :
+# c est le gain principal, un `400` illisible devenu un verdict qui dit ou chercher.
+#
+# ⚠️ ELLE EST UNE ENTREE DISTINCTE DE `npm run build`, ET CE N EST PAS DU STYLE. La cible
+# de temps de build M-04 se mesure sur `astro build` (avenant A6, `docs/protocole-mesure.md`
+# §1) : fondue dans le build — ou enchainee par `&&` dans la MEME entree de `cmds` —
+# l attente du CMS entrerait dans le segment mesure. Les deux entrees, leur ordre et leur
+# non-fusion sont verrouilles par `tests/nixpacks-preuve-surcharge.test.ts`.
+#
+# CE QU ELLE NE FERME PAS, et c est assume : elle RATTRAPE la course, elle ne la supprime
+# pas. Si le deploiement du CMS echoue, elle consomme son plafond puis echoue — lisiblement.
+# Le remede qui la supprimerait (sequencer les deux deploiements) est la piste 1 du dossier
+# `docs/course-schema-cms-vs-build-site.md`, et il est explicitement recommande de NE PAS
+# l engager tant que cette sonde n a pas consomme son plafond au moins une fois.
+#
+# ⚠️ `--experimental-strip-types` N EST PAS DECORATIF, ET SON ABSENCE CASSERAIT TOUT.
+#
+# La sonde importe `src/lib/strapi/requete.ts` — elle DOIT, c est la seule facon de rejouer
+# les requetes du build plutot qu une copie qui divergera. Or c est le PREMIER processus
+# `node` NU du build de production a charger un `.ts` : `npm run build` passe par Vite
+# (`astro build`), et `scripts/index-pagefind.mjs` n importe que des `.mjs` — verifie sur
+# tout le graphe d imports le 2026-08-18.
+#
+# Le retrait des types n est implicite qu a partir de Node 22.18. `package.json` declare
+# `engines.node >= 22.12.0`, et l image de construction resout cette borne elle-meme : rien
+# dans ce depot ne garantit qu elle rendra >= 22.18. Sous une version anterieure, la sonde
+# ne PLANTERAIT PAS SUR LA COURSE — elle planterait au chargement, sur TOUS les
+# deploiements, y compris ceux qui n ont aucune course a rattraper. Le remede aurait un pire
+# mode d echec que le defaut ([[garde-en-ferme-dans-un-build-transforme-l-incapacite-en-panne]]).
+#
+# MESURE, en cassant, le 2026-08-18 sur Node v24.14.0 :
+#   node --no-experimental-strip-types scripts/attendre-schema.mjs
+#     -> ERR_UNKNOWN_FILE_EXTENSION « .ts » … client.ts, sortie 1
+#   node --no-experimental-strip-types --experimental-strip-types scripts/attendre-schema.mjs
+#     -> « schema PRET a la premiere passe », sortie 0
+# Le drapeau existe depuis Node 22.6 et reste ACCEPTE en 24 (ou il ne fait plus rien) : il
+# couvre donc toute la plage declaree par `engines`. Verrouille par
+# `tests/nixpacks-preuve-surcharge.test.ts`, qui l exige tant que la sonde importe un `.ts`.
 [phases.build]
-cmds = ['npm run build']
+cmds = ['node --experimental-strip-types scripts/attendre-schema.mjs', 'npm run build']

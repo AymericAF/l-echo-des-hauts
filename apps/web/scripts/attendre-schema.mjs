@@ -45,14 +45,45 @@
  * le `400` aux reprises noierait la seule ligne qui dit ou chercher ; faire porter le `502` a la
  * sonde ne servirait a rien, puisqu il tombe apres elle.
  *
- * ⚠️ SA LIMITE CONNUE, ECRITE PLUTOT QUE COMBLEE : un `200` NE PROUVE PAS que c est le NOUVEAU CMS
- * qui a repondu. Le 2026-08-19, elle a valide a 08:03:46.41 alors que le nouveau conteneur n est
- * devenu sain qu a 08:03:49.67 — elle a donc necessairement interroge l ANCIEN, encore route par
- * le proxy. Sur un vrai changement de schema, elle validerait sur l ancien, et le build partirait :
- * il casserait, ou pire il reussirait sur l ANCIEN schema en produisant un site perime, sans aucun
- * signal. La fermer exige que le CMS DISE quelle version il sert (empreinte de commit), ce qui
- * n existe pas aujourd hui et ne se decide pas ici. NE PAS la maquiller en multipliant les passes :
+ * ⚠️ SA LIMITE CONNUE — DESORMAIS OBSERVABLE, ET TOUJOURS PAS FERMEE. Un `200` NE PROUVE PAS que
+ * c est le NOUVEAU CMS qui a repondu. Le 2026-08-19, elle a valide a 08:03:46.41 alors que le
+ * nouveau conteneur n est devenu sain qu a 08:03:49.67 — elle a donc necessairement interroge
+ * l ANCIEN, encore route par le proxy. Sur un vrai changement de schema, elle validerait sur
+ * l ancien, et le build partirait : il casserait, ou pire il reussirait sur l ANCIEN schema en
+ * produisant un site perime, sans aucun signal. NE PAS la maquiller en multipliant les passes :
  * sans identification de version, N passes vertes sur l ancien conteneur restent N mensonges.
+ *
+ * PREMIER TEMPS, POSE ICI. Le CMS DIT desormais quel commit il sert
+ * (`apps/cms/src/middlewares/empreinte-commit.ts`, en-tete `X-Echo-Commit`), et la sonde LIT cet
+ * en-tete a chaque passe, le JOURNALISE et le RAPPORTE. Le basculement d empreinte pendant la
+ * bascule du proxy devient VISIBLE dans le journal de build, la ou il etait indetectable.
+ *
+ * ⚠️ ELLE N EN FAIT RIEN D AUTRE, ET C EST UNE CONTRAINTE DURE — ne pas « finir le travail ». Les
+ * deux applications ne portent le meme SHA que sur un push touchant LES DEUX arbres :
+ * `watch_paths` ne reveille le CMS que sur `apps/cms/**` et le site que sur `apps/web/**`, si
+ * bien que le CMS tourne couramment sur un commit plus recent que le site — c est LEGITIME et
+ * COURANT (constate le 2026-08-19 : le CMS a tourne sur deux commits successifs pendant que le
+ * site restait sur le sien). Une empreinte absente, vide, divergente ou INEGALE vaut donc « je ne
+ * sais pas » : elle se journalise en avertissement, et la sonde retombe sur son comportement
+ * d avant. Une garde d egalite stricte planterait sur TOUS les deploiements ne touchant que le
+ * site ([[garde-en-ferme-dans-un-build-transforme-l-incapacite-en-panne]]) — le mode d echec que
+ * `nixpacks.toml` documente deja a propos de `--experimental-strip-types`. Verrouille par le
+ * VERROU de la section 8 de `tests/attendre-schema.test.ts`.
+ *
+ * SECOND TEMPS, HORS PERIMETRE. Cote build, `SOURCE_COMMIT` est ABSENTE : le reglage Coolify
+ * `include_source_commit_in_build` vaut `false` sur les trois applications, et Coolify efface
+ * `.git` avant de construire — le build ne peut donc pas la deduire. La sonde tourne en MODE
+ * DEGRADE : elle n a rien a quoi comparer ce qu elle lit, et elle le DIT, plutot que de laisser
+ * ses lignes d empreinte passer pour une verification. Le jour ou le build connaitra son SHA,
+ * `empreinteAttendue` se remplit tout seul et la comparaison s allume — TOUJOURS non bloquante,
+ * pour la raison ci-dessus.
+ *
+ * LE NOM DE L EN-TETE EST RECOPIE ICI, et cette recopie est ASSUMEE. Un test d `apps/web` ne peut
+ * pas lire `apps/cms` : le declencheur au commit (`outils/gardes-au-commit.js`) ne materialise que
+ * les applications touchees par le commit, et un commit ne touchant que `apps/web` ferait rougir
+ * pour un fichier absent (meme raison qu en tete de `tests/fixtures-locales.test.ts`). Le
+ * garde-fou contre la derive n est donc pas une garde mais la JOURNALISATION elle-meme : un
+ * renommage cote CMS fait imprimer « empreinte ABSENTE » a chaque passe de chaque build.
  *
  * ELLE EST UNE COMMANDE DISTINCTE DE `npm run build`, ET CE N EST PAS UN DETAIL DE STYLE : la cible
  * de temps de build M-04 se mesure sur `astro build` (avenant A6, `docs/protocole-mesure.md` §1).
@@ -88,6 +119,30 @@ export const INTERVALLE_PAR_DEFAUT_MS = 5 * 1000;
  * plafond en une seule passe, et la sonde abandonnerait sans avoir jamais reinterroge le CMS.
  */
 export const DELAI_REQUETE_MS = 15 * 1000;
+
+/**
+ * L EN-TETE PAR LEQUEL LE CONTENEUR DIT SA VERSION — recopie d
+ * `apps/cms/src/middlewares/empreinte-commit.ts` (recopie assumee, cf. l en-tete de ce fichier).
+ */
+export const EN_TETE_EMPREINTE = 'X-Echo-Commit';
+
+/**
+ * L empreinte servie par la reponse, ou `null` quand il n y en a pas.
+ *
+ * `headers.get` est INSENSIBLE A LA CASSE (RFC 9110) : un proxy peut renormaliser le nom, et un
+ * acces direct a une cle en dur rendrait `null` sur un proxy poli — un silence qui se lirait
+ * exactement comme « le CMS ne dit pas sa version ».
+ *
+ * Une valeur VIDE est ramenee a `null`, et ce n est pas de la coquetterie : deux conteneurs qui
+ * ignorent leur version rendraient la MEME chaine vide, et toute comparaison les declarerait
+ * egaux — un vert fabrique a partir de deux ignorances.
+ */
+export function lireEmpreinte(entetes) {
+  const brut = entetes?.get?.(EN_TETE_EMPREINTE);
+  if (typeof brut !== 'string') return null;
+  const propre = brut.trim();
+  return propre === '' ? null : propre;
+}
 
 /** Ce qu une reponse dit du CMS — et, pour chacun, s il y a lieu d attendre. */
 export const VERDICTS = {
@@ -207,16 +262,97 @@ async function sonderParFetch({ baseUrl, jeton, nom, locale }) {
       signal: AbortSignal.timeout(DELAI_REQUETE_MS),
     });
     const corps = reponse.ok ? '' : await reponse.text().catch(() => '');
-    return classerReponse(reponse.status, corps);
+    /* L empreinte se lit sur TOUTES les reponses, y compris les `400` : celle de l ANCIEN schema
+       est justement la reponse dont il faut savoir qui l a produite. */
+    return { ...classerReponse(reponse.status, corps), empreinte: lireEmpreinte(reponse.headers) };
   } catch (erreur) {
     const cause = erreur?.cause?.code ?? erreur?.name ?? '';
     return {
       verdict: VERDICTS.INDISPONIBLE,
       champ: null,
       statut: null,
+      empreinte: null,
       precision: `CMS injoignable — ${erreur.message}${cause ? ` (${cause})` : ''}`,
     };
   }
+}
+
+/**
+ * L EMPREINTE QUE LE BUILD PORTE LUI-MEME — `null` aujourd hui, et c est le fait mesure.
+ *
+ * `include_source_commit_in_build` vaut `false` sur les trois applications Coolify, et Coolify
+ * efface `.git` avant de construire : rien ne permet au build de connaitre son propre SHA. Cette
+ * fonction rend donc `null`, la sonde le DIT (mode degrade), et la bascule du reglage — second
+ * temps, hors perimetre — suffira a l allumer sans toucher a une ligne de logique.
+ */
+export function empreinteDuBuild() {
+  const brut = process.env.SOURCE_COMMIT;
+  if (typeof brut !== 'string') return null;
+  const propre = brut.trim();
+  return propre === '' ? null : propre;
+}
+
+/**
+ * CE QUE LES EMPREINTES VUES PERMETTENT DE DIRE — et, surtout, ce qu elles ne permettent pas.
+ *
+ * ⚠️ AUCUNE DE CES SORTIES N EST UNE CAUSE D ECHEC. Elles ne touchent ni `issue`, ni la boucle :
+ * elles ne font qu ECRIRE. Voir le VERROU de la section 8 des tests.
+ */
+function resumerEmpreintes({ empreintes, empreinteFinale, empreinteAttendue }) {
+  const avertissements = [];
+
+  if (empreintes.length === 0) {
+    avertissements.push(
+      `empreinte ABSENTE : aucune reponse du CMS ne porte « ${EN_TETE_EMPREINTE} ». La VERSION ` +
+        'servie n a pas pu etre identifiee — un `200` ne dit alors rien du conteneur qui a ' +
+        'repondu. Non bloquant (le CMS d avant le 2026-08-19, et tout developpement local, sont ' +
+        'dans ce cas).',
+    );
+  } else if (empreintes.length > 1) {
+    avertissements.push(
+      `PLUSIEURS empreintes vues pendant la sonde — ${empreintes.join(', ')} : le proxy a bascule ` +
+        'd un conteneur CMS a un autre pendant la construction. Non bloquant.',
+    );
+  }
+
+  if (empreinteAttendue === null || empreinteAttendue === undefined) {
+    avertissements.push(
+      'mode DEGRADE : le build ignore sa propre empreinte (`SOURCE_COMMIT` absente cote site, ' +
+        '`include_source_commit_in_build = false`). Ce qui precede est une OBSERVATION, rien n a ' +
+        'ete compare.',
+    );
+  } else if (empreinteFinale !== null && empreinteFinale !== empreinteAttendue) {
+    avertissements.push(
+      `l empreinte servie par le CMS (${empreinteFinale}) DIFFERE de celle du build ` +
+        `(${empreinteAttendue}). Non bloquant, et souvent NORMAL : les deux applications ne ` +
+        'portent le meme SHA que sur un push touchant les deux arbres.',
+    );
+  }
+
+  const phrase =
+    empreinteFinale !== null
+      ? ` Empreinte du CMS a la derniere passe : ${empreinteFinale}.`
+      : empreintes.length === 0
+        ? ' Empreinte du CMS : ABSENTE — la version servie n a pas pu etre identifiee.'
+        : ` Empreinte du CMS a la derniere passe : DIVERGENTE (${empreintes.join(', ')}).`;
+
+  return { avertissements, phrase };
+}
+
+/** La ligne de journal d une passe : ce que la sonde a VU, meme quand elle n attend pas. */
+function ligneEmpreinte(passe, distinctes) {
+  if (distinctes.length === 1) return `empreinte du CMS, passe ${passe} : ${extrait(distinctes[0], 80)}`;
+  if (distinctes.length === 0) {
+    return (
+      `empreinte du CMS, passe ${passe} : ABSENTE — aucune reponse ne porte ` +
+      `« ${EN_TETE_EMPREINTE} » (non bloquant, la sonde continue).`
+    );
+  }
+  return (
+    `empreinte du CMS, passe ${passe} : DIVERGENTES — ` +
+    `${distinctes.map((e) => extrait(e, 80)).join(', ')} : le proxy a bascule PENDANT la passe ` +
+    '(non bloquant, la sonde continue).'
+  );
 }
 
 /** Le plus instructif des obstacles d une passe : un refus definitif, puis un champ nomme. */
@@ -248,10 +384,15 @@ const secondes = (ms) => (ms / 1000).toFixed(1);
  * @param {(ms: number) => Promise<unknown>} [options.patienter] Injectable pour les bancs.
  * @param {() => number} [options.horloge] Injectable pour les bancs.
  * @param {typeof sonderParFetch} [options.sonder] Injectable pour les bancs.
- * @param {(ligne: string) => void} [options.journaliser] Une ligne PAR ATTENTE. Un journal de
- *   build muet pendant dix minutes se lit comme un build fige — et surtout, c est la seule
- *   trace qui distingue APRES COUP « elle a attendu puis reussi » de « elle a reussi tout de
- *   suite », sur un deploiement reel ou personne ne regarde le rapport.
+ * @param {(ligne: string) => void} [options.journaliser] Une ligne PAR ATTENTE, plus une ligne
+ *   d EMPREINTE par passe. Un journal de build muet pendant dix minutes se lit comme un build
+ *   fige — et surtout, c est la seule trace qui distingue APRES COUP « elle a attendu puis
+ *   reussi » de « elle a reussi tout de suite », sur un deploiement reel ou personne ne regarde
+ *   le rapport. Les deux natures se distinguent par leur prefixe (`empreinte …`).
+ * @param {string|null} [options.empreinteAttendue] L empreinte que le BUILD porte, quand il la
+ *   connait — `null` aujourd hui (mode degrade). ⚠️ Elle ne sert QU A journaliser un ecart : la
+ *   comparaison n influe JAMAIS sur `issue`, parce que les deux applications ne portent le meme
+ *   SHA que sur un push touchant les deux arbres.
  */
 export async function attendreSchema({
   baseUrl,
@@ -263,11 +404,18 @@ export async function attendreSchema({
   horloge = () => Date.now(),
   sonder = sonderParFetch,
   journaliser = () => {},
+  empreinteAttendue = null,
 }) {
   const noms = Object.keys(REQUETES);
   const debut = horloge();
   let passes = 0;
   let attentes = 0;
+  /* Les empreintes vues, DANS L ORDRE DE PREMIERE APPARITION : c est cet ordre qui montre le
+     basculement ancien -> nouveau, et un `Set` rendu tel quel le perdrait a la relecture. */
+  const empreintes = [];
+  /* L empreinte de la DERNIERE passe — `null` si la passe n en a vu aucune, ou plusieurs. Elire
+     une version parmi deux reviendrait a inventer la reponse que toute cette section cherche. */
+  let empreinteFinale = null;
   /* Le PREMIER obstacle rencontre survit au succes : sans lui, un rapport vert ne saurait pas dire
      CE QU IL A ATTENDU, et « elle a attendu puis reussi » se lirait comme « elle a reussi ». */
   let premier = null;
@@ -275,21 +423,39 @@ export async function attendreSchema({
   for (;;) {
     passes += 1;
     const obstacles = [];
+    const vues = [];
     for (const nom of noms) {
       const verdict = await sonder({ baseUrl, jeton, nom, locale });
+      if (verdict.empreinte !== null && verdict.empreinte !== undefined) vues.push(verdict.empreinte);
       if (verdict.verdict !== VERDICTS.PRETE) obstacles.push({ requete: nom, ...verdict });
     }
 
+    /* CE QUE LA PASSE A VU, dit A CHAQUE PASSE et pas seulement a l abandon : sur un deploiement
+       reel, le journal Coolify est la SEULE trace, et il n est lu que quand il est rouge. Une
+       ligne verte qui nomme la version servie est ce qui permettra, apres coup, de distinguer
+       « le build a lu le NOUVEAU CMS » de « il a lu l ancien et personne ne l a su ». */
+    const distinctes = [...new Set(vues)];
+    for (const empreinte of distinctes) {
+      if (!empreintes.includes(empreinte)) empreintes.push(empreinte);
+    }
+    empreinteFinale = distinctes.length === 1 ? distinctes[0] : null;
+    journaliser(ligneEmpreinte(passes, distinctes));
+
     const attenduMs = horloge() - debut;
+    const resume = resumerEmpreintes({ empreintes, empreinteFinale, empreinteAttendue });
 
     if (obstacles.length === 0) {
-      return {
+      const rapport = {
         issue: ISSUES.CONFORME,
         passes,
         attentes,
         attenduMs,
         obstacle: null,
         premierObstacle: premier,
+        empreintes,
+        empreinteFinale,
+        empreinteAttendue,
+        avertissements: resume.avertissements,
         recit:
           premier === null
             ? `schema PRET a la premiere passe (aucune attente) — ${noms.length} requete(s) ` +
@@ -298,6 +464,8 @@ export async function attendreSchema({
               `refusait encore « ${premier.champ ?? premier.precision} » sur la requete ` +
               `« ${premier.requete} » a la premiere passe. La course a ete rattrapee.`,
       };
+      rapport.recit += resume.phrase;
+      return rapport;
     }
 
     const obstacle = obstacleParlant(obstacles);
@@ -305,13 +473,17 @@ export async function attendreSchema({
 
     const definitif = obstacle.verdict === VERDICTS.REFUSEE;
     if (definitif || attenduMs + intervalleMs >= plafondMs) {
-      return {
+      const rapport = {
         issue: ISSUES.VERIFICATION_IMPOSSIBLE,
         passes,
         attentes,
         attenduMs,
         obstacle,
         premierObstacle: premier,
+        empreintes,
+        empreinteFinale,
+        empreinteAttendue,
+        avertissements: resume.avertissements,
         recit: definitif
           ? `le CMS REFUSE la requete « ${obstacle.requete} » — ${obstacle.precision}. Attendre n y ` +
             'changera rien : la sonde s arrete sans consommer son plafond. Le jeton de build ' +
@@ -323,6 +495,8 @@ export async function attendreSchema({
             ` Attendu ${secondes(attenduMs)} s en ${passes} passe(s), plafond de ` +
             `${secondes(plafondMs)} s atteint : abandon.`,
       };
+      rapport.recit += resume.phrase;
+      return rapport;
     }
 
     attentes += 1;
@@ -361,7 +535,16 @@ if (import.meta.filename === process.argv[1]) {
     const rapport = await attendreSchema({
       ...configuration,
       journaliser: (ligne) => console.log(`[attendre-schema] ${ligne}`),
+      empreinteAttendue: empreinteDuBuild(),
     });
+
+    /* LES AVERTISSEMENTS S IMPRIMENT DANS LES DEUX CAS, et sur la sortie d ERREUR meme quand la
+       sonde est VERTE : c est la seule facon qu ils survivent a un journal de build qu on ne lit
+       que quand il est rouge. Ils ne changent PAS le code de sortie — la version servie n est pas
+       un critere d echec, cf. l en-tete de ce fichier. */
+    for (const avertissement of rapport.avertissements) {
+      console.warn(`[attendre-schema] ⚠️ ${avertissement}`);
+    }
 
     if (rapport.issue === ISSUES.CONFORME) {
       console.log(`[attendre-schema] ${rapport.recit}`);

@@ -38,10 +38,12 @@ import http from 'node:http';
 import { test } from 'node:test';
 
 import {
+  EN_TETE_EMPREINTE,
   INTERVALLE_PAR_DEFAUT_MS,
   PLAFOND_PAR_DEFAUT_MS,
   attendreSchema,
   classerReponse,
+  lireEmpreinte,
   parametresDeSonde,
   urlDeSonde,
   VERDICTS,
@@ -80,8 +82,14 @@ interface Banc {
  *
  * @param decider Recoit le numero d appel (1, 2, ...) et l URL ; rend `null` pour `200`, ou le nom
  *   du champ a refuser en `400`. C est ainsi qu on fabrique un CMS qui rattrape son retard.
+ * @param empreinteDe Ce que le conteneur DIT de sa version, appel par appel — `null` pour ne poser
+ *   AUCUN en-tete (c est le CMS d avant le 2026-08-19, et le developpement local). C est ainsi
+ *   qu on fabrique un proxy qui bascule de l ancien conteneur au nouveau AU MILIEU d une passe.
  */
-function strapiQuiRattrape(decider: (appel: number, url: string) => string | null): Promise<Banc> {
+function strapiQuiRattrape(
+  decider: (appel: number, url: string) => string | null,
+  empreinteDe: (appel: number, url: string) => string | null = () => null,
+): Promise<Banc> {
   let appels = 0;
   let refus = 0;
   const urls: string[] = [];
@@ -89,15 +97,18 @@ function strapiQuiRattrape(decider: (appel: number, url: string) => string | nul
   const serveur = http.createServer((requete, reponse) => {
     appels += 1;
     urls.push(requete.url ?? '');
+    const empreinte = empreinteDe(appels, requete.url ?? '');
+    const entetes: Record<string, string> = { 'content-type': 'application/json' };
+    if (empreinte !== null) entetes[EN_TETE_EMPREINTE] = empreinte;
     const champ = decider(appels, requete.url ?? '');
     if (champ === null) {
       reponse
-        .writeHead(200, { 'content-type': 'application/json' })
+        .writeHead(200, entetes)
         .end(JSON.stringify({ data: [], meta: { pagination: { page: 1, pageCount: 1 } } }));
       return;
     }
     refus += 1;
-    reponse.writeHead(400, { 'content-type': 'application/json' }).end(refusDeCle(champ));
+    reponse.writeHead(400, entetes).end(refusDeCle(champ));
   });
 
   return new Promise<Banc>((ok) => {
@@ -260,11 +271,20 @@ test('2 ter. chaque attente laisse une LIGNE dans le journal du build, qui nomme
       journaliser: (ligne) => journal.push(ligne),
     });
 
+    /* AMENDE LE 2026-08-19 : le journal porte desormais DEUX natures de lignes — celles de
+       l attente, une par attente, et celles de l empreinte, une par PASSE (section 8). On les
+       separe par leur prefixe plutot que de relacher le compte : « une ligne par attente » est
+       l invariant qui distingue « elle a attendu puis reussi » de « elle a reussi tout de
+       suite », et le diluer dans un total ferait exactement perdre ce que ce test garde. */
+    const attentes = journal.filter((ligne) => !ligne.startsWith('empreinte'));
+    const empreintes = journal.filter((ligne) => ligne.startsWith('empreinte'));
+
     assert.equal(rapport.issue, ISSUES.CONFORME);
-    assert.equal(journal.length, rapport.attentes, 'une ligne par attente, ni plus ni moins');
-    assert.equal(journal.length, 2);
-    for (const ligne of journal) assert.match(ligne, /alternativePartage/);
-    assert.match(journal[0], /plafond/);
+    assert.equal(attentes.length, rapport.attentes, 'une ligne par attente, ni plus ni moins');
+    assert.equal(attentes.length, 2);
+    assert.equal(empreintes.length, rapport.passes, 'une ligne d empreinte par PASSE');
+    for (const ligne of attentes) assert.match(ligne, /alternativePartage/);
+    assert.match(attentes[0], /plafond/);
   } finally {
     await banc.fermer();
   }
@@ -503,4 +523,332 @@ test('7. un jeton refuse arrete la sonde tout de suite, sans consommer le plafon
   } finally {
     await new Promise<void>((ok) => refusant.close(() => ok()));
   }
+});
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+ * 8. L EMPREINTE DU CMS — elle est LUE et JOURNALISEE, elle ne BLOQUE JAMAIS
+ *
+ * LE DEFAUT QUE CETTE SECTION REND OBSERVABLE, sans pretendre le corriger. Le 2026-08-19
+ * (tache `d0e0df3b`, commit c951b25, queues 529 et 530), la sonde a rendu « PRET a la premiere
+ * passe » a 08:03:46.41 alors que le conteneur CMS NEUF n est devenu sain qu a 08:03:49.67 :
+ * elle a donc valide sur l ANCIEN, encore route par le proxy. Sur un vrai changement de schema,
+ * elle validerait sur l ancien et le build partirait — il casserait, ou PIRE il reussirait sur
+ * l ancien schema en publiant un site perime, sans aucun signal.
+ *
+ * ⚠️ CE QUE CETTE SECTION VERROUILLE AVANT TOUT — LE NON-BLOCAGE. Le CMS et le site ne portent
+ * le meme SHA que sur un push touchant LES DEUX arbres : `watch_paths` ne reveille le CMS que
+ * sur `apps/cms/**`, si bien qu il tourne couramment sur un commit plus recent que le site. Une
+ * empreinte absente, vide, divergente ou INEGALE a celle du build est donc un etat NORMAL. Une
+ * garde d egalite stricte planterait sur tous les deploiements ne touchant que le site
+ * ([[garde-en-ferme-dans-un-build-transforme-l-incapacite-en-panne]]). C est pourquoi le verrou
+ * de la section balaie tous ces cas et exige `issue` INCHANGEE.
+ *
+ * ET C EST POURQUOI ON NE MULTIPLIE PAS LES PASSES : sans identification de version, N passes
+ * vertes sur l ancien conteneur restent N mensonges. Le remede est que le CMS PARLE
+ * (`apps/cms/src/middlewares/empreinte-commit.ts`), pas que la sonde insiste.
+ * ════════════════════════════════════════════════════════════════════════════════════ */
+
+const SHA_ANCIEN = '3c7a2fca11d0f4b2e8a7c6d5e4f3a2b1c0d9e8f7';
+const SHA_NOUVEAU = '38cf02318f8aac153fb44a5e7fb39ff1769360ee';
+
+/** Les lignes que la sonde a ecrites AU SUJET de l empreinte. */
+function lignesEmpreinte(journal: string[]): string[] {
+  return journal.filter((ligne) => ligne.startsWith('empreinte'));
+}
+
+test('8. la sonde LIT l en-tete servi par le CMS et le rapporte, passe par passe', async () => {
+  const banc = await strapiQuiRattrape(
+    () => null,
+    () => SHA_NOUVEAU,
+  );
+  const journal: string[] = [];
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+      journaliser: (ligne) => journal.push(ligne),
+    });
+
+    assert.equal(rapport.issue, ISSUES.CONFORME);
+    assert.deepEqual(rapport.empreintes, [SHA_NOUVEAU]);
+    assert.equal(rapport.empreinteFinale, SHA_NOUVEAU);
+    assert.equal(lignesEmpreinte(journal).length, 1, 'une ligne par passe, meme sans attente');
+    assert.match(lignesEmpreinte(journal)[0], new RegExp(SHA_NOUVEAU));
+    /* Le recit du rapport la porte aussi : c est lui que le journal de build imprime en dernier. */
+    assert.match(rapport.recit, new RegExp(SHA_NOUVEAU));
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 bis. NON BLOQUANT — aucun en-tete : la sonde le DIT, et rend 0 quand meme', async () => {
+  /* C est l etat du CMS avant le 2026-08-19, et celui de tout developpement local. Une sonde qui
+     exigerait l empreinte ferait echouer un deploiement que le CMS honore parfaitement. */
+  const banc = await strapiQuiRattrape(() => null);
+  const journal: string[] = [];
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+      journaliser: (ligne) => journal.push(ligne),
+    });
+
+    assert.equal(rapport.issue, ISSUES.CONFORME, 'une empreinte absente NE DOIT PAS bloquer');
+    assert.deepEqual(rapport.empreintes, []);
+    assert.equal(rapport.empreinteFinale, null);
+    assert.match(lignesEmpreinte(journal)[0], /ABSENTE/i);
+    assert.ok(
+      rapport.avertissements.some((a: string) => /ABSENTE/i.test(a)),
+      'le rapport doit AVOUER qu il n a rien pu identifier : un silence se lirait comme un vert',
+    );
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 ter. NON BLOQUANT — un en-tete VIDE vaut ABSENT, jamais une valeur', async () => {
+  /* Deux conteneurs qui ignorent leur version rendraient tous deux la chaine vide, et une
+     comparaison naive les declarerait EGAUX : un vert fabrique a partir de deux ignorances. */
+  const banc = await strapiQuiRattrape(
+    () => null,
+    () => '   ',
+  );
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+    });
+
+    assert.equal(rapport.issue, ISSUES.CONFORME);
+    assert.deepEqual(rapport.empreintes, [], 'une chaine vide n est pas une empreinte');
+    assert.equal(rapport.empreinteFinale, null);
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 quater. NON BLOQUANT — l empreinte CHANGE entre deux passes : les deux sont rapportees', async () => {
+  /* LE CAS FONDATEUR, rejoue : le proxy sert l ANCIEN conteneur, puis le NOUVEAU. Sans cette
+     lecture, les deux passes rendent « 200 » et rien ne distingue le CMS d avant de celui
+     d apres. */
+  const requetes = Object.keys(REQUETES).length;
+  const banc = await strapiQuiRattrape(
+    (appel, url) =>
+      Math.ceil(appel / requetes) === 1 && url.includes('/api/articles')
+        ? 'alternativePartage'
+        : null,
+    (appel) => (Math.ceil(appel / requetes) === 1 ? SHA_ANCIEN : SHA_NOUVEAU),
+  );
+  const journal: string[] = [];
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+      journaliser: (ligne) => journal.push(ligne),
+    });
+
+    assert.equal(rapport.issue, ISSUES.CONFORME);
+    assert.deepEqual(
+      rapport.empreintes,
+      [SHA_ANCIEN, SHA_NOUVEAU],
+      'les empreintes vues doivent l etre DANS L ORDRE : c est le basculement lui-meme',
+    );
+    assert.equal(rapport.empreinteFinale, SHA_NOUVEAU, 'la derniere passe fait foi');
+    assert.match(lignesEmpreinte(journal)[0], new RegExp(SHA_ANCIEN));
+    assert.match(lignesEmpreinte(journal)[1], new RegExp(SHA_NOUVEAU));
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 quinquies. NON BLOQUANT — deux empreintes DANS LA MEME passe : la bascule est nommee', async () => {
+  /* Le proxy bascule AU MILIEU d une passe : les requetes ne sont plus servies par le meme
+     conteneur. Le vert de cette passe est alors COMPOSE de deux versions — c est precisement ce
+     qu on veut voir ecrit, et jamais ce qu on veut faire echouer. */
+  const requetes = Object.keys(REQUETES).length;
+  const banc = await strapiQuiRattrape(
+    () => null,
+    (appel) => (appel <= Math.floor(requetes / 2) ? SHA_ANCIEN : SHA_NOUVEAU),
+  );
+  const journal: string[] = [];
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+      journaliser: (ligne) => journal.push(ligne),
+    });
+
+    assert.equal(rapport.issue, ISSUES.CONFORME);
+    assert.deepEqual([...rapport.empreintes].sort(), [SHA_NOUVEAU, SHA_ANCIEN].sort());
+    assert.equal(
+      rapport.empreinteFinale,
+      null,
+      'une passe servie par DEUX conteneurs ne designe aucune version : ne pas en elire une',
+    );
+    assert.match(lignesEmpreinte(journal)[0], /DIVERGENTES/i);
+    assert.ok(rapport.avertissements.some((a: string) => /plusieurs|divergent/i.test(a)));
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 sexies. NON BLOQUANT — une empreinte INEGALE a celle du build est un AVERTISSEMENT', async () => {
+  /* LE CAS QU IL NE FAUT SURTOUT PAS RENDRE BLOQUANT. Un push qui ne touche que `apps/web/**` ne
+     reveille pas le CMS : le site se deploie sur son commit, le CMS reste sur le sien, les deux
+     empreintes DIFFERENT, et tout est parfaitement normal. */
+  const banc = await strapiQuiRattrape(
+    () => null,
+    () => SHA_ANCIEN,
+  );
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+      empreinteAttendue: SHA_NOUVEAU,
+    });
+
+    assert.equal(rapport.issue, ISSUES.CONFORME, 'l inegalite NE DOIT PAS faire echouer le build');
+    assert.ok(
+      rapport.avertissements.some((a: string) => a.includes(SHA_ANCIEN) && a.includes(SHA_NOUVEAU)),
+      'l avertissement doit NOMMER les deux empreintes, sinon il n envoie chercher nulle part',
+    );
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 septies. LE TEMOIN — empreintes egales : plus aucun avertissement d inegalite', async () => {
+  const banc = await strapiQuiRattrape(
+    () => null,
+    () => SHA_NOUVEAU,
+  );
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+      empreinteAttendue: SHA_NOUVEAU,
+    });
+
+    assert.equal(rapport.issue, ISSUES.CONFORME);
+    assert.equal(
+      rapport.avertissements.filter((a: string) => /differe|inegal/i.test(a)).length,
+      0,
+      'le test precedent ne prouverait rien si cet avertissement tombait aussi sur l egalite',
+    );
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 octies. LE MODE DEGRADE EST AVOUE — le build ignore aujourd hui sa propre empreinte', async () => {
+  /* `include_source_commit_in_build` vaut `false` sur les trois applications Coolify : le build du
+     site ne connait PAS son SHA, et ne peut donc rien comparer. Le taire laisserait lire les
+     lignes d empreinte comme une verification ; ce n est qu une observation. */
+  const banc = await strapiQuiRattrape(
+    () => null,
+    () => SHA_NOUVEAU,
+  );
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+    });
+
+    assert.ok(
+      rapport.avertissements.some((a: string) => /degrade/i.test(a)),
+      'sans empreinte attendue, le rapport doit dire qu il n a RIEN compare',
+    );
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 nonies. VERROU — aucune configuration d empreinte ne change l issue de la sonde', async () => {
+  /* LE GARDE-FOU PRINCIPAL DU LOT, et il est ecrit pour le lecteur d apres. La tentation naturelle
+     est de « finir le travail » en faisant echouer la sonde sur une empreinte inegale. Ce test
+     l interdit : les deux applications ne partagent leur SHA que sur un push touchant les deux
+     arbres, et un build qui echouerait sur ce motif serait rouge la plupart du temps.
+
+     On balaie les six etats possibles de l empreinte contre le MEME schema (toujours pret) et on
+     exige la MEME issue. Le temoin est en fin de test : le schema, lui, fait toujours echouer. */
+  const cas: Array<[string, (appel: number) => string | null, string | undefined]> = [
+    ['absente', () => null, undefined],
+    ['vide', () => '', undefined],
+    ['stable', () => SHA_ANCIEN, undefined],
+    ['divergente dans la passe', (appel) => (appel % 2 === 0 ? SHA_ANCIEN : SHA_NOUVEAU), undefined],
+    ['inegale au build', () => SHA_ANCIEN, SHA_NOUVEAU],
+    ['egale au build', () => SHA_NOUVEAU, SHA_NOUVEAU],
+  ];
+
+  for (const [nom, empreinteDe, attendue] of cas) {
+    const banc = await strapiQuiRattrape(() => null, empreinteDe);
+    try {
+      const rapport = await attendreSchema({
+        baseUrl: banc.base,
+        jeton: JETON,
+        plafondMs: 5_000,
+        intervalleMs: 10,
+        empreinteAttendue: attendue,
+      });
+      assert.equal(rapport.issue, ISSUES.CONFORME, `empreinte ${nom} : la sonde a BLOQUE`);
+      assert.equal(rapport.passes, 1, `empreinte ${nom} : la sonde a boucle sur une empreinte`);
+    } finally {
+      await banc.fermer();
+    }
+  }
+
+  /* LE TEMOIN. Le SCHEMA, lui, fait toujours echouer — sans quoi les six verts ci-dessus
+     prouveraient seulement que cette sonde ne sait plus echouer du tout. */
+  const casse = await strapiQuiRattrape(
+    (_appel, url) => (url.includes('/api/articles') ? 'alternativePartage' : null),
+    () => SHA_NOUVEAU,
+  );
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: casse.base,
+      jeton: JETON,
+      plafondMs: 120,
+      intervalleMs: 10,
+      empreinteAttendue: SHA_NOUVEAU,
+    });
+    assert.equal(rapport.issue, ISSUES.VERIFICATION_IMPOSSIBLE);
+    assert.equal(rapport.obstacle?.champ, 'alternativePartage');
+  } finally {
+    await casse.fermer();
+  }
+});
+
+test('8 decies. lireEmpreinte lit l en-tete sans se soucier de la casse, et refuse le vide', () => {
+  /* Les noms d en-tete HTTP sont insensibles a la casse (RFC 9110) : un proxy peut les
+     renormaliser. `headers.get` s en charge — ce test verrouille qu on ne l a pas remplace par un
+     acces direct a une cle en dur, qui rendrait `null` sur un proxy poli. */
+  assert.equal(lireEmpreinte(new Headers({ 'X-ECHO-COMMIT': SHA_NOUVEAU })), SHA_NOUVEAU);
+  assert.equal(lireEmpreinte(new Headers({ 'x-echo-commit': `  ${SHA_NOUVEAU}  ` })), SHA_NOUVEAU);
+  assert.equal(lireEmpreinte(new Headers({})), null);
+  assert.equal(lireEmpreinte(new Headers({ 'x-echo-commit': '   ' })), null);
+  assert.equal(lireEmpreinte(null), null, 'une reponse sans en-tetes ne doit pas faire lever');
 });

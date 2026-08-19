@@ -37,6 +37,9 @@ import statutPublie, {
   STATUT_IMPOSE,
   estAppelantSansCredence,
 } from '../src/middlewares/statut-publie.ts';
+import empreinteCommit, {
+  NOM_GLOBAL as NOM_EMPREINTE,
+} from '../src/middlewares/empreinte-commit.ts';
 
 /* ------------------------------------------------------------------ */
 /* Un contexte Koa fidele sur sa seule part utile : la query.           */
@@ -79,6 +82,14 @@ function creerContexte({
     request,
     state,
     method: 'GET',
+    /* La chaine globale porte desormais `global::empreinte-commit`, qui pose un en-tete de
+       reponse. Ce contexte n'a jamais eu a en rendre compte — il n'est fidele que sur la query —
+       mais il doit au moins accepter le geste, sinon c'est le FAUX qui casse la chaine, pas le
+       code juge. */
+    entetes: {} as Record<string, string>,
+    set(nom: string, valeur: string) {
+      this.entetes[String(nom).toLowerCase()] = String(valeur);
+    },
     get path() {
       return request.path;
     },
@@ -265,7 +276,16 @@ test('PREUVE EN CASSANT : la chaine du fichier de configuration force le statut,
   /* Le registre des middlewares globaux de ce depot. Un `global::` inconnu doit
      faire ROUGIR : le tolerer laisserait un renommage vider la chaine en
      silence, et le test resterait vert sur une chaine qui ne protege rien. */
-  const REGISTRE: Record<string, any> = { [NOM_GLOBAL]: statutPublie };
+  /* AMENDE LE 2026-08-19 : la chaine globale compte un SECOND middleware,
+     `global::empreinte-commit` (le conteneur dit quel commit il sert). Ce registre a ROUGI des sa
+     declaration, et c'est exactement ce qu'on lui demande — il refuse de composer une chaine
+     qu'il ne connait pas plutot que de la vider en silence. On l'inscrit donc ici avec son VRAI
+     module : le remplacer par un bouchon rendrait le temoin ci-dessous vert quoi qu'il arrive a
+     la chaine reelle. */
+  const REGISTRE: Record<string, any> = {
+    [NOM_GLOBAL]: statutPublie,
+    [NOM_EMPREINTE]: empreinteCommit,
+  };
 
   const chaine = (entrees: any[]) => {
     const fns = entrees

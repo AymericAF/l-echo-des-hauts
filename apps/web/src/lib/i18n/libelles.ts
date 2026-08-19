@@ -35,6 +35,15 @@ export interface Libelles {
   readonly articlesDeLAuteur: string;
   readonly articlesDuDossier: string;
   readonly nombreArticles: (nombre: number) => string;
+  /**
+   * Le compte d EPISODES d un dossier — une serie se compte en episodes, pas en articles.
+   *
+   * `null` a zero, et c est la partie qui compte : un dossier vide ne dit pas « 0 episode »,
+   * il ne dit RIEN. Le registre n emettant pas d index vide (§10.3), ce cas n arrive pas par
+   * la page ; il arriverait par un appel venu d ailleurs, et une phrase grammaticalement
+   * correcte est exactement ce qui rend une affirmation fausse credible.
+   */
+  readonly nombreEpisodes: (nombre: number) => string | null;
   readonly navigationPages: string;
   readonly pagePrecedente: string;
   readonly pageSuivante: string;
@@ -123,6 +132,8 @@ const FR: Libelles = {
   articlesDeLAuteur: 'Articles de cet auteur',
   articlesDuDossier: 'Les épisodes du dossier',
   nombreArticles: (nombre) => (nombre > 1 ? `${nombre} articles` : `${nombre} article`),
+  nombreEpisodes: (nombre) =>
+    nombre < 1 ? null : nombre > 1 ? `${nombre} épisodes` : `${nombre} épisode`,
   navigationPages: 'Pagination',
   pagePrecedente: 'Page précédente',
   pageSuivante: 'Page suivante',
@@ -186,6 +197,8 @@ const EN: Libelles = {
   articlesDeLAuteur: 'Articles by this author',
   articlesDuDossier: 'Episodes in this series',
   nombreArticles: (nombre) => (nombre > 1 ? `${nombre} articles` : `${nombre} article`),
+  nombreEpisodes: (nombre) =>
+    nombre < 1 ? null : nombre > 1 ? `${nombre} instalments` : `${nombre} instalment`,
   navigationPages: 'Pagination',
   pagePrecedente: 'Previous page',
   pageSuivante: 'Next page',

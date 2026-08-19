@@ -16,6 +16,7 @@
 import type { Article, Auteur, Categorie, Dossier, Locale } from '../../lib/domaine.ts';
 import { libelles } from '../../lib/i18n/libelles.ts';
 import { urlMedia } from '../../lib/media.ts';
+import { compteDeLIndex } from '../../lib/routes/compte-index.ts';
 import type { IndexEmis, Registre } from '../../lib/routes/registre.ts';
 import type { Tranche } from '../../lib/routes/pagination.ts';
 import LiensSociaux from '../LiensSociaux.astro';
@@ -40,7 +41,9 @@ const intituleListe = {
   dossier: mots.articlesDuDossier,
 }[index.famille];
 
-const total = index.pages.reduce((somme, page) => somme + page.items.length, 0);
+/* Le compte se DERIVE de la liste que la page recoit deja — il ne se saisit nulle part,
+   et un dossier le dit en episodes. `null` quand il n y a rien a annoncer. */
+const compte = compteDeLIndex(index, locale);
 
 const auteur = index.famille === 'auteur' ? (index.entite as Auteur) : null;
 const dossier = index.famille === 'dossier' ? (index.entite as Dossier) : null;
@@ -122,7 +125,7 @@ const carteProritaire = hero === null && tranche.numero === 1 ? 0 : null;
     )
   }
 
-  <p class="index__compte">{mots.nombreArticles(total)}</p>
+  {compte && <p class="index__compte">{compte}</p>}
 </header>
 
 <section aria-label={intituleListe}>

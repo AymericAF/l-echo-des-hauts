@@ -76,7 +76,22 @@ EXPOSE 1337
 # DEUX CONSEQUENCES pour qui touche a ces lignes :
 #   1. la sonde du site (`apps/web/scripts/attendre-schema.mjs`) a valide AVANT que le
 #      conteneur neuf ne soit sain : elle a donc interroge l'ANCIEN. Un `200` de sa part ne
-#      dit rien de la version servie tant que ce conteneur ne DIT pas laquelle il porte ;
+#      dit rien de la version servie tant que ce conteneur ne DIT pas laquelle il porte.
+#      ~~ce qui n'existe pas aujourd'hui~~ — DEPUIS LE 2026-08-19, IL LA DIT : le middleware
+#      global `src/middlewares/empreinte-commit.ts` pose `X-Echo-Commit` depuis
+#      `SOURCE_COMMIT`, que Coolify injecte deja dans ce conteneur (lu dans `/proc/1/environ`,
+#      valeur identique a l'etiquette de l'image). L'en-tete est pose AVANT `next()`, donc
+#      porte aussi par le `400 ValidationError` de l'ancien schema — la seule reponse qu'il
+#      soit vraiment utile d'identifier.
+#      ⚠️ CE QUE CE HEALTHCHECK PROUVE N'A PAS CHANGE POUR AUTANT : il teste toujours une
+#      connexion TCP, et l'empreinte ne le rend ni plus ni moins probant. Elle deplace la
+#      question la ou elle se resout — dans la REPONSE, lue par qui interroge —, elle ne la
+#      resout pas ici. Ne pas etre tente d'y brancher une verification de version : un
+#      HEALTHCHECK qui echouerait sur une empreinte ferait rouler Coolify en arriere sur un
+#      conteneur parfaitement sain.
+#      ⚠️ ET LA SONDE N'EN FAIT RIEN DE BLOQUANT : elle LIT l'empreinte et la JOURNALISE. Le
+#      CMS et le site ne portent le meme SHA que sur un push touchant les DEUX arbres
+#      (`watch_paths`), si bien qu'une empreinte inegale est un etat NORMAL ;
 #   2. ce qui traverse la fenetre vit cote site, dans `apps/web/src/lib/strapi/client.ts`
 #      (reprises sur 502/503/504). Allonger le `start-period` ICI ne la fermerait PAS : elle
 #      s'ouvre au moment de la bascule, pas avant.

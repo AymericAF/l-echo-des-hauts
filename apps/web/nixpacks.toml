@@ -146,5 +146,36 @@ aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 # Le drapeau existe depuis Node 22.6 et reste ACCEPTE en 24 (ou il ne fait plus rien) : il
 # couvre donc toute la plage declaree par `engines`. Verrouille par
 # `tests/nixpacks-preuve-surcharge.test.ts`, qui l exige tant que la sonde importe un `.ts`.
+# ── 2026-08-19 : ELLE DIT DESORMAIS QUELLE VERSION LUI A REPONDU ───────────────────────
+#
+# Un `200` de la sonde ne disait rien du CONTENEUR qui l avait rendu. Le CMS pose desormais
+# `X-Echo-Commit` (`apps/cms/src/middlewares/empreinte-commit.ts`, depuis `SOURCE_COMMIT` que
+# Coolify injecte deja dans le conteneur applicatif), et la sonde LIT cet en-tete a chaque
+# passe. Le journal de ce build porte donc une ligne « empreinte du CMS, passe N : … » — c est
+# la seule trace qui permette, APRES COUP, de distinguer « le build a lu le NOUVEAU CMS » de
+# « il a lu l ancien, et personne ne l a su ».
+#
+# ⚠️ ELLE N EN FAIT RIEN DE BLOQUANT, ET IL NE FAUT PAS « FINIR LE TRAVAIL ». Les deux
+# applications ne portent le meme SHA que sur un push touchant LES DEUX arbres : `watch_paths`
+# ne reveille le CMS que sur `apps/cms/**` et le site que sur `apps/web/**`, si bien que le CMS
+# tourne couramment sur un commit plus recent que le site — c est LEGITIME. Une garde d egalite
+# stricte planterait sur TOUS les deploiements ne touchant que le site : exactement le mode
+# d echec que la note sur `--experimental-strip-types` ci-dessus documente, une incapacite
+# transformee en panne. Empreinte absente, vide, divergente ou inegale = avertissement, et la
+# sonde retombe sur son comportement d avant. Verrouille par la section 8 de
+# `tests/attendre-schema.test.ts`.
+#
+# ET SURTOUT PAS EN MULTIPLIANT LES PASSES : sans identification de version, N passes vertes
+# sur l ancien conteneur restent N mensonges. Le plafond et l intervalle ne sont pas le levier.
+#
+# CE QUI RESTE OUVERT — le SECOND TEMPS, hors perimetre de ce lot. Le build ignore sa PROPRE
+# empreinte : `include_source_commit_in_build` vaut `false` sur les trois applications (releve
+# en base le 2026-08-19), et Coolify efface `.git` avant de construire. La sonde tourne donc en
+# mode DEGRADE, et elle le DIT. Le reglage se bascule dans Coolify, application `echo-site`,
+# onglet Advanced, liste « Source commit availability » : « Runtime only (preserves cache) »
+# -> « Available during build ». Son prix est ecrit par Coolify lui-meme
+# (`app/Jobs/ApplicationDeploymentJob.php`) : « SOURCE_COMMIT changes with each commit and
+# breaks Docker cache if included in build ». Il doit etre mesure contre la cible M-04 avant
+# d etre engage.
 [phases.build]
 cmds = ['node --experimental-strip-types scripts/attendre-schema.mjs', 'npm run build']

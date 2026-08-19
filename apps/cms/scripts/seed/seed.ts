@@ -384,27 +384,29 @@ export async function executerSeed(
       // quinze fac-similes redessines dormaient dans `main` pendant que le seed
       // les declarait « inchanges » et que le site servait l'ancien dessin —
       // aucun signal rouge nulle part (tache `9faa4193`).
-      // CE QUE LA MEDIATHEQUE RETRAITE N EST PAS COMPARABLE, et c est elle qui
-      // le dit : `formats` n est renseigne que sur les images que Strapi a
-      // recompressees et declinees. Mesure le 2026-08-16 sur l instance —
-      // `partage-defaut.png` pese 21 660 octets dans le depot et 6 835 servis.
-      // Comparer les octets de ceux-la ne peut pas converger : le seed les
-      // remplacerait a CHAQUE passage, regenerant quatre derives pour rien.
-      // On ne devine pas par l extension : le signal vient de l API.
-      const retraite = Object.keys(enBase.formats ?? {}).length > 0;
-      const servis = retraite ? null : await client.octetsMedia(enBase);
+      // TOUS LES MEDIAS SE COMPARENT, SANS EXEMPTION — 2026-08-19.
+      // Jusqu'ici, une fiche portant des formats derives etait exemptee : la
+      // mediatheque recompressait les matriciels (`partage-defaut.png` pesait
+      // 21 660 octets ici et 6 835 servis), et comparer leurs octets n'aurait
+      // pas pu converger. `src/reglages-medias.ts` a supprime la cause le
+      // 2026-08-16 (tache `e1f8115c`) : `sizeOptimization:false` ET
+      // `autoOrientation:false` font sauter la branche `optimize()` de
+      // `image-manipulation.js` (l. 121), donc le fichier n'entre jamais dans
+      // sharp et les octets stockes sont CEUX DU DEPOT. La comparaison
+      // redevient valable pour tout le monde.
+      //
+      // ON N'A PAS INVERSE LE SIGNAL, ON L'A RETIRE. Lire « formats non vide +
+      // reglage a false = reliquat, donc remplacer » aurait rejoue le
+      // remplacement indefiniment : `generateThumbnail` n'est gardee par AUCUN
+      // reglage (upload.js l. 222, image-manipulation.js l. 104) — elle ne
+      // depend que du format et de `width > 245 || height > 156`. Les deux PNG
+      // du corpus font 1200x630 : leur fiche REPORTE une vignette apres chaque
+      // remplacement. `formats` etait un proxy, et il l'etait dans les deux
+      // sens — une image plus petite que tous les points de rupture n'en
+      // obtient aucun tout en ayant pu etre recompressee.
+      const servis = await client.octetsMedia(enBase);
       const locaux = fs.readFileSync(media.chemin);
-      const memesOctets = retraite || (servis !== null && servis.equals(locaux));
-
-      if (retraite) {
-        // ECRIT PLUTOT QUE TU : sans cette ligne, le trou se refermerait en
-        // silence et un PNG redessine dormirait exactement comme les quinze
-        // fac-similes du 2026-08-16.
-        journal(
-          `media RETRAITE par la mediatheque, octets non comparables : ${media.cle} — ` +
-            'un redessin de ce fichier ne sera PAS detecte par le seed'
-        );
-      }
+      const memesOctets = servis !== null && servis.equals(locaux);
 
       if (!memesOctets) {
         await client.remplacerFichierMedia(enBase.id, {
@@ -416,6 +418,23 @@ export async function executerSeed(
           `media REDESSINE, octets remplaces : ${media.cle}` +
             (servis === null ? ' (octets servis illisibles — remplace par prudence)' : '')
         );
+
+        // LA CONVERGENCE SE CONSTATE, ELLE NE SE SUPPOSE PAS. Ce qui precede
+        // repose sur un fait de l'instance — que les trois drapeaux y soient
+        // bien poses. Le jour ou ils derivent, la mediatheque re-encode a
+        // nouveau, plus aucun passage ne converge, et le seed remplacerait les
+        // memes fichiers a chaque fois en annoncant « mises a jour : 2 » sur un
+        // corpus que personne n'a touche. Une relecture par fichier REMPLACE
+        // (donc rare) transforme cette boucle silencieuse en une ligne qui la
+        // nomme. Cf. `[[quand-succes-et-echec-rendent-la-meme-sortie]]`.
+        const apres = await client.octetsMedia(enBase);
+        if (apres !== null && !apres.equals(locaux)) {
+          journal(
+            `media NON CONVERGENT : ${media.cle} — la mediatheque a RETRAITE le fichier ` +
+              'qu on vient de lui donner ; le seed le remplacera a CHAQUE passage tant que ' +
+              '`sizeOptimization` / `autoOrientation` ne seront pas a false (cf. src/reglages-medias.ts)'
+          );
+        }
       }
 
       if (

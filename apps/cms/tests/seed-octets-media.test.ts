@@ -32,7 +32,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { chargerCorpus } from '../scripts/seed/corpus.ts';
+import { chargerCorpus, type Corpus } from '../scripts/seed/corpus.ts';
 import { executerSeed } from '../scripts/seed/seed.ts';
 import { FauxStrapi } from './fixtures/faux-strapi.ts';
 
@@ -126,34 +126,56 @@ test('le remplacement compte comme une MISE A JOUR, pas comme un inchange', asyn
 });
 
 /* ------------------------------------------------------------------ */
-/* CE QUE LA MEDIATHEQUE RETRAITE N EST PAS COMPARABLE                  */
+/* `formats` N EST PAS LE SIGNAL — IL NE L A JAMAIS ETE                 */
 /*                                                                      */
-/* Mesure sur l instance le 2026-08-16, APRES le premier passage du     */
-/* correctif : deux fichiers revenaient a CHAQUE seed. Les deux PNG du  */
-/* corpus, et eux seuls. Strapi recompresse les images matricielles et  */
-/* leur genere quatre formats derives — `partage-defaut.png` pese 21 660*/
-/* octets dans le depot et 6 835 servis ; `A01-col-des-trois-vents.png`,*/
-/* 40 701 contre 13 751. Les octets servis ne sont donc JAMAIS ceux du  */
-/* depot, et une comparaison octet a octet ne peut pas converger : le   */
-/* seed cessait d etre idempotent, et chaque passage regenerait quatre  */
-/* derives pour rien.                                                   */
+/* CE QUI ETAIT EN PLACE JUSQU AU 2026-08-19. Le seed exemptait de la    */
+/* comparaison d octets toute fiche portant des formats derives :        */
+/* « la mediatheque retraite ce fichier, ses octets ne sont pas          */
+/* comparables ». C etait vrai tant que `sizeOptimization` valait `true` */
+/* — `partage-defaut.png` pesait 21 660 octets ici et 6 835 servis.      */
 /*                                                                      */
-/* LE SIGNAL EST DONNE PAR L API ELLE-MEME : `formats` n est renseigne  */
-/* que sur les images que Strapi a retraitees. On ne devine pas par     */
-/* l extension — c est la mediatheque qui dit ce qu elle a touche.      */
+/* CE QUE LE REGLAGE DU 2026-08-16 A CHANGE (tache `e1f8115c`).          */
+/* `src/reglages-medias.ts` pose `sizeOptimization:false` ET             */
+/* `autoOrientation:false` a chaque demarrage. La branche                */
+/* `if ((sizeOptimization || autoOrientation) && isOptimizableFormat())` */
+/* d `image-manipulation.js` (l. 121) est alors SAUTEE : le fichier n    */
+/* entre jamais dans sharp, et les octets stockes sont CEUX DU DEPOT.    */
+/* La comparaison d octets redevient donc valable pour TOUS les medias,  */
+/* matriciels compris — l exemption n a plus d objet.                    */
+/*                                                                      */
+/* POURQUOI ON NE SE CONTENTE PAS D INVERSER LA LECTURE DU SIGNAL. La    */
+/* correction evidente etait de lire « fiche AVEC formats + reglage a    */
+/* false = RELIQUAT, donc remplacer ». Elle est FAUSSE, et le mode d     */
+/* echec est celui que l exemption evitait : `generateThumbnail` n est   */
+/* gardee par AUCUN reglage (upload.js l. 222 ; image-manipulation.js    */
+/* l. 104-111). Elle ne depend que du format et de la taille —           */
+/* `width > 245 || height > 156`. Les deux PNG du corpus font 1200x630 : */
+/* leur fiche portera `formats.thumbnail` APRES CHAQUE REMPLACEMENT.     */
+/* Une garde qui lit « formats non vide » comme un reliquat les          */
+/* remplacerait donc a chaque passage, indefiniment.                     */
+/*                                                                      */
+/* CE QUI REMPLACE LE PROXY. Rien : on compare les octets du fichier     */
+/* PRINCIPAL, toujours, et on CONSTATE la convergence apres avoir        */
+/* remplace. Un fichier qui ne converge pas est NOMME au journal —       */
+/* c est le seul cas ou la mediatheque retraite encore, et il se voit.   */
+/* Ce faisant, le trou du proxy se referme aussi dans l autre sens : une */
+/* image plus petite que tous les points de rupture n obtient AUCUN      */
+/* format derive et etait donc jugee « comparable » alors qu elle avait  */
+/* pu etre recompressee. Elle n a plus de statut a part.                 */
 /* ------------------------------------------------------------------ */
 
-test('un media RETRAITE par la mediatheque n est pas remplace en boucle', async () => {
+const PNG = (corpus: Corpus) => corpus.medias.find((m) => m.nom.endsWith('.png'))!;
+
+test('une fiche qui porte des formats derives est COMPAREE, plus exemptee', async () => {
   const corpus = chargerCorpus(DATA_REEL);
   const faux = new FauxStrapi();
   await executerSeed(faux, corpus);
 
-  /* L etat exact mesure sur l instance : le fichier servi ne pese pas ce que
-     pese celui du depot, parce que Strapi l a recompresse, et il porte les
-     quatre formats derives qui le prouvent. */
-  const matriciel = corpus.medias.find((m) => m.nom.endsWith('.png'))!;
+  /* L etat exact des deux PNG sur l instance : octets de l ancien reglage (recompresses),
+     et les quatre formats derives poses a l upload d avant le 2026-08-16. */
+  const matriciel = PNG(corpus);
   const enBase = faux.medias.get(matriciel.nom)!;
-  enBase.octets = Buffer.from('octets RECOMPRESSES par la mediatheque, plus legers');
+  enBase.octets = Buffer.from('octets RECOMPRESSES par le reglage d avant');
   enBase.formats = { thumbnail: {}, small: {}, medium: {}, large: {} };
 
   const avant = remplacements(faux);
@@ -161,26 +183,100 @@ test('un media RETRAITE par la mediatheque n est pas remplace en boucle', async 
 
   assert.equal(
     remplacements(faux),
-    avant,
-    'un fichier que la mediatheque retraite ne doit PAS etre remplace : ses octets ne sont pas comparables, ' +
-      'et le remplacer a chaque passage rend le seed non idempotent'
+    avant + 1,
+    'la fiche portait des formats : elle etait exemptee A VIE, et ce sont les deux cartes de partage — ' +
+      'exactement les fichiers qu on retouche quand un chiffre change'
+  );
+  assert.deepEqual(
+    faux.medias.get(matriciel.nom)!.octets,
+    fs.readFileSync(matriciel.chemin),
+    'les octets servis doivent etre EXACTEMENT ceux du depot'
   );
 });
 
-test('le trou est NOMME, pas tu : le journal dit qu un media retraite echappe a la comparaison', async () => {
+test('DEUX PASSAGES CONSECUTIFS — le remplacement ne se rejoue pas, vignette regeneree comprise', async () => {
   const corpus = chargerCorpus(DATA_REEL);
   const faux = new FauxStrapi();
   await executerSeed(faux, corpus);
 
-  const matriciel = corpus.medias.find((m) => m.nom.endsWith('.png'))!;
-  faux.medias.get(matriciel.nom)!.formats = { thumbnail: {} };
+  const matriciel = PNG(corpus);
+  faux.medias.get(matriciel.nom)!.octets = Buffer.from('octets de l ancien reglage');
+
+  const depart = remplacements(faux);
+  await executerSeed(faux, corpus);
+  const apresPremier = remplacements(faux);
+  await executerSeed(faux, corpus);
+  const apresSecond = remplacements(faux);
+
+  assert.equal(apresPremier, depart + 1, 'le premier passage doit remplacer le fichier reliquat');
+  assert.equal(
+    apresSecond,
+    apresPremier,
+    'LE SECOND PASSAGE NE DOIT RIEN REMPLACER. C est le mode d echec que l exemption evitait : ' +
+      'une garde qui lirait « formats non vide = reliquat » rejouerait le remplacement a l infini, ' +
+      'puisque la vignette est REGENEREE a chaque remplacement'
+  );
+  assert.ok(
+    Object.keys(faux.medias.get(matriciel.nom)!.formats ?? {}).length > 0,
+    'et la fiche porte TOUJOURS un format derive apres remplacement — sans quoi ce test ne prouverait rien'
+  );
+});
+
+test('un media SANS aucun format retombe sur la comparaison d octets', async () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const faux = new FauxStrapi();
+  await executerSeed(faux, corpus);
+
+  /* Le cas du SVG, et celui de l image plus petite que tous les points de rupture. */
+  const vectoriel = corpus.medias.find((m) => m.nom.endsWith('.svg'))!;
+  const enBase = faux.medias.get(vectoriel.nom)!;
+  assert.deepEqual(enBase.formats, {}, 'la mediatheque ne pose aucun format sur un SVG');
+  enBase.octets = Buffer.from('<svg/>');
+
+  const avant = remplacements(faux);
+  await executerSeed(faux, corpus);
+
+  assert.equal(remplacements(faux), avant + 1);
+});
+
+test('PREUVE EN CASSANT — un fichier qui NE CONVERGE PAS est NOMME, pas remplace en silence', async () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const faux = new FauxStrapi();
+  await executerSeed(faux, corpus);
+
+  /* L instance dont les reglages ont derive : `sizeOptimization` repasse a `true`, la
+     mediatheque re-encode, et AUCUN passage ne peut converger. Sans cette ligne de journal,
+     le seed remplacerait les memes fichiers a chaque passage sans que rien ne le dise —
+     le comptage annoncerait « mises a jour : 2 » pour un corpus que personne n a touche. */
+  faux.recompresse = true;
+  faux.medias.get(PNG(corpus).nom)!.octets = Buffer.from('octets qui ne sont pas ceux du depot');
 
   const lignes: string[] = [];
   await executerSeed(faux, corpus, (l) => lignes.push(l));
 
   assert.ok(
-    lignes.some((l) => l.includes(matriciel.cle) && /retrait/i.test(l)),
-    'le seed doit DIRE qu il ne peut pas juger ce fichier — sinon le trou se referme en silence, ' +
-      'et un redessin de PNG dormira comme les quinze fac-similes'
+    lignes.some((l) => l.includes(PNG(corpus).cle) && /converg/i.test(l)),
+    'le seed doit DIRE que ce fichier ne converge pas — sinon le remplacement se rejoue en silence'
+  );
+});
+
+test('et il se TAIT quand la convergence est atteinte — les deux etats ne rendent pas la meme sortie', async () => {
+  const corpus = chargerCorpus(DATA_REEL);
+  const faux = new FauxStrapi();
+  await executerSeed(faux, corpus);
+
+  faux.medias.get(PNG(corpus).nom)!.octets = Buffer.from('octets de l ancien reglage');
+
+  const lignes: string[] = [];
+  await executerSeed(faux, corpus, (l) => lignes.push(l));
+
+  assert.ok(
+    lignes.some((l) => l.includes(PNG(corpus).cle) && /REDESSINE/.test(l)),
+    'le remplacement lui-meme doit rester journalise'
+  );
+  assert.equal(
+    lignes.filter((l) => /converg/i.test(l)).length,
+    0,
+    'une alerte de non-convergence sur un fichier qui a converge rendrait l alerte illisible'
   );
 });

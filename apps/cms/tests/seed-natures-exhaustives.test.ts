@@ -166,23 +166,71 @@ test('le seed n ecrit AUCUN champ dont la nature ne soit declaree', async () => 
  * declare dans `src/components/bloc/*.json` et absent des natures est nomme, qu il ait un
  * porteur ou non. Meme question, posee la ou l absence de donnee ne peut pas la faire taire.
  */
+/**
+ * LA DESCENTE SUIT LES COMPOSANTS IMBRIQUES (ajout du 2026-08-19).
+ *
+ * Elle s arretait au bord de la Dynamic Zone : un component imbrique (`bloc.chiffre-entree`,
+ * et depuis le 2026-08-19 `bloc.image-galerie`) etait purement et simplement SAUTE, au motif
+ * que le test precedent le couvre par sa descente recursive. Ce motif etait faux de la meme
+ * facon que celui qui a rendu ce fichier necessaire : le test precedent ecoute ce que le seed
+ * ECRIT sur le corpus REEL — il ne voit donc pas `bloc.image-galerie.alternative`, dont les
+ * 22 images de galerie sont toutes `decoratif: true` et n en portent aucune. Le champ pouvait
+ * arriver au schema, au corpus et au mapping sans qu une ligne rougisse a l oubli de sa
+ * nature. C est exactement le trou que `bloc.video.alternativeVignette` avait ouvert.
+ *
+ * On resout donc le component cite par un `repete` contre SON schema, recursivement.
+ */
+function manquantsDe(
+  natures: Record<string, any>,
+  schema: any,
+  prefixe: string,
+  lireComposant: (uid: string) => any,
+  manquants: string[],
+): void {
+  for (const [attribut, definition] of Object.entries<any>(schema.attributes ?? {})) {
+    const nature = natures[attribut];
+    if (nature === undefined) {
+      manquants.push(`${prefixe}.${attribut}`);
+      continue;
+    }
+    /* Un attribut `component` dont la nature est un `repete` : on descend dans le schema du
+       component cite. Un `repete` pose sur autre chose qu un component ne descend pas — il
+       n y a rien a lire. */
+    if (definition?.type === 'component' && typeof nature === 'object' && nature.repete) {
+      const imbrique = lireComposant(definition.component);
+      if (imbrique !== null) {
+        manquantsDe(nature.repete, imbrique, definition.component, lireComposant, manquants);
+      }
+    }
+  }
+}
+
 test('CHAQUE attribut de CHAQUE bloc du modele a une nature declaree — meme sans porteur au corpus', () => {
   const naturesBlocs = (NATURES.article as any).contenu.zone as Record<string, any>;
-  const dossier = path.join(ICI, '..', 'src', 'components', 'bloc');
+  const racineComposants = path.join(ICI, '..', 'src', 'components');
+  const dossier = path.join(racineComposants, 'bloc');
+
+  const lireComposant = (uid: string) => {
+    const [categorie, nom] = uid.split('.');
+    const chemin = path.join(racineComposants, categorie, `${nom}.json`);
+    return fs.existsSync(chemin) ? JSON.parse(fs.readFileSync(chemin, 'utf8')) : null;
+  };
 
   const manquants: string[] = [];
+  const vus = new Set<string>();
   for (const fichier of fs.readdirSync(dossier).filter((f) => f.endsWith('.json'))) {
-    const schema = JSON.parse(fs.readFileSync(path.join(dossier, fichier), 'utf8'));
     const composant = `bloc.${fichier.replace(/\.json$/, '')}`;
     const natures = naturesBlocs[composant];
-    /* Les composants IMBRIQUES (`bloc.chiffre-entree`, `bloc.alternative-image`) ne sont
-       pas des blocs de la dynamic zone : leurs champs se declarent dans le `repete` de
-       leur porteur, que le test precedent couvre par sa descente recursive. On ne les
-       reclame donc pas ici. */
+    /* Les composants IMBRIQUES ne sont pas des blocs de la dynamic zone : ils n ont pas
+       d entree propre dans NATURES_BLOCS. Ils sont visites par la descente ci-dessous,
+       depuis le `repete` du bloc qui les porte — et si AUCUN bloc ne les porte, la garde
+       suivante le dit. */
     if (natures === undefined) continue;
-    for (const attribut of Object.keys(schema.attributes ?? {})) {
-      if (natures[attribut] === undefined) manquants.push(`${composant}.${attribut}`);
-    }
+    vus.add(composant);
+    manquantsDe(natures, JSON.parse(fs.readFileSync(path.join(dossier, fichier), 'utf8')), composant, (uid) => {
+      vus.add(uid);
+      return lireComposant(uid);
+    }, manquants);
   }
 
   assert.deepEqual(
@@ -192,6 +240,56 @@ test('CHAQUE attribut de CHAQUE bloc du modele a une nature declaree — meme sa
       + 'Le corpus ne les porte peut-etre pas AUJOURD HUI ; le jour ou il les portera, '
       + '`comparerCorps` les traitera en nature inconnue et REECRIRA toutes les entrees.'
   );
+
+  /* PREUVE QUE LA DESCENTE A REELLEMENT EU LIEU. Sans cette ligne, la garde ci-dessus
+     resterait verte si la descente cessait de descendre — succes et echec rendraient la
+     meme sortie (une liste vide). */
+  assert.deepEqual(
+    [...vus].sort(),
+    [
+      'bloc.chiffre-entree',
+      'bloc.chiffres-cles',
+      'bloc.citation',
+      'bloc.encadre',
+      'bloc.galerie',
+      'bloc.image-galerie',
+      'bloc.image-legendee',
+      'bloc.separateur',
+      'bloc.texte',
+      'bloc.video',
+    ],
+    'la descente doit atteindre les deux components IMBRIQUES, pas seulement les 8 blocs'
+  );
+});
+
+test('PREUVE EN CASSANT — un champ de component IMBRIQUE sans nature est bien VU', () => {
+  /* Le mode d echec exact que la descente du 2026-08-19 ferme : `bloc.image-galerie`
+     n a aucun porteur au corpus (ses 22 images sont `decoratif: true`), donc le test qui
+     ecoute les ecritures reelles ne peut rien en dire. On retire ici la nature de son
+     `alternative` et on exige que la garde la NOMME. */
+  const naturesBlocs = (NATURES.article as any).contenu.zone as Record<string, any>;
+  const galerie = JSON.parse(
+    fs.readFileSync(path.join(ICI, '..', 'src', 'components', 'bloc', 'galerie.json'), 'utf8')
+  );
+  const imageGalerie = JSON.parse(
+    fs.readFileSync(path.join(ICI, '..', 'src', 'components', 'bloc', 'image-galerie.json'), 'utf8')
+  );
+
+  const naturesAmputees = {
+    ...naturesBlocs['bloc.galerie'],
+    images: { repete: { image: 'media' } },
+  };
+
+  const manquants: string[] = [];
+  manquantsDe(
+    naturesAmputees,
+    galerie,
+    'bloc.galerie',
+    (uid) => (uid === 'bloc.image-galerie' ? imageGalerie : null),
+    manquants,
+  );
+
+  assert.deepEqual(manquants, ['bloc.image-galerie.alternative']);
 });
 
 test('ce test regarde bien TOUTES les familles ecrites, et pas seulement les articles', async () => {

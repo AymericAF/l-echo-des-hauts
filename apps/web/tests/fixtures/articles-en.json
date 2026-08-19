@@ -201,27 +201,34 @@
           "id": 153,
           "legende": "The works, from the first stone to the last.",
           "disposition": "grille",
-          "alternatives": [],
           "images": [
             {
-              "id": 50,
-              "documentId": "med0000000000000000050",
-              "url": "/uploads/galerie_1_aa11.jpg",
-              "alternativeText": "Un pilier de beton en cours de coulage",
-              "caption": "Oeuvre du projet — CC0 1.0",
-              "width": 1200,
-              "height": 800,
-              "mime": "image/jpeg"
+              "id": 9006,
+              "image": {
+                "id": 50,
+                "documentId": "med0000000000000000050",
+                "url": "/uploads/galerie_1_aa11.jpg",
+                "alternativeText": "Un pilier de beton en cours de coulage",
+                "caption": "Oeuvre du projet — CC0 1.0",
+                "width": 1200,
+                "height": 800,
+                "mime": "image/jpeg"
+              },
+              "alternative": null
             },
             {
-              "id": 51,
-              "documentId": "med0000000000000000051",
-              "url": "/uploads/galerie_2_bb22.jpg",
-              "alternativeText": "Le tablier du viaduc pose a la grue",
-              "caption": "Oeuvre du projet — CC0 1.0",
-              "width": 1200,
-              "height": 800,
-              "mime": "image/jpeg"
+              "id": 9007,
+              "image": {
+                "id": 51,
+                "documentId": "med0000000000000000051",
+                "url": "/uploads/galerie_2_bb22.jpg",
+                "alternativeText": "Le tablier du viaduc pose a la grue",
+                "caption": "Oeuvre du projet — CC0 1.0",
+                "width": 1200,
+                "height": 800,
+                "mime": "image/jpeg"
+              },
+              "alternative": null
             }
           ]
         },

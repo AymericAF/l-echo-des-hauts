@@ -53,10 +53,14 @@ const blocVideo = (article: any) => article.contenu.find((b: any) => b.type === 
 
 const blocGalerie = (article: any) => article.contenu.find((b: any) => b.type === 'bloc.galerie');
 
-/** La galerie brute de la fixture, et le tableau `alternatives` qu elle porte. */
+/** La galerie brute de la fixture. `images` y est un REPETABLE `{ image, alternative }`. */
 function galerieBrute(brut: any): any {
   const bloc = brut.contenu.find((b: any) => b.__component === 'bloc.galerie');
   assert.ok(bloc?.images?.length >= 2, 'la fixture doit porter une galerie d au moins deux images');
+  assert.ok(
+    bloc.images.every((e: any) => e.image?.url !== undefined && 'alternative' in e),
+    'chaque entree porte SON image et SON alternative — pas de table posee a cote'
+  );
   return bloc;
 }
 
@@ -215,69 +219,96 @@ test('un bloc `video` sert la surcharge de sa VIGNETTE (A-04, revue des huit blo
   assert.equal(rendu.url, bloc.url, 'le lien sortant est intact');
 });
 
-/* LA GALERIE, ouverte le meme jour et par la meme decision — mais PAS par le meme geste.
-   `bloc.galerie` porte N images pour une seule legende (A-22) : il lui faut un champ
-   REPETABLE, et l appariement se fait par le MEDIA, jamais par le rang. Un appariement
-   positionnel se casserait au premier reordonnancement d images dans l admin, en SILENCE
-   et en servant l alternative d une AUTRE image — pire que pas d alternative du tout. */
-test('un bloc `galerie` sert la surcharge de CHAQUE image, appariee par son media', () => {
+/* LA GALERIE — L ALTERNATIVE EST DANS LA LIGNE DE L IMAGE (2026-08-19).
+   `bloc.galerie` porte N images pour une seule legende (A-22) : il lui faut un REPETABLE.
+   Ce qui a change le 2026-08-19 (verdict du controle `e8fa8b93`), c est OU vit
+   l alternative : dans l entree de l image, plus dans une table posee a cote et jointe par
+   l url du fichier. Il n y a donc plus d appariement — ni par le media, ni par le rang —
+   et les trois refus que l appariement rendait necessaires n ont plus d objet. Ils sont
+   remplaces ci-dessous par ce qui vaut mieux qu un refus : une impossibilite. */
+test('un bloc `galerie` sert la surcharge de CHAQUE image, lue sur l entree de l image', () => {
   const brut = fixture('articles-en');
   const galerie = galerieBrute(brut);
-  galerie.alternatives = [
-    { image: { ...galerie.images[1] }, alternative: 'The deck being lowered into place' },
-  ];
+  galerie.images[1].alternative = 'The deck being lowered into place';
 
   const rendu = blocGalerie(mapperArticle(brut));
 
   assert.equal(rendu.images[1].alternative, 'The deck being lowered into place');
   assert.equal(
     rendu.images[0].alternative,
-    galerie.images[0].alternativeText,
-    'une image SANS entree de surcharge garde son alternative native — le repli est intact'
+    galerie.images[0].image.alternativeText,
+    'une image SANS surcharge garde son alternative native — le repli est intact'
   );
   assert.equal(rendu.legende, galerie.legende, 'A-22 : la legende de la galerie n est pas une alternative');
 });
 
-test('une surcharge de galerie qui vise une image ABSENTE de la galerie est REFUSEE', () => {
-  const brut = fixture('articles-en');
-  const galerie = galerieBrute(brut);
-  galerie.alternatives = [
-    {
-      image: { ...galerie.images[0], url: '/uploads/une_image_qui_n_est_pas_dans_la_galerie.jpg' },
-      alternative: 'An image that this gallery does not carry',
-    },
-  ];
+test('une surcharge de galerie BLANCHE laisse passer l alternative native — plus rien a refuser', () => {
+  for (const blanc of ['', '   ', '\t']) {
+    const brut = fixture('articles-en');
+    const galerie = galerieBrute(brut);
+    galerie.images[0].alternative = blanc;
 
-  assert.throws(
-    () => mapperArticle(brut),
-    (erreur: unknown) =>
-      erreur instanceof ValeurInattendueError &&
-      String((erreur as Error).message).includes('une_image_qui_n_est_pas_dans_la_galerie'),
-    'une surcharge orpheline ne surcharge RIEN : elle doit casser, pas disparaitre'
-  );
+    assert.equal(
+      blocGalerie(mapperArticle(brut)).images[0].alternative,
+      galerie.images[0].image.alternativeText,
+      `une surcharge ${JSON.stringify(blanc)} doit se comporter comme les six autres porteurs`
+    );
+  }
 });
 
-test('deux surcharges pour la MEME image de galerie sont REFUSEES', () => {
+/* L ORPHELIN N EST PLUS EXPRIMABLE. Sous l ancien patron, une entree pouvait designer un
+   fichier absent de `images` : elle ne surchargeait rien et disparaissait sans un mot, d ou
+   le refus. Ici l entree EST l image — designer un autre fichier, c est ajouter une image
+   a la galerie, ce qui est un geste editorial parfaitement legitime et VISIBLE. */
+test('une image ajoutee a la galerie est une IMAGE DE PLUS, jamais une surcharge orpheline', () => {
   const brut = fixture('articles-en');
   const galerie = galerieBrute(brut);
-  galerie.alternatives = [
-    { image: { ...galerie.images[0] }, alternative: 'First reading' },
-    { image: { ...galerie.images[0] }, alternative: 'Second reading' },
-  ];
+  const avant = galerie.images.length;
+  galerie.images.push({
+    id: 9999,
+    image: { ...galerie.images[0].image, id: 999, url: '/uploads/une_autre_image.jpg' },
+    alternative: 'An image this gallery did not carry before',
+  });
 
-  assert.throws(
-    () => mapperArticle(brut),
-    ValeurInattendueError,
-    'deux surcharges pour un meme fichier : l une des deux serait servie au hasard du rang'
-  );
+  const rendu = blocGalerie(mapperArticle(brut));
+
+  assert.equal(rendu.images.length, avant + 1);
+  assert.equal(rendu.images[avant].url, '/uploads/une_autre_image.jpg');
+  assert.equal(rendu.images[avant].alternative, 'An image this gallery did not carry before');
 });
 
-test('une surcharge de galerie BLANCHE est REFUSEE — pour ne pas surcharger, on OMET la ligne', () => {
+/* LE DOUBLON NON PLUS. Deux entrees du meme fichier etaient une ambiguite a trancher
+   (laquelle des deux alternatives ?) ; ici ce sont deux IMAGES, chacune avec la sienne —
+   la meme photo servie deux fois dans une galerie est rare mais licite, et surtout elle
+   n a plus rien d ambigu. */
+test('le meme fichier deux fois dans une galerie sert DEUX alternatives distinctes', () => {
   const brut = fixture('articles-en');
   const galerie = galerieBrute(brut);
-  galerie.alternatives = [{ image: { ...galerie.images[0] }, alternative: '   ' }];
+  galerie.images[0].alternative = 'First reading';
+  galerie.images.push({ id: 9998, image: { ...galerie.images[0].image }, alternative: 'Second reading' });
 
-  assert.throws(() => mapperArticle(brut), ValeurInattendueError);
+  const rendu = blocGalerie(mapperArticle(brut));
+
+  assert.equal(rendu.images[0].alternative, 'First reading');
+  assert.equal(rendu.images.at(-1)!.alternative, 'Second reading');
+  assert.equal(rendu.images[0].url, rendu.images.at(-1)!.url, 'c est bien le MEME fichier');
+});
+
+/* LE REORDONNANCEMENT — le mode d echec que l appariement par media achetait, et qui ne
+   peut plus se produire : deplacer une entree deplace la PAIRE. */
+test('reordonner les entrees ne desapparie rien : chaque alternative suit SON image', () => {
+  const brut = fixture('articles-en');
+  const galerie = galerieBrute(brut);
+  galerie.images[0].alternative = 'The pier being poured';
+  galerie.images[1].alternative = 'The deck being lowered into place';
+  galerie.images.reverse();
+
+  const rendu = blocGalerie(mapperArticle(brut));
+
+  assert.equal(rendu.images[0].alternative, 'The deck being lowered into place');
+  assert.equal(rendu.images[0].url, galerie.images[0].image.url);
+  assert.equal(rendu.images[1].alternative, 'The pier being poured');
+  assert.equal(rendu.images[1].url, galerie.images[1].image.url);
 });
 
 /* ------------------------------------------------------------------ */
@@ -388,16 +419,20 @@ test('la requete des articles demande la surcharge de la vignette du bloc `video
   assert.ok(bloc.populate.vignette, 'le media lui-meme reste peuple');
 });
 
-test('la requete des articles demande les surcharges du bloc `galerie`, avec leur media', () => {
+test('la requete des articles demande l alternative DANS chaque entree de `images`', () => {
   const bloc = REQUETES.articles.populate.contenu.on['bloc.galerie'];
 
-  assert.ok(bloc.populate.alternatives, 'le repetable doit etre peuple : non demande, il n arrive jamais');
-  assert.ok(bloc.populate.alternatives.fields.includes('alternative'));
+  assert.ok(bloc.populate.images, 'le repetable doit etre peuple : non demande, il n arrive jamais');
   assert.ok(
-    bloc.populate.alternatives.populate.image,
-    'sans le media de l entree, rien ne dit QUELLE image elle surcharge'
+    bloc.populate.images.fields.includes('alternative'),
+    'un champ non demande n arrive jamais, et le repli retomberait en silence sur le francais'
   );
-  assert.ok(bloc.populate.images, 'les images de la galerie restent peuplees');
+  assert.ok(bloc.populate.images.populate.image, 'le media de l entree porte l image elle-meme');
+  assert.equal(
+    bloc.populate.alternatives,
+    undefined,
+    'la table d appariement n existe plus : la demander leverait un 400 « Invalid key »'
+  );
 });
 
 test('les requetes des categories, dossiers, auteurs et de la Configuration demandent les leurs', () => {

@@ -1,0 +1,22 @@
+{
+  "collectionName": "components_bloc_image_galeries",
+  "info": {
+    "displayName": "Image de galerie",
+    "icon": "picture",
+    "description": "UNE image d une galerie, avec l alternative qui la surcharge pour CETTE locale (A-04). L alternative est posee A COTE de l image, dans la meme entree : il n y a rien a apparier, donc rien qui puisse se desapparier en reordonnant. Vide, elle laisse passer l alternativeText natif de la Media Library. Composant IMBRIQUE : il n entre pas dans la Dynamic Zone, qui reste a huit blocs (CDC 3.6, 8.3)."
+  },
+  "options": {},
+  "attributes": {
+    "image": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "alternative": {
+      "type": "string"
+    }
+  }
+}

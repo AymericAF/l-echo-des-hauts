@@ -19,6 +19,7 @@ import {
   INVENTAIRE,
   type ChampSpec,
 } from './spec-modele-donnees.ts';
+import { compterModele } from '../scripts/compter-modele.mjs';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const RACINE = path.join(ICI, '..');
@@ -129,6 +130,40 @@ test('inventaire §1 : 17 schemas, 75 champs declares', () => {
     Object.values(CONTENT_TYPES).reduce((n, t) => n + Object.keys(t.attributes).length, 0) +
     Object.values(COMPONENTS).reduce((n, c) => n + Object.keys(c.attributes).length, 0);
   assert.equal(total, INVENTAIRE.champs, 'total des champs declares');
+});
+
+/**
+ * L INVENTAIRE SE CONFRONTE A LA SOURCE, PAS A LUI-MEME (2026-08-19).
+ *
+ * Le test ci-dessus compare la SPEC a la SPEC : il additionne les champs de `CONTENT_TYPES`
+ * et `COMPONENTS`, deux objets ecrits a la main dans le meme fichier que l `INVENTAIRE`. Deux
+ * erreurs concordantes y passent vertes — et c est exactement ce qu on s interdit sur les
+ * comptes du §1, qui doivent etre « recomptes a la source par script, jamais derives d un
+ * recit ».
+ *
+ * Celui-ci lit `src/` et confronte les nombres un a un. Il est aussi ce qui donne son
+ * mecanisme a `scripts/compter-modele.mjs` : sans lui, ce serait un outil qu on pense a
+ * lancer, c est-a-dire une convention.
+ */
+test('inventaire §1 : les nombres se retrouvent en LISANT src/, pas en relisant la spec', () => {
+  const reel = compterModele();
+
+  assert.equal(reel.collectionTypes, INVENTAIRE.collectionTypes);
+  assert.equal(reel.singleTypes, INVENTAIRE.singleTypes);
+  assert.equal(reel.componentsPartages, INVENTAIRE.componentsPartages);
+  assert.equal(reel.schemas, INVENTAIRE.schemas);
+  assert.equal(reel.champs, INVENTAIRE.champs, 'total des champs, compte sur src/');
+
+  /* LA BORNE CDC 8.3, lue sur la Dynamic Zone elle-meme. Compter les fichiers de
+     `src/components/bloc/` la rendrait fausse a chaque component IMBRIQUE ajoute. */
+  assert.equal(reel.blocsDynamicZone, INVENTAIRE.blocsDynamicZone, 'la zone reste a huit blocs');
+  assert.deepEqual(reel.blocs, [...BLOCS_CONTENU]);
+  assert.equal(reel.componentImbrique, INVENTAIRE.componentImbrique);
+  assert.deepEqual(
+    reel.imbriques,
+    ['bloc.chiffre-entree', 'bloc.image-galerie'],
+    'les components `bloc.*` HORS de la zone, nommes — un orphelin s y verrait'
+  );
 });
 
 for (const [nom, spec] of Object.entries(CONTENT_TYPES)) {

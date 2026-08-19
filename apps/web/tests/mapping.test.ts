@@ -256,7 +256,11 @@ const CHAMPS_IMBRIQUES_ARTICLE = [
   'contenu.1.texte',
   'contenu.1.auteurCitation',
   'contenu.2.images',
-  'contenu.2.alternatives',
+  /* Depuis le 2026-08-19, l alternative vit DANS l entree de l image. Ces deux chemins
+     remplacent `contenu.2.alternatives` : c est l entree qui doit se voir disparaitre,
+     plus une table posee a cote et jointe par l url du fichier. */
+  'contenu.2.images.0.image',
+  'contenu.2.images.0.alternative',
   'contenu.2.disposition',
   'contenu.2.legende',
   'contenu.3.contenu',
@@ -641,7 +645,8 @@ const CHAMPS_TEXTE_OPTIONNEL: ReadonlyArray<{
   { intitule: 'bloc.citation.auteurCitation', poser: (v) => { const b = articleComplet(); b.contenu[1].auteurCitation = v; return (mapperArticle(b).contenu[1] as any).auteurCitation; } },
   { intitule: 'bloc.citation.source', poser: (v) => { const b = articleComplet(); b.contenu[1].source = v; return (mapperArticle(b).contenu[1] as any).source; } },
   { intitule: 'bloc.galerie.legende', poser: (v) => { const b = articleComplet(); b.contenu[2].legende = v; return (mapperArticle(b).contenu[2] as any).legende; } },
-  { intitule: 'bloc.galerie.images[0].alternativeText', poser: (v) => { const b = articleComplet(); b.contenu[2].images[0].alternativeText = v; return (mapperArticle(b).contenu[2] as any).images[0].alternative; } },
+  { intitule: 'bloc.galerie.images[0].image.alternativeText', poser: (v) => { const b = articleComplet(); b.contenu[2].images[0].image.alternativeText = v; return (mapperArticle(b).contenu[2] as any).images[0].alternative; } },
+  { intitule: 'bloc.galerie.images[0].alternative', poser: (v) => { const b = articleComplet(); b.contenu[2].images[0].image.alternativeText = null; b.contenu[2].images[0].alternative = v; return (mapperArticle(b).contenu[2] as any).images[0].alternative; } },
   { intitule: 'bloc.encadre.titre', poser: (v) => { const b = articleComplet(); b.contenu[3].titre = v; return (mapperArticle(b).contenu[3] as any).titre; } },
   { intitule: 'bloc.video.legende', poser: (v) => { const b = articleComplet(); b.contenu[4].legende = v; return (mapperArticle(b).contenu[4] as any).legende; } },
   { intitule: 'bloc.image-legendee.image.alternativeText', poser: (v) => { const b = articleComplet(); b.contenu[5].image.alternativeText = v; return (mapperArticle(b).contenu[5] as any).image.alternative; } },

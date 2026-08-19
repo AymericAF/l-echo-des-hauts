@@ -74,11 +74,11 @@ const NATURES_BLOCS: Record<string, Natures> = {
   'bloc.texte': { contenu: 'scalaire' },
   'bloc.citation': { texte: 'scalaire', auteurCitation: 'scalaire', source: 'scalaire' },
   'bloc.galerie': {
-    images: 'medias',
-    /* Le repetable des surcharges d alternative (A-04, 2026-08-17) : une entree par image
-       SURCHARGEE, jamais une par image. `repete` porte la forme de l entree — le media qui
-       apparie, et le texte. */
-    alternatives: { repete: { image: 'media', alternative: 'scalaire' } },
+    /* `images` EST le repetable depuis le 2026-08-19 (verdict du controle `e8fa8b93`) :
+       une entree par IMAGE, portant son media et son alternative cote a cote. Ce n est
+       plus un `medias` double d une table `alternatives` — l appariement a disparu, donc
+       la seconde declaration aussi. */
+    images: { repete: { image: 'media', alternative: 'scalaire' } },
     legende: 'scalaire',
     disposition: 'scalaire',
   },

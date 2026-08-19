@@ -302,11 +302,13 @@ export const COMPONENTS: Record<string, ComponentSpec> = {
     nom: 'galerie',
     displayName: 'Galerie',
     attributes: {
-      images: { type: 'media', multiple: true, allowedTypes: ['images'], required: true },
-      /* A-04 amende une seconde fois (2026-08-17, decision `5ca1ca4b` branche A) : N images
-         pour une seule legende (A-22), donc un REPETABLE, apparie par le MEDIA de l entree
-         et jamais par le rang. Facultatif : sans entree, rien ne change. */
-      alternatives: { type: 'component', repeatable: true, component: 'bloc.alternative-image' },
+      /* A-04 amende une TROISIEME fois (2026-08-19, verdict du controle `e8fa8b93`).
+         `images` n est plus un media multiple double d une TABLE D APPARIEMENT : c est un
+         REPETABLE dont chaque entree porte SON image et SON alternative, cote a cote.
+         L appariement disparait par construction, et avec lui l orphelin, le doublon et le
+         risque de reordonnancement — le redacteur voit l alternative DANS la ligne de
+         l image, jamais dans une seconde liste jointe par l url du fichier. */
+      images: { type: 'component', repeatable: true, component: 'bloc.image-galerie', required: true },
       legende: { type: 'string' }, // A-22 : une seule legende pour la galerie
       disposition: {
         type: 'enumeration',
@@ -396,20 +398,28 @@ export const COMPONENTS: Record<string, ComponentSpec> = {
       libelle: { type: 'string', required: true },
     },
   },
-  /* SECOND component IMBRIQUE du modele (2026-08-17, A-04 / decision `5ca1ca4b`). Il
-     n entre PAS dans la Dynamic Zone, qui reste a huit blocs — le §8.3 du cahier ne vise
-     que ceux-la. Meme statut que `bloc.chiffre-entree`, qui n a jamais ete un neuvieme
-     bloc non plus. */
-  'bloc.alternative-image': {
+  /* SECOND component IMBRIQUE du modele (2026-08-19, A-04 / verdict du controle
+     `e8fa8b93`). Il n entre PAS dans la Dynamic Zone, qui reste a huit blocs — le §8.3 du
+     cahier ne vise que ceux-la. Meme statut que `bloc.chiffre-entree`, qui n a jamais ete
+     un neuvieme bloc non plus.
+
+     Il REMPLACE `bloc.alternative-image` (2026-08-17 — 2026-08-19), qui portait la meme
+     paire mais dans une table posee A COTE de la galerie. Ce qui l a tue n est pas sa
+     forme mais sa place : dans l admin, le picker media rouvrait toute la mediatheque sans
+     rien dire de ce qui etait deja dans `images`, et les refus vivaient dans le mapping —
+     donc invisibles au redacteur. Ici l entree EST l image : il n y a plus rien a apparier,
+     donc plus rien a refuser. */
+  'bloc.image-galerie': {
     categorie: 'bloc',
-    nom: 'alternative-image',
-    displayName: 'Alternative d image',
+    nom: 'image-galerie',
+    displayName: 'Image de galerie',
     attributes: {
-      /* LE MEDIA EST DANS L ENTREE, et c est lui qui apparie. Un repetable de textes seuls
-         serait aligne sur le RANG des images de la galerie : les reordonner servirait
-         l alternative d une AUTRE image, en silence. */
       image: { type: 'media', multiple: false, allowedTypes: ['images'], required: true },
-      alternative: { type: 'string', required: true },
+      /* OPTIONNEL, la ou l ancien `bloc.alternative-image.alternative` etait REQUIS. La
+         difference n est pas cosmetique : une entree n existait la que pour porter une
+         surcharge, alors qu ici elle existe pour porter l IMAGE. Une image sans surcharge
+         est le cas NORMAL — c est le repli sur l `alternativeText` natif (A-04). */
+      alternative: { type: 'string' },
     },
   },
   'partage.seo': {
@@ -457,9 +467,11 @@ export const INVENTAIRE = {
   collectionTypes: 5,
   singleTypes: 1,
   blocsDynamicZone: 8,
-  /* DEUX depuis le 2026-08-17 : `bloc.alternative-image` rejoint `bloc.chiffre-entree`
-     (A-04, decision `5ca1ca4b` branche A). La Dynamic Zone reste a HUIT blocs — un
-     component imbrique n en est pas un neuvieme. */
+  /* DEUX depuis le 2026-08-17 ; DEUX toujours le 2026-08-19, `bloc.image-galerie` ayant
+     pris la place de `bloc.alternative-image` aupres de `bloc.chiffre-entree`. La Dynamic
+     Zone reste a HUIT blocs — un component imbrique n en est pas un neuvieme, et le §8.3
+     du cahier n est pas touche. Ce compte se REVERIFIE par `node scripts/compter-modele.mjs`,
+     qui le lit sur `src/`, jamais sur ce commentaire. */
   componentImbrique: 2,
   componentsPartages: 2,
   schemas: 18,
@@ -468,6 +480,9 @@ export const INVENTAIRE = {
      84 depuis le 2026-08-17 : `bloc.video.alternativeVignette` (A-04, decision
      `5ca1ca4b` branche A).
      87 le meme jour : `bloc.galerie.alternatives` et les DEUX champs du component
-     imbrique `bloc.alternative-image` qu il porte (meme decision, second geste). */
-  champs: 87,
+     imbrique `bloc.alternative-image` qu il porte (meme decision, second geste).
+     86 le 2026-08-19 (verdict du controle `e8fa8b93`) : `bloc.galerie.alternatives`
+     disparait (-1) avec le component `bloc.alternative-image` (-2), remplaces par
+     `bloc.image-galerie` (+2) que `bloc.galerie.images` porte desormais. */
+  champs: 86,
 };

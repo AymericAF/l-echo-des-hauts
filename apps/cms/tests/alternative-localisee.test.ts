@@ -330,12 +330,18 @@ test('un bloc `video` porte la surcharge de sa VIGNETTE, et la legende n en est 
   );
 });
 
-/* LA GALERIE — N images pour une seule legende (A-22), donc un REPETABLE, et l appariement
-   se fait par le MEDIA. Dans le corpus versionne, les lignes de surcharge vivent dans le
-   CORPS du bloc, au format `<cle du media> | <alternative>` : c est le seul endroit ou une
-   cle de media, qui porte un `/` et un `.`, peut s ecrire — un attribut de la ligne
-   d ouverture ne l accepterait pas. La convention `|` est celle de `chiffres-cles`. */
-test('un bloc `galerie` porte les surcharges de ses images, appariees par le media', () => {
+/* LA GALERIE — `images` est un REPETABLE `{ image, alternative }` depuis le 2026-08-19 :
+   l alternative se pose DANS l entree de son image, plus dans une table a cote.
+
+   LE CORPUS VERSIONNE GARDE SON ECRITURE, et c est voulu. Les lignes de surcharge vivent
+   dans le CORPS du bloc, au format `<cle du media> | <alternative>` : c est le seul endroit
+   ou une cle de media, qui porte un `/` et un `.`, peut s ecrire — un attribut de la ligne
+   d ouverture ne l accepterait pas, et la convention `|` est celle de `chiffres-cles`.
+   Ce qui a change n est pas la SAISIE mais la SORTIE : la ligne est desormais rangee dans
+   l entree de son image au lieu d etre empilee dans un second tableau. Le corpus reste un
+   texte relu en revue, ou une erreur d appariement rougit a voix haute (`ErreurCorpus`) —
+   ce que l admin Strapi, lui, ne savait pas faire. */
+test('un bloc `galerie` range chaque surcharge DANS l entree de son image', () => {
   const corpus = chargerCorpus(
     ecrireCorpus({
       galerieEn: [
@@ -347,26 +353,40 @@ test('un bloc `galerie` porte les surcharges de ses images, appariees par le med
   const bloc = blocGalerie(corpus.articles[0].en!.contenu);
 
   /* L ORDRE DES LIGNES NE DECIDE DE RIEN : elles sont ecrites a l envers des images, et
-     chacune atterrit bien sur SON fichier. C est ce que l appariement par media achete. */
+     chacune atterrit bien dans l entree de SON fichier — dans l ordre des IMAGES. */
   assert.deepEqual(
-    (bloc?.alternatives ?? []).map((e: any) => [e.image.__media, e.alternative]),
+    (bloc?.images ?? []).map((e: any) => [e.image.__media, e.alternative]),
     [
-      ['galeries/A05-2.svg', 'The surge chamber, drained'],
       ['galeries/A05-1.svg', 'The canal sill, gate closed'],
+      ['galeries/A05-2.svg', 'The surge chamber, drained'],
     ]
   );
   assert.equal(bloc?.legende, 'Le canal, en deux plans.', 'A-22 : une seule legende, et ce n est pas une alternative');
   assert.equal(
     blocGalerie(corpus.articles[0].fr.contenu)?.alternatives,
     undefined,
+    'la table d appariement n existe plus, dans aucune locale'
+  );
+  assert.deepEqual(
+    blocGalerie(corpus.articles[0].fr.contenu)?.images.map((e: any) => e.alternative),
+    [undefined, undefined],
     'la locale FR n a pas de surcharge : ses alternatives natives sont deja francaises'
   );
 });
 
-test('une galerie SANS ligne de surcharge se charge — le repetable est facultatif', () => {
+test('une galerie SANS ligne de surcharge se charge — l alternative de chaque entree est vide', () => {
   const corpus = chargerCorpus(ecrireCorpus());
+  const bloc = blocGalerie(corpus.articles[0].en!.contenu);
 
-  assert.equal(blocGalerie(corpus.articles[0].en!.contenu)?.alternatives, undefined);
+  assert.equal(bloc?.alternatives, undefined);
+  assert.deepEqual(
+    bloc?.images.map((e: any) => [e.image.__media, e.alternative]),
+    [
+      ['galeries/A05-1.svg', undefined],
+      ['galeries/A05-2.svg', undefined],
+    ],
+    'l entree existe pour porter l IMAGE : sans surcharge, elle replie sur l alternativeText natif'
+  );
 });
 
 test('GARDE 4 — une ligne de surcharge qui vise un media HORS de la galerie est REFUSEE', () => {
@@ -584,7 +604,10 @@ test('GARDE 2 — elle vaut aussi pour une image de GALERIE declaree decorative'
 test('GARDE 2 — PREUVE EN CASSANT : la meme galerie decorative SANS surcharge se charge', () => {
   const corpus = chargerCorpus(ecrireCorpus({ galerieDecorative: true }));
 
-  assert.equal(blocGalerie(corpus.articles[0].en!.contenu)?.alternatives, undefined);
+  assert.deepEqual(
+    blocGalerie(corpus.articles[0].en!.contenu)?.images.map((e: any) => e.alternative),
+    [undefined, undefined]
+  );
 });
 
 test('GARDE 2 — elle vaut aussi pour la VIGNETTE d un bloc `video`', () => {
@@ -674,31 +697,62 @@ test('le composant `bloc.video` porte `alternativeVignette` — le HUITIEME port
   assert.notEqual(composant.attributes.alternativeVignette.required, true);
 });
 
-test('le composant `bloc.galerie` porte le repetable `alternatives`, et son composant porte le MEDIA', () => {
+/**
+ * L ALTERNATIVE EST DANS LA LIGNE DE L IMAGE, PAS DANS UNE TABLE A COTE (2026-08-19).
+ *
+ * Ce que le patron precedent achetait : une entree ne portait que les images SURCHARGEES,
+ * et l appariement se faisait par le media plutot que par le rang. Ce qu il coutait, et
+ * ce qui l a fait tomber a l epreuve du redacteur (verdict du controle `e8fa8b93`) :
+ *
+ *   - le picker media de Strapi rouvre TOUTE la mediatheque, sans rien dire de ce qui est
+ *     deja dans `images` — rien dans l admin ne guide vers les bons fichiers ;
+ *   - les trois refus (orphelin, doublon, alternative blanche) vivaient dans le mapping du
+ *     front, donc APRES la saisie : le redacteur qui se trompait ne voyait aucune erreur,
+ *     il voyait un build casse, plus tard, ailleurs ;
+ *   - comprendre le champ exigeait de tenir DEUX listes jointes par l url du fichier.
+ *
+ * Le patron d aujourd hui n a plus d appariement du tout : une entree = une image + son
+ * alternative. Il n y a donc plus d orphelin possible (l entree EST l image), plus de
+ * doublon a departager (deux entrees du meme fichier sont deux images, chacune avec sa
+ * ligne), et plus de rang a craindre (reordonner deplace la paire entiere).
+ */
+test('le composant `bloc.galerie` porte `images` en REPETABLE de `bloc.image-galerie`', () => {
   const galerie = JSON.parse(
     fs.readFileSync(path.join(RACINE_CMS, 'src/components/bloc/galerie.json'), 'utf8')
   );
-  const alternatives = galerie.attributes.alternatives;
+  const images = galerie.attributes.images;
 
-  assert.ok(alternatives, 'la galerie doit porter `alternatives`');
-  assert.equal(alternatives.type, 'component');
-  assert.equal(alternatives.repeatable, true, 'N images, donc N surcharges possibles (A-22)');
-  assert.equal(alternatives.component, 'bloc.alternative-image');
-  assert.notEqual(alternatives.required, true, 'facultatif : sans entree, rien ne change');
-  assert.equal(alternatives.pluginOptions, undefined, 'la dynamic zone `contenu` porte la localisation');
+  assert.equal(images.type, 'component');
+  assert.equal(images.repeatable, true, 'N images pour une seule legende (A-22)');
+  assert.equal(images.component, 'bloc.image-galerie');
+  assert.equal(images.required, true, 'une galerie sans image n est pas une galerie');
+  assert.equal(images.pluginOptions, undefined, 'la dynamic zone `contenu` porte la localisation');
+
+  assert.equal(
+    galerie.attributes.alternatives,
+    undefined,
+    'la table d appariement a disparu : l alternative vit DANS l entree'
+  );
 
   const entree = JSON.parse(
-    fs.readFileSync(path.join(RACINE_CMS, 'src/components/bloc/alternative-image.json'), 'utf8')
+    fs.readFileSync(path.join(RACINE_CMS, 'src/components/bloc/image-galerie.json'), 'utf8')
   );
-  /* LE MEDIA EST DANS L ENTREE, ET C EST LUI QUI APPARIE. Un repetable de textes seuls
-     serait aligne sur le RANG des images : reordonner la galerie servirait alors
-     l alternative d une autre image, en silence — et un alt faux passe toutes les gardes
-     d accessibilite, qui comptent la presence et non la justesse. */
   assert.equal(entree.attributes.image.type, 'media');
   assert.equal(entree.attributes.image.multiple, false);
   assert.equal(entree.attributes.image.required, true);
   assert.equal(entree.attributes.alternative.type, 'string');
-  assert.equal(entree.attributes.alternative.required, true, 'une entree creee et vide ne veut rien dire');
+  /* OPTIONNEL, la ou l ancien component l exigeait. Une entree n existait la que pour
+     porter une surcharge ; ici elle existe pour porter l IMAGE, et l immense majorite des
+     images n a aucune surcharge a porter — elles replient sur l `alternativeText` natif. */
+  assert.notEqual(entree.attributes.alternative.required, true);
+});
+
+test('le component `bloc.alternative-image` a DISPARU du depot — il n a plus d objet', () => {
+  assert.equal(
+    fs.existsSync(path.join(RACINE_CMS, 'src/components/bloc/alternative-image.json')),
+    false,
+    'un schema orphelin laisse une table en base et un bloc dans le picker de l admin'
+  );
 });
 
 test('le composant `partage.seo` porte `alternativePartage` — la carte de partage est le SEPTIEME porteur', () => {
@@ -787,8 +841,10 @@ function porteursAnglais(corpus: ReturnType<typeof chargerCorpus>) {
       /* LA GALERIE EST DANS CETTE LISTE, et depuis le 2026-08-17 elle a une SURCHARGE.
          ~~c est voulu, et c est ce qui rend le trou VISIBLE plutot que tacite~~ — le trou
          est COMBLE (decision `5ca1ca4b`, branche A) : `bloc.galerie` porte N images pour
-         une seule legende (A-22), donc un REPETABLE `alternatives`, apparie par le MEDIA
-         et non par le rang.
+         une seule legende (A-22), donc un REPETABLE.
+         ~~apparie par le MEDIA et non par le rang~~ — depuis le 2026-08-19 (verdict du
+         controle `e8fa8b93`), le repetable EST `images` : chaque entree porte son image et
+         son alternative cote a cote, et il n y a plus d appariement du tout.
          Ce que ce test juge n a PAS change, et c est ce qui compte : le corpus n a
          toujours besoin d aucune surcharge de galerie — ses 22 images sont toutes
          `decoratif: true` (commit `d0e3db5`), elles sortent en `alt=""`, et le filtre
@@ -810,14 +866,14 @@ function porteursAnglais(corpus: ReturnType<typeof chargerCorpus>) {
         });
       }
       if (bloc.__component === 'bloc.galerie') {
-        const parImage = new Map<string, string>(
-          (bloc.alternatives ?? []).map((e: any) => [e.image.__media, e.alternative])
-        );
-        for (const image of bloc.images) {
+        /* PLUS DE `Map` A CONSTRUIRE : l alternative est dans l entree de son image. Ce
+           qui disparait ici n est pas trois lignes de test mais la POSSIBILITE que la
+           recette et le mapping apparient differemment le meme couple. */
+        for (const entree of bloc.images) {
           porteurs.push({
             quoi: `article ${a.code} : bloc galerie`,
-            media: image.__media,
-            surcharge: parImage.get(image.__media),
+            media: entree.image.__media,
+            surcharge: entree.alternative,
           });
         }
       }

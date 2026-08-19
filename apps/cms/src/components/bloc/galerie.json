@@ -3,22 +3,15 @@
   "info": {
     "displayName": "Galerie",
     "icon": "images",
-    "description": "Serie d images. Une seule legende pour la galerie entiere (A-22). Le carrousel est rendu en CSS, sans JavaScript (A-05). Les alternatives viennent de l alternativeText natif de la Media Library (A-04) — sauf pour les images citees dans `alternatives`, qui les surchargent pour CETTE locale."
+    "description": "Serie d images. Une seule legende pour la galerie entiere (A-22). Le carrousel est rendu en CSS, sans JavaScript (A-05). Chaque entree de `images` porte SON image et SON alternative, cote a cote : l alternative vient de l alternativeText natif de la Media Library (A-04), sauf si l entree en pose une, qui la surcharge pour CETTE locale."
   },
   "options": {},
   "attributes": {
     "images": {
-      "type": "media",
-      "multiple": true,
-      "required": true,
-      "allowedTypes": [
-        "images"
-      ]
-    },
-    "alternatives": {
       "type": "component",
       "repeatable": true,
-      "component": "bloc.alternative-image"
+      "required": true,
+      "component": "bloc.image-galerie"
     },
     "legende": {
       "type": "string"

@@ -207,27 +207,34 @@
           "id": 103,
           "legende": "Le chantier, de la premiere pierre a la derniere.",
           "disposition": "grille",
-          "alternatives": [],
           "images": [
             {
-              "id": 50,
-              "documentId": "med0000000000000000050",
-              "url": "/uploads/galerie_1_aa11.jpg",
-              "alternativeText": "Un pilier de beton en cours de coulage",
-              "caption": "Oeuvre du projet — CC0 1.0",
-              "width": 1200,
-              "height": 800,
-              "mime": "image/jpeg"
+              "id": 9001,
+              "image": {
+                "id": 50,
+                "documentId": "med0000000000000000050",
+                "url": "/uploads/galerie_1_aa11.jpg",
+                "alternativeText": "Un pilier de beton en cours de coulage",
+                "caption": "Oeuvre du projet — CC0 1.0",
+                "width": 1200,
+                "height": 800,
+                "mime": "image/jpeg"
+              },
+              "alternative": null
             },
             {
-              "id": 51,
-              "documentId": "med0000000000000000051",
-              "url": "/uploads/galerie_2_bb22.jpg",
-              "alternativeText": "Le tablier du viaduc pose a la grue",
-              "caption": "Oeuvre du projet — CC0 1.0",
-              "width": 1200,
-              "height": 800,
-              "mime": "image/jpeg"
+              "id": 9002,
+              "image": {
+                "id": 51,
+                "documentId": "med0000000000000000051",
+                "url": "/uploads/galerie_2_bb22.jpg",
+                "alternativeText": "Le tablier du viaduc pose a la grue",
+                "caption": "Oeuvre du projet — CC0 1.0",
+                "width": 1200,
+                "height": 800,
+                "mime": "image/jpeg"
+              },
+              "alternative": null
             }
           ]
         },
@@ -391,37 +398,48 @@
           "id": 113,
           "legende": "La bande defilante : trois pieces de l atelier, de gauche a droite.",
           "disposition": "carrousel",
-          "alternatives": [],
           "images": [
             {
-              "id": 60,
-              "documentId": "med0000000000000000060",
-              "url": "/uploads/bande_1_cc33.jpg",
-              "alternativeText": "Les mains d une ouvriere sur un metier a tisser",
-              "caption": "Oeuvre du projet — CC0 1.0",
-              "width": 1200,
-              "height": 800,
-              "mime": "image/jpeg"
+              "id": 9003,
+              "image": {
+                "id": 60,
+                "documentId": "med0000000000000000060",
+                "url": "/uploads/bande_1_cc33.jpg",
+                "alternativeText": "Les mains d une ouvriere sur un metier a tisser",
+                "caption": "Oeuvre du projet — CC0 1.0",
+                "width": 1200,
+                "height": 800,
+                "mime": "image/jpeg"
+              },
+              "alternative": null
             },
             {
-              "id": 61,
-              "documentId": "med0000000000000000061",
-              "url": "/uploads/bande_2_dd44.jpg",
-              "alternativeText": "Une navette de bois posee sur une piece de drap",
-              "caption": "Oeuvre du projet — CC0 1.0",
-              "width": 1200,
-              "height": 800,
-              "mime": "image/jpeg"
+              "id": 9004,
+              "image": {
+                "id": 61,
+                "documentId": "med0000000000000000061",
+                "url": "/uploads/bande_2_dd44.jpg",
+                "alternativeText": "Une navette de bois posee sur une piece de drap",
+                "caption": "Oeuvre du projet — CC0 1.0",
+                "width": 1200,
+                "height": 800,
+                "mime": "image/jpeg"
+              },
+              "alternative": null
             },
             {
-              "id": 62,
-              "documentId": "med0000000000000000062",
-              "url": "/uploads/bande_3_ee55.jpg",
-              "alternativeText": "Le carnet d atelier ouvert sur une page de comptes",
-              "caption": "Oeuvre du projet — CC0 1.0",
-              "width": 1200,
-              "height": 800,
-              "mime": "image/jpeg"
+              "id": 9005,
+              "image": {
+                "id": 62,
+                "documentId": "med0000000000000000062",
+                "url": "/uploads/bande_3_ee55.jpg",
+                "alternativeText": "Le carnet d atelier ouvert sur une page de comptes",
+                "caption": "Oeuvre du projet — CC0 1.0",
+                "width": 1200,
+                "height": 800,
+                "mime": "image/jpeg"
+              },
+              "alternative": null
             }
           ]
         }

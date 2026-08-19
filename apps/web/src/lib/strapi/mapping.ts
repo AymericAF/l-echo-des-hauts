@@ -103,9 +103,12 @@ function media(brut: unknown, chemin: string): Media {
  * `alternativePartage` du composant `partage.seo`, `alternativeVignette` de `bloc.video`).
  *
  * LES TROIS PORTEURS QUE LA REVUE DES HUIT BLOCS A RELEVES (A-04, 2026-08-17), et ou ils en
- * sont depuis la decision `5ca1ca4b` (branche A) :
+ * sont depuis la decision `5ca1ca4b` (branche A), amendee le 2026-08-19 :
  *   1. `bloc.video.vignette`      — COUVERT ici, par `alternativeVignette` ;
- *   2. `bloc.galerie.images`      — COUVERT ici, par le repetable `alternatives` ;
+ *   2. `bloc.galerie.images`      — COUVERT, mais PAS ici : chaque entree du repetable
+ *      `images` porte son `alternative` a cote de son `image`, et le mapping se contente
+ *      de la lire (cf. `case 'bloc.galerie'`). Il n y a plus d appariement a faire, donc
+ *      plus de fonction dediee — c est exactement ce que la refonte du 2026-08-19 achete ;
  *   3. le noeud `image` d un champ `blocks` (`bloc.texte.contenu`, `bloc.encadre.contenu`)
  *      — NON COUVERT, et il ne peut pas l etre d ici : `richTexte()` est un transtypage,
  *      il ne traverse pas les noeuds, et un noeud de Blocks n a aucun champ voisin ou
@@ -130,53 +133,6 @@ function avecSurcharge(media: Media, surcharge: string | null): Media {
 /** La meme chose sur un media FACULTATIF : pas de media, rien a surcharger. */
 function surchargerOptionnel(media: Media | null, surcharge: string | null): Media | null {
   return media === null ? null : avecSurcharge(media, surcharge);
-}
-
-/**
- * LA SURCHARGE D UNE GALERIE — N images, une seule legende (A-22), donc un REPETABLE.
- *
- * POURQUOI L APPARIEMENT SE FAIT PAR LE MEDIA ET NON PAR LE RANG. Un tableau parallele,
- * aligne sur l ordre des images, se casse au premier reordonnancement dans l admin : il
- * servirait alors l alternative d une AUTRE image, en silence, et un alt faux passe toutes
- * les gardes d accessibilite — elles comptent la presence, pas la justesse. L entree porte
- * donc SON media, et c est lui qui decide. Le prix, ecrit plutot que tu : le fichier est
- * designe deux fois dans le meme bloc, une fois dans `images` et une fois dans l entree.
- *
- * TROIS REFUS, et aucun n est cosmetique :
- *   - une entree qui vise un fichier ABSENT de la galerie ne surcharge RIEN. Elle
- *     disparaitrait sans un mot, et son auteur croirait avoir traduit quelque chose ;
- *   - DEUX entrees pour un meme fichier : l une des deux serait servie au hasard du rang,
- *     et le rang est precisement ce a quoi on refuse de se fier ;
- *   - une entree BLANCHE. Pour ne pas surcharger une image, on n ecrit pas d entree —
- *     `texteRequis` refuse donc ici, la ou `texteOptionnel` laisse passer ailleurs. La
- *     difference n est pas une entorse : un champ facultatif a le droit d etre vide, une
- *     entree de liste qu on a pris la peine de creer, non.
- */
-function surchargerGalerie(images: Media[], brut: unknown, chemin: string): Media[] {
-  const surcharges = new Map<string, string>();
-  const connues = new Set(images.map((image) => image.url));
-
-  listeOuVide(brut, 'alternatives', chemin).forEach((entree, index) => {
-    const ici = `${chemin}.alternatives[${index}]`;
-    const url = texteRequis(objetRequis(entree, 'image', ici), 'url', `${ici}.image`);
-    if (!connues.has(url)) {
-      throw new ValeurInattendueError(
-        `${ici}.image`,
-        `« ${url} » n appartient pas aux images de cette galerie — la surcharge ne surchargerait ` +
-          'rien, et disparaitrait sans un mot',
-      );
-    }
-    if (surcharges.has(url)) {
-      throw new ValeurInattendueError(
-        `${ici}.image`,
-        `« ${url} » est surcharge DEUX fois — laquelle des deux alternatives serait servie ne ` +
-          'dependrait que du rang',
-      );
-    }
-    surcharges.set(url, texteRequis(entree, 'alternative', ici));
-  });
-
-  return images.map((image) => avecSurcharge(image, surcharges.get(image.url) ?? null));
 }
 
 function mediaRequis(source: unknown, cle: string, chemin: string): Media {
@@ -326,17 +282,41 @@ function bloc(brut: unknown, chemin: string): Bloc {
         source: texteOptionnel(brut, 'source', chemin),
       };
 
-    case 'bloc.galerie': {
-      const images = listeRequise(brut, 'images', chemin).map((image, index) =>
-        media(image, `${chemin}.images[${index}]`),
-      );
+    /**
+     * LA GALERIE — `images` est un REPETABLE `{ image, alternative }` depuis le 2026-08-19.
+     *
+     * CE QUE CETTE FORME SUPPRIME, et pourquoi il n y a plus une ligne de logique ici.
+     * Jusqu au 2026-08-19, l alternative vivait dans une table `alternatives` posee A COTE
+     * de la galerie, et une fonction dediee la rapprochait des images par l url du fichier.
+     * L appariement obligeait a trois refus (entree orpheline, doublon, entree blanche) —
+     * tous justes, tous inutiles aujourd hui, et surtout tous invisibles la ou la faute se
+     * commettait : dans l admin Strapi, ou le picker media rouvre toute la mediatheque sans
+     * rien dire de ce qui est deja dans `images`. Le redacteur qui se trompait ne voyait
+     * aucune erreur ; il voyait un build casse, plus tard, ailleurs.
+     *
+     * Ici, l entree EST l image. Il n y a plus rien a apparier — donc plus d orphelin (une
+     * entree de plus est une IMAGE de plus), plus de doublon a departager (le meme fichier
+     * deux fois, ce sont deux images, chacune avec sa ligne), plus de rang a craindre
+     * (reordonner deplace la paire entiere). Le mapping se contente de LIRE.
+     *
+     * `texteOptionnel` ramene `null` sur une chaine blanche : une alternative vide laisse
+     * donc passer l `alternativeText` natif, exactement comme les six autres porteurs. Le
+     * refus de l entree blanche n a plus lieu d etre — vide est le cas NORMAL, les images
+     * decoratives n ayant aucune surcharge a porter.
+     */
+    case 'bloc.galerie':
       return {
         type: 'bloc.galerie',
-        images: surchargerGalerie(images, brut, chemin),
+        images: listeRequise(brut, 'images', chemin).map((entree, index) => {
+          const ici = `${chemin}.images[${index}]`;
+          return avecSurcharge(
+            media(objetRequis(entree, 'image', ici), `${ici}.image`),
+            texteOptionnel(entree, 'alternative', ici),
+          );
+        }),
         legende: texteOptionnel(brut, 'legende', chemin),
         disposition: enumRequis(brut, 'disposition', chemin, ['grille', 'carrousel', 'pleine-largeur']),
       };
-    }
 
     case 'bloc.encadre':
       return {

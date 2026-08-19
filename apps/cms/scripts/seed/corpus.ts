@@ -418,32 +418,42 @@ const media = (cle: string): RenvoiMedia => ({ __media: cle });
 /**
  * LES SURCHARGES D ALTERNATIVE D UNE GALERIE, lues dans le CORPS du bloc.
  *
- * `bloc.galerie` porte N images pour une seule legende (A-22) : il lui faut un REPETABLE,
- * et l appariement se fait par le MEDIA, jamais par le rang — un tableau parallele se
- * casserait au premier reordonnancement, en servant l alternative d une AUTRE image, en
- * silence, et un alt faux passe toutes les gardes d accessibilite.
+ * CE QUE CETTE FONCTION REND, ET CE QU ELLE NE REND PLUS. Depuis le 2026-08-19,
+ * `bloc.galerie.images` est un REPETABLE `{ image, alternative }` : la surcharge est rangee
+ * DANS l entree de son image (`construireBloc` ci-dessous), plus dans une table posee a
+ * cote. Cette fonction rend donc une simple table de correspondance INTERNE au chargement,
+ * qui ne sort jamais vers Strapi.
  *
  * POURQUOI LE CORPS ET PAS UN ATTRIBUT. Une cle de media porte un `/` et un `.`
  * (`galeries/A05-1.svg`) ; la ligne d ouverture d un bloc n accepte que des noms
  * d attribut `[A-Za-z][\w-]*`. Le corps est le seul endroit ou la cle s ecrit telle
  * quelle — et le separateur `|` est deja celui de `chiffres-cles`.
  *
+ * POURQUOI LES TROIS REFUS RESTENT ICI, alors qu ils ont disparu du mapping du front.
+ * Ils n y gardaient pas la meme chose. Cote front, ils rattrapaient une saisie d ADMIN que
+ * rien ne guidait — trop tard, ailleurs, et invisible au redacteur : c est ce qui les a
+ * fait tomber. Ici ils gardent une ECRITURE DE CORPUS, un texte versionne, relu en revue,
+ * ou l erreur rougit a voix haute et immediatement (`ErreurCorpus`, avec la ligne fautive).
+ * Le corps du bloc est le seul endroit du systeme ou une cle de media reste ecrite a la
+ * main : tant que c est vrai, une cle qui ne designe aucune image de la galerie doit etre
+ * refusee, sans quoi elle disparaitrait sans un mot.
+ *
  * Une image SANS ligne garde son alternative native : pour ne pas surcharger, on n ecrit
- * pas de ligne. C est ce qui rend les trois refus ci-dessous sans ambiguite.
+ * pas de ligne.
  */
 function lireAlternativesGalerie(
   corps: string,
   images: readonly string[],
   ctx: string
-): Record<string, any>[] | undefined {
+): Map<string, string> | undefined {
   const lignes = corps
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l !== '');
   if (lignes.length === 0) return undefined;
 
-  const vues = new Set<string>();
-  return lignes.map((ligne) => {
+  const parCle = new Map<string, string>();
+  for (const ligne of lignes) {
     const separateur = ligne.indexOf('|');
     if (separateur === -1) {
       throw new ErreurCorpus(
@@ -460,20 +470,17 @@ function lireAlternativesGalerie(
           `  Elle ne surchargerait rien et disparaitrait sans un mot.`
       );
     }
-    if (vues.has(cle)) {
+    if (parCle.has(cle)) {
       throw new ErreurCorpus(
         `${ctx} : le media "${cle}" est surcharge DEUX fois.\n` +
-          `  Laquelle des deux alternatives serait servie ne dependrait que du rang.`
+          `  Laquelle des deux lignes serait rangee dans son entree n aurait aucune raison d etre l une plutot que l autre.`
       );
     }
-    vues.add(cle);
-    return {
-      image: media(cle),
-      /* Le texte n est pas valide ici : sa garde a besoin de savoir si le media est
-         DECORATIF, ce que seul le manifeste dit — donc `chargerCorpus`. */
-      alternative: ligne.slice(separateur + 1).trim(),
-    };
-  });
+    /* Le texte n est pas valide ici : sa garde a besoin de savoir si le media est
+       DECORATIF, ce que seul le manifeste dit — donc `chargerCorpus`. */
+    parCle.set(cle, ligne.slice(separateur + 1).trim());
+  }
+  return parCle;
 }
 
 function construireBloc(bloc: BlocBrut, contexte: string): Record<string, any> {
@@ -538,10 +545,13 @@ function construireBloc(bloc: BlocBrut, contexte: string): Record<string, any> {
         .map((s) => s.trim())
         .filter(Boolean);
       if (images.length === 0) throw new ErreurCorpus(`${ctx} : au moins une image est requise`);
+      /* Chaque entree porte SON image et SON alternative (2026-08-19). L ordre est celui
+         des IMAGES, jamais celui des lignes de surcharge — une ligne n est plus qu une
+         valeur rangee dans l entree de son image, elle ne cree aucune entree. */
+      const surcharges = lireAlternativesGalerie(bloc.corps, images, ctx);
       return {
         __component: 'bloc.galerie',
-        images: images.map(media),
-        alternatives: lireAlternativesGalerie(bloc.corps, images, ctx),
+        images: images.map((cle) => ({ image: media(cle), alternative: surcharges?.get(cle) })),
         legende: a.legende,
         disposition: a.disposition ?? 'grille',
       };
@@ -1037,7 +1047,10 @@ export function chargerCorpus(racine: string): Corpus {
       }
       if (bloc.__component === 'bloc.galerie') {
         const ici = `${contexte} #${i + 1}, bloc \`galerie\``;
-        for (const entree of (bloc.alternatives as Record<string, any>[] | undefined) ?? []) {
+        /* On parcourt les ENTREES, c est-a-dire les images : une entree sans surcharge
+           passe `undefined` a `exigerSurcharge`, qui la laisse telle quelle. C est le cas
+           NORMAL depuis que l entree existe pour porter l image, et non la surcharge. */
+        for (const entree of (bloc.images as Record<string, any>[] | undefined) ?? []) {
           const cle = (entree.image as RenvoiMedia | undefined)?.__media;
           entree.alternative = exigerSurcharge(entree.alternative, cle, `alternative de "${cle}"`, ici);
         }

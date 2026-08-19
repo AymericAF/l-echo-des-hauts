@@ -151,9 +151,22 @@ test('1 bis. la sonde ne differe de la requete declaree QUE par sa pagination', 
 
 test('1 ter. le champ qui a fait echouer les trois deploiements est bien dans l URL sondee', () => {
   /* Les trois occurrences reelles, nommees. Si l une d elles cessait d apparaitre dans l URL de
-     sonde, la course qu on ferme se rouvrirait sans que rien ne rougisse. */
-  const url = urlDeSonde('https://cms.test', 'articles', 'fr');
-  for (const champ of ['alternativeCouverture', 'alternativePartage', 'alternatives']) {
+     sonde, la course qu on ferme se rouvrirait sans que rien ne rougisse.
+
+     LA TROISIEME A CHANGE DE NOM le 2026-08-19, pas de nature : le 400 « Invalid key
+     alternatives at contenu » du 17/08 venait de la table d appariement `alternatives`, qui
+     n existe plus. Le champ qui court exactement le meme risque aujourd hui est
+     l `alternative` de chaque entree de `images` — un champ de composant IMBRIQUE, donc
+     absent de l ancien Strapi tant que le CMS n a pas redemarre. On verifie son CHEMIN
+     COMPLET et non le mot seul : « alternative » est un prefixe d `alternativeCouverture`,
+     et passerait vert meme si la galerie disparaissait entierement de la sonde. */
+  const url = decodeURIComponent(urlDeSonde('https://cms.test', 'articles', 'fr'));
+  const chemins = [
+    'alternativeCouverture',
+    'alternativePartage',
+    'populate[contenu][on][bloc.galerie][populate][images][fields][0]=alternative',
+  ];
+  for (const champ of chemins) {
     assert.ok(
       url.includes(champ),
       `« ${champ} » a fait echouer un deploiement reel et n est pas demande par la sonde`,

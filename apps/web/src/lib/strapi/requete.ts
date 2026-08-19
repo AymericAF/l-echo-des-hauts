@@ -67,14 +67,14 @@ const CONTENU: PopulateDynamicZone = {
   on: {
     'bloc.texte': { fields: ['contenu'] },
     'bloc.citation': { fields: ['texte', 'auteurCitation', 'source'] },
-    /* `alternatives` : le repetable des surcharges d alternative, une entree par image
-       SURCHARGEE — jamais une par image (A-04, decision `5ca1ca4b` branche A). Le media
-       de l entree est peuple parce que c est LUI qui apparie, pas le rang. */
+    /* `images` : un REPETABLE `{ image, alternative }` depuis le 2026-08-19 — l alternative
+       vit DANS l entree de son image, plus dans une table `alternatives` posee a cote. Le
+       champ `alternative` se demande explicitement : non demande, il n arriverait jamais,
+       et le repli retomberait en silence sur l alternative francaise du media. */
     'bloc.galerie': {
       fields: ['legende', 'disposition'],
       populate: {
-        images: MEDIA,
-        alternatives: { fields: ['alternative'], populate: { image: MEDIA } },
+        images: { fields: ['alternative'], populate: { image: MEDIA } },
       },
     },
     'bloc.encadre': { fields: ['titre', 'contenu', 'variante'] },

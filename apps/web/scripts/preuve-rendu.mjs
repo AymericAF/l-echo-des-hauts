@@ -56,7 +56,7 @@ import { fileURLToPath } from 'node:url';
 
 import { CIBLES, cibleDemandee, sourcePourCible } from './cible-preuve.mjs';
 import { articlesDuBanc, inspecterBlocs, TYPES, verdictPageComplete } from './couverture-blocs.mjs';
-import { ISSUES } from './issues.mjs';
+import { arbitrer, ISSUES } from './issues.mjs';
 import { inspecterMentionsRendues, resumeMentionsRendues } from './mentions-obligatoires.mjs';
 import { inspecterSortie, resume } from './verifier-sortie.mjs';
 import { prefixeLocale } from '../src/lib/routes/chemins.ts';
@@ -516,17 +516,30 @@ const auteursParLocale = Object.fromEntries(
   await Promise.all(LOCALES.map(async (locale) => [locale, await source.auteurs(locale)])),
 );
 
+/*
+ * L ABSENCE DE CONFIGURATION N INTERROMPT PLUS — mesure du 2026-08-20, cible `--reel`.
+ *
+ * Elle sortait ici en `2`. Or elle ne prive d attendu QUE le pied de page : `reseaux` est
+ * lu par `ecartsPiedDePage` et par personne d autre (seul appelant, plus bas). Le credit
+ * du portrait lit `auteurs`, les reseaux et les mentions legales lisent `dist/`, les types
+ * de blocs ont ete inspectes bien avant.
+ *
+ * CE QU ELLE MASQUAIT, MESURE EN FORCANT `source.configuration` A `null` PENDANT QU UNE
+ * PAGE AVAIT CESSE DE RENDRE UN BLOC : la sortie s arretait sur les trois lignes de
+ * l incapacite, et CINQ familles disparaissaient — credit du portrait, reseaux, mentions
+ * legales, pied de page, types de blocs — sans meme leur ligne de resume, qui est pourtant
+ * imprimee plus bas et sans condition. Le code rendu etait `2` alors qu une ANOMALIE de
+ * rendu etait deja constatee : « je n ai pas pu juger » pour un site en faute.
+ *
+ * L incapacite est CONSERVEE mais BORNEE a la famille qu elle prive : `null` ici, et le
+ * pied de page rend « NON JUGE » au lieu de le rendre pour tout le monde. Ce n est pas une
+ * cascade — les quatre autres familles ne consomment pas cette donnee.
+ */
 const configurationReference = await source.configuration(LOCALE_REFERENCE);
-if (configurationReference == null || !Array.isArray(configurationReference.reseaux)) {
-  console.error(
-    `\nVERIFICATION IMPOSSIBLE — preuve de rendu (${source.libelle})\n` +
-      `  - ${source.poseur} ne rend aucune Configuration « ${LOCALE_REFERENCE} », ou aucune liste\n` +
-      '    de reseaux : le pied de page n a plus d attendu, et le comparer a lui-meme ne\n' +
-      '    prouverait rien.\n',
-  );
-  process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
-}
-const reseauxDeReference = configurationReference.reseaux.map((reseau) => reseau.url);
+const reseauxDeReference =
+  configurationReference == null || !Array.isArray(configurationReference.reseaux)
+    ? null
+    : configurationReference.reseaux.map((reseau) => reseau.url);
 
 const credits = ecartsCreditPortrait(dist, auteursParLocale);
 console.log(
@@ -567,24 +580,104 @@ console.log(
    `ecartsPiedDePage(dist)` parce qu a sa base la fonction lisait sa reference
    elle-meme. Elle prend desormais `attendu` en second parametre — le laisser
    tomber rendrait `undefined` et la comparaison ne porterait plus sur rien. */
-const pied = ecartsPiedDePage(dist, reseauxDeReference);
-const comptePied = LOCALES.map((locale) => `${pied.inspectees[locale]} page(s) ${locale}`).join(', ');
-console.log(
-  pied.ecarts.length === 0
-    ? `Pied de page : bloc de reseaux conforme a la Configuration sur ${comptePied}.`
-    : `Pied de page : ${pied.ecarts.length} ecart(s) — ${comptePied} inspectees.`,
-);
+/* ET `null` N EST PAS `[]`. Quand la Configuration manque, on NE JUGE PAS : lui passer une
+   liste vide accuserait chaque page de servir un lien EN TROP, soit 119 ecarts fabriques
+   par l absence de l attendu — une incapacite deguisee en anomalie, exactement ce que la
+   convention d `issues.mjs` interdit. */
+const pied = reseauxDeReference === null ? null : ecartsPiedDePage(dist, reseauxDeReference);
+if (pied === null) {
+  console.log(
+    `Pied de page : NON JUGE — ${source.poseur} ne rend aucune Configuration ` +
+      `« ${LOCALE_REFERENCE} », ou aucune liste de reseaux.`,
+  );
+} else {
+  const comptePied = LOCALES.map((locale) => `${pied.inspectees[locale]} page(s) ${locale}`).join(', ');
+  console.log(
+    pied.ecarts.length === 0
+      ? `Pied de page : bloc de reseaux conforme a la Configuration sur ${comptePied}.`
+      : `Pied de page : ${pied.ecarts.length} ecart(s) — ${comptePied} inspectees.`,
+  );
+}
+
+/*
+ * LA SEULE SORTIE PRECOCE QUI SURVIT ICI, ET LA MESURE QUI LA JUSTIFIE (2026-08-20).
+ *
+ * `rapport.issue === VERIFICATION_IMPOSSIBLE` ne veut dire qu UNE chose : `dist/` ne porte
+ * AUCUNE page HTML (`issues.mjs`, `manquementCorpusVide`). C est la seule condition de
+ * cette zone qui porte sur le MEME objet que tout l aval — comme la cible refusee, la
+ * source injoignable et le build echoue, bien plus haut.
+ *
+ * MESURE, en retirant toutes les pages ET `dist/pagefind/` apres le build : les familles
+ * d aval rendent alors « Credit du portrait : 10 ecart(s) », « Mentions legales : 2
+ * manquement(s) sur 0 page(s) », « Pied de page : 2 ecart(s) — 0 page(s) inspectees », et
+ * `blocs.site` accuserait les 48 articles de ne plus rien rendre. Accumuler produirait
+ * CINQ blocs d erreur pour UNE cause, et rendrait `1` — en envoyant corriger un credit de
+ * portrait qui n a rien. C est la cascade illisible que ce lot existe pour eviter.
+ *
+ * ELLE RENDAIT `1`, ET C ETAIT FAUX. `process.exit(1)` etait ecrit en chiffre sous un
+ * `rapport.issue` qui vaut `2` dans ce cas precis : l incapacite sortait sous le code du
+ * manquement du site. Elle rend desormais ce que la sortie a juge.
+ */
+if (rapport.issue === ISSUES.VERIFICATION_IMPOSSIBLE) {
+  console.error('\n⛔ Sortie — VERIFICATION IMPOSSIBLE, aucune page n a ete jugee :');
+  for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+  console.error(
+    '\n  Les familles qui suivent liraient toutes le meme vide et rendraient chacune leur\n' +
+      '  version du meme constat. Rien n est juge tant que la sortie ne porte pas de page.\n',
+  );
+  process.exit(rapport.issue);
+}
+
+/*
+ * A PARTIR D ICI, PLUS AUCUN VERDICT N INTERROMPT LES SUIVANTS — 2026-08-20.
+ *
+ * Cinq `process.exit` se trouvaient dans ce bloc, un par famille. Le recensement du
+ * 2026-08-17 (commit `0c07982`) avait classe « cible refusee / source injoignable / build
+ * echoue » comme portant sur le meme objet que tout l aval — ce qui reste vrai, et ces
+ * trois-la n ont pas bouge. Il n avait rien dit de ceux-ci.
+ *
+ * CE QU ILS MASQUAIENT, MESURE EN FABRIQUANT L ECART SUR LA CIBLE `--reel`, une famille a
+ * la fois, TOUJOURS accompagnee d une page qui avait cesse de rendre un bloc :
+ *
+ *   ecart fabrique                            ce qui n a PAS ete imprime
+ *   ---------------------------------------   ----------------------------------------
+ *   `.js` depose dans dist/ apres le build     reseaux, mentions, pied, credit, blocs.*
+ *   aria-hidden retire d un glyphe social      mentions, pied, credit, blocs.*
+ *   <main> vide sur /mentions-legales/         pied, credit, blocs.*
+ *   href du pied detourne                      credit, blocs.*
+ *   credit du portrait reecrit                 blocs.*
+ *
+ * LA DERNIERE COLONNE EST LA MEME PARTOUT, et c est elle qui tranche : les cinq
+ * supprimaient `blocs.site` — « le site a cesse de rendre un type que la source lui pose ».
+ * Or `blocs.site` est la SEULE famille de ce rapport qui n a AUCUNE ligne de resume : les
+ * autres impriment leur compte plus haut sans condition, celle-la n existe que dans le bloc
+ * final. Elle disparaissait donc SANS TRACE. C est le defaut ferme par `77273f9` puis
+ * `0c07982`, revenu par cinq portes situees un cran plus haut.
+ *
+ * ILS NE PRODUISENT PAS DE CASCADE, et c est ce qui les separe de la porte du corpus vide
+ * ci-dessus : cinq objets INDEPENDANTS, dont aucun ne prive le suivant de quoi juger. Le
+ * script accumulait DEJA leurs comptes en tete — les `console.log` de resume sont
+ * inconditionnels. Les cinq `process.exit` CONTREDISAIENT donc le resume qui les precede :
+ * on annoncait « 1 ecart(s) » sur quatre familles, puis on n en detaillait qu une.
+ */
+const issues = [];
 
 if (rapport.manquements.length > 0) {
+  /* CETTE FAMILLE-CI NE PEUT PAS TIRER DANS LE PIPELINE REEL, et elle reste comme
+     troisieme lecture. `npm run build` = `astro build && node scripts/index-pagefind.mjs` :
+     `integrations/garde-t09.mjs` inspecte `dist/` a `astro:build:done` et LEVE, puis
+     `index-pagefind.mjs` le REFAIT apres depot de l index et sort non nul. Un manquement
+     fait donc echouer le BUILD, et le script sort bien plus haut sur `code !== 0`. Il a
+     fallu greffer un depot de `.js` APRES le build pour la voir tirer une seule fois. */
   console.error('\n✖ Manquements dans la sortie :');
   for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
-  process.exit(1);
+  issues.push(rapport.issue);
 }
 
 if (ecartsSociaux.length > 0) {
   console.error('\n✖ Accessibilite des liens de reseaux :');
   for (const ecart of ecartsSociaux) console.error(`  - ${ecart}`);
-  process.exit(1);
+  issues.push(ISSUES.ANOMALIE);
 }
 
 if (mentions.issue !== ISSUES.CONFORME) {
@@ -594,13 +687,22 @@ if (mentions.issue !== ISSUES.CONFORME) {
       : '\n✖ Mentions legales absentes de la page servie :',
   );
   for (const manquement of mentions.manquements) console.error(`  - ${manquement}`);
-  process.exit(mentions.issue);
+  issues.push(mentions.issue);
 }
 
-if (pied.ecarts.length > 0) {
+if (pied === null) {
+  console.error(
+    '\n⛔ Pied de page — VERIFICATION IMPOSSIBLE :\n' +
+      `  - ${source.poseur} ne rend aucune Configuration « ${LOCALE_REFERENCE} », ou aucune\n` +
+      '    liste de reseaux : le pied de page n a plus d attendu, et le comparer a lui-meme\n' +
+      '    ne prouverait rien. Les autres familles de ce rapport ne consomment pas cette\n' +
+      '    donnee, et ont bien ete jugees.\n',
+  );
+  issues.push(ISSUES.VERIFICATION_IMPOSSIBLE);
+} else if (pied.ecarts.length > 0) {
   console.error('\n✖ Pied de page (les deux locales) :');
   for (const ecart of pied.ecarts) console.error(`  - ${ecart}`);
-  process.exit(1);
+  issues.push(ISSUES.ANOMALIE);
 }
 
 if (credits.ecarts.length > 0 || credits.controles === 0) {
@@ -609,7 +711,7 @@ if (credits.ecarts.length > 0 || credits.controles === 0) {
   if (credits.controles === 0) {
     console.error('  - aucune page auteur avec portrait : la preuve ne prouverait rien');
   }
-  process.exit(1);
+  issues.push(ISSUES.ANOMALIE);
 }
 
 /**
@@ -688,21 +790,41 @@ if (blocs.site.length > 0) {
  * elle seule tous les types ». Un vrai defaut de rendu produit EXACTEMENT ce message — on serait
  * alle chercher un article manquant au plan editorial la ou le site avait cesse de rendre.
  *
- * LES AUTRES SORTIES PRECOCES RESTENT, et ce n est pas un oubli. Cible refusee, instance
- * injoignable, build echoue portent sur le MEME objet que tout l aval : sans cible, sans acces
- * ou sans `dist/`, ce qui suit ne juge rien. Les accumuler ne produirait que des incapacites en
- * cascade — du bruit qui fait desactiver le dispositif.
+ * QUATRE SORTIES PRECOCES RESTENT, ET ELLES SEULES — recensement acheve le 2026-08-20.
+ * Cible refusee, source injoignable, build echoue portent sur le MEME objet que tout l aval :
+ * sans cible, sans acces ou sans `dist/`, ce qui suit ne juge rien. La quatrieme est la porte
+ * du corpus vide, plus bas, mesuree et motivee a l endroit ou elle vit. Les six autres ont ete
+ * fabriquees une a une sur `--reel` et s accumulent desormais : voir l encadre qui precede
+ * `const issues = []`.
  *
  * L ORDRE DES CODES est inchange : `1` (anomalie de rendu) prime sur `2` (incapacite). Le
  * verdict du controle 13 vient APRES les deux : il ne peut plus les masquer, et il n est plus
  * perdu.
  */
-if (blocs.site.length > 0) process.exit(ISSUES.ANOMALIE);
-if (blocs.banc.length > 0) process.exit(ISSUES.VERIFICATION_IMPOSSIBLE);
-if (controle13.issue !== ISSUES.CONFORME) process.exit(controle13.issue);
+if (blocs.site.length > 0) issues.push(ISSUES.ANOMALIE);
+if (blocs.banc.length > 0) issues.push(ISSUES.VERIFICATION_IMPOSSIBLE);
+if (controle13.issue !== ISSUES.CONFORME) issues.push(controle13.issue);
 
-console.log(
-  `\n✔ [${source.libelle}] Dans chacune des ${LOCALES.length} locales (${LOCALES.join(', ')}), ` +
-    `chaque page article rend exactement les blocs que ${source.poseur} lui pose, les ` +
-    `${TYPES.length} types y compris — et aucun JavaScript n est servi.\n`,
-);
+/*
+ * L ARBITRAGE EN UN SEUL POINT, ET IL GARDE LE MESSAGE DE SUCCES.
+ *
+ * `1` prime sur `2`, comme avant — mais la regle vit maintenant dans `arbitrer`, ou elle
+ * s exerce dans les deux sens sans construire le site. Ce qui change est qu il n y a plus
+ * qu UN endroit ou l ordre est ecrit, au lieu de neuf `process.exit` dont l ordre etait
+ * celui des lignes.
+ *
+ * ET C EST CE BLOC QUI GARDE LE VERT FINAL, dans son `else`. C est le defaut qui s est
+ * glisse dans la correction du controle 13 le 2026-08-16 : le `process.exit` retire tenait
+ * AUSSI lieu de garde pour le message de succes, et la sortie a imprime « AUCUNE page »
+ * puis « TENU — 0 page(s) » sept lignes plus bas. Une sortie qui se contredit dans le meme
+ * souffle est pire qu une sortie muette : on croit avoir mal lu.
+ */
+if (issues.length > 0) {
+  process.exit(arbitrer(issues));
+} else {
+  console.log(
+    `\n✔ [${source.libelle}] Dans chacune des ${LOCALES.length} locales (${LOCALES.join(', ')}), ` +
+      `chaque page article rend exactement les blocs que ${source.poseur} lui pose, les ` +
+      `${TYPES.length} types y compris — et aucun JavaScript n est servi.\n`,
+  );
+}

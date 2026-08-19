@@ -23,6 +23,35 @@
 export const ISSUES = { CONFORME: 0, ANOMALIE: 1, VERIFICATION_IMPOSSIBLE: 2 };
 
 /**
+ * LE CODE D UNE PREUVE QUI A RENDU PLUSIEURS VERDICTS, en un seul endroit.
+ *
+ * `1` PRIME SUR `2`. Un defaut constate est un FAIT ETABLI ; l incapacite, elle, ne porte
+ * que sur ce qu on n a PAS PU juger. Rendre `2` quand une anomalie est etablie reviendrait
+ * a dire « je n ai pas pu conclure » alors qu on vient de conclure — et `2` envoie corriger
+ * CE AVEC QUOI ON JUGE, donc a cote du defaut.
+ *
+ * POURQUOI UNE FONCTION, ET PAS L ORDRE DES LIGNES. Dans `preuve-rendu.mjs` cette regle
+ * etait portee par l ORDRE de neuf `process.exit` successifs : le premier qui tirait
+ * decidait du code, et interrompait tous les verdicts suivants. Un ordre de lignes ne se
+ * prouve pas — il se relit, et il se casse au premier deplacement. Mesure du 2026-08-20,
+ * cible `--reel` : un site qui avait CESSE de rendre un bloc pose par l instance sortait
+ * en `2`, parce qu une incapacite sur le pied de page etait rencontree quelques lignes
+ * plus haut. L anomalie etait etablie, et le code disait l inverse.
+ *
+ * Un `CONFORME` accumule par megarde ne rougit rien : seule la presence d un verdict rouge
+ * decide. Une liste vide rend `0`.
+ *
+ * @param {number[]} issues Les verdicts accumules, dans leur ordre d arrivee — qui ne
+ *   compte pas, et c est precisement le point.
+ * @returns {number} Le code de sortie de la convention ci-dessus.
+ */
+export function arbitrer(issues) {
+  if (issues.includes(ISSUES.ANOMALIE)) return ISSUES.ANOMALIE;
+  if (issues.includes(ISSUES.VERIFICATION_IMPOSSIBLE)) return ISSUES.VERIFICATION_IMPOSSIBLE;
+  return ISSUES.CONFORME;
+}
+
+/**
  * Le manquement d une garde dont le CORPUS EST VIDE : `dist/` existe, et ne contient
  * aucune page HTML.
  *

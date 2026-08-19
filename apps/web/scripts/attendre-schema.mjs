@@ -30,6 +30,30 @@
  * qui supprimerait la course (sequencer les deux deploiements) est la piste 1 du dossier, et il est
  * explicitement recommande de NE PAS l engager tant que cette sonde n a pas consomme son plafond.
  *
+ * ⚠️ ELLE MESURE UN INSTANT, LE BUILD CONSOMME UNE DUREE — et cette moitie-la ne lui appartient
+ * PAS. Mesure du 2026-08-19 (tache `d0e0df3b`, commit c951b25, queues 529 et 530) : elle a rendu
+ * « PRET a la premiere passe » a 08:03:46.41, et le build a echoue sur un `502` a 08:03:50.11,
+ * QUATRE SECONDES ET DEMIE plus tard, pendant que Traefik passait de l ancien conteneur CMS au
+ * nouveau. Aucune attente prealable ne peut couvrir une fenetre qui s ouvre APRES elle : son
+ * plafond n avait meme pas ete effleure (0,9 s sur 600), donc l allonger n aurait rien change.
+ * Ce qui couvre cette fenetre vit desormais dans `src/lib/strapi/client.ts` — les REPRISES sur
+ * 502/503/504 et sur l injoignable, verrouillees par `tests/client-reprises.test.ts`.
+ *
+ * LA FRONTIERE ENTRE LES DEUX, a ne pas brouiller : la sonde repond « le CMS sert-il le SCHEMA que
+ * ce commit demande » (un `400` est son affaire, elle le NOMME) ; les reprises repondent « le CMS
+ * est-il JOIGNABLE a cet instant » (un `502` est leur affaire, elles le traversent). Faire porter
+ * le `400` aux reprises noierait la seule ligne qui dit ou chercher ; faire porter le `502` a la
+ * sonde ne servirait a rien, puisqu il tombe apres elle.
+ *
+ * ⚠️ SA LIMITE CONNUE, ECRITE PLUTOT QUE COMBLEE : un `200` NE PROUVE PAS que c est le NOUVEAU CMS
+ * qui a repondu. Le 2026-08-19, elle a valide a 08:03:46.41 alors que le nouveau conteneur n est
+ * devenu sain qu a 08:03:49.67 — elle a donc necessairement interroge l ANCIEN, encore route par
+ * le proxy. Sur un vrai changement de schema, elle validerait sur l ancien, et le build partirait :
+ * il casserait, ou pire il reussirait sur l ANCIEN schema en produisant un site perime, sans aucun
+ * signal. La fermer exige que le CMS DISE quelle version il sert (empreinte de commit), ce qui
+ * n existe pas aujourd hui et ne se decide pas ici. NE PAS la maquiller en multipliant les passes :
+ * sans identification de version, N passes vertes sur l ancien conteneur restent N mensonges.
+ *
  * ELLE EST UNE COMMANDE DISTINCTE DE `npm run build`, ET CE N EST PAS UN DETAIL DE STYLE : la cible
  * de temps de build M-04 se mesure sur `astro build` (avenant A6, `docs/protocole-mesure.md` §1).
  * Fondue dans le build, son attente entrerait dans le segment mesure. `tests/nixpacks-preuve-

@@ -108,6 +108,21 @@ aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 # `docs/course-schema-cms-vs-build-site.md`, et il est explicitement recommande de NE PAS
 # l engager tant que cette sonde n a pas consomme son plafond au moins une fois.
 #
+# ── 2026-08-19 : ELLE NE COUVRE QUE L INSTANT QUI LA PRECEDE ────────────────────────────
+#
+# Mesure (tache `d0e0df3b`, commit c951b25, queues 529 et 530) : la sonde a rendu « PRET a la
+# premiere passe » a 08:03:46.41, et `npm run build` a echoue sur un `502` a 08:03:50.11 —
+# QUATRE SECONDES ET DEMIE plus tard, pendant que Traefik passait de l ancien conteneur CMS
+# au nouveau. Son plafond n avait pas ete effleure (0,9 s sur 600) : L ALLONGER N AURAIT RIEN
+# CHANGE, et ce n est donc PAS le levier a toucher si la panne se represente.
+#
+# Ce qui couvre cette fenetre vit dans `src/lib/strapi/client.ts` : des REPRISES sur
+# 502/503/504 et sur l injoignable, plafonnees a dix minutes, premier reessai a 500 ms —
+# verrouillees par `tests/client-reprises.test.ts`. Elles sont DANS le build et non devant
+# lui, parce que la fenetre s ouvre APRES la sonde. Elles ne polluent pas la mesure M-04 :
+# elles ne consomment du temps QUE si le CMS bascule pendant la construction, et une passe
+# nominale ne les reveille jamais.
+#
 # ⚠️ `--experimental-strip-types` N EST PAS DECORATIF, ET SON ABSENCE CASSERAIT TOUT.
 #
 # La sonde importe `src/lib/strapi/requete.ts` — elle DOIT, c est la seule facon de rejouer

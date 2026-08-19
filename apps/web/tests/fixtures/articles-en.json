@@ -319,8 +319,17 @@
         "metaDescription": null,
         "noindex": false,
         "canonique": null,
-        "imagePartage": null,
-        "alternativePartage": null
+        "imagePartage": {
+          "id": 32,
+          "documentId": "med0000000000000000032",
+          "url": "/uploads/viaduc_partage_3d7e04.jpg",
+          "alternativeText": "Carte de partage : le viaduc rouvert, vu depuis la rive",
+          "caption": "Oeuvre du projet — CC0 1.0",
+          "width": 1200,
+          "height": 630,
+          "mime": "image/jpeg"
+        },
+        "alternativePartage": "Sharing card: the reopened viaduct, seen from the riverbank"
       },
       "localizations": [
         {

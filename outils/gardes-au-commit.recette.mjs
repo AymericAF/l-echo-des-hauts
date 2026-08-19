@@ -28,7 +28,7 @@
 // Usage : node outils/gardes-au-commit.recette.mjs
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,6 +37,23 @@ const ICI = dirname(fileURLToPath(import.meta.url));
 const DEPOT = dirname(ICI);
 const DECLENCHEUR = join(ICI, 'gardes-au-commit.js');
 const CROCHET = join(DEPOT, '.githooks', 'commit-msg');
+
+/**
+ * Installer TOUT `outils/*.js` dans le depot jetable, pas seulement le declencheur.
+ *
+ * POURQUOI PAS UNE LISTE DE NOMS. Le declencheur appelle desormais un second outil
+ * (`liens-worktrees.js`, le pas « aucune jonction dans les worktrees »). Une liste ecrite a
+ * la main ici divergerait au troisieme outil, et la panne serait MUETTE dans le sens le plus
+ * traitre : le declencheur copie tomberait sur un `MODULE_NOT_FOUND`, chaque cas rougirait
+ * pour une cause etrangere a ce qu il croit eprouver, et on chercherait la regression dans
+ * la mauvaise moitie du depot. C est exactement ce qui s est produit en ajoutant ce pas.
+ */
+function installerOutils(d) {
+    mkdirSync(join(d, 'outils'), { recursive: true });
+    for (const f of readdirSync(ICI)) {
+        if (f.endsWith('.js')) copyFileSync(join(ICI, f), join(d, 'outils', f));
+    }
+}
 
 // ── Le miniature : une application `apps/web` reduite a un test et sa source ─────────────
 // `APPS` du declencheur est ecrit en dur (`apps/web`, `apps/cms`) : le depot jetable porte
@@ -86,11 +103,10 @@ function depot() {
     git(d, ['config', 'core.hooksPath', '.githooks']);
     git(d, ['config', 'commit.gpgsign', 'false']);
     mkdirSync(join(d, '.githooks'), { recursive: true });
-    mkdirSync(join(d, 'outils'), { recursive: true });
     mkdirSync(join(d, 'apps', 'web', 'tests'), { recursive: true });
     mkdirSync(join(d, 'apps', 'web', 'src'), { recursive: true });
     copyFileSync(CROCHET, join(d, '.githooks', 'commit-msg'));
-    copyFileSync(DECLENCHEUR, join(d, 'outils', 'gardes-au-commit.js'));
+    installerOutils(d);
     writeFileSync(join(d, 'apps', 'web', 'package.json'), '{\n  "type": "module"\n}\n', 'utf8');
     writeFileSync(join(d, 'apps', 'web', 'tests', 'sonde.test.ts'), TEST, 'utf8');
     writeFileSync(join(d, 'apps', 'web', 'src', 'sonde.ts'), SOURCE_SAINE, 'utf8');
@@ -291,11 +307,10 @@ const CAS = [
             git(e, ['config', 'core.hooksPath', '.githooks']);
             git(e, ['config', 'commit.gpgsign', 'false']);
             mkdirSync(join(e, '.githooks'), { recursive: true });
-            mkdirSync(join(e, 'outils'), { recursive: true });
             mkdirSync(join(e, 'apps', 'web', 'tests'), { recursive: true });
             mkdirSync(join(e, 'apps', 'web', 'src'), { recursive: true });
             copyFileSync(CROCHET, join(e, '.githooks', 'commit-msg'));
-            copyFileSync(DECLENCHEUR, join(e, 'outils', 'gardes-au-commit.js'));
+            installerOutils(e);
             writeFileSync(join(e, 'apps', 'web', 'package.json'), '{\n  "type": "module"\n}\n', 'utf8');
             writeFileSync(join(e, 'apps', 'web', 'tests', 'sonde.test.ts'), TEST, 'utf8');
             writeFileSync(join(e, 'apps', 'web', 'src', 'sonde.ts'), SOURCE_FAUTIVE, 'utf8');

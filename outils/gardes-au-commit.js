@@ -416,6 +416,57 @@ if (appsConcernees.length === 0) {
     process.exit(0);
 }
 
+// ── 2 bis. AUCUNE JONCTION DANS LES WORKTREES ────────────────────────────────
+//
+// CE QUE CE PAS FERME. Le 2026-08-16, `git worktree remove` a vide `apps/cms/node_modules`
+// et `apps/web/node_modules` du depot principal — 0 paquet restant : le worktree retire
+// portait des jonctions NTFS, et la suppression recursive de git TRAVERSE une jonction,
+// effacant la CIBLE et pas le lien. Les 31 jonctions du parc sont devenues des liens
+// symboliques le jour meme. Mais cette bascule n a rien garanti sur les worktrees A VENIR :
+// un worktree se cree a la main, `mklink /J` est le geste que propose toute la documentation
+// Windows, et la garantie s erodait donc worktree apres worktree, en silence. Mesure au
+// moment d ecrire ce pas : le parc portait DEJA une jonction neuve, posee apres la bascule.
+// Une convention ne tient pas un geste qu on refait toutes les semaines ; un mecanisme, si.
+//
+// POURQUOI ICI, ET PAS APRES LES TESTS. Une jonction est un defaut de la MACHINE, pas du
+// commit : faire payer 3 s de tests pour refuser ensuite sur un motif etranger au code
+// serait gratuit, et le remede tient en une commande. On refuse donc tout de suite.
+//
+// CE QU IL NE COUVRE PAS, ET C EST ASSUME. Il ne tourne que sur les commits qui touchent une
+// application — ceux qui paient deja les tests. Un commit qui ne toucherait que les
+// workflows ne verrait pas une jonction posee la veille ; le prochain commit de code, si.
+// Elargir couterait ~0,25 s a des commits qui, aujourd hui, ne paient rien, et ce depot
+// tient qu un crochet qui coute se fait contourner — apres quoi on perdrait aussi ce qui
+// marchait.
+{
+    const outil = path.join(__dirname, 'liens-worktrees.js');
+    const r = spawnSync(process.execPath, [outil], { encoding: 'utf8' });
+    if (r.error) {
+        // Une garde qui s efface quand son moteur manque ne garde rien : meme regle que le
+        // `commit-msg`, qui refuse bruyamment quand node est introuvable.
+        console.error('');
+        console.error('COMMIT REFUSE — la garde des liens de worktree n a PAS PU se lancer :');
+        console.error('  ' + r.error.message);
+        process.exit(1);
+    }
+    if (r.status !== 0) {
+        console.error('');
+        console.error(
+            r.status === 2
+                ? 'COMMIT REFUSE — la garde des liens de worktree n a pas pu juger (code 2) :'
+                : 'COMMIT REFUSE — une jonction subsiste dans les worktrees :'
+        );
+        for (const l of ((r.stdout || '') + (r.stderr || '')).replace(/\s+$/, '').split('\n')) {
+            console.error('  ' + l);
+        }
+        console.error('  Ne contourne pas avec --no-verify : c est exactement le defaut qui a');
+        console.error('  vide `apps/*/node_modules` le 2026-08-16, et il ne se voit pas autrement.');
+        console.error('');
+        process.exit(1);
+    }
+    console.error('gardes du code : ' + (r.stdout || '').trim().split('\n')[0]);
+}
+
 // ── 3. Materialiser l INDEX, pas la copie de travail ─────────────────────────
 const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'gardes-au-commit-'));
 const jonctions = [];

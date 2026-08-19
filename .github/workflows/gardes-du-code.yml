@@ -204,6 +204,82 @@ jobs:
           }
           echo "OK : hors Windows, la recette refuse de se declarer conforme, et le dit."
 
+      - name: Les recettes des liens de worktree REFUSENT de se declarer conformes sur ubuntu
+        # MEME CONTRAINTE, MEME MOTIF que le pas precedent, pour les deux recettes ajoutees
+        # avec la garde « aucune jonction dans les worktrees » :
+        #   - outils/liens-worktrees.recette.mjs  (la garde qui CONSTATE et refuse)
+        #   - outils/creer-worktree.recette.mjs   (le confort qui pose des `mklink /D`)
+        #
+        # Leur objet est une jonction NTFS, qui n existe QUE sur Windows ; ce job tourne sur
+        # ubuntu-latest. Elles sont donc a un cheveu de passer au vert en ne testant RIEN —
+        # 0 cas joues, 0 echec, code 0 — soit exactement la forme d echec que ce depot
+        # traque : une incapacite qui rend la meme sortie qu un succes. Elles sortent en
+        # code 2 (« non jouee »), DISTINCT de 0 (conforme) et de 1 (echec), et ce pas
+        # verifie qu elles le font vraiment. Le jour ou quelqu un « simplifierait » cette
+        # sortie en code 0, la CI le dirait ici — et pas le jour ou un `git worktree remove`
+        # viderait `apps/*/node_modules`.
+        #
+        # La preuve reelle est LOCALE (machine Windows) : 9 cas verts pour chacune, dont la
+        # pose d une VRAIE jonction verifiee par `dir /AL` avant tout verdict. Cette limite
+        # est assumee et ecrite ; la CI ne la porte pas.
+        run: |
+          set +e
+          # PAS DE BOUCLE `for … in <liste>` ICI, ET CE N EST PAS UN DETAIL DE STYLE : un
+          # test d apps/web (`integration-continue.test.ts`) refuse toute liste de sujets
+          # ecrite en dur dans ce workflow — c est par une telle liste que `cascade-titres`
+          # etait reste dehors. Les deux recettes sont donc NOMMEES, un appel chacune, comme
+          # le pas precedent le fait pour la sienne. Cette regle a rougi sur ce pas pendant
+          # qu on l ecrivait : elle fonctionne.
+          verifier_non_jouee() {
+            sortie="$(node "$1" 2>&1)"
+            code=$?
+            echo "--- $1 (code $code)"
+            echo "$sortie"
+            if [ "$code" != "2" ]; then
+              echo "ROUGE : $1 — attendu le code 2 (non jouee) sur $(uname -s), obtenu $code"
+              return 1
+            fi
+            # `NON JOU` et pas `NON JOUÉE` : un accent qui traverse mal un encodage
+            # rendrait ce pas rouge pour une raison qui n a rien a voir avec la garde.
+            case "$sortie" in
+              *"NON JOU"*) return 0 ;;
+            esac
+            echo "ROUGE : $1 — code 2 rendu, mais la sortie ne DIT pas qu elle n a rien prouve"
+            return 1
+          }
+          echec=0
+          verifier_non_jouee outils/liens-worktrees.recette.mjs || echec=1
+          verifier_non_jouee outils/creer-worktree.recette.mjs || echec=1
+          [ "$echec" = 0 ] || exit 1
+          echo "OK : hors Windows, les deux recettes refusent de se declarer conformes, et le disent."
+
+      - name: La garde des liens de worktree se lance, et DIT qu elle ne juge rien ici
+        # La garde elle-meme n est pas une recette : sur ubuntu, « aucune jonction » est un
+        # fait VRAI (la jonction NTFS n y existe pas), pas une incapacite — elle rend donc 0.
+        # Ce pas verifie deux choses qu on perdrait sans lui : qu elle se lance sans erreur
+        # (une garde qui plante au demarrage ne garde rien), et qu elle ECRIT que le defaut
+        # ne peut pas se produire ici, au lieu de rendre le silence d un travail fait.
+        run: |
+          set +e
+          sortie="$(node outils/liens-worktrees.js 2>&1)"
+          code=$?
+          echo "$sortie"
+          if [ "$code" != "0" ]; then
+            echo "ROUGE : attendu 0 sur $(uname -s) (aucune jonction possible), obtenu $code"
+            exit 1
+          fi
+          # `NTFS` et pas « rien a juger » : le marqueur cherche est SANS ACCENT, pour la
+          # meme raison que le `NON JOU` du pas precedent — un accent qui traverse mal un
+          # encodage rendrait ce pas rouge pour une cause etrangere a la garde.
+          case "$sortie" in
+            *NTFS*) ;;
+            *)
+              echo "ROUGE : la garde rend 0 sans DIRE que le defaut ne peut pas se produire ici"
+              exit 1
+              ;;
+          esac
+          echo "OK : la garde se lance, rend 0, et dit pourquoi elle ne juge rien."
+
       - name: Aucun fichier de test n est absent du `npm test` de son application
         # Le `test` de package.json ENUMERE les fichiers. Un test ajoute dans
         # tests/ mais oublie dans cette liste ne tournerait NULLE PART — ni au

@@ -300,3 +300,142 @@ test('ce test regarde bien TOUTES les familles ecrites, et pas seulement les art
     assert.ok(cles.has(attendue), `aucune ecriture observee sur « ${attendue} » : le corpus ou le seed a change`);
   }
 });
+
+/**
+ * LE MEME TRAVAIL, MAIS SUR TOUS LES COMPOSANTS — PAS SEULEMENT `bloc/` (ajout du 2026-08-19).
+ *
+ * La garde ci-dessus lit `src/components/bloc/` et RIEN D AUTRE. Tout composant range
+ * ailleurs lui echappait, et c est exactement par la que `partage.seo` est passe : son
+ * `alternativePartage` a pu manquer au seed ET a `NATURE_SEO` sans qu une ligne rougisse,
+ * parce que le test qui ecoute les ecritures reelles ne voit pas un champ jamais ecrit, et
+ * que le test structurel ne regardait pas ce dossier. Le correctif du 2026-08-17 a ferme le
+ * trou POUR CE COMPOSANT, par un test dedie ; il ne l a pas ferme POUR LA CLASSE.
+ *
+ * Celui-ci descend depuis les SCHEMAS des content-types, jamais depuis la donnee — c est ce
+ * qui le rend insensible au fait que le corpus n exerce qu une partie des champs. Lire la
+ * donnee ici recreerait le trou qu on ferme.
+ *
+ * ⚠️ Il ne juge PAS l exhaustivite des attributs SCALAIRES d un content-type : `categorie:en`
+ * n ecrit legitimement ni `couleurAccent` ni `ordreAffichage`, qui ne sont pas localises.
+ * Un attribut de type `component`/`dynamiczone` sans nature sur une locale se lit de la meme
+ * facon (`auteur:en` n ecrit pas `reseaux`) — on ne le compte donc pas manquant, mais
+ * l assertion de visite en fin de test refuse qu un composant finisse SANS AUCUN chemin.
+ */
+const CONTENT_TYPES: Record<string, string> = {
+  'categorie:fr': 'categorie',
+  'categorie:en': 'categorie',
+  'tag:fr': 'tag',
+  'tag:en': 'tag',
+  'auteur:fr': 'auteur',
+  'auteur:en': 'auteur',
+  'dossier:fr': 'dossier',
+  'dossier:en': 'dossier',
+  configuration: 'configuration',
+  article: 'article',
+};
+
+test('CHAQUE attribut de CHAQUE composant du modele a une nature declaree — bloc/ ET tout le reste', () => {
+  const racineCms = path.join(ICI, '..');
+  const racineComposants = path.join(racineCms, 'src', 'components');
+
+  const lireComposant = (uid: string) => {
+    const [categorie, nom] = uid.split('.');
+    const chemin = path.join(racineComposants, categorie, `${nom}.json`);
+    return fs.existsSync(chemin) ? JSON.parse(fs.readFileSync(chemin, 'utf8')) : null;
+  };
+
+  /* Tous les composants du modele, DERIVES du disque — pas une liste tenue a la main, qui
+     divergerait le jour ou un dossier de composants apparait. */
+  const tousLesComposants = fs
+    .readdirSync(racineComposants, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .flatMap((d) =>
+      fs
+        .readdirSync(path.join(racineComposants, d.name))
+        .filter((f) => f.endsWith('.json'))
+        .map((f) => `${d.name}.${f.replace(/\.json$/, '')}`)
+    )
+    .sort();
+
+  /* Et tous les content-types, DERIVES du disque eux aussi : un content-type neuf que
+     `CONTENT_TYPES` ne rattache a aucune nature sortirait sinon du champ de ce test en
+     silence — le mode d echec que ce fichier existe pour fermer. */
+  const racineApi = path.join(racineCms, 'src', 'api');
+  const tousLesTypes = fs
+    .readdirSync(racineApi, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort();
+  assert.deepEqual(
+    [...new Set(Object.values(CONTENT_TYPES))].sort(),
+    tousLesTypes,
+    'CONTENT_TYPES doit couvrir EXACTEMENT les content-types du depot — sinon un modele neuf '
+      + 'n est confronte a aucune nature, sans que rien ne le dise.'
+  );
+
+  const manquants: string[] = [];
+  const vus = new Set<string>();
+
+  for (const [cle, natures] of Object.entries(NATURES)) {
+    const type = CONTENT_TYPES[cle];
+    assert.ok(type, `NATURES porte « ${cle} », que CONTENT_TYPES ne rattache a aucun content-type`);
+    const schema = JSON.parse(
+      fs.readFileSync(path.join(racineApi, type, 'content-types', type, 'schema.json'), 'utf8')
+    );
+
+    for (const [attribut, definition] of Object.entries<any>(schema.attributes ?? {})) {
+      const nature = (natures as Record<string, any>)[attribut];
+
+      if (definition?.type === 'dynamiczone') {
+        if (nature === undefined) continue; // cette locale n ecrit pas la zone
+        assert.ok(nature.zone, `« ${cle}.${attribut} » est une dynamic zone : sa nature doit porter \`zone\``);
+        for (const uid of definition.components ?? []) {
+          const naturesBloc = (nature.zone as Record<string, any>)[uid];
+          if (naturesBloc === undefined) {
+            manquants.push(`${cle}.${attribut}[${uid}]`);
+            continue;
+          }
+          const imbrique = lireComposant(uid);
+          assert.ok(imbrique, `le schema du composant « ${uid} », cite par ${cle}.${attribut}, est introuvable`);
+          vus.add(uid);
+          manquantsDe(naturesBloc, imbrique, uid, (u) => { vus.add(u); return lireComposant(u); }, manquants);
+        }
+        continue;
+      }
+
+      if (definition?.type === 'component') {
+        if (nature === undefined) continue; // cette locale n ecrit pas ce composant
+        assert.ok(
+          nature.repete,
+          `« ${cle}.${attribut} » est un composant : sa nature doit porter \`repete\` (`
+            + '`enTableau` enveloppe le cas unique de la meme facon)'
+        );
+        const imbrique = lireComposant(definition.component);
+        assert.ok(imbrique, `le schema du composant « ${definition.component} » est introuvable`);
+        vus.add(definition.component);
+        manquantsDe(nature.repete, imbrique, definition.component, (u) => { vus.add(u); return lireComposant(u); }, manquants);
+      }
+    }
+  }
+
+  /* Un meme composant est cite par plusieurs racines (`partage.seo` l est par cinq) : sans
+     ce dedoublonnage, un seul oubli sortirait cinq fois et la liste deviendrait illisible. */
+  assert.deepEqual(
+    [...new Set(manquants)].sort(),
+    [],
+    'ces attributs existent au schema d un composant et n ont aucune nature declaree. '
+      + 'Le corpus ne les porte peut-etre pas AUJOURD HUI ; le jour ou il les portera, '
+      + '`comparerCorps` les traitera en nature inconnue et REECRIRA toutes les entrees.'
+  );
+
+  /* PREUVE QUE LA DESCENTE A REELLEMENT COUVERT LE MODELE, et la seule chose qui separe
+     ce test de son ancetre : un composant qu aucun chemin de natures n atteint est NOMME,
+     au lieu d etre silencieusement hors garde. C est le statut qu avaient `partage.seo` et
+     `partage.lien-social` jusqu ici. */
+  assert.deepEqual(
+    [...vus].sort(),
+    tousLesComposants,
+    'un composant du modele n est atteint par AUCUN chemin de natures : il est hors garde, '
+      + 'exactement comme `partage.seo` l etait avant le 2026-08-19.'
+  );
+});

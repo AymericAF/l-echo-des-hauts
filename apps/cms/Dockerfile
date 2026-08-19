@@ -59,6 +59,27 @@ EXPOSE 1337
 # sur localhost, alors que le proxy, lui, l'atteint parfaitement.
 #
 # start-period a 90s : Strapi mettait ~40s a journaliser « started successfully ».
+#
+# ⚠️ CE QU'IL NE PROUVE PAS, ET QUI A COUTE UN BUILD DU SITE. Il teste qu'une connexion TCP
+# est acceptee : ni que le schema est charge, ni que la route REST le sert. Coolify attend
+# bien qu'il passe avant de marquer le deploiement « finished », mais le proxy route encore
+# l'ANCIEN conteneur jusqu'a la bascule — et c'est dans cette bascule que le build STATIQUE
+# du site tombe. Mesure du 2026-08-19 (tache `d0e0df3b`, commit c951b25, queues 529 et 530) :
+#
+#   08:03:07.68  CMS   Rolling update started.
+#   08:03:46.41  SITE  [attendre-schema] schema PRET a la premiere passe (aucune attente).
+#   08:03:49.67  CMS   « healthy »              <- 3,2 s APRES le vert de la sonde du site
+#   08:03:49.95  CMS   Removing old containers.
+#   08:03:50.11  SITE  npm run build : Strapi a repondu 502 sur /api/articles?… : Bad Gateway
+#   08:03:52.64  CMS   Rolling update completed.
+#
+# DEUX CONSEQUENCES pour qui touche a ces lignes :
+#   1. la sonde du site (`apps/web/scripts/attendre-schema.mjs`) a valide AVANT que le
+#      conteneur neuf ne soit sain : elle a donc interroge l'ANCIEN. Un `200` de sa part ne
+#      dit rien de la version servie tant que ce conteneur ne DIT pas laquelle il porte ;
+#   2. ce qui traverse la fenetre vit cote site, dans `apps/web/src/lib/strapi/client.ts`
+#      (reprises sur 502/503/504). Allonger le `start-period` ICI ne la fermerait PAS : elle
+#      s'ouvre au moment de la bascule, pas avant.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
   CMD node -e "require('net').connect(1337,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
 CMD ["npm", "run", "start"]

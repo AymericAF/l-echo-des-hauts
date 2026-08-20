@@ -1,24 +1,24 @@
 {
   "identite/logo.svg": {
-    "alternativeText": "L'Echo des Hauts, magazine du plateau",
+    "alternativeText": "L'Écho des Hauts, magazine du plateau",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Logotype du magazine, sur fond clair"
   },
   "identite/logo-sombre.svg": {
-    "alternativeText": "L'Echo des Hauts, magazine du plateau",
+    "alternativeText": "L'Écho des Hauts, magazine du plateau",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Logotype du magazine, sur fond sombre"
   },
   "identite/favicon.svg": {
-    "alternativeText": "Monogramme E de L'Echo des Hauts",
+    "alternativeText": "Monogramme E de L'Écho des Hauts",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Favicon du site"
   },
   "identite/partage-defaut.png": {
-    "alternativeText": "Carte de partage par defaut de L'Echo des Hauts",
+    "alternativeText": "Carte de partage par défaut de L'Écho des Hauts",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Carte de partage servie aux pages sans article (accueil, rubriques, auteurs, dossiers). PNG 1200x630 et non SVG : Facebook, LinkedIn et X ignorent le SVG, la page n a alors AUCUNE image de partage"
@@ -36,13 +36,13 @@
     "note": "Portrait graphique genere ; aucune personne reelle n'est representee"
   },
   "auteurs/noelle-vasseur.svg": {
-    "alternativeText": "Monogramme NV, portrait graphique de Noelle Vasseur",
+    "alternativeText": "Monogramme NV, portrait graphique de Noëlle Vasseur",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Portrait graphique genere ; aucune personne reelle n'est representee"
   },
   "auteurs/theo-brissac.svg": {
-    "alternativeText": "Monogramme TB, portrait graphique de Theo Brissac",
+    "alternativeText": "Monogramme TB, portrait graphique de Théo Brissac",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Portrait graphique genere ; aucune personne reelle n'est representee"
@@ -54,7 +54,7 @@
     "note": "Portrait graphique genere ; aucune personne reelle n'est representee"
   },
   "couvertures/A01.svg": {
-    "alternativeText": "Le col des Trois-Vents en courbes de niveau vertes : le dessin ne porte que le relief, sans aucun mat figure",
+    "alternativeText": "Le col des Trois-Vents en courbes de niveau vertes : le dessin ne porte que le relief, sans aucun mât figuré",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le releve est invente"
@@ -66,7 +66,7 @@
     "note": "Trace genere a graine fixe ; le releve est invente — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A05.svg": {
-    "alternativeText": "Le bassin versant de l'Ambre en courbes de niveau vertes : le dessin ne porte que le relief, sans aucun perimetre trace",
+    "alternativeText": "Le bassin versant de l'Ambre en courbes de niveau vertes : le dessin ne porte que le relief, sans aucun périmètre tracé",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le bassin est invente"
@@ -90,7 +90,7 @@
     "note": "Composition typographique, filet d'accent de la rubrique Vies d'ici — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A16.svg": {
-    "alternativeText": "Le cout du cahier des charges AOP rapporte a la prime au kilo, valeur par valeur",
+    "alternativeText": "Le coût du cahier des charges AOP rapporté à la prime au kilo, valeur par valeur",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
@@ -102,7 +102,7 @@
     "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A18.svg": {
-    "alternativeText": "Des niveaux de salaire en euros constants : quatorze barres sans libelle, de la plus pale a la plus dense",
+    "alternativeText": "Des niveaux de salaire en euros constants : quatorze barres sans libellé, de la plus pâle à la plus dense",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
@@ -114,7 +114,7 @@
     "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A23.svg": {
-    "alternativeText": "L'heure 17 h 40 en tres grand corps, sur fond creme",
+    "alternativeText": "L'heure 17 h 40 en très grand corps, sur fond crème",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Composition typographique, filet d'accent de la rubrique Culture et patrimoine"
@@ -126,7 +126,7 @@
     "note": "Composition typographique, filet d'accent de la rubrique Culture et patrimoine — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A29.svg": {
-    "alternativeText": "Le remplissage estival du lac de la Fauge, de 1976 a 2026",
+    "alternativeText": "Le remplissage estival du lac de la Fauge, de 1976 à 2026",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
@@ -138,7 +138,7 @@
     "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "couvertures/A35.svg": {
-    "alternativeText": "La repartition des depenses du budget 2027 de la communaute des Hauts, poste par poste",
+    "alternativeText": "La répartition des dépenses du budget 2027 de la communauté des Hauts, poste par poste",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
@@ -156,73 +156,73 @@
     "note": "Composition typographique, filet d'accent de la rubrique Vies d'ici"
   },
   "couvertures/A17.svg": {
-    "alternativeText": "Les jours d'ouverture de Monteclair 1450, saison apres saison depuis 1990-1991 : la derniere saison en compte un peu plus du quart de la premiere",
+    "alternativeText": "Les jours d'ouverture de Monteclair 1450, saison après saison depuis 1990-1991 : la dernière saison en compte un peu plus du quart de la première",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
   "couvertures/A24.svg": {
-    "alternativeText": "Fac-simile de la chronologie contentieuse du chantier de l'eglise de Chastel-Ambre",
+    "alternativeText": "Fac-similé de la chronologie contentieuse du chantier de l'église de Chastel-Ambre",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "couvertures/A30.svg": {
-    "alternativeText": "Les peuplements d'epicea de la Sylve-Noire : 300 hectares scolytes sur 2 900",
+    "alternativeText": "Les peuplements d'épicéa de la Sylve-Noire : 300 hectares scolytés sur 2 900",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; la geometrie est inventee"
   },
   "couvertures/A36.svg": {
-    "alternativeText": "Fac-simile d'un extrait de la deliberation du 24 avril 2026 sur la coupure nocturne",
+    "alternativeText": "Fac-similé d'un extrait de la délibération du 24 avril 2026 sur la coupure nocturne",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "couvertures/A02.svg": {
-    "alternativeText": "Fac-simile de l'annexe 4 du reglement de zonage du PLUi, repartition commune par commune",
+    "alternativeText": "Fac-similé de l'annexe 4 du règlement de zonage du PLUi, répartition commune par commune",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "couvertures/A06.svg": {
-    "alternativeText": "Plan parcellaire de la friche de la filature, avec les emprises superposees des trois permis",
+    "alternativeText": "Plan parcellaire de la friche de la filature, avec les emprises superposées des trois permis",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le parcellaire est invente"
   },
   "couvertures/A14.svg": {
-    "alternativeText": "Coupe du versant de Pierrefeuille, de l'emergence captee jusqu'a la maison desservie",
+    "alternativeText": "Coupe du versant de Pierrefeuille, de l'émergence captée jusqu'à la maison desservie",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le versant est invente"
   },
   "couvertures/A19.svg": {
-    "alternativeText": "La marge nette de l'irrigation, exploitation par exploitation : sur les sept, trois passent au-dessus de zero dont une seule nettement, et quatre restent en dessous",
+    "alternativeText": "La marge nette de l'irrigation, exploitation par exploitation : sur les sept, trois passent au-dessus de zéro dont une seule nettement, et quatre restent en dessous",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
   "couvertures/A21.svg": {
-    "alternativeText": "Les candidatures recues mois par mois sur quatorze mois : cinq mois n'en ont recu aucune",
+    "alternativeText": "Les candidatures reçues mois par mois sur quatorze mois : cinq mois n'en ont reçu aucune",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
   "couvertures/A33.svg": {
-    "alternativeText": "L'ecart annuel a la moyenne de la decennie 1996-2005 au col des Trois-Vents : l'ecart se creuse d'annee en annee, la derniere valant plus de sept fois la premiere",
+    "alternativeText": "L'écart annuel à la moyenne de la décennie 1996-2005 au col des Trois-Vents : l'écart se creuse d'année en année, la dernière valant plus de sept fois la première",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
   "couvertures/A37.svg": {
-    "alternativeText": "Fac-simile de l'ordre du jour du conseil du 24 septembre 2026, point 9",
+    "alternativeText": "Fac-similé de l'ordre du jour du conseil du 24 septembre 2026, point 9",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "blocs/A01-poste-source.svg": {
-    "alternativeText": "Fac-simile d'un extrait de dossier de raccordement, capacite residuelle du poste source",
+    "alternativeText": "Fac-similé d'un extrait de dossier de raccordement, capacité résiduelle du poste source",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
@@ -234,7 +234,7 @@
     "note": "Document entierement reconstitue pour la demonstration — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A09-etable.svg": {
-    "alternativeText": "Fac-simile d'un plan d'etable, ferme des Sagnes",
+    "alternativeText": "Fac-similé d'un plan d'étable, ferme des Sagnes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
@@ -246,7 +246,7 @@
     "note": "Document entierement reconstitue pour la demonstration — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A23-registre.svg": {
-    "alternativeText": "Fac-simile d'une page de registre d'atelier de juin 1983",
+    "alternativeText": "Fac-similé d'une page de registre d'atelier de juin 1983",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
@@ -258,7 +258,7 @@
     "note": "Document entierement reconstitue pour la demonstration — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A29-regle-exploitation.svg": {
-    "alternativeText": "Fac-simile d'un extrait de la regle d'exploitation du barrage de la Fauge",
+    "alternativeText": "Fac-similé d'un extrait de la règle d'exploitation du barrage de la Fauge",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
@@ -270,7 +270,7 @@
     "note": "Document entierement reconstitue pour la demonstration — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A29-cote-retenue.svg": {
-    "alternativeText": "La cote de la retenue de la Fauge au fil de l'ete 2025 : la serie finit sur ses valeurs les plus basses",
+    "alternativeText": "La cote de la retenue de la Fauge au fil de l'été 2025 : la série finit sur ses valeurs les plus basses",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
@@ -282,7 +282,7 @@
     "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A35-dette.svg": {
-    "alternativeText": "La dette par habitant de la communaute des Hauts, de 2019 a 2027",
+    "alternativeText": "La dette par habitant de la communauté des Hauts, de 2019 à 2027",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
@@ -294,43 +294,43 @@
     "note": "Serie generee a graine fixe ; les valeurs sont inventees — version anglaise : seuls les <text> different du fichier francais"
   },
   "blocs/A11-dossier.svg": {
-    "alternativeText": "Fac-simile d'un dossier de reconnaissance de maladie professionnelle, formulaire et pieces jointes",
+    "alternativeText": "Fac-similé d'un dossier de reconnaissance de maladie professionnelle, formulaire et pièces jointes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "blocs/A17-compte.svg": {
-    "alternativeText": "Fac-simile du compte d'exploitation 2025-2026 de la station de Monteclair 1450",
+    "alternativeText": "Fac-similé du compte d'exploitation 2025-2026 de la station de Monteclair 1450",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "blocs/A24-surcout.svg": {
-    "alternativeText": "Le surcout impute au chantier grossit avec chaque annee de retard : la derniere annee pese trois fois et demie la premiere",
+    "alternativeText": "Le surcoût imputé au chantier grossit avec chaque année de retard : la dernière année pèse trois fois et demie la première",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
   "blocs/A06-sondages.svg": {
-    "alternativeText": "Plan de la parcelle AB 214 situant les six sondages de 2009 et les trois zones a risque non sondees",
+    "alternativeText": "Plan de la parcelle AB 214 situant les six sondages de 2009 et les trois zones à risque non sondées",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace genere a graine fixe ; le parcellaire est invente"
   },
   "blocs/A14-debit.svg": {
-    "alternativeText": "Le debit de la source de Pierrefeuille mois par mois en 2025 : il culmine au printemps, tombe a moins du quart en aout, puis remonte a l'automne",
+    "alternativeText": "Le débit de la source de Pierrefeuille mois par mois en 2025 : il culmine au printemps, tombe à moins du quart en août, puis remonte à l'automne",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
   "blocs/A33-carnet.svg": {
-    "alternativeText": "Fac-simile d'une double page du carnet de releves du col des Trois-Vents",
+    "alternativeText": "Fac-similé d'une double page du carnet de relevés du col des Trois-Vents",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "blocs/A37-couts.svg": {
-    "alternativeText": "Le cout cumule des trois options soumises au vote, sur huit ans : la premiere reste plate, la deuxieme monte doucement, la troisieme s'envole et finit la plus chere",
+    "alternativeText": "Le coût cumulé des trois options soumises au vote, sur huit ans : la première reste plate, la deuxième monte doucement, la troisième s'envole et finit la plus chère",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
@@ -496,7 +496,7 @@
     "note": "Composition typographique, filet d'accent de la rubrique Vies d'ici"
   },
   "couvertures/A22.svg": {
-    "alternativeText": "Le nombre d'exposants du marche du jeudi, releve le premier jeudi de juillet : il double entre 2021 et 2026",
+    "alternativeText": "Le nombre d'exposants du marché du jeudi, relevé le premier jeudi de juillet : il double entre 2021 et 2026",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie relevee le premier jeudi de juillet ; les valeurs sont inventees"
@@ -508,79 +508,79 @@
     "note": "Composition typographique, filet d'accent de la rubrique Grand air"
   },
   "couvertures/A25.svg": {
-    "alternativeText": "Le viaduc de l'Ambre, 1913, sept arches sur 214 metres : la limite communale le coupe en deux, quatre arches a Chastel-Ambre et trois a La Rive-Haute",
+    "alternativeText": "Le viaduc de l'Ambre, 1913, sept arches sur 214 mètres : la limite communale le coupe en deux, quatre arches à Chastel-Ambre et trois à La Rive-Haute",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Dessin original ; ouvrage et geometrie inventes"
   },
   "couvertures/A28.svg": {
-    "alternativeText": "Fac-simile d'un registre d'embauche de la mine d'antimoine de Combe-Roussel, cinq colonnes",
+    "alternativeText": "Fac-similé d'un registre d'embauche de la mine d'antimoine de Combe-Roussel, cinq colonnes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "couvertures/A31.svg": {
-    "alternativeText": "La nuit du 12 avril 2026 sur deux parcelles voisines — un lot de 120 brebis sur 22 hectares, un lot de 95 — avec onze points de decouverte et deux constats",
+    "alternativeText": "La nuit du 12 avril 2026 sur deux parcelles voisines — un lot de 120 brebis sur 22 hectares, un lot de 95 — avec onze points de découverte et deux constats",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Geometrie inventee, generee a graine fixe ; aucun lieu reel"
   },
   "couvertures/A38.svg": {
-    "alternativeText": "Fac-simile d'un tableau d'effectifs scolaires sur quatre rentrees, quatre colonnes",
+    "alternativeText": "Fac-similé d'un tableau d'effectifs scolaires sur quatre rentrées, quatre colonnes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "blocs/A22-emplacements.svg": {
-    "alternativeText": "Les 41 emplacements du marche en juillet 2026 : 26 etals place de l'Eglise, 15 en bas de la rue Basse devant neuf vitrines a desservir, et 23 metres encore libres",
+    "alternativeText": "Les 41 emplacements du marché en juillet 2026 : 26 étals place de l'Église, 15 en bas de la rue Basse devant neuf vitrines à desservir, et 23 mètres encore libres",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Plan invente, dessine pour la demonstration"
   },
   "blocs/A25-inspection.svg": {
-    "alternativeText": "Fac-simile d'un proces-verbal d'inspection detaillee d'ouvrage d'art, cotation des six piles",
+    "alternativeText": "Fac-similé d'un procès-verbal d'inspection détaillée d'ouvrage d'art, cotation des six piles",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "blocs/A28-fonds.svg": {
-    "alternativeText": "Les 62 cartons du fonds par nature de pieces : 19 de comptabilite, 14 de listes nominatives, 9 de medical dont 41 dossiers, 7 de plans techniques, 7 en vrac dont deux cartons humides et 6 de correspondance",
+    "alternativeText": "Les 62 cartons du fonds par nature de pièces : 19 de comptabilité, 14 de listes nominatives, 9 de médical dont 41 dossiers, 7 de plans techniques, 7 en vrac dont deux cartons humides et 6 de correspondance",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie generee a graine fixe ; les valeurs sont inventees"
   },
   "couvertures/A03.svg": {
-    "alternativeText": "Plan de voirie invente du centre de Val-d'Ambre, trois axes modifies flechees en vert et un tourne-a-gauche barre",
+    "alternativeText": "Plan de voirie inventé du centre de Val-d'Ambre, trois axes modifiés fléchées en vert et un tourne-à-gauche barré",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace invente ; aucune voirie reelle n'est representee"
   },
   "couvertures/A04.svg": {
-    "alternativeText": "Le raccordement a la fibre commune par commune : onze communes portent une date entre 2020 et 2027, trois n'en portent aucune",
+    "alternativeText": "Le raccordement à la fibre commune par commune : onze communes portent une date entre 2020 et 2027, trois n'en portent aucune",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Calendrier reconstitue pour la demonstration"
   },
   "couvertures/A07.svg": {
-    "alternativeText": "Les quatorze communes classees par part de residences secondaires : la derniere en porte quatre fois plus que la premiere, pour une moyenne de 24 % sur le plateau — 2 380 logements sur 9 900",
+    "alternativeText": "Les quatorze communes classées par part de résidences secondaires : la dernière en porte quatre fois plus que la première, pour une moyenne de 24 % sur le plateau — 2 380 logements sur 9 900",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie inventee ; la moyenne de 24 % est celle du plateau"
   },
   "couvertures/A08.svg": {
-    "alternativeText": "Les voyages mensuels du car express de septembre 2024 a fevrier 2026 : la saison 2025-2026 totalise 128 000 voyages",
+    "alternativeText": "Les voyages mensuels du car express de septembre 2024 à février 2026 : la saison 2025-2026 totalise 128 000 voyages",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Serie inventee ; le total de 128 000 voyages est celui de la saison 2025-2026"
   },
   "couvertures/A10.svg": {
-    "alternativeText": "Verbatim en grand corps : onze kilometres, deux cent quatorze boites",
+    "alternativeText": "Verbatim en grand corps : onze kilomètres, deux cent quatorze boîtes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Composition typographique, filet d'accent de la rubrique Vies d'ici"
   },
   "couvertures/A12.svg": {
-    "alternativeText": "La semaine du medecin de Monteclair, jour par jour : cinq journees de meme amplitude et un samedi quatre fois plus court — 61 h 30 en tout, 148 consultations, 412 kilometres",
+    "alternativeText": "La semaine du médecin de Monteclair, jour par jour : cinq journées de même amplitude et un samedi quatre fois plus court — 61 h 30 en tout, 148 consultations, 412 kilomètres",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Releve d'une semaine, du 16 au 21 fevrier 2026"
@@ -592,85 +592,85 @@
     "note": "Composition typographique, filet d'accent de la rubrique Vies d'ici"
   },
   "couvertures/A20.svg": {
-    "alternativeText": "Les dix locaux de la rue Basse, releves vitrine par vitrine : le cinquieme depuis le pont est le plus grand — 214 m2 — et c'est celui qui est vide",
+    "alternativeText": "Les dix locaux de la rue Basse, relevés vitrine par vitrine : le cinquième depuis le pont est le plus grand — 214 m2 — et c'est celui qui est vide",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Elevation schematique dessinee pour la demonstration"
   },
   "couvertures/A26.svg": {
-    "alternativeText": "La part des compagnies du plateau dans la programmation du festival, de 2007 a 2026 : onze spectacles sur quatorze au depart, deux sur vingt-quatre a l'arrivee",
+    "alternativeText": "La part des compagnies du plateau dans la programmation du festival, de 2007 à 2026 : onze spectacles sur quatorze au départ, deux sur vingt-quatre à l'arrivée",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Depouillement des vingt affiches, valeurs inventees"
   },
   "couvertures/A27.svg": {
-    "alternativeText": "La tournee du cinema itinerant : neuf salles des fetes reliees en boucle, quarante-deux seances",
+    "alternativeText": "La tournée du cinéma itinérant : neuf salles des fêtes reliées en boucle, quarante-deux séances",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Geometrie inventee ; aucun trace reel n'est represente"
   },
   "couvertures/A32.svg": {
-    "alternativeText": "Les 7,4 kilometres du sentier des Echarmes, 640 metres de denivele cumule : le gue du kilometre 2,9 est le seul passage, et la passerelle n'y est plus",
+    "alternativeText": "Les 7,4 kilomètres du sentier des Écharmes, 640 mètres de dénivelé cumulé : le gué du kilomètre 2,9 est le seul passage, et la passerelle n'y est plus",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Profil dessine ; le releve d'altitude est invente"
   },
   "couvertures/A39.svg": {
-    "alternativeText": "Fac-simile d'un extrait de compte administratif du centre de sante, huit lignes et un reste a charge",
+    "alternativeText": "Fac-similé d'un extrait de compte administratif du centre de santé, huit lignes et un reste à charge",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Document entierement reconstitue pour la demonstration"
   },
   "couvertures/A40.svg": {
-    "alternativeText": "Le questionnaire aux quatorze maires, question par question : onze ont repondu aux huit questions, trois n'ont rien renvoye",
+    "alternativeText": "Le questionnaire aux quatorze maires, question par question : onze ont répondu aux huit questions, trois n'ont rien renvoyé",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Grille reconstitue graphiquement pour la demonstration"
   },
   "blocs/A03-comptage.svg": {
-    "alternativeText": "Le tourne-a-gauche du pont vers la rue Basse, un mardi de mars, heure par heure : deux pointes, l'une vers dix heures et l'autre vers dix-huit heures — 1 260 vehicules dans la journee, 30 % du trafic du pont",
+    "alternativeText": "Le tourne-à-gauche du pont vers la rue Basse, un mardi de mars, heure par heure : deux pointes, l'une vers dix heures et l'autre vers dix-huit heures — 1 260 véhicules dans la journée, 30 % du trafic du pont",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Comptage invente, dessine pour la demonstration"
   },
   "blocs/A10-tournee.svg": {
-    "alternativeText": "La tournee a pied, onze kilometres et deux cent quatorze boites : douze foyers, marques d'un cercle ouvert, sont ceux ou le courrier entre dans la maison",
+    "alternativeText": "La tournée à pied, onze kilomètres et deux cent quatorze boîtes : douze foyers, marqués d'un cercle ouvert, sont ceux où le courrier entre dans la maison",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Trace invente ; le decompte des boites est celui de la tournee"
   },
   "blocs/A15-compte.svg": {
-    "alternativeText": "Treize semaines d'epicerie, du 6 octobre au 4 janvier : 66 300 euros de chiffre d'affaires, 48 800 d'achats et 5 050 de charges — il reste 12 450 euros pour deux personnes et 1 170 heures, soit dix euros soixante-quatre de l'heure",
+    "alternativeText": "Treize semaines d'épicerie, du 6 octobre au 4 janvier : 66 300 euros de chiffre d'affaires, 48 800 d'achats et 5 050 de charges — il reste 12 450 euros pour deux personnes et 1 170 heures, soit dix euros soixante-quatre de l'heure",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Compte communique par les gerants, redessine"
   },
   "blocs/A20-rue-basse.svg": {
-    "alternativeText": "Les dix locaux de la rue Basse, surface et duree d'occupation depuis 2010 : le cinquieme est le plus grand et le seul sans aucune duree d'occupation — vide depuis sept ans, quand les neuf autres sont ouverts",
+    "alternativeText": "Les dix locaux de la rue Basse, surface et durée d'occupation depuis 2010 : le cinquième est le plus grand et le seul sans aucune durée d'occupation — vide depuis sept ans, quand les neuf autres sont ouverts",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Releve de terrain du 12 mars 2026, redessine"
   },
   "blocs/A26-affiches.svg": {
-    "alternativeText": "Vingt editions du festival, spectacle par spectacle : les compagnies du plateau, en carres pleins, passent de onze sur quatorze en 2007 a deux sur vingt-quatre en 2026, pendant que la programmation s'etoffe",
+    "alternativeText": "Vingt éditions du festival, spectacle par spectacle : les compagnies du plateau, en carrés pleins, passent de onze sur quatorze en 2007 à deux sur vingt-quatre en 2026, pendant que la programmation s'étoffe",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Depouillement des vingt programmes, redessine"
   },
   "blocs/A32-gue.svg": {
-    "alternativeText": "Le gue du ruisseau de la Fauge en coupe : l'eau y monte a 4 cm 214 jours par an, a 12 cm 110 jours et a 22 cm 41 jours ; les culees de la passerelle emportee sont distantes de douze metres",
+    "alternativeText": "Le gué du ruisseau de la Fauge en coupe : l'eau y monte à 4 cm 214 jours par an, à 12 cm 110 jours et à 22 cm 41 jours ; les culées de la passerelle emportée sont distantes de douze mètres",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Profil dessine ; les hauteurs proviennent d'une serie inventee"
   },
   "blocs/A39-occupation.svg": {
-    "alternativeText": "Les trois cabinets du centre de sante, semaine par semaine sur un an : le generaliste occupe le sien presque toutes les semaines, la sage-femme bien moins, et le troisieme est reste vacant — 47 heures occupees sur 135 possibles, soit 35 %",
+    "alternativeText": "Les trois cabinets du centre de santé, semaine par semaine sur un an : le généraliste occupe le sien presque toutes les semaines, la sage-femme bien moins, et le troisième est resté vacant — 47 heures occupées sur 135 possibles, soit 35 %",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Releve du planning du centre de sante, redessine"
   },
   "heros/rubrique-territoire.svg": {
-    "alternativeText": "Bandeau de courbes de niveau du plateau, traversees par cinq emprises parcellaires au trace vert",
+    "alternativeText": "Bandeau de courbes de niveau du plateau, traversées par cinq emprises parcellaires au tracé vert",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B2 ; geometrie generee a graine fixe, aucun fond de plan reel"
@@ -682,7 +682,7 @@
     "note": "Gabarit B2 ; geometrie generee a graine fixe, aucun fond de plan reel — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/rubrique-vies-d-ici.svg": {
-    "alternativeText": "Bandeau de courbes de terrain rouges, semees de cinq enclos qui figurent des hameaux",
+    "alternativeText": "Bandeau de courbes de terrain rouges, semées de cinq enclos qui figurent des hameaux",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B2 ; geometrie generee a graine fixe"
@@ -694,7 +694,7 @@
     "note": "Gabarit B2 ; geometrie generee a graine fixe — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/rubrique-economie-locale.svg": {
-    "alternativeText": "Bandeau de fac-simile d'un tableau comptable a quatre colonnes et cinq lignes chiffrees",
+    "alternativeText": "Bandeau de fac-similé d’un tableau comptable à quatre colonnes et cinq lignes chiffrées",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue, aucun scan"
@@ -706,7 +706,7 @@
     "note": "Gabarit B4 ; document entierement reconstitue, aucun scan — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/rubrique-culture-patrimoine.svg": {
-    "alternativeText": "Bandeau de fac-simile d'une fiche d'inventaire a trois colonnes, cinq entrees renseignees",
+    "alternativeText": "Bandeau de fac-similé d'une fiche d'inventaire à trois colonnes, cinq entrées renseignées",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue"
@@ -718,7 +718,7 @@
     "note": "Gabarit B4 ; document entierement reconstitue — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/rubrique-grand-air.svg": {
-    "alternativeText": "Bandeau de courbes de niveau bleues d'un bassin versant, avec cinq perimetres releves",
+    "alternativeText": "Bandeau de courbes de niveau bleues d'un bassin versant, avec cinq périmètres relevés",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B2 ; geometrie generee a graine fixe"
@@ -730,7 +730,7 @@
     "note": "Gabarit B2 ; geometrie generee a graine fixe — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/rubrique-la-vie-publique.svg": {
-    "alternativeText": "Bandeau de fac-simile d'un extrait de deliberation a cinq colonnes de vote",
+    "alternativeText": "Bandeau de fac-similé d'un extrait de délibération à cinq colonnes de vote",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue"
@@ -742,7 +742,7 @@
     "note": "Gabarit B4 ; document entierement reconstitue — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/dossier-l-eau-du-plateau.svg": {
-    "alternativeText": "Bandeau d'une courbe de debit en aire bleue, du captage a la coupure, cinq points releves",
+    "alternativeText": "Bandeau d'une courbe de débit en aire bleue, du captage à la coupure, cinq points relevés",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B1 ; serie inventee, tracee a graine fixe"
@@ -754,7 +754,7 @@
     "note": "Gabarit B1 ; serie inventee, tracee a graine fixe — version anglaise : seuls les <text> different du fichier francais"
   },
   "heros/dossier-ce-qui-reste-de-la-filature.svg": {
-    "alternativeText": "Bandeau de fac-simile d'une page de registre d'atelier a six colonnes",
+    "alternativeText": "Bandeau de fac-similé d'une page de registre d'atelier à six colonnes",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Gabarit B4 ; document entierement reconstitue"
@@ -766,7 +766,7 @@
     "note": "Gabarit B4 ; document entierement reconstitue — version anglaise : seuls les <text> different du fichier francais"
   },
   "partage/A01-col-des-trois-vents.png": {
-    "alternativeText": "Carte de partage de A01 : six eoliennes sur la crete du col, la capacite residuelle de 8,4 MW en barre pleine sous les 19,8 MW demandes en barre evidee",
+    "alternativeText": "Carte de partage de A01 : six éoliennes sur la crête du col, la capacité résiduelle de 8,4 MW en barre pleine sous les 19,8 MW demandés en barre évidée",
     "ayantDroit": "Œuvre du projet",
     "licence": "CC0 1.0",
     "note": "Carte de partage SURCHARGEE par la redaction sur A01 (seo.imagePartage), fr et en. Elle existe pour rendre la surcharge VISIBLE au partage reel : fond encre, quand la carte generee au build est creme a titre serif noir — les deux ne se confondent pas d'un coup d'oeil. PNG 1200x630 et non SVG, comme la carte par defaut : Facebook, LinkedIn et X ignorent le SVG. UN SEUL fichier pour les deux locales, la ou les 22 visuels de texte ont chacun leur version anglaise : aucune PHRASE n'y est gravee — deux noms propres, deux nombres, une unite"

@@ -192,10 +192,14 @@ test('les dix-neuf annoncent un DOCUMENT, et le corpus les designe comme la piec
        la legende ne remplace pas l image, elle la DESIGNE comme la preuve. */
     /* « Facsimile » sans tiret est la forme ANGLAISE, entree le 2026-08-14 avec les
        fichiers `.en.svg` : la regle est la meme des deux cotes — l alternative annonce un
-       document —, seule sa graphie change. */
+       document —, seule sa graphie change. Le `[eé]` final est la TROISIEME graphie, entree
+       avec l accentuation des alternatives FRANCAISES : « fac-simile » nu n est pas un mot
+       francais, une synthese vocale ne le prononce pas comme « fac-similé », et
+       `accents-du-manifeste.test.ts` le refuse desormais. Ce motif juge le DOCUMENT annonce,
+       jamais l orthographe — l elargir ici ne desarme rien, l autre garde tient l accent. */
     assert.match(
       meta[cle].alternativeText,
-      /^Fac-?simile/i,
+      /^Fac-?simil[eé]/i,
       `${cle} : l alternative n annonce plus un document`,
     );
     assert.ok(corpus.includes(cle), `${cle} n est reference par aucun article`);

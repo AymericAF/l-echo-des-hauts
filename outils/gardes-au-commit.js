@@ -134,6 +134,11 @@ const LECTURES = {
     'apps/cms/tests/seed-corpus.test.ts': ['apps/cms/data/'],
     'apps/cms/tests/seed-idempotence.test.ts': ['apps/cms/data/'],
     'apps/cms/tests/garde-medias-corpus-reel.test.ts': ['apps/cms/data/'],
+    // Il lit le manifeste PAR CHEMIN, sans passer par `chargerCorpus` : le graphe
+    // d'imports ne voit donc rien. Sans cette ligne, desaccentuer une alternative
+    // francaise ne declencherait AUCUN test au commit — c'est-a-dire le trou meme
+    // que cette garde ferme, sur le seul champ que la synthese vocale prononce.
+    'apps/cms/tests/accents-du-manifeste.test.ts': ['apps/cms/data/medias/manifeste.json'],
     'apps/cms/tests/repartition-6-4.test.ts': ['apps/cms/data/'],
     // `CREDITS.md` est PRODUIT depuis le corpus (plan editorial §6.7). Les deux
     // sens comptent : toucher le corpus doit rejouer la comparaison, et toucher

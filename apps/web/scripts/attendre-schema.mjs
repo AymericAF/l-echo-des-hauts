@@ -111,6 +111,7 @@ import { setTimeout as dormir } from 'node:timers/promises';
 
 import { ISSUES } from './issues.mjs';
 import { lireConfiguration } from '../src/lib/strapi/client.ts';
+import { EN_TETE_EMPREINTE, lireEmpreinte } from '../src/lib/strapi/empreintes.ts';
 import { LOCALES_SITE } from '../src/lib/routes/registre.ts';
 import { REQUETES, construireUrl } from '../src/lib/strapi/requete.ts';
 
@@ -133,28 +134,26 @@ export const INTERVALLE_PAR_DEFAUT_MS = 5 * 1000;
 export const DELAI_REQUETE_MS = 15 * 1000;
 
 /**
- * L EN-TETE PAR LEQUEL LE CONTENEUR DIT SA VERSION — recopie d
- * `apps/cms/src/middlewares/empreinte-commit.ts` (recopie assumee, cf. l en-tete de ce fichier).
- */
-export const EN_TETE_EMPREINTE = 'X-Echo-Commit';
-
-/**
- * L empreinte servie par la reponse, ou `null` quand il n y en a pas.
+ * L EN-TETE PAR LEQUEL LE CONTENEUR DIT SA VERSION, ET SA LECTURE.
  *
- * `headers.get` est INSENSIBLE A LA CASSE (RFC 9110) : un proxy peut renormaliser le nom, et un
- * acces direct a une cle en dur rendrait `null` sur un proxy poli — un silence qui se lirait
- * exactement comme « le CMS ne dit pas sa version ».
+ * ⚠️ ILS NE SONT PLUS DEFINIS ICI (2026-08-20, tache `298d4c27`). Le nom de l en-tete etait
+ * recopie d `apps/cms/src/middlewares/empreinte-commit.ts` ; la garde de bascule du build
+ * (`src/lib/strapi/client.ts`) en aurait fait une TROISIEME copie, et la premiere oubliee aurait
+ * diverge en silence — une garde qui se tait sans que rien ne rougisse. Le domicile unique pour
+ * `apps/web` est `src/lib/strapi/empreintes.ts`, et `tests/garde-empreintes.test.ts` (cas 6)
+ * rougit si une seconde copie de la chaine litterale reapparait sous `src/`, `scripts/` ou
+ * `integrations/`. La copie d `apps/cms` reste dehors : autre espace de travail npm, aucun chemin
+ * d import entre les deux.
  *
- * Une valeur VIDE est ramenee a `null`, et ce n est pas de la coquetterie : deux conteneurs qui
- * ignorent leur version rendraient la MEME chaine vide, et toute comparaison les declarerait
- * egaux — un vert fabrique a partir de deux ignorances.
+ * Ils sont IMPORTES en tete de ce fichier puis RE-EXPORTES tels quels : ce module reste leur porte
+ * d entree pour la sonde et pour ses bancs, et le comportement ne change pas d un caractere.
+ *
+ * ⚠️ IMPORTER *ET* RE-EXPORTER, jamais `export … from` seul. Un `export … from` ne LIE PAS le nom
+ * dans la portee locale, et ce fichier s en sert plus bas (`ligneEmpreinte`) : la sonde plantait
+ * en `ReferenceError` a chaque passe. Mesure en le cassant le 2026-08-20 — cinq cas de
+ * `tests/attendre-schema.test.ts` (§8) sont passes au rouge sur ce seul point.
  */
-export function lireEmpreinte(entetes) {
-  const brut = entetes?.get?.(EN_TETE_EMPREINTE);
-  if (typeof brut !== 'string') return null;
-  const propre = brut.trim();
-  return propre === '' ? null : propre;
-}
+export { EN_TETE_EMPREINTE, lireEmpreinte };
 
 /** Ce qu une reponse dit du CMS — et, pour chacun, s il y a lieu d attendre. */
 export const VERDICTS = {

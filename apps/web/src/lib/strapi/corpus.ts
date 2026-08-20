@@ -22,8 +22,10 @@ import {
   chargerCollection,
   chargerConfiguration,
   lireConfiguration,
+  registreDesEmpreintes,
   type Configuration as ConfigurationClient,
 } from './client.ts';
+import { verdict } from './empreintes.ts';
 import {
   mapperArticle,
   mapperAuteur,
@@ -128,6 +130,19 @@ async function construireCorpus(): Promise<Corpus> {
         '   Lancer le seed, puis relancer ce build pour que le critere « donnees Strapi reelles » soit exerce.\n',
     );
   }
+
+  /* LE MOT DE LA FIN SUR LA VERSION LUE — ici, parce que c est ici que la traversee de l API se
+     termine, et nulle part ailleurs.
+
+     La RUPTURE, elle, n arrive jamais jusqu ici : elle a deja arrete la construction a l instant
+     ou la seconde empreinte est apparue (`client.ts`). Ce qui reste a dire est le cas silencieux —
+     « une seule version a repondu » et « je n ai rien pu savoir » rendent autrement la MEME
+     observation, un build vert ([[quand-succes-et-echec-rendent-la-meme-sortie]]). En deploiement,
+     c est la seule ligne qui permette, APRES COUP, de distinguer une garde qui a servi d une garde
+     aveugle. Elle n echoue jamais : une empreinte absente est une incapacite, pas une panne. */
+  const surLesEmpreintes = verdict(registreDesEmpreintes());
+  const dire = surLesEmpreintes.sorte === 'muet' ? console.warn : console.log;
+  dire(`[strapi] ${surLesEmpreintes.message}`);
 
   return { articles, auteurs, categories, tags, dossiers, configurations, baseVide };
 }

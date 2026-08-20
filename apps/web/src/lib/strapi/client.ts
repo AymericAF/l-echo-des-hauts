@@ -6,6 +6,7 @@
  * Content Layer, qui s execute dans le processus de build. Aucune variable ici n est
  * prefixee `PUBLIC_`, ce qui garantit que Vite ne l inline pas dans un bundle client.
  */
+import { creerRegistre, inscrire, lireEmpreinte, type RegistreEmpreintes } from './empreintes.ts';
 import { REQUETES, construireUrl, type NomRequete } from './requete.ts';
 import type { Locale } from '../domaine.ts';
 
@@ -157,10 +158,46 @@ export interface Reprises {
 
 const secondes = (ms: number): string => (ms / 1000).toFixed(1);
 
+/* ══════════════════════════════════════════════════════════════════════════════════════
+ * LA GARDE DE BASCULE — ce qui couvre le DOUBLON, la ou les reprises ci-dessus ne peuvent rien.
+ *
+ * Les reprises traversent le BORD de la fenetre (le retrait de l ancien conteneur). Elles ne
+ * voient PAS les trente secondes qui le precedent, ou les deux conteneurs repondent `200` avec un
+ * corps valide : il n y a rien a reprendre, et aucun reglage de delai ne distingue deux versions
+ * qui repondent toutes les deux correctement. Le seul fait observable depuis le build est
+ * l EMPREINTE que chaque reponse porte — et le seul jugement possible est « elle a change ».
+ *
+ * La regle vit dans `empreintes.ts`, avec ce qu elle coute et ce qu elle ne fait pas. Ici, une
+ * seule chose : elle est cablee sur `tenter`, donc sur le POINT DE PASSAGE UNIQUE de tous les
+ * appels du build au CMS. Un correctif qui vivrait a cote du chemin emprunte serait vert sans rien
+ * garder ([[controle-jamais-execute-reellement-nest-pas-vert]]).
+ * ════════════════════════════════════════════════════════════════════════════════════ */
+
+let registre: RegistreEmpreintes = creerRegistre();
+
+/** Ce que la construction en cours a vu. Lu par `corpus.ts` pour prononcer le mot de la fin. */
+export function registreDesEmpreintes(): RegistreEmpreintes {
+  return registre;
+}
+
+/**
+ * UN PROCESSUS, UNE CONSTRUCTION, UN REGISTRE — la production n appelle JAMAIS ceci.
+ *
+ * Elle n en a pas besoin : chaque construction est un processus neuf, et la sonde
+ * `attendre-schema.mjs` en est un autre (deux entrees distinctes de `cmds`, ce que
+ * `tests/nixpacks-preuve-surcharge.test.ts` verrouille). Les BANCS, eux, enchainent plusieurs
+ * constructions simulees dans le meme processus : sans remise a zero, le second heriterait des
+ * empreintes du premier et rougirait pour une bascule qui n a pas eu lieu.
+ */
+export function reinitialiserRegistreDesEmpreintes(): void {
+  registre = creerRegistre();
+}
+
 /** Ce qu une tentative a produit — la frontiere entre « je reessaie » et « c est fini ». */
 type Tentative =
   | { sorte: 'reponse'; valeur: unknown }
   | { sorte: 'definitive'; message: string }
+  | { sorte: 'rupture'; message: string }
   | { sorte: 'transitoire'; precision: string };
 
 async function tenter(url: string, jeton: string, chemin: string): Promise<Tentative> {
@@ -168,6 +205,13 @@ async function tenter(url: string, jeton: string, chemin: string): Promise<Tenta
     const reponse = await fetch(url, {
       headers: { Authorization: `Bearer ${jeton}`, Accept: 'application/json' },
     });
+
+    /* L empreinte se lit AVANT tout aiguillage sur le statut, et sur TOUTES les reponses — 404 et
+       erreurs comprises. Le middleware du CMS pose son en-tete AVANT `next()` precisement pour
+       cela : la reponse qu il est le plus utile d identifier est le `400 ValidationError` de
+       l ancien schema. */
+    const rupture = inscrire(registre, lireEmpreinte(reponse.headers), chemin);
+    if (rupture !== null) return { sorte: 'rupture', message: rupture };
 
     if (reponse.status === 404) return { sorte: 'reponse', valeur: null };
     if (reponse.ok) return { sorte: 'reponse', valeur: await reponse.json() };
@@ -233,6 +277,9 @@ export async function appelerAvecReprises(
 
     if (tentative.sorte === 'reponse') return tentative.valeur;
     if (tentative.sorte === 'definitive') throw new Error(tentative.message);
+    /* Une rupture ne se REESSAIE pas : reessayer ne ferait qu ajouter une troisieme lecture a une
+       construction deja compromise, et la fenetre ne se referme pas parce qu on insiste. */
+    if (tentative.sorte === 'rupture') throw new Error(tentative.message);
 
     const attenduMs = horloge() - debut;
     const delaiMs = delaisMs[Math.min(repris, delaisMs.length - 1)];

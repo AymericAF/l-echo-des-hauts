@@ -191,5 +191,33 @@ aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 # (`app/Jobs/ApplicationDeploymentJob.php`) : « SOURCE_COMMIT changes with each commit and
 # breaks Docker cache if included in build ». Il doit etre mesure contre la cible M-04 avant
 # d etre engage.
+# ── 2026-08-20 : LE BUILD, LUI, REFUSE DESORMAIS D AVOIR LU DEUX EMPREINTES ─────────────
+#
+# Ce qui precede reste vrai MOT POUR MOT de la SONDE : elle lit l empreinte, elle la journalise,
+# elle ne bloque rien. Ce qui change est en aval, dans `npm run build`, et c est un AUTRE endroit
+# pour une AUTRE raison — decision `982567fa`, approuvee le 2026-08-20 (branche B de « A puis B »).
+#
+# LA REGLE, ET ELLE N EST PAS NEGOCIABLE : zero empreinte vue vaut « je ne sais pas » et n echoue
+# JAMAIS ; seules DEUX empreintes DISTINCTES pendant une meme construction font refuser. Elle vit
+# dans `src/lib/strapi/empreintes.ts`, cablee sur `tenter()` de `src/lib/strapi/client.ts` — le
+# point de passage UNIQUE de tous les appels du build au CMS. Prouvee en la cassant dans les
+# QUATRE sens par `tests/garde-empreintes.test.ts`, temoin compris.
+#
+# ⚠️ CE N EST PAS L EGALITE STRICTE QUE LES DEUX BLOCS CI-DESSUS INTERDISENT, et la distinction
+# est tout le sujet. Comparer l empreinte du CMS a celle du SITE planterait tous les deploiements
+# ne touchant qu un seul arbre (`watch_paths`), et reste de toute facon IMPOSSIBLE : le build
+# ignore la sienne. Ce qui est compare ici, ce sont les reponses d UNE MEME construction ENTRE
+# ELLES. Un changement en cours de route n est pas une incapacite, c est un FAIT.
+#
+# POURQUOI PAS DANS LA SONDE, ET SURTOUT PAS DANS LE HEALTHCHECK. La sonde rend la main a sa
+# premiere passe (~1 s) quand la construction s execute APRES, pendant 2 a 30 s : elle ne REGARDE
+# PAS la ou le fait se produit, et aucun plafond ne l y amenerait. Quant au `HEALTHCHECK` du
+# Dockerfile d `apps/cms`, un echec y ferait rouler Coolify en arriere sur un conteneur
+# parfaitement sain.
+#
+# MODE D ECHEC ASSUME : refuser une construction qui n avait rien compose (push croise, CMS
+# redeploye pendant que le site construit). Le prix est UN REDEPLOIEMENT, contre une erreur
+# inverse qui, elle, est SILENCIEUSE. Sur 199 constructions mesurees en dix-sept jours, TROIS ont
+# chevauche une fenetre.
 [phases.build]
 cmds = ['node --experimental-strip-types scripts/attendre-schema.mjs', 'npm run build']

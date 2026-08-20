@@ -31,6 +31,24 @@
  * rien d autre. Le doublon de trente secondes releve de l EMPREINTE de commit servie par le CMS
  * (`apps/cms/src/middlewares/empreinte-commit.ts`), pas d un reglage de delai ici.
  *
+ * ⚠️ POURQUOI UNE RECETTE « PUSH CROISE » NE PROUVE PRESQUE RIEN, ET POURQUOI CE BANC EST LA SEULE
+ * PREUVE FIABLE. Un push qui touche les deux arbres met bien les deux applications en file a la
+ * MEME seconde, mais cela ne fait pas se rencontrer le retrait et la lecture : sur 199
+ * constructions mesurees depuis le 2026-08-03, TROIS ont chevauche une fenetre (queues 263, 504,
+ * 530). Mesure du 2026-08-19, faite pour ce correctif — push croise sur `24608fe`, queues 534 et
+ * 535 creees a 12:06:34 :
+ *
+ *   12:08:29.38  CMS   Removing old containers.
+ *   12:08:30.56  CMS   Rolling update completed.
+ *   12:08:57     SITE  [strapi:articles] 48 entree(s) chargee(s)   <- 26 s APRES le retrait
+ *
+ * Le deploiement du site est passe VERT sans qu une seule reprise ne se declenche : la fenetre
+ * etait refermee depuis vingt-six secondes. Une recette qui n exerce pas la fenetre ne dit rien
+ * du remede — elle dit seulement que le hasard a bien voulu ([[controle-jamais-execute-
+ * reellement-nest-pas-vert]]). Exercer le bord DEMANDE de rendre le CMS injoignable PENDANT la
+ * lecture ; c est ce que fait ce banc a chaque execution, et c est pourquoi il ne se remplace pas
+ * par une observation de production.
+ *
  * CE QUE CE FICHIER TIENT, et c est l invariant plutot que le cas :
  *
  *   1. le CMS momentanement absent (502/503/504, connexion refusee) fait REESSAYER, et le banc

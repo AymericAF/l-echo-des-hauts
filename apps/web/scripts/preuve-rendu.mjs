@@ -54,6 +54,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  cartesPoseesParLaSource,
+  inspecterAlternativesPartage,
+} from './alternative-partage-servie.mjs';
 import { CIBLES, cibleDemandee, sourcePourCible } from './cible-preuve.mjs';
 import { articlesDuBanc, inspecterBlocs, TYPES, verdictPageComplete } from './couverture-blocs.mjs';
 import { arbitrer, ISSUES } from './issues.mjs';
@@ -125,13 +129,37 @@ function lancer(commande, arguments_, env) {
  * alors la SOURCE, et pas le site : un corpus muet ne prouve pas qu une page ne rend
  * rien. C est vrai du banc (fixture absente) comme de l instance (locale non peuplee).
  */
-async function posesParLocale(source) {
+function posesParLocale(entreesParLocale) {
   const poses = {};
   for (const locale of LOCALES) {
-    const entrees = await source.articles(locale);
+    const entrees = entreesParLocale[locale];
     poses[locale] = entrees === null ? null : articlesDuBanc(locale, { data: entrees });
   }
   return poses;
+}
+
+/**
+ * Les articles de la source, LUS UNE SEULE FOIS.
+ *
+ * Deux controles les consomment desormais — les types de blocs et l alternative de la carte
+ * de partage. Les relire par controle ferait deux allers a l instance sur la cible `--reel`,
+ * et surtout deux photos d un corpus qui peut bouger entre les deux : un ecart naitrait de
+ * la difference des deux lectures, pas d un defaut du site.
+ */
+async function articlesParLocale(source) {
+  const entrees = {};
+  for (const locale of LOCALES) entrees[locale] = await source.articles(locale);
+  return entrees;
+}
+
+/** Les cartes de partage posees par la source, locale par locale. `null` : locale non peuplee. */
+function cartesParLocale(entreesParLocale) {
+  const cartes = {};
+  for (const locale of LOCALES) {
+    const entrees = entreesParLocale[locale];
+    cartes[locale] = entrees === null ? null : cartesPoseesParLaSource(locale, entrees);
+  }
+  return cartes;
 }
 
 /**
@@ -191,8 +219,10 @@ const rapport = inspecterSortie(dist);
 console.log('\n─────────────  PREUVE DE RENDU  ─────────────\n');
 console.log(`Sortie : ${resume(rapport)}`);
 
+const articlesSource = await articlesParLocale(source);
+
 const blocs = inspecterBlocs(
-  await posesParLocale(source),
+  posesParLocale(articlesSource),
   (route) => lirePage(dist, route),
   source.poseur,
 );
@@ -599,6 +629,37 @@ if (pied === null) {
   );
 }
 
+/**
+ * L ALTERNATIVE DE LA CARTE DE PARTAGE — LE MAILLON DU GABARIT, ENFIN TENU (2026-08-20).
+ *
+ * Trois maillons portent `alternativePartage` : la requete le demande, le mapping
+ * l applique, LE GABARIT le sert. Les deux premiers ont leur harnais
+ * (`tests/alternative-localisee.test.ts`). Le troisieme n en avait aucun — `Base.astro` ne
+ * s importe depuis aucun test — et le reflexe du 2026-08-19 (rejouer sa cascade a la main
+ * dans `tests/banc-surcharge-partage-en.test.ts`) reconduisait le trou d un cran : la copie
+ * avait DEJA divergé du gabarit en deux jours (`seo.imagePartage.url` contre
+ * `urlMedia(seo.imagePartage)`).
+ *
+ * Ici, rien n est rejoue : l attendu sort de `mapperArticle` — la fonction que le site
+ * appelle — et il est confronte au HTML CONSTRUIT. Le gabarit peut etre reecrit entierement
+ * sans faire mentir ce controle ; il ne peut plus cesser de servir la valeur sans le faire
+ * rougir. Preuve en cassant, faite le 2026-08-20 : inverser la cascade de `Base.astro` en
+ * `imageGeneree ?? imageSurchargee` laisse `npm test` INTEGRALEMENT VERT et fait rougir
+ * celui-ci.
+ */
+const partage = inspecterAlternativesPartage(cartesParLocale(articlesSource), (route) =>
+  lirePage(dist, route),
+);
+const surchargesJugees = partage.surchargesHorsReference(LOCALE_REFERENCE);
+console.log(
+  partage.ecarts.length === 0 && partage.incapacites.length === 0
+    ? `Carte de partage : ${partage.controles} page(s) servant l alternative que ${source.poseur} ` +
+        `pose, dont ${surchargesJugees} surchargee(s) hors « ${LOCALE_REFERENCE} » ` +
+        `(${partage.sansCarte} article(s) sans carte, hors perimetre).`
+    : `Carte de partage : ${partage.ecarts.length} ecart(s), ${partage.incapacites.length} ` +
+        `incapacite(s) — ${partage.controles} page(s) inspectee(s).`,
+);
+
 /*
  * LA SEULE SORTIE PRECOCE QUI SURVIT ICI, ET LA MESURE QUI LA JUSTIFIE (2026-08-20).
  *
@@ -712,6 +773,39 @@ if (credits.ecarts.length > 0 || credits.controles === 0) {
     console.error('  - aucune page auteur avec portrait : la preuve ne prouverait rien');
   }
   issues.push(ISSUES.ANOMALIE);
+}
+
+if (partage.ecarts.length > 0) {
+  console.error('\n✖ Alternative de la carte de partage, sur la page servie :');
+  for (const ecart of partage.ecarts) console.error(`  - ${ecart}`);
+  issues.push(ISSUES.ANOMALIE);
+}
+
+/*
+ * DEUX INCAPACITES DISTINCTES, ET AUCUNE NE MET LE SITE EN CAUSE.
+ *
+ * Une entree que le mapping refuse n a pas d attendu : on ne sait rien de sa page. Et
+ * ZERO SURCHARGE JUGEE hors de la locale de reference vide le controle de son sens — c est
+ * le trou aval par lequel le defaut du 2026-08-14 a vecu : sans une seule page surchargee
+ * a juger, « la surcharge est honoree » et « la surcharge est ignoree » rendent le meme
+ * vert. Code `2`, jamais `1` : c est le corpus qu il faut corriger, pas le site.
+ */
+if (partage.incapacites.length > 0) {
+  console.error('\n⛔ Carte de partage — entrees illisibles a la source :');
+  for (const incapacite of partage.incapacites) console.error(`  - ${incapacite}`);
+  issues.push(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
+
+if (surchargesJugees === 0) {
+  console.error(
+    `\n⛔ ${source.poseur.toUpperCase()}, PAS LE SITE — aucune carte de partage SURCHARGEE ` +
+      `hors de « ${LOCALE_REFERENCE} » :\n` +
+      '  - l `alternativeText` de la mediatheque n a qu UNE valeur, sans locale. Sans une page\n' +
+      '    dont la source surcharge cette valeur, honorer la surcharge et l ignorer rendent le\n' +
+      `    meme HTML, et ce controle ne juge rien. Les ${partage.controles} page(s) inspectee(s)\n` +
+      '    servaient toutes l alternative du fichier.\n',
+  );
+  issues.push(ISSUES.VERIFICATION_IMPOSSIBLE);
 }
 
 /**

@@ -184,7 +184,15 @@ function valeurAttribut(balise, nom) {
   return trouve ? decoder(trouve[1] ?? trouve[2]) : null;
 }
 
-function meta(html, attribut, valeur) {
+/**
+ * La `content` de la balise `<meta>` dont `attribut` vaut `valeur`, ou `null`.
+ *
+ * EXPORTEE depuis le 2026-08-20 : `alternative-partage-servie.mjs` lit les memes balises,
+ * sur la sortie du banc. En ecrire une seconde version la ferait diverger de celle-ci — et
+ * c est `valeurAttribut`, juste au-dessus, qui porte la correction de l apostrophe interne
+ * dont la premiere version de ce script a fabrique des ecarts inexistants.
+ */
+export function meta(html, attribut, valeur) {
   for (const balise of balisesDe(html, 'meta')) {
     if (valeurAttribut(balise, attribut) === valeur) return valeurAttribut(balise, 'content');
   }

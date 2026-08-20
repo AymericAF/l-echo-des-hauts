@@ -19,6 +19,27 @@
  * donc un seul `alternativeText`, en francais) et une alternative SURCHARGEE par locale.
  * Ignorer la surcharge fait servir le francais sur la page anglaise — ce qu un lecteur
  * d ecran annonce.
+ *
+ * ⚠️ CE QUE CE FICHIER NE PROUVE PAS, ET QUI LE PROUVE DEPUIS (amende le 2026-08-20).
+ *
+ * `ogImageAlt` ci-dessous REJOUE A LA MAIN la cascade de `src/layouts/Base.astro` : il
+ * reconstruit `imageSurchargee`, pose `article: null`, et appelle `metadonneesSeo`
+ * lui-meme — parce qu un gabarit ne s importe pas depuis `node --test`. **Une cascade
+ * rejouee derive.** Mesure du 2026-08-20 : la copie ci-dessous ecrit
+ * `url: seo.imagePartage.url` la ou le gabarit ecrit `url: urlMedia(seo.imagePartage)`.
+ * Deux jours d existence ont suffi.
+ *
+ * Et surtout : MESURE EN CASSANT, le 2026-08-20. Inverser la cascade du gabarit en
+ * `imageGeneree ?? imageSurchargee ?? imageDefaut` — donc faire servir a la page anglaise
+ * le texte de la carte GENEREE au lieu de la surcharge editoriale — laisse les 1802 tests
+ * de `npm test` INTEGRALEMENT VERTS, ceux de ce fichier compris. Ce qui rougit alors est
+ * `npm run preuve:rendu`, qui lit le HTML CONSTRUIT.
+ *
+ * Ce fichier reste, et il est utile : il tient le maillon MAPPING + `metadonneesSeo` sans
+ * construire le site (~1 ms contre ~12 s), et il garde la fixture anglaise surchargee
+ * vivante. Il ne tient PAS le maillon du gabarit — celui-la est tenu par
+ * `scripts/alternative-partage-servie.mjs`, branche dans `scripts/preuve-rendu.mjs` et
+ * exerce par `tests/alternative-partage-servie.test.ts`.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,7 +66,11 @@ function brutEn(retouche: (seo: any) => void = () => {}): any {
   return brut;
 }
 
-/** Ce que le layout sert vraiment : la surcharge editoriale prime sur tout le reste (A-28). */
+/**
+ * Ce que `mapperArticle` + `metadonneesSeo` rendent quand on les cable COMME LE GABARIT
+ * les cable — et non « ce que le layout sert », que cette fonction ne peut pas savoir : le
+ * cablage est ici une COPIE, et une copie ne prouve rien de l original (cf. l en-tete).
+ */
 function ogImageAlt(brut: any, locale: 'fr' | 'en'): string | undefined {
   const article = mapperArticle(brut, 'articles-en[0]');
   const seo = article.seo;
@@ -87,7 +112,7 @@ test('LA FIXTURE EXISTE : une page anglaise du banc surcharge bien son alternati
   assert.equal(seo.alternativePartage, 'Sharing card: the reopened viaduct, seen from the riverbank');
 });
 
-test('la page anglaise SERT l alternative anglaise, pas celle du fichier', () => {
+test('cable comme le gabarit, l article anglais rend l alternative anglaise, pas celle du fichier', () => {
   assert.equal(ogImageAlt(brutEn(), 'en'), 'Sharing card: the reopened viaduct, seen from the riverbank');
 });
 

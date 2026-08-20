@@ -54,6 +54,45 @@ function normaliser(texte: string): string {
     .replace(/\s+/g, ' ');
 }
 
+/**
+ * UNE ANNEE. Le seul motif qui distingue une date d'expiration recopiee.
+ *
+ * Il est volontairement grossier — c'est ce qui le rend utile — donc il ne doit
+ * JAMAIS etre confronte a autre chose qu'au texte ecrit par le seed. Voir
+ * `messageDuJeton` ci-dessous : c'est la que se joue la difference entre un
+ * test qui juge et un test qui clignote.
+ */
+const MOTIF_ANNEE = /\b(19|20)\d{2}\b/;
+
+/**
+ * LE MESSAGE DU SEED, ISOLE DU BRUIT DE NODE.
+ *
+ * `lancer()` recolle stdout et stderr, et Node ecrit sur stderr des
+ * avertissements qu'il PREFIXE DE SON PID : `(node:1980) [MODULE_TYPELESS_...`.
+ * Confronte a la sortie entiere, `MOTIF_ANNEE` attrapait donc n'importe quel
+ * PID a quatre chiffres tombant dans 1900-2099 — mesure a 3 executions sur 200
+ * le 2026-08-17, sans aucun rapport avec le texte teste. L'assertion ne jugeait
+ * pas ce qu'elle croyait juger.
+ *
+ * On ne FILTRE PAS le bruit connu : une liste noire ne connait que les formes
+ * d'aujourd'hui, et le prochain avertissement de Node (chargeur experimental,
+ * trace de pile) rouvrirait le meme trou en silence. On garde au contraire la
+ * SEULE chose ecrite par le seed : la ligne d'ancrage `SEED_STRAPI_TOKEN est
+ * vide.` et ses lignes de continuation, toutes indentees. Le bruit de Node,
+ * lui, commence toujours en colonne 0.
+ */
+function messageDuJeton(sortie: string): string {
+  const lignes = sortie.split(/\r?\n/);
+  const debut = lignes.findIndex((l) => /^SEED_STRAPI_TOKEN est vide\./.test(l));
+  assert.ok(
+    debut >= 0,
+    `la sortie ne porte pas le message du jeton vide — le seed a change de message :\n${sortie}`
+  );
+  const bloc = [lignes[debut]];
+  for (let i = debut + 1; i < lignes.length && /^\s+\S/.test(lignes[i]); i++) bloc.push(lignes[i]);
+  return bloc.join('\n');
+}
+
 /** Le premier bloc de commentaire `/** … *\/` d'un fichier source. */
 function enTeteDe(chemin: string): string {
   const source = fs.readFileSync(chemin, 'utf8');
@@ -108,16 +147,55 @@ test("jeton vide : le message de creation nomme `Token duration` et interdit `Un
 
 test("jeton vide : le message ne recopie AUCUNE date d'expiration", async () => {
   const { sortie } = await lancer([], { SEED_STRAPI_TOKEN: '' });
+  const message = messageDuJeton(sortie);
+
+  // GARDE ANTI-DESARMEMENT. Resserrer le perimetre d'une assertion, c'est
+  // risquer de ne plus rien lui donner a juger. On exige donc que le bloc
+  // extrait porte encore la phrase ou une date se recopierait en pratique :
+  // si `messageDuJeton` se met a rendre trop peu, ce test rougit ICI, il ne
+  // passe pas au vert par disette.
+  assert.match(
+    normaliser(message),
+    /token duration/,
+    `le bloc extrait ne porte plus le mode operatoire : l extraction rend trop peu, elle ne juge plus rien :\n${message}`
+  );
 
   // La date d'expiration du jeton en vigueur vit a UN SEUL endroit : la matrice
   // §13 du runbook, dans le depot de documentation. Recopiee ici, elle serait
   // fausse des la premiere rotation — et un message d'erreur faux est pire
   // qu'un message muet, parce qu'on le croit.
   assert.doesNotMatch(
-    sortie,
-    /\b(19|20)\d{2}\b/,
-    `le message porte une annee, donc probablement une date d'expiration recopiee :\n${sortie}`
+    message,
+    MOTIF_ANNEE,
+    `le message porte une annee, donc probablement une date d'expiration recopiee :\n${message}`
   );
+});
+
+test("le bruit de Node ne peut plus faire rougir le test : un PID a l'allure d'une annee est ecarte", () => {
+  /* LE MOTIF INVERSE, celui qu'aucune execution reelle ne fabrique a la
+     demande : un PID tombant dans 1900-2099. On le pose donc a la main, sur la
+     forme EXACTE que Node emet, pour prouver que l'extraction — et non la
+     chance — est ce qui rend ce test stable. */
+  const sortieFactice = [
+    '(node:1980) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///…/index.ts is not specified',
+    'Reparsing as ES module because module syntax was detected. This incurs a performance overhead.',
+    '(Use `node --trace-warnings ...` to show where the warning was created)',
+    'SEED_STRAPI_TOKEN est vide.',
+    "  Creez un jeton d'API **full-access** et a DUREE LIMITEE dans l'admin Strapi",
+    '  (Settings > API Tokens > Create new API Token, Token type: Full access,',
+    '   Token duration: 30 days — JAMAIS `Unlimited` : un jeton plein acces sans',
+    "   expiration survit a qui l'a cree)",
+    "  et exportez-le. Ce n'est PAS le jeton du build, qui est en lecture seule.",
+    '(node:2024) Warning: un avertissement emis apres coup',
+  ].join('\n');
+
+  // Sans extraction, l'assertion rougirait : c'est bien le defaut qu'on ferme.
+  assert.match(sortieFactice, MOTIF_ANNEE, 'le cas fabrique doit porter un PID a l allure d annee');
+
+  const message = messageDuJeton(sortieFactice);
+  assert.doesNotMatch(message, MOTIF_ANNEE, `le PID a survecu a l extraction :\n${message}`);
+  assert.match(normaliser(message), /token duration/, "l extraction a mange le message");
+  assert.doesNotMatch(message, /node:/, `l extraction a garde du bruit de Node :\n${message}`);
 });
 
 /* ------------------------------------------------------------------ */

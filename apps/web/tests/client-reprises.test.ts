@@ -16,19 +16,29 @@
  *   08:03:51.03  SITE  ERROR: process « npm run build » did not complete successfully: exit code: 1
  *   08:03:52.64  CMS   Rolling update completed.
  *
- * QUATRE SECONDES ET DEMIE separent le vert de la sonde de l echec du build, et la panne tient dans
- * la SECONDE ou le proxy passe de l ancien conteneur au nouveau. Aucune attente prealable, si longue
- * soit-elle, ne peut couvrir une fenetre qui s ouvre APRES elle : c est au build de la traverser.
- * Le plafond de la sonde n a d ailleurs jamais ete atteint — elle a rendu la main en 0,9 s — donc
- * l allonger n aurait rien change ([[preuve-doit-exercer-critere-acceptation]]).
+ * LA PANNE TIENT DANS L INSTANT OU LE PROXY RETIRE L ANCIEN CONTENEUR : le `502` tombe 160 ms
+ * apres `Removing old containers`. Aucune attente prealable, si longue soit-elle, ne peut couvrir
+ * un instant qui tombe APRES elle : c est au build de le traverser. Le plafond de la sonde n a
+ * d ailleurs jamais ete atteint — elle a rendu la main en 0,9 s — donc l allonger n aurait rien
+ * change ([[preuve-doit-exercer-critere-acceptation]]).
+ *
+ * ⚠️ CE FICHIER A DIT, JUSQU AU 2026-08-20, QUE « LA FENETRE MESUREE FAIT ~4 s ». C etait l ecart
+ * entre deux evenements d une seule queue, pas la largeur d une fenetre — faux d un facteur sept.
+ * Mesure sur 54 bascules (tache `a1d26d8e`) : la bascule dure 30,3 s en mediane (14,5 a 35,9 s,
+ * 54 sur 54), et pendant tout ce temps les DEUX conteneurs sont sains et repondent `200`. LES
+ * REPRISES NE S Y DECLENCHENT DONC JAMAIS, ET C EST NORMAL : il n y a rien a reprendre quand le
+ * corps est valide. Ce que ce fichier verrouille est le BORD de cette fenetre — le retrait — et
+ * rien d autre. Le doublon de trente secondes releve de l EMPREINTE de commit servie par le CMS
+ * (`apps/cms/src/middlewares/empreinte-commit.ts`), pas d un reglage de delai ici.
  *
  * CE QUE CE FICHIER TIENT, et c est l invariant plutot que le cas :
  *
  *   1. le CMS momentanement absent (502/503/504, connexion refusee) fait REESSAYER, et le banc
  *      verifie qu il a REELLEMENT servi son refus avant son 200 : « il a repris » et « il n a
  *      jamais eu a reprendre » produisent autrement la meme observation — un build vert ;
- *   2. le premier reessai part en MOINS D UNE SECONDE. Une fenetre de bascule d environ quatre
- *      secondes se manque avec un intervalle taille sur la sonde (5 s) ;
+ *   2. le premier reessai part en MOINS D UNE SECONDE. Le retrait a dure moins d une seconde : un
+ *      intervalle taille sur celui de la sonde (5 s) ferait perdre cinq secondes de build pour
+ *      rien ;
  *   3. ce qui ne se resorbera JAMAIS ne s attend PAS — 400, 401, 403, 500 sortent a la PREMIERE
  *      requete. Un `400 ValidationError` est l affaire de la sonde, qui le nomme ; le reprendre
  *      seize fois ne ferait qu ajouter dix minutes a un build qui va echouer ;
@@ -175,7 +185,7 @@ test('1 bis. un CMS INJOIGNABLE est repris comme un 502 — c est la meme fenetr
 });
 
 /* ══════════════════════════════════════════════════════════════════════════════════════
- * 2. LE PREMIER REESSAI PART EN MOINS D UNE SECONDE — la fenetre mesuree fait ~4 s
+ * 2. LE PREMIER REESSAI PART EN MOINS D UNE SECONDE — le retrait ne dure pas une seconde
  * ════════════════════════════════════════════════════════════════════════════════════ */
 
 test('2. le premier reessai part sous la seconde, puis les delais montent', async () => {

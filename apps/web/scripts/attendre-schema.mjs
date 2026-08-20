@@ -33,17 +33,29 @@
  * ⚠️ ELLE MESURE UN INSTANT, LE BUILD CONSOMME UNE DUREE — et cette moitie-la ne lui appartient
  * PAS. Mesure du 2026-08-19 (tache `d0e0df3b`, commit c951b25, queues 529 et 530) : elle a rendu
  * « PRET a la premiere passe » a 08:03:46.41, et le build a echoue sur un `502` a 08:03:50.11,
- * QUATRE SECONDES ET DEMIE plus tard, pendant que Traefik passait de l ancien conteneur CMS au
- * nouveau. Aucune attente prealable ne peut couvrir une fenetre qui s ouvre APRES elle : son
- * plafond n avait meme pas ete effleure (0,9 s sur 600), donc l allonger n aurait rien change.
- * Ce qui couvre cette fenetre vit desormais dans `src/lib/strapi/client.ts` — les REPRISES sur
- * 502/503/504 et sur l injoignable, verrouillees par `tests/client-reprises.test.ts`.
+ * pendant que Traefik RETIRAIT l ancien conteneur CMS. Aucune attente prealable ne peut couvrir
+ * un instant qui tombe APRES elle : son plafond n avait meme pas ete effleure (0,9 s sur 600),
+ * donc l allonger n aurait rien change. Ce qui couvre cet instant vit desormais dans
+ * `src/lib/strapi/client.ts` — les REPRISES sur 502/503/504 et sur l injoignable, verrouillees
+ * par `tests/client-reprises.test.ts`.
  *
- * LA FRONTIERE ENTRE LES DEUX, a ne pas brouiller : la sonde repond « le CMS sert-il le SCHEMA que
- * ce commit demande » (un `400` est son affaire, elle le NOMME) ; les reprises repondent « le CMS
- * est-il JOIGNABLE a cet instant » (un `502` est leur affaire, elles le traversent). Faire porter
- * le `400` aux reprises noierait la seule ligne qui dit ou chercher ; faire porter le `502` a la
- * sonde ne servirait a rien, puisqu il tombe apres elle.
+ * ⚠️ CE PARAGRAPHE A DIT « QUATRE SECONDES ET DEMIE » JUSQU AU 2026-08-20, et le chiffre s est
+ * relu comme la largeur de la fenetre de bascule. Il ne l etait pas : c est l ecart entre deux
+ * evenements d une seule queue. La fenetre, mesuree sur 54 bascules par la tache `a1d26d8e`, dure
+ * 30,3 s en mediane (14,5 a 35,9 s, sur 54 sur 54) — et pendant tout ce temps les DEUX conteneurs
+ * repondent `200`. Le `502` de la queue 530 n est pas la fenetre : c est son BORD, l instant du
+ * retrait. Les deux demandent deux remedes differents, ce que la frontiere ci-dessous dit.
+ *
+ * LA FRONTIERE ENTRE LES TROIS, a ne pas brouiller :
+ *   - la SONDE repond « le CMS sert-il le SCHEMA que ce commit demande » (un `400` est son
+ *     affaire, elle le NOMME) ;
+ *   - les REPRISES repondent « le CMS est-il JOIGNABLE a cet instant » (un `502` est leur
+ *     affaire, elles le traversent) ;
+ *   - l EMPREINTE repond « QUELLE version vient de repondre » — la seule des trois qui morde sur
+ *     les trente secondes de doublon, ou tout est `200` et ou il n y a donc rien a reprendre.
+ * Faire porter le `400` aux reprises noierait la seule ligne qui dit ou chercher ; faire porter
+ * le `502` a la sonde ne servirait a rien, puisqu il tombe apres elle ; et elargir les reprises
+ * pour attraper le doublon ne marcherait pas, un corps valide n etant pas une panne.
  *
  * ⚠️ SA LIMITE CONNUE — DESORMAIS OBSERVABLE, ET TOUJOURS PAS FERMEE. Un `200` NE PROUVE PAS que
  * c est le NOUVEAU CMS qui a repondu. Le 2026-08-19, elle a valide a 08:03:46.41 alors que le

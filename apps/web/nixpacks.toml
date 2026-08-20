@@ -111,17 +111,31 @@ aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 # ── 2026-08-19 : ELLE NE COUVRE QUE L INSTANT QUI LA PRECEDE ────────────────────────────
 #
 # Mesure (tache `d0e0df3b`, commit c951b25, queues 529 et 530) : la sonde a rendu « PRET a la
-# premiere passe » a 08:03:46.41, et `npm run build` a echoue sur un `502` a 08:03:50.11 —
-# QUATRE SECONDES ET DEMIE plus tard, pendant que Traefik passait de l ancien conteneur CMS
-# au nouveau. Son plafond n avait pas ete effleure (0,9 s sur 600) : L ALLONGER N AURAIT RIEN
-# CHANGE, et ce n est donc PAS le levier a toucher si la panne se represente.
+# premiere passe » a 08:03:46.41, et `npm run build` a echoue sur un `502` a 08:03:50.11,
+# pendant que Traefik RETIRAIT l ancien conteneur CMS. Son plafond n avait pas ete effleure
+# (0,9 s sur 600) : L ALLONGER N AURAIT RIEN CHANGE, et ce n est donc PAS le levier a toucher
+# si la panne se represente.
 #
-# Ce qui couvre cette fenetre vit dans `src/lib/strapi/client.ts` : des REPRISES sur
-# 502/503/504 et sur l injoignable, plafonnees a dix minutes, premier reessai a 500 ms —
-# verrouillees par `tests/client-reprises.test.ts`. Elles sont DANS le build et non devant
-# lui, parce que la fenetre s ouvre APRES la sonde. Elles ne polluent pas la mesure M-04 :
-# elles ne consomment du temps QUE si le CMS bascule pendant la construction, et une passe
-# nominale ne les reveille jamais.
+# Ce qui couvre cet instant vit dans `src/lib/strapi/client.ts` : des REPRISES sur 502/503/504
+# et sur l injoignable, plafonnees a dix minutes, premier reessai a 500 ms — verrouillees par
+# `tests/client-reprises.test.ts`. Elles sont DANS le build et non devant lui, parce que
+# l instant tombe APRES la sonde. Elles ne polluent pas la mesure M-04 : elles ne consomment
+# du temps QUE si le CMS est injoignable pendant la construction, et une passe nominale ne les
+# reveille jamais.
+#
+# ⚠️ CORRECTION DU 2026-08-20 — CE BLOC A DIT « QUATRE SECONDES ET DEMIE », ET C EST FAUX D UN
+# FACTEUR SEPT. Le chiffre etait l ecart entre deux evenements d une seule queue, pas la
+# largeur de la fenetre. Mesure sur 54 bascules (tache `a1d26d8e`) : la bascule dure 30,3 s en
+# mediane (14,5 a 35,9 s, 54 sur 54), et pendant tout ce temps les DEUX conteneurs sont sains,
+# portes par des etiquettes Traefik identiques, et repondent `200`. Les reprises ne s y
+# declenchent donc JAMAIS — il n y a rien a reprendre. Elles couvrent le seul BORD : l instant
+# du retrait de l ancien. Ce qui mord sur les trente secondes est l EMPREINTE
+# (`apps/cms/src/middlewares/empreinte-commit.ts`), pas un reglage de delai.
+#
+# Cause de ces trente secondes, lue dans le journal : `health_check_start_period = 40` sur
+# `echo-strapi` fait dormir Coolify 40 s avant sa premiere interrogation, quand Docker declare
+# le conteneur sain des sa premiere sonde (~10 s). NE PAS allonger ce start-period : c est lui
+# qui CREUSE la fenetre, pas lui qui la protege.
 #
 # ⚠️ `--experimental-strip-types` N EST PAS DECORATIF, ET SON ABSENCE CASSERAIT TOUT.
 #

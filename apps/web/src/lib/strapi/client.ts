@@ -71,6 +71,30 @@ export function lireConfiguration(): Configuration {
  * schema en retard. Un `400 ValidationError` sort a la PREMIERE requete, tel quel — c est
  * l affaire de la sonde, qui le NOMME. Le reprendre seize fois n ajouterait que dix minutes a un
  * build condamne, et noierait la seule ligne qui dit ou chercher.
+ *
+ * ⚠️ CE QU ELLES NE COUVRENT PAS NON PLUS — corrige le 2026-08-20 (tache `86db5b22`, sur la mesure
+ * de `a1d26d8e` : les 54 bascules du CMS depuis le 2026-08-03). LA BASCULE N EST PAS UN TROU,
+ * C EST UN DOUBLON. Pendant une mediane de 30,3 s (14,5 a 35,9 s, sur 54 sur 54), les DEUX
+ * conteneurs sont vivants, sains, et portes par des etiquettes Traefik IDENTIQUES au caractere
+ * pres — elles derivent de l UUID de l application, jamais du nom du conteneur. `echoback.
+ * ayfiweb.fr` a donc DEUX amonts servant DEUX commits, et tous deux repondent `200` avec un corps
+ * valide. Aucune reprise ne se declenche la : il n y a rien a reprendre.
+ *
+ * Cause, lue dans le journal et non deduite : `health_check_start_period = 40` sur `echo-strapi`
+ * fait DORMIR Coolify 40 s avant sa premiere interrogation, quand Docker, lui, declare le
+ * conteneur sain des sa premiere sonde reussie — environ 10 s apres le demarrage. Les trente
+ * secondes sont exactement cet ecart, et la dispersion vient du seul demarrage de Strapi : un CMS
+ * qui demarre VITE creuse donc une fenetre PLUS LARGE.
+ *
+ * CE QUE LES REPRISES COUVRENT EXACTEMENT, et c est etroit mais reel : l INSTANT ou l ancien
+ * conteneur est retire et ou le proxy ne route plus rien. C est ce qu a pris la queue 530
+ * (`c951b25`) — un seul `502`, a 08:03:50.11, soit 160 ms apres `Removing old containers`. Sur
+ * 199 constructions mesurees, TROIS ont chevauche une fenetre : les queues 263, 504 et 530.
+ *
+ * CE QUI COUVRE LE DOUBLON, ET QUI N EST PAS ICI : l empreinte de commit servie par le CMS
+ * (`apps/cms/src/middlewares/empreinte-commit.ts`, commit 472ebf6) et lue par la sonde. NE PAS
+ * chercher a elargir les reprises pour l attraper — un `200` porteur d un corps valide n est pas
+ * une panne, et aucun reglage de delai ne distingue deux versions qui repondent toutes les deux.
  * ════════════════════════════════════════════════════════════════════════════════════ */
 
 /**
@@ -87,10 +111,20 @@ export const STATUTS_REPRIS: ReadonlySet<number> = new Set([502, 503, 504]);
 /**
  * LES DELAIS, EN MILLISECONDES — le premier sous la seconde, et ce n est pas un reglage fin.
  *
- * La fenetre mesuree fait environ QUATRE SECONDES (bascule a 08:03:49,95 ; le conteneur neuf etait
- * sain depuis 08:03:49,67). Un intervalle taille sur celui de la sonde — 5 000 ms — la manquerait
- * une fois sur deux. On repart donc vite, puis on ralentit : au-dela de quelques secondes ce n est
- * plus une bascule mais un deploiement du CMS qui traine, et marteler n y change rien.
+ * CE QU IL FAUT RATTRAPER EST BREF, ET C EST LA MESURE QUI LE DIT. Ce n est PAS la fenetre de
+ * bascule — elle dure trente secondes, mais le proxy y sert `200` des deux cotes (voir le bloc
+ * ci-dessus). C est le seul INSTANT du retrait de l ancien conteneur : la queue 530 a pris son
+ * `502` 160 ms apres `Removing old containers`, et le proxy routait de nouveau a la seconde
+ * suivante. Un intervalle taille sur celui de la sonde — 5 000 ms — perdrait donc cinq secondes
+ * de build pour une panne qui a dure moins d une. On repart vite, puis on ralentit : au-dela de
+ * quelques secondes ce n est plus un retrait mais un CMS reellement absent, et marteler n y
+ * change rien.
+ *
+ * ⚠️ La version precedente de ce paragraphe disait « la fenetre mesuree fait environ QUATRE
+ * SECONDES ». C etait FAUX d un facteur sept, et surtout ce n etait pas une fenetre : 4,5 s
+ * separaient deux evenements d une seule queue. Corrige le 2026-08-20 sur les 54 bascules de
+ * `a1d26d8e`. Le dimensionnement, lui, ne bouge pas — il etait taille sur le retrait, qui est
+ * bien ce qu il couvre.
  *
  * Au-dela du dernier, c est le dernier qui se repete. AUCUN ALEA : deux builds qui rencontrent la
  * meme panne doivent produire le meme journal, sinon aucun banc ne peut rien verrouiller.

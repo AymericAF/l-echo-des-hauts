@@ -22,6 +22,7 @@
 import type { Categorie, Locale } from '../../lib/domaine.ts';
 import { libelles } from '../../lib/i18n/libelles.ts';
 import { cheminIndex } from '../../lib/routes/chemins.ts';
+import { compteDeLIndex } from '../../lib/routes/compte-index.ts';
 import type { Registre } from '../../lib/routes/registre.ts';
 import CarteArticle from '../CarteArticle.astro';
 import ListeArticles from '../ListeArticles.astro';
@@ -51,9 +52,19 @@ const rubriques = registre.indexes
     return ordreA - ordreB || a.titre.localeCompare(b.titre);
   });
 
-const dossiers = registre.indexes.filter(
-  (index) => index.famille === 'dossier' && index.locale === locale,
-);
+/* Les dossiers en cours, chacun avec SON COMPTE — derive par la regle commune, celle que
+   rend aussi la page du dossier (`compteDeLIndex`) : un dossier se compte en EPISODES, le
+   total porte sur toutes ses pages et pas sur la premiere, et zero ne dit RIEN.
+
+   Cet appel remplace un compteur d ARTICLES appele en place sur `pages[0]` (le libelle est
+   nomme dans `compte-index.ts`, pas ici : la garde de `compte-index.test.ts` refuse son
+   retour dans ce fichier, et une citation en commentaire la ferait rougir a juste titre).
+   C etait un SECOND POINT DE DECISION sur une regle qui en a deja un, et il avait derive :
+   l accueil annoncait « 1 article » la ou la page du meme dossier, a un clic, annoncait
+   « 1 episode ». Le compte se lit ici, il ne se rejoue pas. */
+const dossiers = registre.indexes
+  .filter((index) => index.famille === 'dossier' && index.locale === locale)
+  .map((dossier) => ({ dossier, compte: compteDeLIndex(dossier, locale) }));
 ---
 
 {
@@ -109,12 +120,15 @@ const dossiers = registre.indexes.filter(
             {mots.dossiersEnCours}
           </h2>
           <ul class="accueil__dossiers">
-            {dossiers.map((dossier) => (
+            {dossiers.map(({ dossier, compte }) => (
               <li>
                 <h3>
                   <a href={cheminIndex(locale, 'dossier', dossier.slug)}>{dossier.titre}</a>
                 </h3>
-                <p>{mots.nombreArticles(dossier.pages[0].items.length)}</p>
+                {/* `null` ne rend PAS un `<p>` vide : a zero, la carte se tait, exactement
+                    comme la page du dossier. Un paragraphe vide est un silence qui a l air
+                    d une panne. */}
+                {compte && <p>{compte}</p>}
               </li>
             ))}
           </ul>

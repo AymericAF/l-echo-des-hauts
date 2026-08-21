@@ -197,8 +197,11 @@ const EN: Libelles = {
   articlesDeLAuteur: 'Articles by this author',
   articlesDuDossier: 'Episodes in this series',
   nombreArticles: (nombre) => (nombre > 1 ? `${nombre} articles` : `${nombre} article`),
+  /* « episodes », et non « instalments » : la MEME page annonce sa liste par
+     `articlesDuDossier` = « Episodes in this series ». Le mot du compte etait le seul
+     intrus (arbitrage d Aymeric du 2026-08-20, decision `370dd216`). */
   nombreEpisodes: (nombre) =>
-    nombre < 1 ? null : nombre > 1 ? `${nombre} instalments` : `${nombre} instalment`,
+    nombre < 1 ? null : nombre > 1 ? `${nombre} episodes` : `${nombre} episode`,
   navigationPages: 'Pagination',
   pagePrecedente: 'Previous page',
   pageSuivante: 'Next page',

@@ -39,6 +39,54 @@ test('le pluriel du compteur d articles est traite, pas ignore', () => {
   assert.equal(libelles('fr').nombreArticles(12), '12 articles');
 });
 
+/**
+ * LE MOT ANGLAIS DU COMPTE D EPISODES — arbitrage d Aymeric du 2026-08-20 (`370dd216`).
+ *
+ * Le dictionnaire anglais comptait en « instalments » alors que la MEME page annoncait sa
+ * liste par `articlesDuDossier` = « Episodes in this series ». Un lecteur anglophone lisait
+ * donc deux noms pour une seule chose, dans un seul ecran. Arbitrage : la page est d abord
+ * coherente avec elle-meme, et « episodes » est le mot que le dictionnaire employait deja
+ * pour cette famille — c est « instalments » qui etait l intrus, pas l inverse.
+ *
+ * Ce test tient les deux bouts que le typage ne tient pas : le SINGULIER (« 1 episode », et
+ * non « 1 episodes ») et le ZERO (rien, et non « 0 episode »). Il constate aussi que le mot
+ * ecarte n est pas revenu — c est un changement de vocabulaire, et un vocabulaire revient.
+ */
+test('le compte d episodes emploie le mot de la famille, dans les deux locales', () => {
+  assert.equal(libelles('fr').nombreEpisodes(5), '5 épisodes');
+  assert.equal(libelles('fr').nombreEpisodes(1), '1 épisode');
+  assert.equal(libelles('en').nombreEpisodes(5), '5 episodes');
+  assert.equal(libelles('en').nombreEpisodes(1), '1 episode');
+
+  /* Zero ne dit RIEN — pas « 0 episode », qui est une phrase correcte et fausse. */
+  assert.equal(libelles('fr').nombreEpisodes(0), null);
+  assert.equal(libelles('en').nombreEpisodes(0), null);
+
+  for (const nombre of [0, 1, 5, 12]) {
+    assert.doesNotMatch(
+      String(libelles('en').nombreEpisodes(nombre) ?? ''),
+      /instalment/i,
+      `« instalment » est revenu dans le compte anglais (n = ${nombre})`,
+    );
+  }
+});
+
+/**
+ * Le compte et l intitule de la liste emploient le MEME nom, dans chaque locale.
+ *
+ * C est le defaut d origine, constate au rendu : « Episodes in this series » surmontant
+ * « 1 instalment ». Deux cles distinctes portent ces deux chaines, rien ne les liait, et
+ * seul un oeil humain lisant la page produite pouvait voir l ecart. Ce test le voit.
+ */
+test('le compte d episodes et l intitule de la liste du dossier disent le meme mot', () => {
+  for (const locale of ['fr', 'en'] as const) {
+    const mots = libelles(locale);
+    const nom = locale === 'fr' ? /épisode/i : /episode/i;
+    assert.match(mots.articlesDuDossier, nom, `${locale}.articlesDuDossier`);
+    assert.match(String(mots.nombreEpisodes(3)), nom, `${locale}.nombreEpisodes`);
+  }
+});
+
 test('la mention de media fictif existe dans les deux locales et nomme le journal', () => {
   for (const locale of ['fr', 'en'] as const) {
     const texte = libelles(locale).mediaFictifTexte;

@@ -289,15 +289,46 @@ async function sonderParFetch({ baseUrl, jeton, nom, locale }) {
 }
 
 /**
- * L EMPREINTE QUE LE BUILD PORTE LUI-MEME — `null` aujourd hui, et c est le fait mesure.
+ * LA VARIABLE QUI PORTE L EMPREINTE DU BUILD, nommee ici et pas ailleurs.
  *
- * `include_source_commit_in_build` vaut `false` sur les trois applications Coolify, et Coolify
- * efface `.git` avant de construire : rien ne permet au build de connaitre son propre SHA. Cette
- * fonction rend donc `null`, la sonde le DIT (mode degrade), et la bascule du reglage — second
- * temps, hors perimetre — suffira a l allumer sans toucher a une ligne de logique.
+ * ⚠️ CE NOM EST RECOPIE de `apps/cms/src/middlewares/empreinte-commit.ts` (`VARIABLE_EMPREINTE`),
+ * et la recopie est ASSUMEE pour la meme raison que celle du nom d en-tete plus haut : un test
+ * d `apps/web` ne peut pas lire `apps/cms`, le declencheur au commit ne materialisant que les
+ * applications touchees. Le nom n est de toute facon pas le notre — il est celui de Coolify.
+ */
+const VARIABLE_EMPREINTE_DU_BUILD = 'SOURCE_COMMIT';
+
+/**
+ * L EMPREINTE QUE LE BUILD PORTE LUI-MEME — `null` tant que Coolify ne la livre pas.
+ *
+ * D OU ELLE VIENT, et pourquoi elle manque cote SITE alors qu elle est la cote CMS. Coolify decide
+ * de l injecter dans `generate_coolify_env_variables($forBuildTime)` (`ApplicationDeploymentJob`),
+ * sous la condition `! $forBuildTime || $this->application->settings->include_source_commit_in_build` :
+ *
+ *   - AU RUNTIME, elle est injectee TOUJOURS, sans condition ni reglage. `echo-strapi` est un
+ *     conteneur Node vivant : son middleware la lit a l execution, et c est pourquoi elle est la
+ *     sans que personne n ait rien coche.
+ *   - AU BUILD, elle n est injectee QUE si le reglage vaut `true`. Or `echo-site` est un site
+ *     STATIQUE : son code ne s execute A AUCUN autre moment que la construction. Il lui faut donc
+ *     la variable a l instant precis ou Coolify la retient.
+ *
+ * L asymetrie n est donc PAS un reglage oublie sur une application : le reglage vaut `false` sur
+ * les DEUX (releve en base le 2026-08-21), et le basculer sur `echo-strapi` ne changerait rien.
+ * Elle tient a ce que les deux applications n ont pas le meme moment d execution.
+ *
+ * IL N EXISTE AUCUN CONTOURNEMENT DANS LE DEPOT, et ce n est pas faute d avoir cherche. Coolify
+ * efface `.git` AVANT de construire (`cleanup_git()` est appele juste avant `generate_nixpacks_confs()`),
+ * donc `git rev-parse` est hors de portee ; et les seules variables exposees au build nixpacks sont
+ * `COOLIFY_BRANCH`, `COOLIFY_FQDN`, `COOLIFY_URL` et `COOLIFY_RESOURCE_UUID` — aucune ne porte de
+ * commit (releve dans le plan nixpacks du build 550). Le seul levier est le reglage Coolify.
+ *
+ * ⚠️ NE JAMAIS DEFINIR UNE VARIABLE `SOURCE_COMMIT` A LA MAIN dans Coolify pour « aider ». Le code
+ * ci-dessus ne l injecte que `if ($this->application->environment_variables->where('key',
+ * 'SOURCE_COMMIT')->isEmpty())` : une variable posee a la main EMPECHERAIT la vraie, et figerait
+ * le build sur un SHA perime — un mensonge stable, le pire des cas.
  */
 export function empreinteDuBuild() {
-  const brut = process.env.SOURCE_COMMIT;
+  const brut = process.env[VARIABLE_EMPREINTE_DU_BUILD];
   if (typeof brut !== 'string') return null;
   const propre = brut.trim();
   return propre === '' ? null : propre;
@@ -366,6 +397,24 @@ function ligneEmpreinte(passe, distinctes) {
   );
 }
 
+/**
+ * L EMPREINTE QUE LE BUILD PORTE, DITE POSITIVEMENT — et pourquoi le silence ne suffisait pas.
+ *
+ * Tant que `SOURCE_COMMIT` manquait, la seule trace de l empreinte du SITE etait son ABSENCE :
+ * l avertissement « mode DEGRADE ». Le jour ou elle arrive, cet avertissement disparait — et si
+ * rien ne le remplace, « le build connait son SHA » et « quelqu un a supprime la ligne » rendent
+ * le MEME journal. Ecrire le SHA est ce qui distingue les deux, et c est aussi ce qui permet, des
+ * ANNEES apres, de relire un journal Coolify et de savoir contre quel etat du CMS ce corpus-la a
+ * ete lu. Elle ne s ecrit QU UNE FOIS : elle ne change pas d une passe a l autre.
+ *
+ * ⚠️ RIEN N EST ECRIT QUAND L EMPREINTE EST INCONNUE, et ce n est pas un oubli. Une ligne
+ * « empreinte du BUILD : inconnue » se grep-erait comme les autres et ferait lire une valeur la
+ * ou il n y en a pas. L ignorance a deja son mot, et c est l avertissement DEGRADE.
+ */
+function ligneEmpreinteDuBuild(empreinte) {
+  return `empreinte du BUILD (site) : ${extrait(empreinte, 80)} — lue dans \`${VARIABLE_EMPREINTE_DU_BUILD}\`.`;
+}
+
 /** Le plus instructif des obstacles d une passe : un refus definitif, puis un champ nomme. */
 function obstacleParlant(obstacles) {
   return (
@@ -418,6 +467,14 @@ export async function attendreSchema({
   empreinteAttendue = null,
 }) {
   const noms = Object.keys(REQUETES);
+
+  /* AVANT LA PREMIERE PASSE, et pas au rapport final : la sonde peut sortir en `2` sur un jeton
+     refuse des la premiere requete, et l empreinte du build serait alors la seule chose que le
+     journal n aurait pas dite — precisement sur le build qu on relira. */
+  if (typeof empreinteAttendue === 'string' && empreinteAttendue.trim() !== '') {
+    journaliser(ligneEmpreinteDuBuild(empreinteAttendue));
+  }
+
   const debut = horloge();
   let passes = 0;
   let attentes = 0;

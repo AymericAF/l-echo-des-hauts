@@ -43,6 +43,7 @@ import {
   PLAFOND_PAR_DEFAUT_MS,
   attendreSchema,
   classerReponse,
+  empreinteDuBuild,
   lireEmpreinte,
   parametresDeSonde,
   urlDeSonde,
@@ -851,4 +852,128 @@ test('8 decies. lireEmpreinte lit l en-tete sans se soucier de la casse, et refu
   assert.equal(lireEmpreinte(new Headers({})), null);
   assert.equal(lireEmpreinte(new Headers({ 'x-echo-commit': '   ' })), null);
   assert.equal(lireEmpreinte(null), null, 'une reponse sans en-tetes ne doit pas faire lever');
+});
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+ * 8 bis. L EMPREINTE DU BUILD LUI-MEME — elle se LIT, et surtout elle se DIT
+ *
+ * LE DEFAUT QUE CETTE SOUS-SECTION FERME, et il est celui du LECTEUR D APRES. Jusqu ici, la seule
+ * trace de l empreinte du SITE dans un journal de build etait son ABSENCE : le mode DEGRADE. Le
+ * jour ou Coolify la livre, cette ligne disparait — et RIEN ne la remplace. « le build connait son
+ * SHA » et « la ligne a ete supprimee du code » produisent alors exactement le meme journal :
+ * c est le mode d echec ou succes et echec rendent la meme sortie
+ * ([[quand-succes-et-echec-rendent-la-meme-sortie]]). Une empreinte connue doit donc s ECRIRE,
+ * positivement, en nommant le SHA.
+ *
+ * ⚠️ ELLE NE DEVIENT JAMAIS BLOQUANTE, et le VERROU de `8 nonies` le balaie deja sur les six
+ * etats. Une empreinte absente vaut « je ne sais pas » : c est le cas du developpement local et de
+ * tout banc, et une garde qui planterait la planterait TOUTES les constructions
+ * ([[garde-en-ferme-dans-un-build-transforme-l-incapacite-en-panne]]).
+ * ════════════════════════════════════════════════════════════════════════════════════ */
+
+/** Les lignes que la sonde a ecrites au sujet de l empreinte DU BUILD — pas de celle du CMS. */
+function lignesEmpreinteDuBuild(journal: string[]): string[] {
+  return journal.filter((ligne) => ligne.startsWith('empreinte du BUILD'));
+}
+
+/** Pose `SOURCE_COMMIT` le temps d un appel, et la restaure — `undefined` = variable absente. */
+function avecSourceCommit<T>(valeur: string | undefined, faire: () => T): T {
+  const avant = process.env.SOURCE_COMMIT;
+  if (valeur === undefined) delete process.env.SOURCE_COMMIT;
+  else process.env.SOURCE_COMMIT = valeur;
+  try {
+    return faire();
+  } finally {
+    if (avant === undefined) delete process.env.SOURCE_COMMIT;
+    else process.env.SOURCE_COMMIT = avant;
+  }
+}
+
+test('8 undecies. empreinteDuBuild LIT `SOURCE_COMMIT` quand elle arrive, et rend null sinon', () => {
+  /* LES DEUX SENS, sur la MEME fonction. Le sens « presente » est celui qu allumera le reglage
+     Coolify `include_source_commit_in_build` sur `echo-site` ; le sens « absente » est l etat
+     d aujourd hui, celui du developpement local, et celui de toute image de construction ou la
+     variable n est pas injectee. Aucun des deux ne leve. */
+  assert.equal(avecSourceCommit(SHA_NOUVEAU, empreinteDuBuild), SHA_NOUVEAU);
+  assert.equal(
+    avecSourceCommit(`  ${SHA_NOUVEAU}\n`, empreinteDuBuild),
+    SHA_NOUVEAU,
+    'une valeur bordee d espaces vient d un shell, pas d une intention : elle se rogne',
+  );
+  assert.equal(avecSourceCommit(undefined, empreinteDuBuild), null);
+  assert.equal(
+    avecSourceCommit('   ', empreinteDuBuild),
+    null,
+    'une variable BLANCHE est une ignorance, pas une version : la traiter en SHA fabriquerait ' +
+      'une comparaison entre deux vides',
+  );
+});
+
+test('8 duodecies. empreinte du BUILD CONNUE : elle est JOURNALISEE, et le mode DEGRADE se tait', async () => {
+  const banc = await strapiQuiRattrape(
+    () => null,
+    () => SHA_NOUVEAU,
+  );
+  const journal: string[] = [];
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+      empreinteAttendue: SHA_NOUVEAU,
+      journaliser: (ligne) => journal.push(ligne),
+    });
+
+    /* LE COMPTE D ABORD. Une extraction qui ne trouverait plus rien rendrait un tableau vide, et
+       un `match` sur `[0]` leverait au lieu de rougir proprement — pire, une assertion ecrite
+       « au moins une » virerait au vert par disette le jour ou la ligne changerait de prefixe. */
+    const lignes = lignesEmpreinteDuBuild(journal);
+    assert.equal(lignes.length, 1, 'l empreinte du build s ecrit UNE fois, pas une par passe');
+    assert.match(lignes[0], new RegExp(SHA_NOUVEAU), 'la ligne doit NOMMER le SHA, pas l evoquer');
+
+    assert.equal(
+      rapport.avertissements.filter((a: string) => /degrade/i.test(a)).length,
+      0,
+      'le build connait son empreinte : annoncer le mode DEGRADE serait un mensonge',
+    );
+    assert.equal(rapport.issue, ISSUES.CONFORME);
+  } finally {
+    await banc.fermer();
+  }
+});
+
+test('8 terdecies. empreinte du BUILD ABSENTE : mode DEGRADE annonce, et JAMAIS un echec', async () => {
+  /* L AUTRE SENS, et c est la regle non negociable du lot : zero empreinte vaut « je ne sais
+     pas ». Aucune ligne ne pretend alors connaitre le SHA du site — l inventer, ne serait-ce
+     qu en ecrivant « empreinte du BUILD : inconnue », ferait grep-er une valeur qui n existe pas. */
+  const banc = await strapiQuiRattrape(
+    () => null,
+    () => SHA_NOUVEAU,
+  );
+  const journal: string[] = [];
+
+  try {
+    const rapport = await attendreSchema({
+      baseUrl: banc.base,
+      jeton: JETON,
+      plafondMs: 5_000,
+      intervalleMs: 10,
+      journaliser: (ligne) => journal.push(ligne),
+    });
+
+    assert.equal(
+      lignesEmpreinteDuBuild(journal).length,
+      0,
+      'sans SOURCE_COMMIT, il n y a aucune empreinte du build a journaliser',
+    );
+    assert.ok(
+      rapport.avertissements.some((a: string) => /degrade/i.test(a)),
+      'et le rapport doit AVOUER qu il n a rien compare',
+    );
+    assert.equal(rapport.issue, ISSUES.CONFORME, 'une empreinte absente n echoue JAMAIS');
+  } finally {
+    await banc.fermer();
+  }
 });

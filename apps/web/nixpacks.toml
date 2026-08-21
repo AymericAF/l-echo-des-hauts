@@ -219,5 +219,66 @@ aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 # redeploye pendant que le site construit). Le prix est UN REDEPLOIEMENT, contre une erreur
 # inverse qui, elle, est SILENCIEUSE. Sur 199 constructions mesurees en dix-sept jours, TROIS ont
 # chevauche une fenetre.
+# ── 2026-08-21 : POURQUOI LE SITE N A PAS SON EMPREINTE, ET CE QUE COUTE LE REGLAGE ──────
+#
+# LE BLOC « CE QUI RESTE OUVERT » CI-DESSUS DIT VRAI SUR LE FAIT ET FAUX SUR LE PRIX. Le fait
+# tient : le build ignore sa propre empreinte. Le prix, lui, etait REPRIS de Coolify sans avoir
+# ete mesure ici — il est NUL sur cette application, et la mesure est plus bas.
+#
+# LE MECANISME, releve dans le source de Coolify (`app/Jobs/ApplicationDeploymentJob.php`) et non
+# suppose. `generate_coolify_env_variables($forBuildTime)` injecte `SOURCE_COMMIT` sous la
+# condition `! $forBuildTime || $settings->include_source_commit_in_build` :
+#
+#     AU RUNTIME  ->  toujours, sans condition ni reglage
+#     AU BUILD    ->  seulement si le reglage vaut `true`
+#
+# ⚠️ CE N EST DONC PAS UN REGLAGE OUBLIE SUR UNE APPLICATION. Il vaut `false` sur les CINQ
+# applications de l instance, `echo-strapi` COMPRIS (releve en base le 2026-08-21) : le basculer
+# sur le CMS ne changerait rien, il n en a pas besoin. L asymetrie est celle du MOMENT D EXECUTION.
+# `echo-strapi` est un conteneur Node vivant (`build_pack=dockerfile`, `is_static=f`) : son
+# middleware lit la variable A L EXECUTION, la ou Coolify la donne toujours. `echo-site` est un
+# site STATIQUE (`build_pack=nixpacks`, `is_static=t`) servi par nginx : son code ne s execute
+# A AUCUN AUTRE MOMENT que la construction — exactement l instant ou Coolify la retient.
+#
+# AUCUN CONTOURNEMENT DANS LE DEPOT, verifie et non suppose : `cleanup_git()` est appele JUSTE
+# AVANT `generate_nixpacks_confs()` (lignes 955-956), donc `.git` a disparu quand nixpacks demarre ;
+# et les seules variables exposees au build nixpacks sont `COOLIFY_BRANCH`, `COOLIFY_FQDN`,
+# `COOLIFY_URL` et `COOLIFY_RESOURCE_UUID` — releve dans le plan du build 550, aucune ne porte de
+# commit. Le reglage est le SEUL levier.
+#
+# ⚠️ NE JAMAIS POSER UNE VARIABLE `SOURCE_COMMIT` A LA MAIN pour contourner. Coolify ne l injecte
+# que `if ($this->application->environment_variables->where('key','SOURCE_COMMIT')->isEmpty())` :
+# une variable manuelle EMPECHERAIT la vraie et figerait le build sur un SHA perime. Un mensonge
+# stable est pire que l ignorance avouee.
+#
+# LE PRIX, MESURE SUR LE BUILD 550 (production, commit 6817c51) plutot que cite. Le Dockerfile que
+# nixpacks engendre place la ligne `ARG …` / `ENV …` — ou `SOURCE_COMMIT` viendrait s ajouter —
+# APRES l image de base, `nix-env` et `apt-get`, et AVANT `COPY . /app/.`. Or ce `COPY` est deja
+# invalide a chaque commit, puisque le contexte de construction EST `apps/web`. Releve du build :
+#
+#     #6  WORKDIR                        CACHED     <- au-DESSUS de la ligne ENV : intact
+#     #7  RUN nix-env                    CACHED     <- idem
+#     #8  COPY .nixpacks/*.nix           CACHED     <- idem
+#     #9  RUN apt-get install (fontes)   CACHED     <- idem
+#     #10 COPY . /app/.                  DONE 0.1s  <- deja recalcule AUJOURD HUI
+#     #11 npm ci                         DONE 6.0s  <- deja recalcule AUJOURD HUI
+#     #14 npm run build                  DONE 12.5s <- le segment de la cible M-04
+#
+# Les quatre couches couteuses sont AU-DESSUS de la ligne ENV et le resteraient ; tout ce que
+# `SOURCE_COMMIT` invaliderait est deja invalide par le `COPY`. SURCOUT MESURE : ZERO sur un
+# deploiement comme celui-ci. Le seul cas residuel est le deploiement d un commit NOUVEAU dont le
+# contexte `apps/web` n aurait pas bouge — que `watch_paths = apps/web/**` rend deja rare — et il
+# coute UN `npm ci`, soit 6,0 s, monte de cache (`--mount=type=cache … /root/.npm`), sans
+# telechargement. La cible M-04 se mesure sur `astro build` (#14), que le reglage ne touche pas.
+#
+# CE QUI RESTE A FAIRE, ET QUI N EST PAS DANS CE DEPOT : cocher, dans l INTERFACE Coolify (pas en
+# SQL), application `echo-site` -> onglet Advanced -> liste « Source commit availability », la
+# valeur « Available during build » a la place de « Runtime only (preserves cache) ». Rien d autre.
+# Le code, lui, est PRET : `empreinteDuBuild()` lit la variable, et la sonde ECRIT desormais une
+# ligne « empreinte du BUILD (site) : <sha> » des qu elle la connait — sans quoi la disparition de
+# l avertissement DEGRADE serait la seule trace du succes, et se confondrait avec la suppression
+# de la ligne. Les deux sens sont prouves par `tests/attendre-schema.test.ts` (8 undecies a
+# 8 terdecies), et le VERROU de `8 nonies` continue d interdire qu une empreinte fasse ECHOUER
+# quoi que ce soit.
 [phases.build]
 cmds = ['node --experimental-strip-types scripts/attendre-schema.mjs', 'npm run build']

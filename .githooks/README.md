@@ -15,6 +15,100 @@ Un motif de nom ne peut pas voir ce qu'il ne nomme pas. Ce hook regarde le
 **contenu**, au seul endroit où la contrainte mord : juste avant que `git` écrive
 l'objet commit. Cf. `[[garantie-par-mecanisme-pas-convention]]`.
 
+## L'état réel de la couverture : ce hook est le seul filet
+
+*(Arbitré le 2026-08-17, décision `3e9b998e` — branche B. Les mesures de cette
+section ont été refaites le jour même ; elles ne sont pas reprises des relevés
+d'août.)*
+
+**Le filet côté serveur n'existe pas ici.** L'analyse de secrets et la protection
+de push de GitHub sont **indisponibles sur les dépôts privés d'un compte
+personnel** : elles exigent le produit Secret Protection, qui ne se vend qu'aux
+plans Team et Enterprise. Vérifié le 2026-08-17 sur `claude-global-backup` — le
+dépôt qui porte cette source de vérité :
+
+```
+HTTP 422  Secret scanning is not available for this repository.
+```
+
+Relevé le même jour : **5 dépôts publics, 68 privés**. Le second filet couvre les
+5. Il ne couvre pas les 68, c'est-à-dire la quasi-totalité du travail client.
+
+**Ce qui a été tranché.** Déplacer les dépôts dans une organisation Team rendrait
+la protection achetable. C'est une dépense récurrente et une réorganisation du
+compte : **la branche retenue est d'assumer le hook local** — pas d'organisation,
+pas de Secret Protection. Ce n'est donc pas un trou en attente de correctif,
+c'est un **choix**, et il se paie au prix écrit ci-dessous.
+
+### Les trois trous, nommés
+
+Un hook s'exécute côté client. Trois chemins le contournent par construction, et
+sur un dépôt privé **aucun** n'a de rattrapage derrière lui :
+
+1. **`--no-verify`.** `git commit --no-verify` et `git push --no-verify`
+   neutralisent toute la garde, pour tout le commit, **sans laisser aucune
+   trace** — ni dans le message, ni dans le diff, ni dans un journal. Personne ne
+   peut savoir après coup qu'un commit est passé sans contrôle.
+2. **Un clone non armé.** Les fichiers du lot sont versionnés, ils voyagent avec
+   le dépôt ; `core.hooksPath` est une **configuration locale**, et git ne
+   versionne pas la configuration. Un clone frais porte donc la garde sans la
+   faire tourner, et **rien ne le dit au moment où l'on commite**.
+3. **Une machine tierce.** `init.templateDir` est global au poste : il ne se
+   versionne pas davantage. Le trou n'est pas bouché dans l'absolu, il est bouché
+   **là où l'on travaille**.
+
+### Ce qui compense — parce que ce n'est pas rien
+
+Une doctrine qui ne dit que le trou fait croire qu'il n'y a rien. L'état mesuré
+le 2026-08-17 :
+
+- **37 copies armées, zéro inerte.** Les 37 dépôts du parc portent bien
+  `core.hooksPath` sur `.githooks` — relevé dépôt par dépôt, pas déduit de la
+  présence des fichiers. Et le parc n'est pas un répertoire : il inclut les
+  clones rangés ailleurs que dans `~/projects`, nommés dans `DEPOTS-DU-PARC.txt`.
+- **Le modèle de dépôt arme les clones frais.** Git recopie
+  `~/.claude/.git-template/hooks/` dans `.git/hooks/` de **tout** nouveau clone
+  ou `git init` : le trou 2 est fermé **sur ce poste**, sans geste humain. C'est
+  le seul endroit où git accepte de déposer quelque chose d'exécutable au moment
+  du clone.
+- **Le vérificateur d'alignement tient les copies.** 6 fichiers × 37 copies =
+  222 fichiers comparés par **sha-256** et par **mode d'index** — jamais par la
+  taille ni par la date — chaque anomalie **nommant le dépôt et le fichier**. Il
+  compare aussi le contenu **versionné**, pas seulement le disque, sans quoi un
+  clone frais repartirait avec l'ancienne version. Et il s'audite lui-même.
+- **Le détecteur ne s'énumère pas, il se compose.** Le vocabulaire des noms de
+  variables est une **règle** (fournisseur / marqueur / porteur / qualificatif),
+  pas une liste : 3 055 combinaisons engendrées depuis la règle et passées au
+  détecteur. Une liste de mots grandit par accident et se troue en silence ; une
+  règle de composition se vérifie.
+
+Aucun de ces quatre points ne ferme un des trois trous dans l'absolu. Ce qu'ils
+font, c'est rendre le filet **présent partout où il peut l'être** et son absence
+**visible** — ce qui est précisément ce que le second filet aurait apporté en
+plus, et rien de moins.
+
+### Le geste qui reste humain
+
+Un seul, et il est irréductible : **sur une machine nouvelle ou sur un clone
+frais, poser la configuration AVANT le premier commit.**
+
+```sh
+git config core.hooksPath .githooks
+```
+
+Le dispositif ne peut pas le faire à la place d'Aymeric, et ce n'est pas faute
+d'avoir cherché : **git n'exécute jamais rien qui vienne du dépôt cloné**. Un
+script d'amorçage à lancer après le clone ne serait pas un mécanisme, ce serait
+le même geste manuel avec une étape de plus. Le modèle de dépôt couvre ce poste ;
+partout ailleurs, la ligne ci-dessus **est** la garde.
+
+**Et elle se lit sans cloner.** GitHub sert ce fichier comme README de dossier :
+il s'affiche rendu à l'adresse
+`https://github.com/AymericAF/claude-global-backup/tree/main/.githooks`, donc
+depuis un poste qui n'a encore rien cloné. C'est ce qui rend le geste tenable —
+le moment où il faut le faire est aussi le seul moment où la consigne est
+atteignable.
+
 ## Ce qui est installé
 
 | Fichier | Rôle |
@@ -22,9 +116,6 @@ l'objet commit. Cf. `[[garantie-par-mecanisme-pas-convention]]`.
 | `.githooks/pre-commit` | enveloppe `/bin/sh`, résout `node`, échoue bruyamment s'il manque |
 | `.githooks/detect-secrets.js` | la détection elle-même |
 | `.githooks/package.json` | `{"type": "commonjs"}` — **ne pas l'oublier en copiant le dossier** |
-| `.githooks/pre-push` | enveloppe `/bin/sh`, même forme — **elle garde `main` d'un résultat de fusion rouge**, cf. la section dédiée |
-| `.githooks/gardes-avant-push.js` | les deux suites jouées sur le commit poussé, avant qu'il n'atteigne `main` |
-| `.githooks/gardes-avant-push.recette.mjs` | 7 cas sur de vrais dépôts et de vrais `git push` — elle prouve que la garde REFUSE |
 
 > **Pourquoi ce `package.json` de trois lignes** (2026-08-08, en armant
 > `assistant-business-ia`). `detect-secrets.js` est du CommonJS (`require`,
@@ -721,6 +812,90 @@ journalise `ECHEC - commit refuse` et sort en `exit 1` **sans envoyer le
 heartbeat** — la surveillance n8n reste donc au rouge, au lieu d'afficher un vert
 mensonger sur des modifications jamais sauvegardées.
 
+## La recette n'était prouvée que sur une règle (2026-08-22, tâche `9ebc291c`)
+
+Le câblage de la recette avait été prouvé **en cassant une seule règle**,
+`cle-api-google`. La démonstration était juste, et elle ne portait que sur elle. Le
+détecteur en compte **quatorze** : les douze motifs nommés du tableau plus haut, plus
+`assignation-sensible` et `litteral-haute-entropie`, poussées par le corps de
+l'analyse et sans entrée dans ce tableau. Ce qui restait non vérifié n'est pas un
+détail de couverture — c'est que **les autres cas sachent échouer si leur propre règle
+tombe**.
+
+Chaque règle a donc été **neutralisée seule** — son motif remplacé, au point d'usage,
+par un motif qui ne peut rien reconnaître —, la recette rejouée, puis le détecteur
+**rétabli à l'octet près**, son sha-256 confronté après chaque tour. Une mutation qui
+ne mute rien arrête la campagne : une preuve verte à vide est pire que pas de preuve.
+
+### Le relevé, règle par règle
+
+« Avant » désigne l'état du 2026-08-22 au matin ; « après », le corpus corrigé par
+cette même tâche.
+
+| Règle | Dépendants (avant) | Verdict (avant) | Dépendants (après) | Verdict (après) |
+| --- | --- | --- | --- | --- |
+| `cle-privee-pem` | 0 | **ne rougit pas** | 1 | rougit en la nommant |
+| `aws-access-key-id` | 0 | **ne rougit pas** | 1 | rougit en la nommant |
+| `aws-secret-access-key` | 0 | **ne rougit pas** | 1 | rougit en la nommant |
+| `jeton-github` | 0 | **ne rougit pas** | 1 | rougit en la nommant |
+| `jeton-github-pat` | 0 | **ne rougit pas** | 1 | rougit en la nommant |
+| `cle-openai-anthropic` | 0 | **ne rougit pas** | 1 | rougit en la nommant |
+| `cle-api-google` | 5 | rougit en la nommant | 5 | rougit en la nommant |
+| `jeton-slack` | 0 | **ne rougit pas** | 1 | rougit en la nommant |
+| `url-avec-identifiants` | 9 | rougit en la nommant | 9 | rougit en la nommant |
+| `url-webhook-a-chemin-opaque` | 7 | rougit en la nommant | 7 | rougit en la nommant |
+| `cle-secrete-stripe-live` | 2 | rougit **sans la nommer** | 2 | rougit en la nommant |
+| `secret-webhook-stripe` | 1 | rougit **sans la nommer** | 1 | rougit en la nommant |
+| `assignation-sensible` | 17 | rougit **sans la nommer** | 19 | rougit en la nommant |
+| `litteral-haute-entropie` | 5 | rougit **sans la nommer** | 6 | rougit en la nommant |
+
+`assignation-sensible` est poussée par **deux** chemins distincts, sabotés séparément
+et tous deux exercés : le gabarit `RE_MDP_APPLICATION` (2 dépendants) et
+`RE_ASSIGNATION` (17). Un seul saborde ne suffit donc pas à la déclarer couverte.
+
+### Sept règles qu'aucun cas n'exerçait
+
+Sept des quatorze ne faisaient **rougir personne** : on pouvait les retirer
+entièrement du détecteur sans qu'un seul cas ne bronche. Ce ne sont pas des règles de
+second rang — ce sont les jetons GitHub, les clés AWS, les clés d'API des
+fournisseurs d'IA et les clés privées SSH. Un cas « refuse » a été écrit pour chacune,
+valeur inventée et **assemblée à l'exécution** : la protection de push de GitHub lit
+ces formes comme des secrets réels, et un fichier de recette qu'on ne peut pas pousser
+est inutilisable. Chaque témoin est **confronté au motif de sa règle au chargement** —
+un assemblage d'un caractère trop court ferait virer son cas au vert sans rien
+éprouver, et c'est arrivé à l'écriture (`AKIA` + 15 au lieu de 16).
+
+**Ce que ces sept cas ne prouvent pas, et qu'il faut lire tel quel** : ils prouvent que
+chaque règle **mord**, jamais **où elle s'arrête**. Leurs bornes — préfixe cité en
+documentation, valeur trop courte, homologue publiable de même famille — restent **non
+écrites**. Trou assumé, nommé ici plutôt que découvert le jour d'un faux positif.
+
+### Pourquoi le verdict « rougit sans la nommer » compte
+
+Le fait qui décide de la méthode : **le cas le plus instructif refusait quand même,
+mais par une autre règle.** Des cinq cas que le sabotage de `cle-api-google` fait
+tomber, quatre passent de « refuse » à « passe » ; le cinquième — « clé AIza nue »,
+posée sous `GOOGLE_API_KEY=` — refuse toujours, par `assignation-sensible`. Sans le
+contrôle « la règle est **absente** de la sortie », il serait resté vert **alors que la
+détection Google était morte**. Le même défaut vivait ailleurs : avant correction,
+neutraliser `assignation-sensible` **ou** `litteral-haute-entropie` laissait le cas
+« mot-clé et littéral sur la MÊME ligne » entièrement vert, chacune couvrant la chute
+de l'autre.
+
+Le champ `regle` portait déjà ce contrôle, mais il était **facultatif** : vingt-six cas
+« refuse » ne nommaient aucune règle. Il est désormais **obligatoire sur tout cas
+« refuse »**, sauf les refus `sortieContient` — ceux-là ne viennent d'aucune règle et
+portent déjà leur motif. Il accepte aussi une **liste**, parce que deux règles peuvent
+tirer sur une même ligne.
+
+Et ce n'est pas une consigne : **le chargement de la recette refuse un corpus non
+conforme**, et refuse également une règle nommée par un cas qui n'existerait pas dans
+le détecteur — une faute de frappe rendrait ce cas vert pour toujours, le marqueur
+cherché n'apparaissant jamais dans la sortie. Les noms de règles sont **relevés dans**
+le détecteur, jamais recopiés ; si le relevé cesse de reconnaître leur forme, il rend
+une erreur au lieu d'un contrôle vide. Les trois refus ont été **prouvés en les
+cassant**. Cf. [[garantie-par-mecanisme-pas-convention]].
+
 ## Les dépôts laissés nus, et les résidus assumés
 
 Mesuré et arbitré le 2026-08-08 (tâche `5f0ecb80`). Le principe qui tranche est
@@ -807,7 +982,9 @@ sous-délimiteurs, hôte IPv6 entre crochets, interpolation `${VAR}`, et DSN
 légitimement **entre guillemets** dans du JSON. Sans eux, le resserrement se serait
 mesuré sur la seule chose qu'il devait supprimer.
 
-**Et la recette sait maintenant QUI a refusé.** Ses cas portent un champ facultatif
+**Et la recette sait maintenant QUI a refusé.** Ses cas portent un champ ~~facultatif~~
+**OBLIGATOIRE sur tout cas « refuse » depuis le 2026-08-22** (tâche `9ebc291c`, section
+« La recette n'était prouvée que sur une règle » plus bas)
 `regle` : le code de sortie seul ne dit pas quelle règle a tiré, et un cas « refuse »
 serait resté vert si une **autre** règle avait pris le relais — la règle visée
 pouvant alors être cassée sans que rien ne rougisse. Cf.
@@ -1719,56 +1896,3 @@ propagation : **c'est l'entretien de 37 fichiers de plus qui l'était.**
 - **Un outil tiers** (`gitleaks`, `trufflehog`) plutôt que le détecteur du dépôt.
   Il aurait fallu recalibrer un second jeu de règles, et vivre avec deux verdicts
   différents sur la même ligne selon qu'on commite ou qu'on pousse.
-
-
-## Le troisième filet : le résultat de FUSION, jugé avant `main`
-
-*(Posé le 2026-08-14, tâche `6efc9c7d`. À ne pas confondre avec la protection de push
-ci-dessus, qui porte sur les **secrets** : celle-ci porte sur les **suites de tests**.)*
-
-**Le problème est structurel, pas accidentel : deux branches vertes séparément peuvent être
-rouges ENSEMBLE.** Seul le résultat de fusion le dit, et personne ne le joue avant de pousser.
-
-La CI juge bien un résultat de fusion, dans deux cas : sur `pull_request`, et sur le `push` du
-commit de fusion. **Mais la pratique de ce dépôt est le merge LOCAL poussé** — mesuré le
-2026-08-14 sur les vingt dernières fusions vers `main` : **17 merges locaux contre 3 PR**. Le job
-tourne donc sur un commit de fusion **déjà sur `main`** : le rouge atterrit sur la branche par
-défaut au lieu d'y être refusé. Le commit de tête d'`origin/main` s'est un jour intitulé
-« CI: rendre main verte » — ce qui prouve que main avait été rouge.
-
-### Ce qui a été retenu, et pourquoi pas l'autre branche
-
-| Option | Retenue ? | Motif |
-| --- | :---: | --- |
-| Règle de branche exigeant la verte | non | elle **interdit les pushes directs** : les 17 fusions locales devraient passer par une PR. Sur un dépôt où des runs autonomes fusionnent plusieurs fois par jour, cela ne durcit pas la garde, cela déplace le travail vers un tour de circuit que rien ne garantit d'atteindre |
-| Crochet local jouant les deux suites avant le push | **oui** | il juge exactement ce que la CI jugerait — mais **avant** |
-
-**Ce qui a tranché est une mesure, pas une préférence.** L'objection évidente était le coût :
-jouer deux suites complètes avant chaque push. Relevé le 2026-08-14 sur ce dépôt — **`apps/cms`
-8 s, `apps/web` 6 s, soit 14 s**. À ce prix, il n'y avait aucune raison de restreindre aux seuls
-commits de fusion : **tout push vers `main` est jugé**.
-
-### Les trois trous, assumés — ce sont ceux de `pre-commit`
-
-1. `git push --no-verify` le contourne ;
-2. il est absent d'un clone frais tant que `core.hooksPath = .githooks` n'y est pas posé ;
-3. il juge ce que la **copie de travail** porte.
-
-Le troisième est fermé de la seule façon honnête : **le crochet REFUSE de prononcer** quand
-`HEAD` n'est pas le commit poussé, ou quand l'arbre porte des modifications non commitées. Il
-dirait sinon quelque chose de vrai sur un arbre qui n'est pas ce qui partirait. « Je n'ai pas pu
-juger » et « c'est vert » sont deux phrases différentes.
-
-Les deux premiers sont couverts pour ce qui peut l'être : le workflow `gardes-du-code.yml`
-vérifie, **depuis l'index donc depuis un clone frais**, que `.githooks/pre-push` est en `100755`
-et qu'il appelle bien son module — et il joue sa recette. Rien ne peut être fait contre un
-`--no-verify` assumé, et c'est écrit plutôt que masqué.
-
-### Ce que la recette exige
-
-`node .githooks/gardes-avant-push.recette.mjs` — **7 cas, sur de vrais dépôts avec un remote nu
-et de vrais `git push`**. Un banc qui appellerait la fonction en mémoire ne prouverait ni que git
-invoque le crochet, ni qu'un code non nul arrête effectivement le push, qui est tout l'enjeu.
-Elle exige notamment qu'une suite rouge **arrête** le push et que le commit **ne parte pas**,
-que le refus **nomme** les applications fautives, qu'une branche autre que `main` ne soit **pas**
-jugée, et que les deux incapacités refusent au lieu de juger à côté.

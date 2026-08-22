@@ -15,7 +15,7 @@
 // Usage : node .githooks/detect-secrets.recette.mjs
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, copyFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, copyFileSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -135,24 +135,73 @@ for (const [nom, v] of [['CLE_G_A', CLE_G_A], ['CLE_G_B', CLE_G_B]]) {
       + 'les cas cle-api-google ne prouveraient plus rien.');
   }
 }
+
+// --- LES SEPT RÈGLES QU'AUCUN CAS N'EXERÇAIT (2026-08-22, tâche 9ebc291c) -----
+//
+// CE QUI L'A MOTIVÉ. Le câblage de cette recette (tâche 89ca4486) n'avait prouvé
+// qu'UNE règle : neutraliser `cle-api-google` faisait bien rougir. Le sabotage
+// règle par règle du 2026-08-22 a montré que SEPT des quatorze règles du
+// détecteur n'étaient exercées par AUCUN cas — on pouvait les supprimer
+// entièrement du détecteur sans qu'un seul cas ne bronche. Ce n'est pas une
+// faiblesse de couverture, c'est une recette qui certifie ce qu'elle ne mesure
+// pas : `cle-privee-pem`, `aws-access-key-id`, `aws-secret-access-key`,
+// `jeton-github`, `jeton-github-pat`, `cle-openai-anthropic` et `jeton-slack`
+// pouvaient mourir en silence.
+//
+// TOUTES LES VALEURS SONT INVENTÉES ET ASSEMBLÉES À L'EXÉCUTION, pour la raison
+// écrite en tête de ce fichier : la protection de push de GitHub lit ces formes
+// comme des secrets réels, et un fichier de recette qu'on ne peut pas pousser
+// est inutilisable. Le fichier SOURCE ne porte jamais la chaîne complète ; à
+// l'exécution elle est écrite en entier dans le dépôt jetable, donc c'est bien
+// la forme complète que le détecteur juge.
+//
+// CHAQUE TÉMOIN EST VÉRIFIÉ CONTRE LE MOTIF DE SA RÈGLE, jamais supposé — un
+// assemblage d'un caractère trop court ferait virer son cas au vert sans rien
+// éprouver, exactement ce que ces sept cas existent pour empêcher.
+const PEM_ENTETE = '-----BEGIN' + ' OPENSSH ' + 'PRIVATE' + ' KEY-----';
+const AKIA_ID = 'AKIA' + 'J3QK7ZPX' + '2XR5NM8T';
+const AWS_SECRET = 'Qh7Xn2Td' + '9Rw4Nz1H' + 'b3Vd5Cy8' + 'Ju6Le0Ap' + '2Sg4Bk9M'; // secret-ok : valeur inventee, la sonde EST le cas qu elle mesure
+const GHP_JETON = 'ghp_' + 'Kf7Q2mZt' + '9Rw4Nx1H' + 'b3Vd5Cy8' + 'Ju6Le0Ap' + '2Sg';
+const GH_PAT = 'github_pat_' + '11ABCDEF' + '0Q0zK4mR' + '7tW2xY9n' + 'B3vC6dF8';
+const CLE_ANT = 'sk-' + 'ant-' + 'api03-Zt' + '7Rq2Wm9X' + 'b4Nc1Hd3' + 'Vf5Gy8Ju';
+const JETON_SLACK = 'xox' + 'b-' + '24175839' + '60-41928' + '37465-Kf' + '7Q2mZt9R';
+
+// Les motifs sont RECOPIÉS ICI depuis le détecteur, à dessein : si l'un d'eux se
+// resserre là-bas sans que le témoin suive, le témoin cesse d'avoir la forme et
+// la recette s'effondre bruyamment au chargement — au lieu de virer au vert.
+for (const [nom, valeur, motif] of [
+  ['PEM_ENTETE', PEM_ENTETE, /-----BEGIN\s+(?:[A-Z]+\s+)?PRIVATE KEY-----/],
+  ['AKIA_ID', AKIA_ID, /^AKIA[0-9A-Z]{16}$/],
+  ['AWS_SECRET', AWS_SECRET, /^\S{20,}$/],
+  ['GHP_JETON', GHP_JETON, /^gh[pousr]_[A-Za-z0-9]{30,}$/],
+  ['GH_PAT', GH_PAT, /^github_pat_[A-Za-z0-9_]{22,}$/],
+  ['CLE_ANT', CLE_ANT, /^sk-(?:ant-)?[A-Za-z0-9](?:[A-Za-z0-9_-]{18,})$/],
+  ['JETON_SLACK', JETON_SLACK, /^xox[abprs]-[A-Za-z0-9-]{10,}$/],
+]) {
+  if (!motif.test(valeur)) {
+    throw new Error(`recette inutilisable : ${nom} n a pas la forme attendue par sa regle `
+      + '— le cas qui la porte ne prouverait plus rien.');
+  }
+}
+
 const empreinte = (v) => createHash('sha256').update(v).digest('hex');
 
 const CAS = [
   { nom: 'mot-clé et littéral sur la MÊME ligne', fichier: 'a.js',
-    contenu: `const token = "${FAUX}";\n`, attendu: 'refuse' },
+    contenu: `const token = "${FAUX}";\n`, attendu: 'refuse', regle: ['litteral-haute-entropie', 'assignation-sensible'] },
 
   { nom: 'expansion shell ${VAR:-<secret>}', fichier: 'b.sh',
-    contenu: `TOKEN="\${RD_TOKEN:-${FAUX}}"\n`, attendu: 'refuse' },
+    contenu: `TOKEN="\${RD_TOKEN:-${FAUX}}"\n`, attendu: 'refuse', regle: 'litteral-haute-entropie' },
 
   { nom: 'expansion shell ${VAR=<secret>}', fichier: 'c.sh',
-    contenu: `PASSWORD="\${P=${FAUX}}"\n`, attendu: 'refuse' },
+    contenu: `PASSWORD="\${P=${FAUX}}"\n`, attendu: 'refuse', regle: 'litteral-haute-entropie' },
 
   // L'ANGLE MORT EST FERMÉ (2026-08-06, tâche 34663a22). Ce cas attendait « passe » : le
   // voisinage se mesurait sur la LIGNE PHYSIQUE, donc un mot-clé une ligne plus haut était
   // invisible — la forme la plus courante en JS, JSON et PHP. Le détecteur regarde désormais
   // un contexte de quelques lignes AJOUTÉES du même fichier.
   { nom: 'mot-clé une ligne plus haut', fichier: 'd.js',
-    contenu: `const token = process.env.X;\nconst EXPECTED = "${FAUX}";\n`, attendu: 'refuse' },
+    contenu: `const token = process.env.X;\nconst EXPECTED = "${FAUX}";\n`, attendu: 'refuse', regle: 'litteral-haute-entropie' },
 
   // BORNE HAUTE : au-delà d'UNE ligne, le mot-clé ne porte plus. Ce n'est pas une valeur
   // choisie au jugé — elle a été MESURÉE sur les 2 962 fichiers suivis du dépôt, en pire cas
@@ -201,12 +250,12 @@ const CAS = [
   { nom: 'CONTEXTE : mot-clé sur une ligne EXISTANTE au-dessus', fichier: 'l.js',
     base: `const token = process.env.X;\nconst autre = 1;\n`,
     contenu: `const token = process.env.X;\nconst EXPECTED = "${FAUX}";\nconst autre = 1;\n`,
-    attendu: 'refuse' },
+    attendu: 'refuse', regle: 'litteral-haute-entropie' },
 
   { nom: 'CONTEXTE : mot-clé sur une ligne EXISTANTE en dessous', fichier: 'm.js',
     base: `const autre = 1;\nconst token = process.env.X;\n`,
     contenu: `const autre = 1;\nconst EXPECTED = "${FAUX}";\nconst token = process.env.X;\n`,
-    attendu: 'refuse' },
+    attendu: 'refuse', regle: 'litteral-haute-entropie' },
 
   // BORNE, côté lignes inchangées : le même élargissement ne doit pas porter plus loin que
   // CONTEXTE_LIGNES. Sans ce cas, on pourrait passer à `-U5` sans que rien ne rougisse.
@@ -227,9 +276,9 @@ const CAS = [
   // aussi au littéral (qui exige des guillemets). Deux règles côte à côte, deux angles
   // morts qui se recouvraient : `api_key=<valeur>` dans un `.env` passait entièrement.
   { nom: 'api_key= non quoté (le trou du qualificatif « key »)', fichier: 'p.env',
-    contenu: `api_key=${FAUX}\n`, attendu: 'refuse' },
+    contenu: `api_key=${FAUX}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   { nom: 'access_key / private_key suivent la même règle', fichier: 'q.sh',
-    contenu: `access_key=${FAUX}\n`, attendu: 'refuse' },
+    contenu: `access_key=${FAUX}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   // Le qualificatif doit continuer de désamorcer quand il NOMME le secret sans l'être.
   // La valeur n'est PAS un littéral à haute entropie : sinon la seconde règle refuserait la
   // ligne pour une autre raison, et le cas ne mesurerait plus le désamorçage qu'il vise.
@@ -253,11 +302,11 @@ const CAS = [
   // donc la clé SEULE, sur une ligne seule, dans un fichier qui ne dit rien d'autre : c'est
   // exactement la situation où elle passait, et rien ne doit plus la sauver.
   { nom: 'NOMMÉ : sk_live_ SEUL, aucun mot parlant de secret alentour', fichier: 'w1.txt',
-    contenu: `${SK_LIVE}\n`, attendu: 'refuse' },
+    contenu: `${SK_LIVE}\n`, attendu: 'refuse', regle: 'cle-secrete-stripe-live' },
   { nom: 'NOMMÉ : rk_live_ (clé restreinte, secrète elle aussi) SEUL', fichier: 'w2.txt',
-    contenu: `${RK_LIVE}\n`, attendu: 'refuse' },
+    contenu: `${RK_LIVE}\n`, attendu: 'refuse', regle: 'cle-secrete-stripe-live' },
   { nom: 'NOMMÉ : whsec_ SEUL (signature de webhook Stripe)', fichier: 'w3.txt',
-    contenu: `${WHSEC}\n`, attendu: 'refuse' },
+    contenu: `${WHSEC}\n`, attendu: 'refuse', regle: 'secret-webhook-stripe' },
 
   // BORNE : sans cette exigence de longueur, le PRÉFIXE cité dans de la documentation
   // suffirait à refuser le commit — y compris celui de ce README. Une règle nommée qui
@@ -285,14 +334,14 @@ const CAS = [
   { nom: 'ARBITRAGE : sk_test_ isolé passe (pas de règle nommée)', fichier: 'y1.txt',
     contenu: `${SK_TEST}\n`, attendu: 'passe' },
   { nom: 'ARBITRAGE : sk_test_ sous un nom parlant est signalé (pas d exemption)',
-    fichier: 'y2.env', contenu: `STRIPE_SECRET_KEY=${SK_TEST}\n`, attendu: 'refuse' },
+    fichier: 'y2.env', contenu: `STRIPE_SECRET_KEY=${SK_TEST}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
 
   // Le trou frère de celui d'`api_key` (commit e3d9a0e) : `secret_key` se découpe en
   // [secret, key], `key` est un qualificatif, et `secretkey` manquait à MOTS_SECRET alors
   // qu'`accesskey` et `privatekey` y étaient. Le nom le plus canonique qui soit n'était
   // donc JAMAIS examiné.
   { nom: 'SECRET_KEY= non quoté (le trou frère de api_key)', fichier: 'z1.env',
-    contenu: `SECRET_KEY=${FAUX}\n`, attendu: 'refuse' },
+    contenu: `SECRET_KEY=${FAUX}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   // Le qualificatif doit continuer de désamorcer quand il NOMME le secret sans l'être.
   { nom: 'BORNE : secretKeyName reste désamorcé', fichier: 'z2.js',
     contenu: `const secretKeyName = "nom-de-la-cle-stripe";\n`, attendu: 'passe' },
@@ -308,7 +357,7 @@ const CAS = [
   // aurait raté la clé qui, chez Supabase, contourne toutes les règles de sécurité au
   // niveau ligne — et elle est nommée telle quelle dans tous les `.env` du terrain.
   { nom: 'COMPOSITION : SUPABASE_SERVICE_ROLE_KEY (marqueur non adjacent)', fichier: 'c1.env',
-    contenu: `SUPABASE_SERVICE_ROLE_KEY=${FAUX}\n`, attendu: 'refuse' },
+    contenu: `SUPABASE_SERVICE_ROLE_KEY=${FAUX}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
 
   // PORTEUR ARMÉ : `key` seul ne dit RIEN. C'est la contrepartie exacte de sa sortie des
   // qualificatifs — sans ces trois bornes, faire entrer `api_key` reviendrait à faire
@@ -322,13 +371,13 @@ const CAS = [
   { nom: 'BORNE : PUBLIC_KEY reste muet, PRIVATE_KEY non', fichier: 'c4.env',
     contenu: `PUBLIC_KEY=${FAUX}\n`, attendu: 'passe' },
   { nom: 'COMPOSITION : PRIVATE_KEY est signalé', fichier: 'c5.env',
-    contenu: `PRIVATE_KEY=${FAUX}\n`, attendu: 'refuse' },
+    contenu: `PRIVATE_KEY=${FAUX}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
 
   // DÉCOLLAGE : la forme collée se DÉRIVE, elle n'est plus énumérée. `servicekey` n'a
   // jamais été écrit nulle part — c'est `service` + `key` qui le rendent lisible. C'est
   // ce mécanisme qui remplace la liste qui s'est trouée deux fois.
   { nom: 'COMPOSITION : servicekey collé (dérivé, jamais énuméré)', fichier: 'c6.env',
-    contenu: `servicekey=${FAUX}\n`, attendu: 'refuse' },
+    contenu: `servicekey=${FAUX}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   // BORNE du décollage : les deux moitiés doivent être des mots CONNUS. Sans elle,
   // `bypass` deviendrait `by` + `pass` et l'on ferait revenir les faux positifs
   // PASSE/PASSAGE que le point 1 du calibrage avait fermés.
@@ -339,14 +388,14 @@ const CAS = [
   // shell ; `DB_PWD` est un mot de passe. Le même mot, deux natures, tranchées par la
   // présence d'un second mot — et non par une exception écrite à la main.
   { nom: 'COMPOSITION : DB_PWD est un mot de passe', fichier: 'c8.env',
-    contenu: `DB_PWD=${FAUX}\n`, attendu: 'refuse' },
+    contenu: `DB_PWD=${FAUX}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   { nom: 'BORNE : PWD seul est le répertoire courant Unix', fichier: 'c9.sh',
     contenu: `PWD=/c/Users/aymer/projects/un-chemin-assez-long-pour-passer\n`, attendu: 'passe' },
 
   // PORTEUR ARMÉ `salt` : les sels de wp-config.php sont de vrais secrets, et cette
   // pratique versionne des dépôts WordPress. `auth` et `nonce` les arment.
   { nom: 'COMPOSITION : AUTH_SALT (sel wp-config) est signalé', fichier: 'ca.env',
-    contenu: `AUTH_SALT=${FAUX}\n`, attendu: 'refuse' },
+    contenu: `AUTH_SALT=${FAUX}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
 
   // LE QUALIFICATIF FINAL DÉSAMORCE TOUJOURS, y compris par-dessus un porteur armé :
   // `API_KEY_HEADER` nomme un en-tête, il n'est pas la clé.
@@ -364,7 +413,7 @@ const CAS = [
   { nom: 'BORNE : un mot de passe en clair reste signalé malgré la règle ci-dessus',
     // La sonde EST le cas qu'elle mesure : sans le marqueur de dérogation SUR SA LIGNE,
     // elle se ferait refuser par la garde qu'elle sert à tester, sur les 27 dépôts.
-    fichier: 'cd.env', contenu: `DB_PASSWORD=super_secret_pass\n`, attendu: 'refuse' }, // secret-ok
+    fichier: 'cd.env', contenu: `DB_PASSWORD=super_secret_pass\n`, attendu: 'refuse', regle: 'assignation-sensible' }, // secret-ok
 
   // --- LES TROIS ANGLES MORTS (2026-08-08, tâche b01265b7) -----------------------------
   // Ils avaient la MÊME cause : un FILTRE D'EXCLUSION appliqué sans regarder le voisinage.
@@ -379,12 +428,12 @@ const CAS = [
   // ce n'est donc pas l'espace qu'on accepte, c'est LE GABARIT, et seulement sous une clé
   // qui nomme un secret.
   { nom: 'ESPACES : mot de passe d application Google sous une clé sensible', fichier: 'e1.env',
-    contenu: `GMAIL_APP_PASSWORD=${MDP_APP}\n`, attendu: 'refuse' },
+    contenu: `GMAIL_APP_PASSWORD=${MDP_APP}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   // Un `.env` porte des commentaires de fin de ligne. Sans cette tolérance, l'ancrage de
   // fin de ligne se laisse défaire par un simple `# boîte pro` — et c'est le genre de
   // détail qui rend une règle vraie en recette et fausse sur le terrain.
   { nom: 'ESPACES : le gabarit suivi d un commentaire de fin de ligne', fichier: 'e1b.env',
-    contenu: `SMTP_PASS=${MDP_APP}  # boite pro\n`, attendu: 'refuse' },
+    contenu: `SMTP_PASS=${MDP_APP}  # boite pro\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   // BORNE : le gabarit se rencontre en prose française. Sans cette borne, on accepte
   // les 10 318 signalements que la mesure a écartés.
   { nom: 'BORNE : phrase ordinaire de quatre mots de quatre lettres', fichier: 'e2.md',
@@ -402,7 +451,7 @@ const CAS = [
   // invisible même sous `_authToken`. La règle du sha ne disparaît pas — elle se met à
   // regarder la clé, parce qu'un sha ne s'écrit pas sous un nom de mot de passe.
   { nom: 'SHA : password=<40 hex> (le filtre ignorait la clé)', fichier: 'e5.env',
-    contenu: `password=${HEX40}\n`, attendu: 'refuse' },
+    contenu: `password=${HEX40}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   { nom: 'BORNE : un vrai sha git isolé passe', fichier: 'e6.sh',
     contenu: `SHA=${HEX40}\n`, attendu: 'passe' },
   { nom: 'BORNE : commit=<40 hex> passe', fichier: 'e7.sh',
@@ -414,7 +463,7 @@ const CAS = [
   // ci-dessous vivent dans la même fonction, à une ligne d'écart, et avaient le même
   // défaut. Chacun est mesuré à zéro refus et zéro détection ajoutée sur les 38 dépôts.
   { nom: 'CASSE : password=<40 hex MAJUSCULES> (l angle 2 ne dépend pas de la casse)',
-    fichier: 'e8b.env', contenu: `password=${HEX40.toUpperCase()}\n`, attendu: 'refuse' },
+    fichier: 'e8b.env', contenu: `password=${HEX40.toUpperCase()}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   // BORNE : une valeur en majuscules qui n'est PAS de l'hexadécimal reste une référence
   // à une autre variable. C'est la forme normale d'un fichier de configuration propre.
   { nom: 'BORNE : token: N8N_DRIFT_HEARTBEAT_TOKEN reste une référence', fichier: 'e8c.env',
@@ -424,7 +473,7 @@ const CAS = [
   { nom: 'UUID : un secret client Azure AD est un GUID', fichier: 'e8d.env',
     // secret-ok : GUID inventé. La sonde EST le cas qu'elle mesure — sans ce marqueur,
     // ajouter cette recette ferait refuser son propre commit sur les 37 copies.
-    contenu: `AZURE_CLIENT_SECRET=3f6a2b18-4c7d-4e91-9a02-5d8c71b3ef40\n`, attendu: 'refuse' }, // secret-ok
+    contenu: `AZURE_CLIENT_SECRET=3f6a2b18-4c7d-4e91-9a02-5d8c71b3ef40\n`, attendu: 'refuse', regle: 'assignation-sensible' }, // secret-ok
   // BORNE : les UUID sont omniprésents ici (identifiants de tâche et de projet). Sans
   // clé qui nomme un secret, rien ne change.
   { nom: 'BORNE : un UUID sous une clé quelconque reste muet', fichier: 'e8e.env',
@@ -442,11 +491,11 @@ const CAS = [
   // consommé sans être réexaminé. Ce n'est pas « le cas de npm » : c'est une clé précédée
   // d'un chemin, forme qu'on retrouve dans tout fichier de configuration adressé par URL.
   { nom: 'CHEMIN : //hôte/:_authToken=<valeur> dans un .npmrc', fichier: 'e9.npmrc',
-    contenu: `//npm.registre-divi.net/:_authToken=${JETON_NPM}\n`, attendu: 'refuse' },
+    contenu: `//npm.registre-divi.net/:_authToken=${JETON_NPM}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   // LE CAS RÉEL cumule les angles 2 et 3 : chacun suffisait à lui seul à le rendre
   // invisible. Fermer un seul des deux n'aurait rien changé, et l'aurait fait croire.
   { nom: 'CUMUL : //hôte/:_authToken=<40 hex> (angles 2 et 3 ensemble)', fichier: 'e10.npmrc',
-    contenu: `//npm.registre-divi.net/:_authToken=${HEX40}\n`, attendu: 'refuse' },
+    contenu: `//npm.registre-divi.net/:_authToken=${HEX40}\n`, attendu: 'refuse', regle: 'assignation-sensible' },
   { nom: 'BORNE : chemin de registre sans jeton', fichier: 'e11.npmrc',
     contenu: `registry=https://npm.registre-divi.net/\n`, attendu: 'passe' },
   { nom: 'BORNE : //hôte/:always-auth=true ne porte aucune valeur secrète', fichier: 'e12.npmrc',
@@ -692,6 +741,46 @@ const CAS = [
     attendu: 'passe', regle: 'cle-api-google' },
 
   // =========================================================================
+  // LES SEPT RÈGLES À MOTIF NOMMÉ QU'AUCUN CAS N'EXERÇAIT (2026-08-22)
+  //
+  // Un cas « refuse » par règle, chacun NOMMANT SA RÈGLE — sans quoi il resterait
+  // vert quand une autre règle refuse à sa place, et la détection pourrait mourir
+  // sans bruit. C'est très exactement ce qui se passait pour `cle-secrete-stripe-live`
+  // avant le 2026-08-22 : ses trois cas étaient repris par `litteral-haute-entropie`.
+  //
+  // CE QUE CES SEPT CAS NE FONT PAS, et qu'il faut écrire : ils n'ajoutent AUCUNE
+  // borne. Chacun prouve que sa règle MORD ; aucun ne prouve où elle s'arrête.
+  // Les bornes des sept (préfixe cité en documentation, valeur trop courte, clé
+  // publiable de même famille) restent NON ÉCRITES — trou assumé, nommé ici plutôt
+  // que découvert. Cf. le README, section « ce que la recette ne couvre pas ».
+  // =========================================================================
+  { nom: 'PEM : en-tête de clé privée OpenSSH', fichier: 's1.pem',
+    contenu: `${PEM_ENTETE}\n`,
+    attendu: 'refuse', regle: 'cle-privee-pem' },
+  { nom: 'AWS : identifiant de clé AKIA nu', fichier: 's2.txt',
+    contenu: `${AKIA_ID}\n`,
+    attendu: 'refuse', regle: 'aws-access-key-id' },
+  // La clé AWS secrète se reconnaît PAR SA CLÉ, pas par sa valeur : 40 caractères
+  // base64 n'ont aucune forme propre. La règle nommée et `assignation-sensible`
+  // tirent donc toutes deux — les deux sont exigées, sinon la disparition de la
+  // règle nommée passerait inaperçue derrière l'autre.
+  { nom: 'AWS : aws_secret_access_key= (la valeur n a aucune forme propre)', fichier: 's3.txt',
+    contenu: `aws_secret_access_key=${AWS_SECRET}\n`,
+    attendu: 'refuse', regle: ['aws-secret-access-key', 'assignation-sensible'] },
+  { nom: 'GITHUB : jeton ghp_ nu', fichier: 's4.txt',
+    contenu: `${GHP_JETON}\n`,
+    attendu: 'refuse', regle: 'jeton-github' },
+  { nom: 'GITHUB : jeton fine-grained github_pat_ nu', fichier: 's5.txt',
+    contenu: `${GH_PAT}\n`,
+    attendu: 'refuse', regle: 'jeton-github-pat' },
+  { nom: 'IA : clé sk-ant- nue (OpenAI / Anthropic)', fichier: 's6.txt',
+    contenu: `${CLE_ANT}\n`,
+    attendu: 'refuse', regle: 'cle-openai-anthropic' },
+  { nom: 'SLACK : jeton xoxb- nu', fichier: 's7.txt',
+    contenu: `${JETON_SLACK}\n`,
+    attendu: 'refuse', regle: 'jeton-slack' },
+
+  // =========================================================================
   // `.secrets-connus` — L'ÉCHAPPATOIRE DES FORMATS SANS COMMENTAIRE
   //
   // Pourquoi elle existe : `secret-ok` s'écrit dans un COMMENTAIRE. JSON, CSV,
@@ -756,6 +845,59 @@ const CAS = [
     attendu: 'passe' },
 ];
 
+// ── LE CORPUS SE GARDE LUI-MÊME (2026-08-22, tâche 9ebc291c) ────────────────
+// Un cas « refuse » qui ne nomme pas sa règle mesure LE REFUS, pas LA DÉTECTION.
+// Tant que la règle qu'il vise est la seule à tirer, la nuance ne coûte rien ; le
+// jour où une seconde règle tire sur la même ligne, le cas reste VERT alors que
+// la règle qu'il croit éprouver est morte.
+//
+// CE N'EST PAS UNE CRAINTE, C'EST LE CAS FONDATEUR DU CHAMP `regle` : sur les
+// cinq cas que le sabotage de `cle-api-google` fait tomber, QUATRE passent de
+// « refuse » à « passe » — mais le cinquième, « CLE-GOOGLE : clé AIza nue »,
+// refuse quand même, par `assignation-sensible`. Seul le contrôle « la règle est
+// ABSENTE de la sortie » le voit.
+//
+// Au 2026-08-22, vingt-six cas « refuse » ne nommaient aucune règle, et le
+// sabotage règle par règle a mesuré ce que ça coûtait déjà : « mot-clé et littéral
+// sur la MÊME ligne » restait vert quand on neutralisait l'une OU l'autre de ses
+// deux règles. La consigne existait — elle disait « champ facultatif ». C'est donc
+// le CHARGEMENT de la recette qui refuse désormais un corpus non conforme, et non
+// une phrase de commentaire. Cf. [[garantie-par-mecanisme-pas-convention]].
+const sansRegle = CAS.filter((c) => c.attendu === 'refuse'
+  && c.regle === undefined && c.sortieContient === undefined);
+if (sansRegle.length) {
+  throw new Error('recette inutilisable : ' + sansRegle.length + ' cas « refuse » ne nomment '
+    + 'ni leur regle (`regle`) ni leur motif (`sortieContient`) — ils mesureraient le refus et '
+    + 'non la detection :\n  - ' + sansRegle.map((c) => c.nom).join('\n  - '));
+}
+
+// Symétrique, et c'est l'autre moitié : une règle nommée par un cas doit EXISTER
+// dans le détecteur. Sans ce contrôle, une faute de frappe (`jeton-githup`) rend
+// tout cas « passe » qui la porte vert POUR TOUJOURS — le marqueur cherché
+// n'apparaîtra jamais dans la sortie, donc « la règle est absente » est vrai à
+// vide. Les noms sont RELEVÉS dans le détecteur, jamais recopiés ici : une liste
+// écrite à la main dériverait au premier ajout de règle.
+{
+  const src = readFileSync(DETECTEUR, 'utf8');
+  const connues = new Set([
+    ...[...src.matchAll(/^\s*\{ nom: '([a-z0-9-]+)', desc:/gm)].map((m) => m[1]),
+    ...[...src.matchAll(/r: \{ nom: '([a-z0-9-]+)',/g)].map((m) => m[1]),
+  ]);
+  // Le relevé lui-même doit s'effondrer bruyamment plutôt que de rendre un vert
+  // par disette : s'il cesse de reconnaître la forme, il ne trouve plus rien et
+  // le contrôle ci-dessous ne juge plus personne.
+  if (connues.size < 10) {
+    throw new Error('recette inutilisable : ' + connues.size + ' regle(s) relevee(s) dans le '
+      + 'detecteur — le releve a cesse de reconnaitre sa forme, et ce controle serait vert a vide.');
+  }
+  const inconnues = [...new Set(CAS.flatMap((c) => (c.regle === undefined ? [] : [].concat(c.regle))))]
+    .filter((n) => !connues.has(n));
+  if (inconnues.length) {
+    throw new Error('recette inutilisable : regle(s) nommee(s) par un cas et absente(s) du '
+      + 'detecteur : ' + inconnues.join(', '));
+  }
+}
+
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
 
 let echecs = 0;
@@ -800,15 +942,26 @@ for (const cas of CAS) {
   }
   const obtenu = code === 0 ? 'passe' : 'refuse';
 
-  // `regle` (facultatif) : LE CODE DE SORTIE NE DIT PAS QUI A REFUSÉ. Un cas
+  // `regle` : LE CODE DE SORTIE NE DIT PAS QUI A REFUSÉ. Un cas
   // « refuse » resterait vert alors qu'une AUTRE règle a tiré à la place de celle
   // qu'on éprouve — et un resserrement pourrait alors casser la règle visée sans
   // rien faire rougir. Quand le champ est présent, on exige que ce soit bien elle
   // (ou, pour un cas « passe », qu'elle soit absente de la sortie).
+  //
+  // ⚠️ IL EST OBLIGATOIRE SUR TOUT CAS « refuse », depuis le 2026-08-22 — sauf les
+  // refus `sortieContient`, qui ne viennent d'aucune règle et portent déjà leur
+  // motif. Ce n'était pas le cas jusque-là, et le sabotage règle par règle du
+  // 2026-08-22 a montré ce que ça coûte : neutraliser `cle-secrete-stripe-live`
+  // laissait le cas « sk_live_ SEUL » AU VERT, parce que `litteral-haute-entropie`
+  // refusait à sa place. Le cas mesurait alors le refus, pas la détection.
   // Cf. [[preuve-doit-exercer-critere-acceptation]].
-  const marqueur = `[${cas.regle}]`;
-  const bonneRegle = cas.regle === undefined
-    || (cas.attendu === 'refuse' ? sortie.includes(marqueur) : !sortie.includes(marqueur));
+  // `regle` accepte une chaîne OU une liste : sur une même ligne, deux règles
+  // peuvent tirer (`token = "<littéral>"` arme l'assignation ET le littéral).
+  // N'en nommer qu'une laisserait l'autre s'éteindre sans que le cas rougisse.
+  const reglesAttendues = cas.regle === undefined ? [] : [].concat(cas.regle);
+  const reglesFautives = reglesAttendues.filter(
+    (n) => sortie.includes(`[${n}]`) !== (cas.attendu === 'refuse'));
+  const bonneRegle = reglesFautives.length === 0;
   // `sortieContient` (facultatif) : pour les refus qui ne viennent PAS d'une règle
   // mais d'un échec bruyant du détecteur (fichier d'exemptions malformé, non
   // indexé...). Sans lui, ces cas resteraient verts si le refus venait d'une tout
@@ -817,7 +970,7 @@ for (const cas of CAS) {
   const ok = obtenu === cas.attendu && bonneRegle && bonMotif;
   if (!ok) echecs++;
   const pourquoi = !bonneRegle
-    ? ` — regle ${cas.regle} ${cas.attendu === 'refuse' ? 'ABSENTE de' : 'PRESENTE dans'} la sortie`
+    ? ` — regle ${reglesFautives.join(', ')} ${cas.attendu === 'refuse' ? 'ABSENTE de' : 'PRESENTE dans'} la sortie`
     : (!bonMotif ? ` — motif attendu absent de la sortie : ${JSON.stringify(cas.sortieContient)}` : '');
   console.log(`  ${ok ? 'ok    ' : 'ECHEC '} ${cas.nom} — attendu ${cas.attendu}, obtenu ${obtenu}${pourquoi}`);
 }

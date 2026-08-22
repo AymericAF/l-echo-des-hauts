@@ -1,5 +1,5 @@
 {
-  "_note": "GET /api/articles?locale=en. Un seul article : celui que la fixture francaise ANNONCE (art…001 -> viaduct-reopens-after-eighteen-months-of-works). « Une braderie sans voiture » reste sans traduction — le corpus reel est ainsi (8 articles anglais sur 40, apps/cms/data/articles/), et c est ce qui garde le repli de la bascule FR/EN. `imageCouverture`, `datePublication` et `aLaUne` sont `i18n.localized: false` : copies a l octet. Les relations sont par locale — le tag « Travaux », sans localisation anglaise, est ABSENT ici, et les quatre `articlesLies` gardent leurs documentId pour que la troncature A-13 s exerce aussi en anglais.",
+  "_note": "GET /api/articles?locale=en. Un seul article : celui que la fixture francaise ANNONCE (art…001 -> viaduct-reopens-after-eighteen-months-of-works). « Une braderie sans voiture » reste sans traduction — le corpus reel est ainsi (8 articles anglais sur 40, apps/cms/data/articles/), et c est ce qui garde le repli de la bascule FR/EN. `imageCouverture`, `datePublication` et `aLaUne` sont `i18n.localized: false` : copies a l octet. Les relations sont par locale — le tag « Travaux », sans localisation anglaise, est ABSENT ici, et les quatre `articlesLies` gardent leurs documentId pour que la troncature A-13 s exerce aussi en anglais. Les deux dernieres entrees forment le dossier `dos...003`, dont le compte se rend au PLURIEL : sans lui, seul le singulier etait exerce dans un HTML.",
   "data": [
     {
       "id": 13,
@@ -340,6 +340,164 @@
         }
       ],
       "alternativeCouverture": null
+    },
+    {
+      "id": 41,
+      "documentId": "art0000000000000000021",
+      "titre": "The upper spring intake is back in service",
+      "slug": "upper-spring-intake-back-in-service",
+      "chapo": "The pipe had been cut off while the viaduct works were under way.",
+      "legendeCouverture": "The new pipe, where it leaves the intake.",
+      "datePublication": "2026-05-06T07:00:00.000Z",
+      "aLaUne": false,
+      "locale": "en",
+      "createdAt": "2026-05-02T09:00:00.000Z",
+      "updatedAt": "2026-05-06T07:00:00.000Z",
+      "publishedAt": "2026-05-06T07:00:00.000Z",
+      "imageCouverture": {
+        "id": 91,
+        "documentId": "med0000000000000000091",
+        "url": "/uploads/captage_source_5a1b.jpg",
+        "alternativeText": "Une conduite neuve au sortir d un captage de source",
+        "caption": "Oeuvre du projet — CC0 1.0",
+        "width": 2400,
+        "height": 1350,
+        "mime": "image/jpeg"
+      },
+      "auteur": {
+        "id": 33,
+        "documentId": "aut0000000000000000003",
+        "nom": "Camille Ferrand",
+        "slug": "camille-ferrand"
+      },
+      "categorie": {
+        "id": 22,
+        "documentId": "cat0000000000000000002",
+        "nom": "Planning and development",
+        "slug": "planning-and-development",
+        "couleurAccent": "#1f6f4a"
+      },
+      "tags": [
+        {
+          "id": 47,
+          "documentId": "tag0000000000000000007",
+          "nom": "Mobility",
+          "slug": "mobility"
+        }
+      ],
+      "dossier": {
+        "id": 12,
+        "documentId": "dos0000000000000000003",
+        "titre": "The plateau water, season by season",
+        "slug": "plateau-water-season-by-season"
+      },
+      "articlesLies": [],
+      "contenu": [
+        {
+          "__component": "bloc.texte",
+          "id": 410,
+          "contenu": [
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "The water board reopened the valve on the first Monday of the month."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "seo": null,
+      "localizations": [
+        {
+          "id": 21,
+          "documentId": "art0000000000000000021",
+          "locale": "fr",
+          "slug": "captage-de-la-source-haute-remis-en-service"
+        }
+      ],
+      "alternativeCouverture": null
+    },
+    {
+      "id": 42,
+      "documentId": "art0000000000000000022",
+      "titre": "The village reservoir moves to hourly metering",
+      "slug": "village-reservoir-moves-to-hourly-metering",
+      "chapo": "Night-time leaks will now show up the following morning.",
+      "legendeCouverture": "The reservoir, seen from the rampart path.",
+      "datePublication": "2026-05-20T07:00:00.000Z",
+      "aLaUne": false,
+      "locale": "en",
+      "createdAt": "2026-05-02T09:00:00.000Z",
+      "updatedAt": "2026-05-20T07:00:00.000Z",
+      "publishedAt": "2026-05-20T07:00:00.000Z",
+      "imageCouverture": {
+        "id": 92,
+        "documentId": "med0000000000000000092",
+        "url": "/uploads/reservoir_bourg_6c2d.jpg",
+        "alternativeText": "Le reservoir du bourg, vu depuis le chemin de ronde",
+        "caption": "Oeuvre du projet — CC0 1.0",
+        "width": 2400,
+        "height": 1350,
+        "mime": "image/jpeg"
+      },
+      "auteur": {
+        "id": 33,
+        "documentId": "aut0000000000000000003",
+        "nom": "Camille Ferrand",
+        "slug": "camille-ferrand"
+      },
+      "categorie": {
+        "id": 22,
+        "documentId": "cat0000000000000000002",
+        "nom": "Planning and development",
+        "slug": "planning-and-development",
+        "couleurAccent": "#1f6f4a"
+      },
+      "tags": [
+        {
+          "id": 47,
+          "documentId": "tag0000000000000000007",
+          "nom": "Mobility",
+          "slug": "mobility"
+        }
+      ],
+      "dossier": {
+        "id": 12,
+        "documentId": "dos0000000000000000003",
+        "titre": "The plateau water, season by season",
+        "slug": "plateau-water-season-by-season"
+      },
+      "articlesLies": [],
+      "contenu": [
+        {
+          "__component": "bloc.texte",
+          "id": 420,
+          "contenu": [
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "A pulse meter replaces the monthly reading taken by hand."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "seo": null,
+      "localizations": [
+        {
+          "id": 22,
+          "documentId": "art0000000000000000022",
+          "locale": "fr",
+          "slug": "reservoir-du-bourg-passe-au-comptage-horaire"
+        }
+      ],
+      "alternativeCouverture": null
     }
   ],
   "meta": {
@@ -347,7 +505,7 @@
       "page": 1,
       "pageSize": 25,
       "pageCount": 1,
-      "total": 1
+      "total": 3
     }
   }
 }

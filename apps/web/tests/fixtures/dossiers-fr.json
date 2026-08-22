@@ -1,5 +1,5 @@
 {
-  "_note": "GET /api/dossiers?locale=fr. `articles` est une relation : elle est localisee d office, la liste de la localisation EN est la sienne et ne se remplit pas depuis la FR (docs/modele-donnees.md §2.5).",
+  "_note": "GET /api/dossiers?locale=fr. `articles` est une relation : elle est localisee d office, la liste de la localisation EN est la sienne et ne se remplit pas depuis la FR (docs/modele-donnees.md §2.5). Le troisieme dossier porte DEUX articles : c est lui qui fait rendre le pluriel du compte d episodes, que le premier (un seul article) ne peut pas exercer.",
   "data": [
     {
       "id": 1,
@@ -64,6 +64,62 @@
       "seo": null,
       "localizations": [],
       "alternativeHero": null
+    },
+    {
+      "id": 3,
+      "documentId": "dos0000000000000000003",
+      "titre": "L eau du plateau, saison par saison",
+      "slug": "eau-du-plateau-saison-par-saison",
+      "dateOuverture": "2026-05-02",
+      "locale": "fr",
+      "updatedAt": "2026-05-02T09:00:00.000Z",
+      "introduction": [
+        {
+          "type": "paragraph",
+          "children": [
+            {
+              "type": "text",
+              "text": "Du captage a la vanne du bourg, ce que le reseau donne a voir."
+            }
+          ]
+        }
+      ],
+      "imageHero": {
+        "id": 93,
+        "documentId": "med0000000000000000093",
+        "url": "/uploads/hero_dossier_eau_7e3f.jpg",
+        "alternativeText": "Le plateau et ses retenues d eau, vus du ciel",
+        "caption": "Oeuvre du projet — CC0 1.0",
+        "width": 2400,
+        "height": 900,
+        "mime": "image/jpeg"
+      },
+      "articles": [
+        {
+          "id": 21,
+          "documentId": "art0000000000000000021",
+          "titre": "Le captage de la source haute est remis en service",
+          "slug": "captage-de-la-source-haute-remis-en-service",
+          "datePublication": "2026-05-06T07:00:00.000Z"
+        },
+        {
+          "id": 22,
+          "documentId": "art0000000000000000022",
+          "titre": "Le reservoir du bourg passe au comptage horaire",
+          "slug": "reservoir-du-bourg-passe-au-comptage-horaire",
+          "datePublication": "2026-05-20T07:00:00.000Z"
+        }
+      ],
+      "seo": null,
+      "localizations": [
+        {
+          "id": 12,
+          "documentId": "dos0000000000000000003",
+          "locale": "en",
+          "slug": "plateau-water-season-by-season"
+        }
+      ],
+      "alternativeHero": null
     }
   ],
   "meta": {
@@ -71,7 +127,7 @@
       "page": 1,
       "pageSize": 25,
       "pageCount": 1,
-      "total": 2
+      "total": 3
     }
   }
 }

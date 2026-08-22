@@ -1,5 +1,5 @@
 {
-  "_note": "GET /api/dossiers?locale=en. La relation `articles` est LOCALISEE d office : la liste anglaise pointe la localisation anglaise du meme document (meme documentId, slug et titre anglais). `imageHero` et `dateOuverture` sont `i18n.localized: false` : copies a l octet. Le second dossier reste sans traduction.",
+  "_note": "GET /api/dossiers?locale=en. La relation `articles` est LOCALISEE d office : la liste anglaise pointe la localisation anglaise du meme document (meme documentId, slug et titre anglais). `imageHero` et `dateOuverture` sont `i18n.localized: false` : copies a l octet. Le second dossier reste sans traduction. Le troisieme dossier porte DEUX articles, comme son homologue francais : le pluriel anglais se rend donc lui aussi.",
   "data": [
     {
       "id": 11,
@@ -49,6 +49,62 @@
         }
       ],
       "alternativeHero": null
+    },
+    {
+      "id": 12,
+      "documentId": "dos0000000000000000003",
+      "titre": "The plateau water, season by season",
+      "slug": "plateau-water-season-by-season",
+      "dateOuverture": "2026-05-02",
+      "locale": "en",
+      "updatedAt": "2026-05-02T09:00:00.000Z",
+      "introduction": [
+        {
+          "type": "paragraph",
+          "children": [
+            {
+              "type": "text",
+              "text": "From the intake to the village valve, what the network shows."
+            }
+          ]
+        }
+      ],
+      "imageHero": {
+        "id": 93,
+        "documentId": "med0000000000000000093",
+        "url": "/uploads/hero_dossier_eau_7e3f.jpg",
+        "alternativeText": "Le plateau et ses retenues d eau, vus du ciel",
+        "caption": "Oeuvre du projet — CC0 1.0",
+        "width": 2400,
+        "height": 900,
+        "mime": "image/jpeg"
+      },
+      "articles": [
+        {
+          "id": 41,
+          "documentId": "art0000000000000000021",
+          "titre": "The upper spring intake is back in service",
+          "slug": "upper-spring-intake-back-in-service",
+          "datePublication": "2026-05-06T07:00:00.000Z"
+        },
+        {
+          "id": 42,
+          "documentId": "art0000000000000000022",
+          "titre": "The village reservoir moves to hourly metering",
+          "slug": "village-reservoir-moves-to-hourly-metering",
+          "datePublication": "2026-05-20T07:00:00.000Z"
+        }
+      ],
+      "seo": null,
+      "localizations": [
+        {
+          "id": 3,
+          "documentId": "dos0000000000000000003",
+          "locale": "fr",
+          "slug": "eau-du-plateau-saison-par-saison"
+        }
+      ],
+      "alternativeHero": null
     }
   ],
   "meta": {
@@ -56,7 +112,7 @@
       "page": 1,
       "pageSize": 25,
       "pageCount": 1,
-      "total": 1
+      "total": 2
     }
   }
 }

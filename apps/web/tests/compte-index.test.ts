@@ -18,6 +18,19 @@
  * n emet pas d index vide (§10.3 du plan editorial), donc zero n arrive pas par la page ;
  * il arriverait par un appel depuis ailleurs, et une fonction qui repond « 0 episode » a
  * un dossier vide fabrique une affirmation fausse dans une langue correcte.
+ *
+ * CE QUI SE PROUVE ICI, ET CE QUI NE S Y PROUVE PAS (2026-08-22). Ces trois cas sont
+ * exerces EN UNITE, et le sont depuis l origine. Au RENDU, une seule des trois formes
+ * avait ete vue : le SINGULIER, faute d un dossier de plus d un article dans le banc —
+ * « 5 épisodes » n existait que dans l assertion ci-dessous. Le banc porte desormais un
+ * dossier a deux articles, et `scripts/compte-episodes-servi.mjs`, branche dans
+ * `npm run preuve:rendu`, confronte le compte SERVI a celui que la source pose, sur les
+ * deux surfaces et dans les deux locales. Il ne lit ni ce module ni le dictionnaire :
+ * sinon casser le libelle deplacerait les deux cotes et le laisserait vert.
+ *
+ * Le cas a ZERO, lui, reste hors du HTML — le registre n emet pas d index vide, et
+ * forcer sa construction controlerait un chemin que la production n emprunte jamais. Ce
+ * qui est juge au rendu est son OMBRE : le dossier vide n a ni page ni carte.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

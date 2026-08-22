@@ -1,5 +1,5 @@
 {
-  "_note": "Reponse REST Strapi 5 pour GET /api/articles?locale=fr, avec le populate explicite de src/lib/strapi/requete.ts. Derivee champ par champ des schemas d apps/cms (article/schema.json + les 8 blocs). Deux entrees : une complete (tous les blocs, toutes les relations, 4 articlesLies pour exercer la troncature A-13), une minimale (tous les optionnels a null/[]).",
+  "_note": "Reponse REST Strapi 5 pour GET /api/articles?locale=fr, avec le populate explicite de src/lib/strapi/requete.ts. Derivee champ par champ des schemas d apps/cms (article/schema.json + les 8 blocs). Deux entrees : une complete (tous les blocs, toutes les relations, 4 articlesLies pour exercer la troncature A-13), une minimale (tous les optionnels a null/[]). Les deux dernieres entrees forment le dossier `dos...003`, dont le compte se rend au PLURIEL : sans lui, seul le singulier etait exerce dans un HTML.",
   "data": [
     {
       "id": 12,
@@ -456,6 +456,164 @@
       "seo": null,
       "localizations": [],
       "alternativeCouverture": null
+    },
+    {
+      "id": 21,
+      "documentId": "art0000000000000000021",
+      "titre": "Le captage de la source haute est remis en service",
+      "slug": "captage-de-la-source-haute-remis-en-service",
+      "chapo": "La conduite avait ete coupee pendant les travaux du viaduc.",
+      "legendeCouverture": "La conduite neuve, au sortir du captage.",
+      "datePublication": "2026-05-06T07:00:00.000Z",
+      "aLaUne": false,
+      "locale": "fr",
+      "createdAt": "2026-05-02T09:00:00.000Z",
+      "updatedAt": "2026-05-06T07:00:00.000Z",
+      "publishedAt": "2026-05-06T07:00:00.000Z",
+      "imageCouverture": {
+        "id": 91,
+        "documentId": "med0000000000000000091",
+        "url": "/uploads/captage_source_5a1b.jpg",
+        "alternativeText": "Une conduite neuve au sortir d un captage de source",
+        "caption": "Oeuvre du projet — CC0 1.0",
+        "width": 2400,
+        "height": 1350,
+        "mime": "image/jpeg"
+      },
+      "auteur": {
+        "id": 3,
+        "documentId": "aut0000000000000000003",
+        "nom": "Camille Ferrand",
+        "slug": "camille-ferrand"
+      },
+      "categorie": {
+        "id": 2,
+        "documentId": "cat0000000000000000002",
+        "nom": "Amenagement",
+        "slug": "amenagement",
+        "couleurAccent": "#1f6f4a"
+      },
+      "tags": [
+        {
+          "id": 7,
+          "documentId": "tag0000000000000000007",
+          "nom": "Mobilite",
+          "slug": "mobilite"
+        }
+      ],
+      "dossier": {
+        "id": 3,
+        "documentId": "dos0000000000000000003",
+        "titre": "L eau du plateau, saison par saison",
+        "slug": "eau-du-plateau-saison-par-saison"
+      },
+      "articlesLies": [],
+      "contenu": [
+        {
+          "__component": "bloc.texte",
+          "id": 210,
+          "contenu": [
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Le syndicat des eaux a rouvert la vanne le premier lundi du mois."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "seo": null,
+      "localizations": [
+        {
+          "id": 41,
+          "documentId": "art0000000000000000021",
+          "locale": "en",
+          "slug": "upper-spring-intake-back-in-service"
+        }
+      ],
+      "alternativeCouverture": null
+    },
+    {
+      "id": 22,
+      "documentId": "art0000000000000000022",
+      "titre": "Le reservoir du bourg passe au comptage horaire",
+      "slug": "reservoir-du-bourg-passe-au-comptage-horaire",
+      "chapo": "Les fuites nocturnes seront desormais visibles des le lendemain.",
+      "legendeCouverture": "Le reservoir, depuis le chemin de ronde.",
+      "datePublication": "2026-05-20T07:00:00.000Z",
+      "aLaUne": false,
+      "locale": "fr",
+      "createdAt": "2026-05-02T09:00:00.000Z",
+      "updatedAt": "2026-05-20T07:00:00.000Z",
+      "publishedAt": "2026-05-20T07:00:00.000Z",
+      "imageCouverture": {
+        "id": 92,
+        "documentId": "med0000000000000000092",
+        "url": "/uploads/reservoir_bourg_6c2d.jpg",
+        "alternativeText": "Le reservoir du bourg, vu depuis le chemin de ronde",
+        "caption": "Oeuvre du projet — CC0 1.0",
+        "width": 2400,
+        "height": 1350,
+        "mime": "image/jpeg"
+      },
+      "auteur": {
+        "id": 3,
+        "documentId": "aut0000000000000000003",
+        "nom": "Camille Ferrand",
+        "slug": "camille-ferrand"
+      },
+      "categorie": {
+        "id": 2,
+        "documentId": "cat0000000000000000002",
+        "nom": "Amenagement",
+        "slug": "amenagement",
+        "couleurAccent": "#1f6f4a"
+      },
+      "tags": [
+        {
+          "id": 7,
+          "documentId": "tag0000000000000000007",
+          "nom": "Mobilite",
+          "slug": "mobilite"
+        }
+      ],
+      "dossier": {
+        "id": 3,
+        "documentId": "dos0000000000000000003",
+        "titre": "L eau du plateau, saison par saison",
+        "slug": "eau-du-plateau-saison-par-saison"
+      },
+      "articlesLies": [],
+      "contenu": [
+        {
+          "__component": "bloc.texte",
+          "id": 220,
+          "contenu": [
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "text",
+                  "text": "Un compteur a impulsions remplace le releve mensuel a la main."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "seo": null,
+      "localizations": [
+        {
+          "id": 42,
+          "documentId": "art0000000000000000022",
+          "locale": "en",
+          "slug": "village-reservoir-moves-to-hourly-metering"
+        }
+      ],
+      "alternativeCouverture": null
     }
   ],
   "meta": {
@@ -463,7 +621,7 @@
       "page": 1,
       "pageSize": 25,
       "pageCount": 1,
-      "total": 2
+      "total": 4
     }
   }
 }

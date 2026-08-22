@@ -59,6 +59,10 @@ import {
   inspecterAlternativesPartage,
 } from './alternative-partage-servie.mjs';
 import { CIBLES, cibleDemandee, sourcePourCible } from './cible-preuve.mjs';
+import {
+  dossiersPosesParLaSource,
+  inspecterComptesEpisodes,
+} from './compte-episodes-servi.mjs';
 import { articlesDuBanc, inspecterBlocs, TYPES, verdictPageComplete } from './couverture-blocs.mjs';
 import { arbitrer, ISSUES } from './issues.mjs';
 import { inspecterMentionsRendues, resumeMentionsRendues } from './mentions-obligatoires.mjs';
@@ -150,6 +154,28 @@ async function articlesParLocale(source) {
   const entrees = {};
   for (const locale of LOCALES) entrees[locale] = await source.articles(locale);
   return entrees;
+}
+
+/**
+ * Les dossiers poses par la source, locale par locale, avec leur compte d episodes attendu.
+ *
+ * DEUX collections sont lues, et il en faut deux : la relation `articles` du dossier dit
+ * ce qu il vise, la collection d articles dit ce qui EXISTE. C est leur intersection que
+ * le site rend (`articlesDeDossier`, registre.ts) — une reference orpheline n emet aucune
+ * page. `null` pour une locale dont l une ou l autre manque : on n accuse pas le site
+ * d un compte qu on n a pas de quoi juger.
+ */
+async function dossiersParLocale(source, articlesSource) {
+  const poses = {};
+  for (const locale of LOCALES) {
+    const dossiers = await source.dossiers(locale);
+    const articles = articlesSource[locale];
+    poses[locale] =
+      dossiers === null || articles === null
+        ? null
+        : dossiersPosesParLaSource(locale, dossiers, articles);
+  }
+  return poses;
 }
 
 /** Les cartes de partage posees par la source, locale par locale. `null` : locale non peuplee. */
@@ -660,6 +686,36 @@ console.log(
         `incapacite(s) — ${partage.controles} page(s) inspectee(s).`,
 );
 
+/**
+ * LE COMPTE D EPISODES — LES TROIS FORMES, ET PAS SEULEMENT CELLE QU ON VOYAIT (2026-08-22).
+ *
+ * `compteDeLIndex` sait rendre trois choses : rien a zero, le singulier a un, le pluriel
+ * au-dela. Le commit `2761336` a prouve le SINGULIER dans le HTML — quatre fragments, les
+ * deux surfaces, les deux locales. Le PLURIEL n existait que dans une assertion d unite :
+ * aucun dossier du banc n avait plus d un article. Sur trois formes, une seule etait vue,
+ * et c est celle ou une substitution de mot se voit le mieux.
+ *
+ * L attendu ne vient NI de `compteDeLIndex`, NI du dictionnaire : `compte-episodes-servi.mjs`
+ * recopie les quatre formes, faute de quoi casser le libelle deplacerait les deux cotes
+ * ensemble et laisserait ce controle vert. Le nombre, lui, vient de la SOURCE.
+ *
+ * Le cas a ZERO n est pas force : le registre n emet pas d index vide (§10.3), et
+ * construire une page que la production ne construit jamais serait un vert sur du code
+ * mort. Ce qui est juge est ce que la production montre vraiment — un dossier sans article
+ * n a AUCUNE page et AUCUNE carte.
+ */
+const episodes = inspecterComptesEpisodes(await dossiersParLocale(source, articlesSource), (route) =>
+  lirePage(dist, route),
+);
+console.log(
+  episodes.ecarts.length === 0 && episodes.incapacites.length === 0
+    ? `Compte d episodes : ${episodes.controles} page(s) de dossier et leur carte d accueil — ` +
+        `${episodes.exerces.pluriel} au PLURIEL, ${episodes.exerces.singulier} au SINGULIER, ` +
+        `${episodes.vides} dossier(s) vide(s) absent(s) de la sortie.`
+    : `Compte d episodes : ${episodes.ecarts.length} ecart(s), ${episodes.incapacites.length} ` +
+        `incapacite(s) — ${episodes.controles} page(s) inspectee(s).`,
+);
+
 /*
  * LA SEULE SORTIE PRECOCE QUI SURVIT ICI, ET LA MESURE QUI LA JUSTIFIE (2026-08-20).
  *
@@ -790,6 +846,45 @@ if (partage.ecarts.length > 0) {
  * a juger, « la surcharge est honoree » et « la surcharge est ignoree » rendent le meme
  * vert. Code `2`, jamais `1` : c est le corpus qu il faut corriger, pas le site.
  */
+if (episodes.ecarts.length > 0) {
+  console.error('\n✖ Compte d episodes, sur la page servie :');
+  for (const ecart of episodes.ecarts) console.error(`  - ${ecart}`);
+  issues.push(ISSUES.ANOMALIE);
+}
+
+if (episodes.incapacites.length > 0) {
+  console.error('\n⛔ Compte d episodes — la source ne permet pas de juger :');
+  for (const incapacite of episodes.incapacites) console.error(`  - ${incapacite}`);
+  issues.push(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
+
+/*
+ * ZERO DOSSIER AU PLURIEL VIDE LE CONTROLE DE SON SENS — et c est le trou exact que ce
+ * lot ferme. Sans un dossier de plus d un article, « le pluriel est servi » et « le
+ * pluriel a disparu » rendent le MEME HTML : c est l etat dans lequel le banc a vecu
+ * jusqu au 2026-08-22. Le singulier est exige pour la meme raison, en miroir.
+ *
+ * Code `2`, jamais `1` : c est le CORPUS qu il faut garnir, pas le site qu il faut
+ * corriger — meme arbitrage que pour les cartes de partage surchargees.
+ *
+ * Le cas a ZERO n entre PAS dans cette exigence, et c est delibere : un dossier vide est
+ * un accident editorial, pas un objet qu un corpus doit conserver. Il est COMPTE ci-dessus
+ * (`vides`) pour qu un lecteur voie s il a ete exerce, jamais exige.
+ */
+const formesNonExercees = Object.entries(episodes.exerces)
+  .filter(([, compte]) => compte === 0)
+  .map(([forme]) => forme);
+if (formesNonExercees.length > 0) {
+  console.error(
+    `\n⛔ ${source.poseur.toUpperCase()}, PAS LE SITE — aucun dossier ne rend le compte au ` +
+      `${formesNonExercees.join(' ni au ')} :\n` +
+      '  - un dossier d un seul article rend le singulier, un dossier de plusieurs rend le\n' +
+      '    pluriel. Sans les deux, servir la bonne forme et servir l autre produisent le meme\n' +
+      `    HTML, et ce controle ne juge rien. ${episodes.controles} page(s) inspectee(s).\n`,
+  );
+  issues.push(ISSUES.VERIFICATION_IMPOSSIBLE);
+}
+
 if (partage.incapacites.length > 0) {
   console.error('\n⛔ Carte de partage — entrees illisibles a la source :');
   for (const incapacite of partage.incapacites) console.error(`  - ${incapacite}`);

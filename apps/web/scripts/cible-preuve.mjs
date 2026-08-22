@@ -205,6 +205,9 @@ export function sourceBanc(locales) {
     async auteurs(locale) {
       return existeFixture(`auteurs-${locale}`) ? lireFixture(`auteurs-${locale}`).data : null;
     },
+    async dossiers(locale) {
+      return existeFixture(`dossiers-${locale}`) ? lireFixture(`dossiers-${locale}`).data : null;
+    },
     async configuration(locale) {
       return existeFixture(`configuration-${locale}`)
         ? lireFixture(`configuration-${locale}`).data
@@ -227,7 +230,7 @@ export function sourceBanc(locales) {
  * preuve comparerait alors deux corpus au lieu d un corpus a son rendu.
  *
  * @param {Record<string, string|undefined>} env
- * @param {{articles: Function, auteurs: Function, configuration: Function}} [lecteur]
+ * @param {{articles: Function, auteurs: Function, dossiers: Function, configuration: Function}} [lecteur]
  *        Injecte en test, pour exercer la table de decision sans reseau.
  */
 export function sourceInstance(env = {}, lecteur = undefined) {
@@ -242,6 +245,7 @@ export function sourceInstance(env = {}, lecteur = undefined) {
     acces = {
       articles: (locale) => chargerCollection(configuration, 'articles', locale),
       auteurs: (locale) => chargerCollection(configuration, 'auteurs', locale),
+      dossiers: (locale) => chargerCollection(configuration, 'dossiers', locale),
       configuration: (locale) => chargerConfiguration(configuration, locale),
     };
     return acces;
@@ -274,6 +278,9 @@ export function sourceInstance(env = {}, lecteur = undefined) {
     },
     async auteurs(locale) {
       return (await client()).auteurs(locale);
+    },
+    async dossiers(locale) {
+      return (await client()).dossiers(locale);
     },
     async configuration(locale) {
       return (await client()).configuration(locale);

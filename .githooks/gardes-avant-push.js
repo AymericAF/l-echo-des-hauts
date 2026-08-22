@@ -61,6 +61,31 @@ const { join } = require('node:path');
 // d aucun des deux. On recopie donc la LECTURE (un JSON, une date), jamais la logique de pose.
 // Si le format bouge, c est ici qu il faut suivre — et la recette le dit en cassant.
 //
+// ── ET DEPUIS LE 2026-08-22, UN INSTRUMENT LE DIT AU LIEU D UNE CONSIGNE (tâche `7cedc731`) ──
+// Ce qui précède restait une CONVENTION : rien ne reliait le `CHEMIN_VERROU` ci-dessous à celui
+// que le dépôt de mesure écrit, et le jour où l un des deux bougeait, le seul indice aurait été
+// une campagne faussée découverte après coup — c est-à-dire le mode d échec du 2026-08-17, à
+// l identique. Le dépôt de documentation porte désormais `docs/check-verrou-partage.js`, qui LIT
+// LES DEUX SOURCES et rougit en NOMMANT les deux chemins dès qu ils divergent. Il compare une
+// désignation normalisée (la variable d échappement, puis les segments ancrés sur le dossier
+// personnel), jamais les octets : les deux côtés écrivent le même chemin avec des appels
+// différents, et une comparaison de chaînes rougirait en permanence sans rien apprendre.
+//
+// CE QUE CELA IMPOSE À QUI TOUCHE LES DEUX LIGNES CI-DESSOUS : le chemin ET le nom de la variable
+// se changent DES DEUX CÔTÉS, dans le même mouvement. Un seul côté déplacé et la campagne se
+// déclare là où ce crochet ne regarde pas. La garde le refusera, mais elle vit dans le dépôt
+// PRIVÉ — elle n est donc pas jouée par un push d ici, et son rouge n arrivera qu au prochain
+// passage de la CI documentaire.
+//
+// ⚠️ ET LE VERROU NE MORD QUE SI CE CROCHET EST ARMÉ. Les fichiers de `.githooks/` sont
+// versionnés ; `core.hooksPath` ne l est pas. Relevé le 2026-08-22 sur `~/projects/echo-code` :
+// `.git/hooks/` ne contient QUE des `.sample`, et ce crochet ne tourne que parce que
+// `.git/config` porte `core.hooksPath=.githooks`. Un clone sur une autre machine repart NU, et
+// aucune garde d aucun des deux dépôts ne peut le voir — c est la limite structurelle d un
+// crochet côté client, et elle est écrite ici plutôt qu habillée. Sur le poste d Aymeric un clone
+// frais s arme seul (`init.templateDir`, cf. `.githooks/README.md` § « Armer un clone frais »),
+// et `docs/check-verrou-partage.js` constate l armement — pour CETTE machine seulement.
+//
 // EXPIRÉ = ON LAISSE PASSER. Un verrou sans expiration transformerait un `p3-chrono` tué en
 // blocage définitif de ce dépôt, et le premier bloqué le supprimerait pour de bon.
 // ILLISIBLE = ON REFUSE. « Je n ai pas pu lire » ne veut pas dire « il n y a pas de campagne ».

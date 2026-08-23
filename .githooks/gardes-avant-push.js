@@ -35,6 +35,29 @@
 // `HEAD` et le commit poussé, un arbre sale, une suite qu'on ne peut pas lancer : tout cela
 // REFUSE le push en le disant, au lieu de laisser passer.
 //
+// ── LE FAUX ROUGE D ENVIRONNEMENT, ET POURQUOI UN REFUS DOIT NOMMER SA CAUSE (2026-08-24) ───
+// Ce crochet joue `npm test` DANS L ARBRE COURANT. Or un worktree neuf n a pas de
+// `node_modules` : `npm test` y échoue pour une raison qui n a RIEN À VOIR avec le code, et le
+// refus s imprimait « ROUGE apps/cms … test failed ». Un message qui ACCUSE LE CODE alors que
+// c est l INSTALLATION qui manque. Le piège coûte un diagnostic complet à chaque fois — et il
+// peut faire abandonner une fusion parfaitement saine, ce qui est bien pire que le temps perdu.
+//
+// Le refus reste un refus : rien n est rendu optionnel, `npm test` n est jamais sauté. Ce qui
+// change est qu il DIT sa cause, en deux endroits parce qu il y a deux formes du même piège :
+//   1. `node_modules` ABSENT — constaté AVANT de lancer quoi que ce soit, sur les DEUX
+//      applications d un coup (découvrir `apps/web` après avoir payé les quarante secondes
+//      d `apps/cms` ferait recommencer deux fois) ;
+//   2. `node_modules` PRÉSENT MAIS PÉRIMÉ — une suite rouge dont la sortie porte la signature
+//      d un module introuvable. C est le cas d un arbre installé AVANT une fusion qui a déplacé
+//      les lockfiles : le contrôle 1 le laisse passer, seule la sortie le trahit.
+// Et un troisième défaut, découvert en prouvant les deux premiers : le détail d un vrai rouge
+// était « } » — la dernière ligne de l objet d erreur de `node --test`. Un refus qui n a rien à
+// dire sur un ÉCHEC RÉEL renvoie chercher ailleurs, exactement comme celui qui accuse le code.
+// Cf. `resumeDeLaSuite`.
+//
+// Une note dans un document n aurait pas suffi : à cet instant-là, ce qu on lit est le refus.
+// Prouvé en le cassant, dans les deux sens : cas Q à T de la recette.
+//
 // Usage  : appelé par `.githooks/pre-push`, qui lui passe stdin tel que git le donne.
 // Sortie : 0 = rien à juger, ou tout est vert · 1 = push REFUSÉ.
 //
@@ -229,6 +252,65 @@ function verifierQueLArbreEstLeCommitPousse(racine, shaPousse) {
   return null;
 }
 
+/**
+ * LES DÉPENDANCES SONT-ELLES INSTALLÉES DANS CET ARBRE ? Rend la liste des applications dont le
+ * `node_modules` manque — vide si tout est là.
+ *
+ * On le constate AVANT de lancer la moindre suite, et on refuse en le NOMMANT : `npm test` sans
+ * `node_modules` rougit en accusant le code, et c'est le faux rouge décrit en tête de fichier.
+ * Le push est refusé dans les deux cas ; seule la phrase change, et c'est elle qui coûtait cher.
+ *
+ * LES DEUX APPLICATIONS SONT EXAMINÉES avant de prononcer, jamais la première qui pèche.
+ *
+ * `package.json` absent n'est PAS le même défaut — un dossier d'application vide se dit ailleurs
+ * (`jouerLaSuite`), et l'annoncer ici comme une dépendance manquante enverrait installer ce qui
+ * n'a rien à installer.
+ *
+ * Le seam de recette (`ECHO_PREPUSH_COMMANDE`) remplace `npm test` par une commande qui n'a
+ * besoin d'aucune dépendance : exiger un `node_modules` d'un dépôt jetable rendrait la recette
+ * inexécutable, et une recette qu'on ne peut pas jouer ne prouve plus rien.
+ */
+function applicationsSansDependances(racine, environnement = process.env) {
+  if (environnement.ECHO_PREPUSH_COMMANDE) return [];
+  return APPLICATIONS.filter((application) => {
+    const dossier = join(racine, application);
+    return existsSync(join(dossier, 'package.json')) && !existsSync(join(dossier, 'node_modules'));
+  });
+}
+
+/**
+ * Les signatures d'une DÉPENDANCE ABSENTE dans la sortie d'une suite. Elles couvrent le cas que
+ * le contrôle d'existence ne peut pas voir : un `node_modules` présent mais antérieur à une
+ * fusion qui a déplacé les lockfiles.
+ *
+ * Les deux dernières visent le module NATIF compilé pour un autre node (`better-sqlite3`,
+ * `sharp`) : ce n'est pas tout à fait « absent », mais c'est la même famille de cause — une
+ * installation à refaire, pas un test à corriger.
+ */
+const SIGNATURES_DEPENDANCE_ABSENTE = [
+  /Cannot find package '[^']+'/,
+  /Cannot find module '[^']+'/,
+  /ERR_MODULE_NOT_FOUND/,
+  /NODE_MODULE_VERSION/,
+  /ERR_DLOPEN_FAILED/,
+];
+
+/**
+ * Rend la signature relevée, mot pour mot, ou `null`.
+ *
+ * ON NE PROMET RIEN QU'ON NE VOIE : le verdict est présenté pour ce qu'il est — une signature
+ * CITÉE, pas un diagnostic affirmé —, et le push est refusé dans les deux cas. Se tromper ici
+ * coûte une phrase de trop, jamais une permissivité. C'est le seul sens d'erreur acceptable pour
+ * une heuristique posée dans une garde.
+ */
+function signatureDeDependanceAbsente(sortie) {
+  for (const motif of SIGNATURES_DEPENDANCE_ABSENTE) {
+    const trouve = motif.exec(sortie || '');
+    if (trouve) return trouve[0];
+  }
+  return null;
+}
+
 /** Joue une suite. Rend son code et sa dernière ligne utile — pas tout le bruit. */
 function jouerLaSuite(racine, application) {
   const dossier = join(racine, application);
@@ -248,8 +330,32 @@ function jouerLaSuite(racine, application) {
   return { code: r.status === null ? -1 : r.status, sortie: (r.stdout || '') + (r.stderr || '') };
 }
 
-function derniereLigne(s) {
-  return (s || '').trim().split(/\r?\n/).filter(Boolean).slice(-1)[0] || '(aucune sortie)';
+/**
+ * LA LIGNE QUI PARLE, PAS LA DERNIÈRE (2026-08-24). La sortie d'une suite rouge se termine par la
+ * fin de l'objet d'erreur que `node --test` déverse : la dernière ligne est « } », et le refus
+ * affichait « · apps/cms : } ». Un refus illisible envoie chercher ailleurs ce qui était sous les
+ * yeux — c'est le même défaut que le faux rouge d'environnement, une ligne plus bas.
+ *
+ * On cherche donc, dans l'ordre, le COMPTE d'échecs de `node --test` puis l'ERREUR NOMMÉE qui
+ * l'explique, et on retombe sur la dernière ligne quand ni l'un ni l'autre n'existe — jamais
+ * d'affirmation faute de mieux.
+ *
+ * Le compte est repéré SANS son glyphe (`ℹ`) : la sortie traverse un tuyau, une console Windows
+ * et un encodage. Faire dépendre un diagnostic d'un caractère décoratif, c'est écrire une garde
+ * qui meurt en silence le jour où la console change de page de code.
+ */
+const COMPTE_D_ECHECS = /(?:^|\s)fail\s+[1-9]\d*$/;
+const ERREUR_NOMMEE = /Error \[ERR_[A-Z_]+\]|AssertionError/;
+
+function resumeDeLaSuite(sortie) {
+  const lignes = (sortie || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const morceaux = [
+    lignes.find((l) => COMPTE_D_ECHECS.test(l)),
+    lignes.find((l) => ERREUR_NOMMEE.test(l)),
+  ].filter(Boolean);
+  const resume = morceaux.length > 0 ? morceaux.join(' · ') : lignes[lignes.length - 1];
+  if (!resume) return '(aucune sortie)';
+  return resume.length > 200 ? `${resume.slice(0, 199)}…` : resume;
 }
 
 function principal(stdin) {
@@ -298,6 +404,29 @@ function principal(stdin) {
     return 1;
   }
 
+  // LES DÉPENDANCES AVANT LES SUITES. Constater ici coûte deux `existsSync` ; ne pas le constater
+  // coûtait un diagnostic complet, sur un message qui accusait le code.
+  const sansDependances = applicationsSansDependances(racine);
+  if (sansDependances.length > 0) {
+    console.error('');
+    console.error('PUSH REFUSÉ — la garde n a PAS pu juger : LES DÉPENDANCES NE SONT PAS INSTALLÉES ici.');
+    for (const application of sansDependances) {
+      console.error(`  · ${application}/node_modules est absent`);
+    }
+    console.error('');
+    console.error('  CE N EST PAS UN ÉCHEC DES TESTS, et le code n est PAS en cause : il n a pas été');
+    console.error('  jugé du tout. Un worktree neuf n a pas de node_modules ; sans ce message, npm test');
+    console.error('  y rougit en accusant le code — et c est ce qui fait abandonner une fusion saine.');
+    console.error('  Installe-les DANS CET ARBRE, puis recommence :');
+    for (const application of sansDependances) {
+      console.error(`      npm ci --prefix "${join(racine, application)}"`);
+    }
+    console.error('  Un autre arbre ne peut prêter les siens que si ses DEUX lockfiles sont identiques');
+    console.error('  aux tiens — compare git rev-parse HEAD:apps/web/package-lock.json des deux côtés.');
+    console.error('');
+    return 1;
+  }
+
   const rouges = [];
   for (const application of APPLICATIONS) {
     const debut = Date.now();
@@ -306,7 +435,10 @@ function principal(stdin) {
     if (code === 0) {
       console.error(`  OK    ${application} (${secondes} s)`);
     } else {
-      rouges.push({ application, code, detail: motif || derniereLigne(sortie) });
+      // Une suite qu'on n'a pas pu lancer (`motif`) a déjà sa cause : ne pas la relire dans une
+      // sortie qui n'existe pas.
+      const signature = motif ? null : signatureDeDependanceAbsente(sortie);
+      rouges.push({ application, code, signature, detail: motif || resumeDeLaSuite(sortie) });
       console.error(`  ROUGE ${application} (${secondes} s) — code ${code}`);
     }
   }
@@ -320,6 +452,19 @@ function principal(stdin) {
   console.error('');
   console.error('PUSH REFUSÉ — le résultat qui partirait vers main est ROUGE :');
   for (const r of rouges) console.error(`  · ${r.application} : ${r.detail}`);
+
+  // LE ROUGE QUI N EN EST PAS UN. Il se dit ICI, collé au rouge qu il explique, et pas plus bas :
+  // la phrase « le code est cassé » qui suit serait lue d abord, et c est elle qui trompe.
+  const suspects = rouges.filter((r) => r.signature);
+  if (suspects.length > 0) {
+    console.error('');
+    console.error('  ⚠️  CE ROUGE A LA SIGNATURE D UNE DÉPENDANCE ABSENTE, PAS CELLE D UN TEST QUI ÉCHOUE :');
+    for (const r of suspects) console.error(`  · ${r.application} : la sortie porte « ${r.signature} »`);
+    console.error('  Des node_modules installés AVANT une fusion ne correspondent plus aux lockfiles de');
+    console.error('  ce commit. Réinstalle avant de conclure que le code est cassé :');
+    for (const r of suspects) console.error(`      npm ci --prefix "${join(racine, r.application)}"`);
+  }
+
   console.error('');
   console.error('  Deux branches vertes séparément peuvent être rouges ensemble — c est exactement');
   console.error('  ce que ce crochet existe pour attraper, et il vaut mieux le voir ici que sur main.');
@@ -329,6 +474,7 @@ function principal(stdin) {
 
 module.exports = {
   lignesAJuger, verifierQueLArbreEstLeCommitPousse, principal, jugerCampagneEnVol,
+  applicationsSansDependances, signatureDeDependanceAbsente, resumeDeLaSuite,
   APPLICATIONS, BRANCHE_GARDEE, CHEMIN_VERROU,
 };
 

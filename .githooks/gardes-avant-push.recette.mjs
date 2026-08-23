@@ -15,6 +15,10 @@
  * `node_modules`, et jouer les vraies suites ici mesurerait le dépôt de test, pas la garde. Ce
  * seam est bruyant à l'exécution, exprès.
  *
+ * DEUX CAS S'EN PASSENT DÉLIBÉRÉMENT — Q et R. Le seam remplace `npm test`, donc n'a besoin
+ * d'aucune dépendance : il rend structurellement invisible le contrôle d'installation, qui est
+ * exactement ce que ces deux-là exercent. Ils empruntent donc le chemin réel.
+ *
  * Usage  : node .githooks/gardes-avant-push.recette.mjs
  * Sortie : 0 = conforme · 1 = anomalie · 2 = vérification impossible.
  */
@@ -328,6 +332,96 @@ try {
     verdict('P. verrou d un AUTRE hote : la vivacite ne se sonde pas, le bail fait foi -> refus',
       r.code !== 0 && /CAMPAGNE DE MESURE est en vol/.test(r.sortie),
       `code ${r.code}`);
+  }
+
+  // --- Q a T. LE FAUX ROUGE D ENVIRONNEMENT (2026-08-24, tache `095fdab0`) ----------------
+  //
+  // CE QUE CES CAS PROUVENT. Ce crochet joue `npm test` DANS L ARBRE COURANT. Un worktree neuf
+  // n a pas de `node_modules` : la suite y echoue pour une raison qui n a RIEN A VOIR avec le
+  // code, et le refus imprimait « ROUGE apps/cms … test failed » — un message qui ACCUSE LE CODE
+  // quand c est l INSTALLATION qui manque. Cout constate : un diagnostic complet a chaque fois,
+  // et le risque d abandonner une fusion parfaitement saine.
+  //
+  // LES CONTRE-EPREUVES COMPTENT AUTANT QUE LES CAS. Une garde qui crierait « dependances » sur
+  // tout rouge n aurait fait que deplacer le mensonge : R prouve qu un arbre installe passe le
+  // controle, T qu un vrai echec de test reste annonce comme un echec de test.
+  //
+  // Q ET R N UTILISENT PAS LE SEAM, exprès : le seam remplace `npm test`, donc n a besoin
+  // d aucune dependance — s en servir ici ne prouverait rien du chemin reel.
+  {
+    git(travail, ['reset', '-q', '--hard', 'origin/main']);
+    commit(travail, 'un commit dans un arbre sans node_modules');
+    const r = pousser(travail, ['origin', 'main'], null);
+    verdict('Q. CAS DECISIF — sans node_modules, le refus NOMME l installation, pas le code',
+      r.code !== 0 && /D[EÉ]PENDANCES NE SONT PAS INSTALL/i.test(r.sortie)
+        && /N EST PAS UN [EÉ]CHEC DES TESTS/i.test(r.sortie),
+      `code ${r.code}`);
+    verdict('Q bis. le refus nomme LES DEUX applications d un coup, pas la premiere qui peche',
+      /apps\/cms\/node_modules est absent/.test(r.sortie)
+        && /apps\/web\/node_modules est absent/.test(r.sortie),
+      'sinon on paie les quarante secondes d apps/cms pour decouvrir apps/web ensuite');
+    verdict('Q ter. le refus dit LE GESTE — npm ci, avec le chemin de CET arbre',
+      /npm ci --prefix "[^"]*apps[\\/]cms"/.test(r.sortie)
+        && /npm ci --prefix "[^"]*apps[\\/]web"/.test(r.sortie),
+      'un refus sans remede ecrit se fait desarmer');
+    verdict('Q quater. aucune suite n a ete jouee — il n y avait rien a juger',
+      !/Les deux suites passent/.test(r.sortie) && !/ROUGE apps/.test(r.sortie),
+      'refuser ici coute deux existsSync, refuser apres aurait coute les deux suites');
+  }
+
+  {
+    // CONTRE-EPREUVE. `node_modules` present : le controle ne doit plus rien dire, et la garde
+    // doit aller jusqu aux suites. Elles rougissent (le depot jetable n a pas de script `test`),
+    // et c est exactement ce qu on veut lire : un rouge de suite, pas un refus d installation.
+    for (const app of ['apps/cms', 'apps/web']) mkdirSync(join(travail, app, 'node_modules'), { recursive: true });
+    commit(travail, 'un commit dans un arbre installe');
+    const r = pousser(travail, ['origin', 'main'], null);
+    verdict('R. CONTRE-EPREUVE — node_modules present : plus un mot sur les dependances',
+      r.code !== 0 && !/D[EÉ]PENDANCES NE SONT PAS INSTALL/i.test(r.sortie)
+        && /est ROUGE/.test(r.sortie),
+      `code ${r.code} — le controle laisse passer et les suites prononcent`);
+  }
+
+  {
+    // UN `node_modules` PRESENT MAIS PERIME. Le controle d existence ne peut pas le voir : seule
+    // la sortie le trahit. C est le cas d un arbre installe AVANT une fusion qui a deplace les
+    // lockfiles — et c est le meme faux rouge, une heure plus tard dans la journee.
+    const sortieModuleAbsent = join(base, 'sortie-module-absent.mjs');
+    writeFileSync(sortieModuleAbsent,
+      'console.error("Error [ERR_MODULE_NOT_FOUND]: Cannot find package \'astro\' imported from tests/mapping.test.ts");\n'
+      + 'process.exit(1);\n', 'utf8');
+    commit(travail, 'un commit dont les dependances sont perimees');
+    const r = pousser(travail, ['origin', 'main'], `node "${sortieModuleAbsent}"`);
+    verdict('S. CAS DECISIF — un rouge a signature de module introuvable est annonce comme tel',
+      r.code !== 0 && /SIGNATURE D UNE D[EÉ]PENDANCE ABSENTE/i.test(r.sortie)
+        && /Cannot find package 'astro'/.test(r.sortie) && /npm ci --prefix/.test(r.sortie),
+      `code ${r.code}`);
+  }
+
+  {
+    // ET LE SENS INVERSE, sans quoi S passerait aussi avec une garde qui crie « dependances » sur
+    // n importe quel rouge — c est-a-dire avec le diagnostic entierement desarme.
+    // LA SORTIE EST CELLE DE `node --test`, JUSQU A SA DERNIERE LIGNE : elle finit par la fin de
+    // l objet d erreur, « } ». C est ce que le refus affichait comme detail — « · apps/cms : } ».
+    const sortieTestCasse = join(base, 'sortie-test-casse.mjs');
+    writeFileSync(sortieTestCasse,
+      "console.log('\\u2716 le mapping rend le bon slug (0.9ms)');\n"
+      + "console.log('\\u2139 fail 1');\n"
+      + 'console.log("  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:");\n'
+      + "console.log('    operator: \\'strictEqual\\'');\n"
+      + "console.log('  }');\n"
+      + 'process.exit(1);\n', 'utf8');
+    commit(travail, 'un commit dont les tests sont VRAIMENT casses');
+    const r = pousser(travail, ['origin', 'main'], `node "${sortieTestCasse}"`);
+    verdict('T. CONTRE-EPREUVE — un vrai echec de test reste un echec de TEST',
+      r.code !== 0 && /est ROUGE/.test(r.sortie)
+        && !/D[EÉ]PENDANCE ABSENTE/i.test(r.sortie)
+        && /AssertionError/.test(r.sortie),
+      `code ${r.code}`);
+    verdict('T bis. le detail NOMME l echec au lieu de rendre la derniere ligne, « } »',
+      /· apps\/cms : .*fail 1.*AssertionError/.test(r.sortie)
+        && !/· apps\/cms : \}\s*$/m.test(r.sortie),
+      (r.sortie.match(/· apps\/cms : .*/) || [''])[0].slice(0, 120));
   }
 
   {

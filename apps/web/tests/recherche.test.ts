@@ -17,7 +17,6 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
@@ -27,6 +26,12 @@ import { contrepartie } from '../src/lib/routes/contrepartie.ts';
 import { construireRegistre, type CorpusRoutes } from '../src/lib/routes/registre.ts';
 import { CHEMIN_BUNDLE_PAGEFIND, indexableParRecherche } from '../src/lib/seo/recherche.ts';
 import { manquementsDepot } from '../scripts/index-pagefind.mjs';
+
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
 
 // --- 1. La route existe, dans les deux locales ----------------------------------------
 
@@ -105,7 +110,7 @@ test('le bundle charge par la page est celui que la garde T-09 exempte', () => {
 
 /** Fabrique un dist/ jetable : { 'chemin/relatif': 'contenu' }. */
 function dist(fichiers: Record<string, string>): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'pagefind-'));
+  const racine = bacJetable('pagefind');
   for (const [relatif, contenu] of Object.entries(fichiers)) {
     const complet = path.join(racine, relatif);
     fs.mkdirSync(path.dirname(complet), { recursive: true });

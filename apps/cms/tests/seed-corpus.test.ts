@@ -9,13 +9,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { FORMATS_DE_PARTAGE, chargerCorpus, exigerFormatDePartage } from '../scripts/seed/corpus.ts';
 import { SEPARATEUR, verifierFormatCredit } from '../scripts/seed/credits.ts';
 import { ErreurCorpus, MediaIntrouvable } from '../scripts/seed/erreurs.ts';
+
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const DATA_REEL = path.join(ICI, '..', 'data');
@@ -25,7 +30,7 @@ const DATA_REEL = path.join(ICI, '..', 'data');
 /* ------------------------------------------------------------------ */
 
 function ecrireCorpusMinimal(): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-'));
+  const racine = bacJetable('echo-corpus');
   const ecrire = (rel: string, contenu: string) => {
     const cible = path.join(racine, rel);
     fs.mkdirSync(path.dirname(cible), { recursive: true });

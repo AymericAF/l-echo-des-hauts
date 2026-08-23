@@ -23,13 +23,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { construireMiroir, cheminsAMirroiter } from '../scripts/miroir-servi.mjs';
 import { verifierSurchargeSeo } from '../scripts/preuve-surcharge-seo.mjs';
 import { ISSUES } from '../scripts/issues.mjs';
+
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
 
 const ORIGINE = 'https://echo.test';
 
@@ -48,7 +53,7 @@ function ecrire(racine: string, rel: string, contenu: string): void {
 
 /** Le meme corpus factice que la preuve : A01 surcharge, A02 nu, A40 noindex. */
 function corpusFactice(): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-miroir-'));
+  const racine = bacJetable('echo-corpus-miroir');
   const a01 = {
     code: 'A01',
     slug: 'col-des-trois-vents',
@@ -154,7 +159,7 @@ function siteSain(retouche: (s: Record<string, { statut: number; corps?: string 
 }
 
 function destination(): string {
-  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'echo-miroir-')), 'miroir');
+  return path.join(bacJetable('echo-miroir'), 'miroir');
 }
 
 async function miroir(
@@ -306,7 +311,7 @@ test('une origine illisible rend VERIFICATION IMPOSSIBLE en la NOMMANT', async (
 });
 
 test('un CORPUS absent rend VERIFICATION IMPOSSIBLE — le miroir n a pas de liste a ramener', async () => {
-  const vide = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-vide-'));
+  const vide = bacJetable('echo-corpus-vide');
   const rapport = await construireMiroir({
     origine: ORIGINE,
     corpus: vide,

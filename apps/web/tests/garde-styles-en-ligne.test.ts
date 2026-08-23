@@ -35,9 +35,15 @@ import test from 'node:test';
 
 import { inspecterStylesEnLigne } from '../scripts/verifier-styles-en-ligne.mjs';
 
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
+
 /** Fabrique un dist/ jetable : { 'chemin/relatif': 'contenu' }. */
 function dist(fichiers: Record<string, string>): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'garde-styles-en-ligne-'));
+  const racine = bacJetable('garde-styles-en-ligne');
   for (const [relatif, contenu] of Object.entries(fichiers)) {
     const complet = path.join(racine, relatif);
     fs.mkdirSync(path.dirname(complet), { recursive: true });

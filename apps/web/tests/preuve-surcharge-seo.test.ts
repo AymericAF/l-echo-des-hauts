@@ -20,6 +20,12 @@ import { spawnSync } from 'node:child_process';
 import { verifierSurchargeSeo } from '../scripts/preuve-surcharge-seo.mjs';
 import { ISSUES } from '../scripts/issues.mjs';
 
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
+
 const ORIGINE = 'https://echo.test';
 
 const SURCHARGE = {
@@ -41,7 +47,7 @@ function ecrire(racine: string, rel: string, contenu: string): void {
 
 /** Le corpus : A01 surcharge, A02 nu, A40 en noindex, une categorie, un dossier. */
 function corpusFactice(retouche: (c: any) => void = () => {}): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-seo-'));
+  const racine = bacJetable('echo-corpus-seo');
   const c = {
     a01: {
       code: 'A01',
@@ -89,7 +95,7 @@ function page(opts: {
 
 /** Un `dist/` conforme au corpus factice : la surcharge sort, le repli aussi. */
 function distSain(retouche: (d: Record<string, string | null>) => void = () => {}): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-dist-seo-'));
+  const racine = bacJetable('echo-dist-seo');
   const fichiers: Record<string, string | null> = {
     'article/col-des-trois-vents/index.html': page({
       titre: `${SURCHARGE.metaTitre} — L Echo`,
@@ -368,7 +374,7 @@ test('les trois issues sortent AUSSI en ligne de commande, pas seulement en fonc
     ISSUES.ANOMALIE
   );
   assert.equal(
-    lancer(fs.mkdtempSync(path.join(os.tmpdir(), 'echo-dist-absent-'))),
+    lancer(bacJetable('echo-dist-absent')),
     ISSUES.VERIFICATION_IMPOSSIBLE
   );
 

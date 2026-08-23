@@ -13,8 +13,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
 
 import {
   AYANT_DROIT_PROJET,
@@ -32,7 +37,7 @@ import {
 /* ------------------------------------------------------------------ */
 
 function racineTemporaire(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'echo-voies-'));
+  return bacJetable('echo-voies');
 }
 
 /** Ecrit un sidecar au chemin que la garde ira lire, et rend la racine. */

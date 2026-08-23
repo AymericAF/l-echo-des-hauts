@@ -14,7 +14,6 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -23,8 +22,14 @@ import { loadEnv } from 'vite';
 import { chargerEnvDuBuild } from '../scripts/env-du-build.mjs';
 import { localiserMedias, referencesMediasDe } from '../scripts/medias-locaux.mjs';
 
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
+
 function dist(fichiers: Record<string, string>): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'medias-locaux-'));
+  const racine = bacJetable('medias-locaux');
   for (const [relatif, contenu] of Object.entries(fichiers)) {
     const complet = path.join(racine, relatif);
     fs.mkdirSync(path.dirname(complet), { recursive: true });
@@ -193,7 +198,7 @@ test('TEMPS 2 — process.env l emporte sur un fichier de mode, donc les deux co
   /* LE COEUR DE LA CONVERGENCE. Si Vite preferait un jour son fichier `.env.<mode>` a
      `process.env`, le producteur lirait une instance et le deposeur une autre — sans que
      rien ne rougisse. Ce test exerce la vraie fonction de Vite, pas une reconstitution. */
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'env-du-build-'));
+  const racine = bacJetable('env-du-build');
   fs.writeFileSync(path.join(racine, '.env'), 'ECHO_STRAPI_URL=https://du-fichier.test\n');
   fs.writeFileSync(path.join(racine, '.env.staging'), 'ECHO_STRAPI_URL=https://du-mode.test\n');
 

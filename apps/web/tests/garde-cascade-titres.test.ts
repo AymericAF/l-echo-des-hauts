@@ -30,6 +30,12 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { ISSUES } from '../scripts/issues.mjs';
+
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
 import {
   inspecterCascadeTitres,
   resumeCascadeTitres,
@@ -37,7 +43,7 @@ import {
 
 /** Fabrique un dist/ jetable : { 'chemin/relatif': 'contenu' }. */
 function dist(fichiers: Record<string, string>): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'garde-cascade-titres-'));
+  const racine = bacJetable('garde-cascade-titres');
   for (const [relatif, contenu] of Object.entries(fichiers)) {
     const complet = path.join(racine, relatif);
     fs.mkdirSync(path.dirname(complet), { recursive: true });

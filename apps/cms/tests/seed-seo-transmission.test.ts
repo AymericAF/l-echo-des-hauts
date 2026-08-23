@@ -18,12 +18,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { chargerCorpus } from '../scripts/seed/corpus.ts';
 import { executerSeed, NATURES } from '../scripts/seed/seed.ts';
 import type { ClientStrapi } from '../scripts/seed/client.ts';
+
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
 
 const DATA_REEL = path.join(import.meta.dirname, '..', 'data');
 
@@ -123,7 +128,7 @@ test('le corps envoye a Strapi porte la surcharge seo, sur les trois familles', 
  * est refusee par Strapi, ou pire, ignoree.
  */
 test('imagePartage part en ID de mediatheque, jamais en cle de manifeste', async () => {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-seo-image-'));
+  const racine = bacJetable('echo-seo-image');
   const source = DATA_REEL;
 
   /* Le corpus reel, recopie, puis UNE surcharge posee dessus : on exerce le chemin
@@ -294,7 +299,7 @@ test('CHAQUE attribut de `partage.seo` est TRANSMIS par le seed et a une nature 
 
   /* (b) La transmission : un corpus fabrique qui porte TOUS les champs, et le corps
      envoye doit tous les porter en retour. */
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-seo-exhaustif-'));
+  const racine = bacJetable('echo-seo-exhaustif');
   fs.cpSync(DATA_REEL, racine, { recursive: true });
   const fichier = path.join(racine, 'articles', 'A01.fr.md');
   const brut = fs.readFileSync(fichier, 'utf8').replace(/\r\n/g, '\n');

@@ -179,7 +179,12 @@ const LECTURES = {
 // n'est pas la sienne se fait desactiver dans la semaine. Ces prefixes sont
 // poses dans l'arbre EN PLUS des applications. Ils declenchent deja par
 // `LECTURES` : cette liste ne dit pas QUAND lancer, elle dit QUOI POSER.
-const SUPPORTS_HORS_APPLICATION = ['.github/workflows/', 'README.md', 'CREDITS.md'];
+// `outils/bac-jetable.mjs` est IMPORTE par des tests des deux applications : sans lui
+// dans l'arbre temporaire, ils rougiraient sur une ABSENCE et non sur une regression —
+// et un crochet qui rougit pour une raison qui n'est pas la sienne se fait desactiver
+// dans la semaine.
+const SUPPORTS_HORS_APPLICATION = ['.github/workflows/', 'README.md', 'CREDITS.md',
+    'outils/bac-jetable.mjs'];
 
 // Toucher le declenchement lui-meme relance TOUT : c'est la regle qui a bouge,
 // et une regle de declenchement qui ne s'exerce pas est une convention de plus.

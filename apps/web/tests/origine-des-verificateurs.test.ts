@@ -34,13 +34,18 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
 import { inspecterLiens } from '../scripts/verifier-liens.mjs';
 import { inspecterOrigineMedias } from '../scripts/verifier-origine-medias.mjs';
 import { lireOrigineArchivee } from '../scripts/origine.mjs';
+
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
 
 /** Ce que le build a REELLEMENT employe, et qu il archive dans sa sortie. */
 const RESOLUE = 'https://autre-origine.test';
@@ -52,7 +57,7 @@ function page(corps: string): string {
 }
 
 function ecrire(fichiers: Record<string, string>): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-verif-origine-'));
+  const racine = bacJetable('echo-verif-origine');
   for (const [relatif, contenu] of Object.entries(fichiers)) {
     const complet = path.join(racine, relatif);
     fs.mkdirSync(path.dirname(complet), { recursive: true });

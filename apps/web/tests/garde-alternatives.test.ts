@@ -44,6 +44,12 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { ISSUES } from '../scripts/issues.mjs';
+
+import { bacJetable, brancherLesBacs } from '../../../outils/bac-jetable.mjs';
+
+/* Les bacs de ce fichier se referment : nettoyage dans `after()`, bac du cas fautif
+   conservé avec sa raison. Cf. `outils/bac-jetable.mjs`. */
+brancherLesBacs();
 import {
   alternativeDe,
   estBlanche,
@@ -57,7 +63,7 @@ import {
 const RACINE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function arborescence(fichiers: Record<string, string>): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-alternatives-'));
+  const racine = bacJetable('echo-alternatives');
   for (const [relatif, contenu] of Object.entries(fichiers)) {
     const complet = path.join(racine, relatif);
     fs.mkdirSync(path.dirname(complet), { recursive: true });
@@ -72,7 +78,7 @@ function page(corps: string): string {
 
 /** Un manifeste jetable, ecrit sur disque — le module en lit un CHEMIN, jamais un objet. */
 function manifesteFactice(declarations: Record<string, unknown>): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-manifeste-'));
+  const racine = bacJetable('echo-manifeste');
   const chemin = path.join(racine, 'manifeste.json');
   fs.writeFileSync(chemin, JSON.stringify(declarations), 'utf8');
   return chemin;
@@ -287,7 +293,7 @@ test('un manifeste ABSENT est une INCAPACITE, pas un vert sur zero coherence', (
 });
 
 test('un manifeste illisible ou vide est une INCAPACITE, et le motif est nomme', () => {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-manifeste-'));
+  const racine = bacJetable('echo-manifeste');
 
   const casse = path.join(racine, 'casse.json');
   fs.writeFileSync(casse, '{ ceci n est pas du JSON', 'utf8');

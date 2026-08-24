@@ -480,6 +480,91 @@ if (appsConcernees.length === 0) {
 // ── 3. Materialiser l INDEX, pas la copie de travail ─────────────────────────
 const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'gardes-au-commit-'));
 const jonctions = [];
+
+// ── REFERMER L ARBRE : LE `finally` NE SUFFIT PAS, ET IL NE SUFFISAIT PAS ─────
+//
+// LE FAIT, MESURE. Le repertoire temporaire du poste portait 41 arbres
+// `gardes-au-commit-*` abandonnes — 14 vides, 27 materialises — alors que
+// l effacement etait bien ecrit, et bien dans un `finally`. La mesure par
+// EXECUTION, chemin de sortie par chemin de sortie, en a nomme QUATRE qui ne le
+// deroulaient pas, et non un seul :
+//
+//   · le `process.exit(0)` du « aucun test ne couvre … — 0 test lance », SOUS le
+//     `try` — le plus frequent des quatre, et le seul a sortir a ZERO : il
+//     laissait donc un arbre derriere chaque commit REUSSI qu aucun test ne
+//     couvrait, sans un mot ;
+//   · les TROIS appels a `abandonner()` poses sous le `try` — liste des fichiers
+//     suivis, materialisation de l index, pose de la jonction —, qui sortent en
+//     `process.exit(1)`.
+//
+// `process.exit()` ne deroule AUCUN `finally` : la ligne d effacement etait
+// exacte, elle n etait simplement jamais atteinte. Ce qui ne fuyait PAS, mesure
+// aussi : la sortie nominale, la sortie sur test rouge, et l exception non
+// rattrapee — celle-la deroule bien le `finally`.
+//
+// C est la classe de defaut que le lot `7766e7d` a fermee sur les bancs des deux
+// applications, et c est EXACTEMENT SA FORME qui est reprise ici — un
+// gestionnaire sur l evenement `exit`, EN PLUS du `finally`, jamais a sa place.
+// Les deux sont necessaires : le `finally` referme au plus tot, avant que le
+// temoin ne s ecrive et avant les dernieres lignes de sortie ; l evenement
+// `exit` rattrape les morts qui ne passent pas par lui.
+//
+// ⚠️ LE PERIMETRE DE LA SUPPRESSION, ET IL N EST PAS NEGOCIABLE : `racine` et
+// `jonctions` sont les chemins que CE processus a construits, dans CETTE
+// execution. Jamais un balayage par motif sur le repertoire temporaire — c est
+// celui de l utilisateur, il porte les fichiers de tout ce qui tourne sur ce
+// poste, et rien de ce que les executions passees y ont laisse n est touche ici.
+//
+// ⚠️ CE QU IL NE FAIT PAS : peser sur le code de sortie. Un gestionnaire d `exit`
+// ne le peut plus, et c est tant mieux — un crochet qui refuserait un commit
+// pour un repertoire temporaire survivant se ferait desarmer dans la semaine. Ce
+// qu il peut encore faire, c est ne pas mentir par omission : un arbre qu il n a
+// pas pu effacer est NOMME, la ou l ancien `catch` muet le laissait invisible.
+let arbreReferme = false;
+function refermerLArbre() {
+    if (arbreReferme) return;
+    arbreReferme = true;
+    // Retirer les liens AVANT l arbre : `fs.rmSync` sur une jonction pourrait
+    // suivre la cible, et effacer le node_modules reel du depot partage.
+    for (const l of jonctions) {
+        try {
+            fs.unlinkSync(l);
+        } catch {
+            try {
+                fs.rmdirSync(l);
+            } catch {
+                /* un lien qui survit ne fausse aucun verdict */
+            }
+        }
+    }
+    try {
+        // `maxRetries` couvre la cause la plus banale sur un poste Windows : un
+        // analyseur qui tient encore un handle sur des fichiers ecrits la
+        // seconde d avant. Ce qui survit aux reprises est un vrai reliquat.
+        fs.rmSync(racine, { recursive: true, force: true, maxRetries: 5, retryDelay: 120 });
+    } catch (e) {
+        // Un temporaire qui survit ne fausse aucun verdict — mais le TAIRE est ce
+        // qui a rendu 41 arbres invisibles. On le nomme, sans rien refuser.
+        try {
+            console.error(
+                'gardes du code : arbre temporaire NON EFFACE — ' +
+                    racine +
+                    ' (' +
+                    (e.code || '') +
+                    ' ' +
+                    String(e.message).split('\n')[0] +
+                    ')'
+            );
+        } catch {
+            /* meme la plainte est best-effort : on est peut-etre deja dans `exit` */
+        }
+    }
+}
+
+// Le filet, pose AVANT le `try` : de ce point a la fin, plus aucune sortie ne
+// peut laisser l arbre derriere elle.
+process.on('exit', refermerLArbre);
+
 let code = 0;
 // Des tests ont-ils REELLEMENT tourne ? Le temoin ne certifie que ce qui a ete execute :
 // un « 0 test lance » certifierait un arbre que personne n a juge, et le trou reviendrait
@@ -722,24 +807,11 @@ try {
         );
     }
 } finally {
-    // Retirer les liens AVANT l arbre : `fs.rmSync` sur une jonction pourrait
-    // suivre la cible, et effacer le node_modules reel du depot partage.
-    for (const l of jonctions) {
-        try {
-            fs.unlinkSync(l);
-        } catch {
-            try {
-                fs.rmdirSync(l);
-            } catch {
-                /* un lien qui survit ne fausse aucun verdict */
-            }
-        }
-    }
-    try {
-        fs.rmSync(racine, { recursive: true, force: true });
-    } catch {
-        /* un temporaire qui survit ne fausse aucun verdict */
-    }
+    // LE NETTOYAGE AU PLUS TOT — avant que le temoin ne s ecrive et avant les
+    // dernieres lignes de sortie. Il ne remplace pas le filet d `exit` pose plus
+    // haut, et le filet ne le remplace pas : ce `finally` est le seul des deux
+    // qui tourne sur les sorties nominales AVANT la suite du programme.
+    refermerLArbre();
 }
 
 // ── 7. Le temoin : consigner l arbre qui vient d etre certifie ───────────────

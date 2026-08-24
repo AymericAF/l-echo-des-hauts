@@ -166,10 +166,18 @@ jobs:
         run: node .githooks/gardes-avant-push.recette.mjs
 
       - name: La recette du declencheur — elle le prouve en le cassant, dans les deux sens
-        # 14 cas, depots jetables, vrais `git commit`. Elle tient les deux
-        # moities de la garde, et la seconde protege l'adoption autant que la
-        # premiere : un amendement qui porte un contenu jamais juge est REFUSE,
-        # et un amendement qui ne corrige qu'un message ne lance RIEN.
+        # ~~14 cas~~ 18 cas depuis le 2026-08-23, depots jetables, vrais
+        # `git commit`. Elle tient les deux moities de la garde, et la seconde
+        # protege l'adoption autant que la premiere : un amendement qui porte un
+        # contenu jamais juge est REFUSE, et un amendement qui ne corrige qu'un
+        # message ne lance RIEN.
+        #
+        # TROISIEME MOITIE, ajoutee le 2026-08-23 : CHAQUE cas lit aussi le
+        # repertoire temporaire isole qu'on lui a donne, et rougit si le
+        # declencheur y a laisse son arbre. Les quatre derniers cas forcent les
+        # quatre sorties qui ne deroulaient pas son `finally` — un
+        # `process.exit()` n'en deroule aucun, et 41 arbres avaient vecu la sans
+        # que personne ne les voie.
         run: node outils/gardes-au-commit.recette.mjs
 
       - name: La recette du retrait de worktree REFUSE de se declarer conforme sur ubuntu

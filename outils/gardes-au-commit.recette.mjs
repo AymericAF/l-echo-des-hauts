@@ -25,10 +25,24 @@
 // d un clone frais sans `core.hooksPath`, d un rebase, ou de l historique anterieur au
 // crochet.
 //
+// ELLE PROUVE AUSSI QUE LE DECLENCHEUR REFERME SON ARBRE TEMPORAIRE (2026-08-23). Chaque cas
+// tourne avec un repertoire temporaire ISOLE (TEMP/TMP/TMPDIR rediriges), et ROUGIT s il y
+// reste un `gardes-au-commit-*` a la fin. Ce n est pas une coquetterie de disque : le
+// repertoire temporaire est celui de l utilisateur, et il portait 41 arbres abandonnes —
+// 14 vides, 27 materialises — alors que l effacement etait ecrit, et ecrit dans un
+// `finally`. `process.exit()` n en deroule AUCUN. La mesure par execution a nomme QUATRE
+// sorties qui l enjambaient, quand le releve d origine n en presumait qu une : le
+// `process.exit(0)` du « aucun test ne couvre » — le plus frequent, et le seul a sortir a
+// ZERO —, et les trois `abandonner()` poses sous le `try`. Les quatre derniers cas les
+// forcent un a un. Le controle, lui, est lu sur TOUS les cas : une sortie neuve qui
+// oublierait le filet rougira sans que personne n ait eu a y penser.
+//
 // Usage : node outils/gardes-au-commit.recette.mjs
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+    copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -86,10 +100,44 @@ function tenter(d, commande, args, env) {
     const r = spawnSync(commande, args, {
         cwd: d,
         encoding: 'utf8',
-        env: { ...process.env, ...(env || {}) },
+        // LE REPERTOIRE TEMPORAIRE DU CAS, ET POURQUOI IL EST REDIRIGE. Chaque cas de cette
+        // recette prouve AUSSI que le declencheur referme son arbre temporaire : le compte
+        // se lit sur ce repertoire-la, apres coup. Le repertoire temporaire du poste porte
+        // ~198 000 entrees — un comptage y serait ininterpretable, et c est exactement
+        // pourquoi 41 arbres abandonnes y ont vecu sans que personne ne les voie.
+        env: {
+            ...process.env,
+            TEMP: tempDuCas, TMP: tempDuCas, TMPDIR: tempDuCas,
+            ...(env || {}),
+        },
     });
     if (r.error) return { code: 99, sortie: String(r.error.message) };
     return { code: r.status ?? 1, sortie: String(r.stdout ?? '') + String(r.stderr ?? '') };
+}
+
+/** Le repertoire temporaire ISOLE du cas en cours — pose par la boucle d execution. */
+let tempDuCas = null;
+
+/**
+ * Remplace une chaine EXACTE dans la COPIE installee du declencheur, ou rougit bruyamment.
+ *
+ * POURQUOI SABOTER PLUTOT QUE PROVOQUER. Deux des chemins de sortie a prouver ne sont
+ * atteignables par AUCUN contenu de depot : `git ls-files` recoit des pathspecs ecrits en
+ * dur, et git REFUSE de mettre a l index un chemin que `checkout-index` ne saurait pas
+ * ecrire (« Invalid path », mesure du 2026-08-23). On sabote donc L ENTREE de la commande
+ * — un pathspec, un prefixe de destination —, jamais le chemin de code : la VRAIE commande
+ * echoue vraiment, et le VRAI `catch` prend.
+ *
+ * Si le motif disparait du source, ce n est pas un cas a ignorer : la recette ECHOUE en
+ * nommant le motif absent, plutot que de virer au vert faute de matiere.
+ */
+function saboter(d, avant, apres) {
+    const p = join(d, 'outils', 'gardes-au-commit.js');
+    const s = readFileSync(p, 'utf8');
+    if (!s.includes(avant)) {
+        throw new Error('SABOTAGE IMPOSSIBLE — motif absent de gardes-au-commit.js : ' + avant);
+    }
+    writeFileSync(p, s.replace(avant, apres), 'utf8');
 }
 
 /** Un depot jetable, avec le vrai crochet, le vrai declencheur, et un commit initial. */
@@ -335,6 +383,82 @@ const CAS = [
             });
         },
     },
+
+    // ── LES QUATRE SORTIES QUI NE DEROULAIENT PAS LE `finally` ──────────────────────────
+    //
+    // Le 2026-08-23, le repertoire temporaire du poste portait 41 arbres
+    // `gardes-au-commit-*` abandonnes — 14 vides, 27 materialises — alors que l effacement
+    // etait bien ecrit, et bien dans un `finally`. `process.exit()` n en deroule aucun.
+    //
+    // CES QUATRE CAS SONT LA MESURE, PAS LA RELECTURE. Le releve d origine ne presumait
+    // qu UN `process.exit()` sous le `try` ; l execution en a nomme QUATRE. Chacun force
+    // SON chemin de sortie, et le compte des arbres survivants se lit sur le repertoire
+    // temporaire isole du cas — c est la boucle d execution qui le fait, pour TOUS les cas.
+    //
+    // Ce que les cas ordinaires ci-dessus prouvent deja, du meme mouvement : la sortie
+    // nominale et la sortie sur test rouge referment bien, elles n ont jamais fui.
+    {
+        nom: 'SOUS LE TRY — « aucun test ne couvre » sort a ZERO : l arbre est referme quand meme',
+        attendu: 'passe',
+        tests: 'aucun',
+        sortieContient: 'aucun test ne couvre',
+        jouer(d) {
+            // Le plus frequent des quatre, et le seul a sortir a zero : il laissait un arbre
+            // derriere chaque commit REUSSI qu aucun test ne couvrait, sans un mot. Un
+            // fichier d application qu AUCUN test n importe suffit a l atteindre.
+            writeFileSync(join(d, 'apps', 'web', 'src', 'orphelin.ts'), 'export const rien = 0;\n', 'utf8');
+            git(d, ['add', 'apps/web/src/orphelin.ts']);
+            return tenter(d, 'git', ['commit', '-m', 'source que rien ne couvre']);
+        },
+    },
+    {
+        nom: 'SOUS LE TRY — la jonction node_modules impossible : REFUSE, et l arbre est referme',
+        attendu: 'refuse',
+        tests: 'aucun',
+        sortieContient: 'n a pas pu etre pose',
+        jouer(d) {
+            // `apps/web/node_modules/` SUIVI : `checkout-index` le materialise, et
+            // `symlinkSync` tombe sur un chemin deja occupe. C est le seul des trois
+            // `abandonner()` sous le `try` qu un contenu de depot suffise a atteindre.
+            mkdirSync(join(d, 'apps', 'web', 'node_modules'), { recursive: true });
+            writeFileSync(join(d, 'apps', 'web', 'node_modules', 'marqueur.txt'), 'occupe\n', 'utf8');
+            ecrireSource(d, SOURCE_SAINE.replace('1;', '1; // retouche'));
+            git(d, ['add', '-A']);
+            return tenter(d, 'git', ['commit', '-m', 'node_modules suivi']);
+        },
+    },
+    {
+        nom: 'SOUS LE TRY — `git ls-files` echoue : REFUSE, et l arbre est referme',
+        attendu: 'refuse',
+        tests: 'aucun',
+        sortieContient: 'n a pas rendu la liste des fichiers suivis',
+        jouer(d) {
+            saboter(d, "'README.md', 'CREDITS.md',", "'README.md', 'CREDITS.md', ':(motif-invalide)x',");
+            ecrireSource(d, SOURCE_SAINE.replace('1;', '1; // retouche'));
+            git(d, ['add', 'apps/web/src/sonde.ts']);
+            return tenter(d, 'git', ['commit', '-m', 'ls-files sabote']);
+        },
+    },
+    {
+        nom: 'SOUS LE TRY — `git checkout-index` echoue : REFUSE, et l arbre est referme',
+        attendu: 'refuse',
+        tests: 'aucun',
+        sortieContient: 'n a pas pu etre materialise',
+        jouer(d) {
+            // ON SABOTE L ENTREE STANDARD, PAS LE PREFIXE DE DESTINATION. Faire echouer la
+            // commande par son prefixe demande un chemin que le systeme refuse d ecrire, et
+            // il n en existe aucun qui vaille sur les deux plateformes : `Q:/…` est un
+            // lecteur absent sous Windows, mais un chemin relatif ordinaire sur l ubuntu de
+            // l integration continue ; viser un FICHIER du depot ne marche pas non plus,
+            // `-f` le remplace par un repertoire sans broncher (mesure du 2026-08-23).
+            // Un chemin hors index, lui, fait sortir git en 1 sur les deux — c est GIT qui
+            // refuse, pas le systeme de fichiers.
+            saboter(d, 'input: listeSuivie,', "input: Buffer.from('chemin/absent-de-l-index\\0'),");
+            ecrireSource(d, SOURCE_SAINE.replace('1;', '1; // retouche'));
+            git(d, ['add', 'apps/web/src/sonde.ts']);
+            return tenter(d, 'git', ['commit', '-m', 'checkout-index sabote']);
+        },
+    },
 ];
 
 // ── Execution ───────────────────────────────────────────────────────────────────────────
@@ -346,6 +470,11 @@ console.log(`Recette du declencheur des gardes du code — ${joues.length} cas\n
 
 for (const cas of joues) {
     const d = depot();
+    // Le repertoire temporaire ISOLE du cas : `tenter` le pose en TEMP/TMP/TMPDIR de tout
+    // ce qu il lance, et c est LUI qu on compte apres coup. Il est cree A COTE du depot
+    // jetable, jamais dedans : un arbre pose sous le depot serait vu par git.
+    tempDuCas = d + '-temp';
+    mkdirSync(tempDuCas, { recursive: true });
     const { code, sortie } = cas.jouer(d);
     const obtenu = code === 0 ? 'passe' : 'refuse';
 
@@ -357,13 +486,23 @@ for (const cas of joues) {
     const bonneCharge =
         cas.tests === undefined || (cas.tests === 'lances' ? aLance : !aLance);
     const bonMotif = cas.sortieContient === undefined || sortie.includes(cas.sortieContient);
-    const ok = obtenu === cas.attendu && bonneCharge && bonMotif;
+
+    // L ARBRE TEMPORAIRE EST-IL REFERME ? Lu sur CHAQUE cas, pas seulement sur les quatre
+    // ecrits pour ca : un chemin de sortie neuf qui oublierait le filet rougirait ici sans
+    // que personne n ait a y penser. On ne compte que les arbres que le declencheur
+    // CONSTRUIT (`gardes-au-commit-*`) : git et node deposent leurs propres temporaires
+    // dans ce meme repertoire, et ils ne sont pas de son ressort.
+    const reliquats = readdirSync(tempDuCas).filter((x) => x.startsWith('gardes-au-commit-'));
+    const bacReferme = reliquats.length === 0;
+
+    const ok = obtenu === cas.attendu && bonneCharge && bonMotif && bacReferme;
     if (!ok) echecs++;
 
     const pourquoi = [
         obtenu === cas.attendu ? '' : ` — attendu ${cas.attendu}, obtenu ${obtenu} (code ${code})`,
         bonneCharge ? '' : ` — tests ${cas.tests} attendus, ${aLance ? 'des tests ont tourne' : 'rien n a tourne'}`,
         bonMotif ? '' : ` — motif absent de la sortie : ${JSON.stringify(cas.sortieContient)}`,
+        bacReferme ? '' : ` — ${reliquats.length} arbre(s) temporaire(s) ABANDONNE(S) : ${reliquats.join(', ')}`,
     ].join('');
     console.log(`  ${ok ? 'ok    ' : 'ECHEC '} ${cas.nom}${pourquoi}`);
     if (!ok) {

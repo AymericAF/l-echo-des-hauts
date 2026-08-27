@@ -31,10 +31,20 @@ Les deux applications sont indépendantes : chacune a son `package.json`, ses d�
 cycle de vie. Il n'y a **pas** d'outil de monorepo (ni workspaces npm, ni Turborepo) — on installe
 et on lance chaque application depuis son propre dossier.
 
-## Les tests se lancent tout seuls — deux étages
+## Les tests se lancent tout seuls
 
-Les 33 fichiers de test des deux applications (566 tests) **ne dépendent plus de la mémoire de
-qui commite**. Une garde qu'il faut penser à lancer ne garde rien.
+Les tests des deux applications **ne dépendent plus de la mémoire de qui commite** : ils se
+déclenchent tout seuls, à plusieurs moments. Une garde qu'il faut penser à lancer ne garde rien.
+
+Le tableau qui dit **lequel joue quoi, et quand** vit dans [`CLAUDE.md`](CLAUDE.md), § « Trois
+gardes, et une seule qui surprend » — c'est son **domicile unique**. Cette section décrit chaque
+étage ; elle ne recopie pas le tableau.
+
+**Aucun compte — de tests, de fichiers ou de cas — n'est écrit ici, et c'est la règle.** Un
+compte recopié dans de la prose ne se confronte à rien et dérive en silence : ce titre a annoncé
+« deux étages » jusqu'au 2026-08-27 alors qu'il y en avait **trois**, et un lecteur qui poussait
+sur `main` croyait donc que rien ne tournait à son push. Chaque suite et chaque recette imprime
+son propre compte, en fin de sortie — c'est là qu'il se lit.
 
 - **`.githooks/commit-msg`** — local, immédiat, **ciblé**. Il n'écrit rien dans
   `.githooks/pre-commit`, qui appartient au lot commun de détection de secrets propagé sur
@@ -73,8 +83,9 @@ payé avant — c'est le poste dominant de ce tableau, pas le correctif.
 
 Un témoin absent, périmé ou écrit par une autre session fait juger **plus** de fichiers, jamais
 moins : le déclencheur juge toujours l'arbre qui va être commité, donc un rouge y reste toujours un
-vrai rouge. `outils/gardes-au-commit.recette.mjs` (14 cas, dépôts jetables, vrais `git commit`) le
-**prouve en le cassant dans les deux sens** — l'amendement fautif est refusé en nommant le test,
+vrai rouge. `outils/gardes-au-commit.recette.mjs` (dépôts jetables, vrais `git commit`, compte de
+cas imprimé en fin de sortie) le **prouve en le cassant dans les deux sens** — l'amendement
+fautif est refusé en nommant le test,
 l'amendement de message ne lance rien.
 
 **Ce qui reste ouvert, et c'est délibéré** : le pré-filtre en `sh` sort à zéro — sans démarrer
@@ -83,6 +94,15 @@ garde. Un amendement qui réindexe un `README` par-dessus un contenu jamais jug�
 Fermer ce cas coûterait un démarrage de `node` **à chaque commit de documentation**, et un crochet
 qui coûte se fait contourner — on perdrait alors aussi ce qui marche. La recette porte ce cas
 **écrit pour être vert** : le jour où il rougit, c'est que la décision a changé.
+- **`.githooks/pre-push`** — local, **avant que quoi que ce soit ne parte sur `main`**, et c'est
+  le plus coûteux des trois : il joue **les deux suites complètes** dans l'arbre courant, pas les
+  seuls fichiers de l'index. Il refuse aussi un arbre **sale**, un `HEAD` différent du commit
+  poussé, et il porte le verrou de campagne **R-09**. Une branche autre que `main` n'est pas jugée.
+  `.githooks/gardes-avant-push.recette.mjs` le **prouve en le cassant** — vrais dépôts jetables,
+  vrais `git push` vers un remote nu, le crochet réellement installé par `core.hooksPath`.
+  **Il joue `npm test` dans l'arbre courant** : un arbre neuf sans `node_modules` est refusé en
+  nommant l'installation, pas le code. Voir `CLAUDE.md` § « Aucun arbre ne pousse sur `main` sans
+  `npm ci` d'abord » — c'est le refus qui surprend, et il n'accuse pas ce que vous venez d'écrire.
 - **`.github/workflows/gardes-du-code.yml`** — GitHub Actions, tardif, **exhaustif**. Il lance
   **tout** à chaque `push`, parce que le hook local se contourne d'un `--no-verify`, n'existe pas
   dans un clone frais tant que `core.hooksPath` n'y est pas posé, et ne voit pas un fichier
@@ -97,13 +117,14 @@ commit hors `apps/` **~0,2 s**, aucun `node` lancé ; un fichier de test ciblé 
 4 tests sur 8 **~1,1 s** ; les 33 fichiers **~3,0 s**. Les suites complètes, à chaud :
 `apps/web` 485 tests en ~1,8 s, `apps/cms` 81 tests en ~1,0 s.
 
-## Un troisième étage : la sortie réellement construite
+## Ce qu'aucun de ces étages ne juge : la sortie réellement construite
 
-Les 566 tests ci-dessus jugent des **arborescences fabriquées**. C'est utile et ce n'est pas la
+Les tests ci-dessus jugent des **arborescences fabriquées**. C'est utile et ce n'est pas la
 même chose que juger le site produit : `build.inlineStylesheets` peut repasser à `'auto'`, une
 intégration peut sortir d'`astro.config.mjs`, un composant peut cesser d'écrire ses dimensions —
-**les 566 tests restent verts**, et c'est le lecteur qui voit le défaut. Dix scripts existent qui
-lisent, eux, la sortie d'un build réel — **ou, pour le dernier, la réponse de la production**.
+**les tests ci-dessus restent verts**, et c'est le lecteur qui voit le défaut. Dix scripts
+existent qui lisent, eux, la sortie d'un build réel — **ou, pour le dernier, la réponse de la
+production**.
 
 ~~`apps/web/scripts/verifier-*` et `preuve-*` lisent un `dist/` réellement construit ou sortent
 sur le réseau. Les câbler rendrait le dispositif rouge en permanence faute d'infrastructure.~~

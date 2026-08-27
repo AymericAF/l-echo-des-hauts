@@ -159,10 +159,17 @@ jobs:
           echo "OK : .githooks/pre-push 100755, et il appelle gardes-avant-push.js"
 
       - name: La recette de la garde avant push — vrais depots, vrais push, refus exiges
-        # 7 cas : le nominal, une suite rouge qui ARRETE le push, le refus qui nomme
-        # les applications, une branche autre que main qu'on ne juge pas, et les deux
-        # incapacites (arbre sale, HEAD different du commit pousse) qui refusent
-        # plutot que de juger a cote.
+        # AUCUN COMPTE DE CAS DANS CE COMMENTAIRE, et c'est la regle : la recette imprime
+        # le sien en derniere ligne (« RECETTE VERTE — N controle(s) passe(s) »), et son
+        # en-tete dit ce qu'elle couvre. Un compte recopie ici ne se confronte a rien : il
+        # ne peut que deriver, et il derive TOUJOURS du cote qui SOUS-ANNONCE — soit ce qui
+        # fait croire un jour qu'un cas n'existe pas, et donc qu'il reste a ecrire.
+        #
+        # CONSTAT DATE, qui ne se met pas a jour : ce commentaire a porte le compte fige au
+        # 2026-08-14 (10314f8, ou il etait vrai) jusqu au 2026-08-27, pendant que la recette
+        # gagnait plus du quadruple de ce compte. Rien ne l a vu, parce que rien ne
+        # confrontait cette prose au fichier qu elle pretend decrire — et le chiffre annonce
+        # etait TOUJOURS le plus petit des deux.
         run: node .githooks/gardes-avant-push.recette.mjs
 
       - name: La recette du declencheur — elle le prouve en le cassant, dans les deux sens

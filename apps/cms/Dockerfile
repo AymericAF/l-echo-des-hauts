@@ -60,6 +60,38 @@ EXPOSE 1337
 #
 # start-period a 90s : Strapi mettait ~40s a journaliser « started successfully ».
 #
+# ⚠️ CE start-period N'EST PAS CELUI QUI FIXE LA FENETRE DE BASCULE, et les confondre a
+# coute un arbitrage. Il y en a DEUX, ils ne portent pas sur la meme chose, et un seul se
+# lit ici :
+#   1. CELUI-CI gouverne le verdict de Docker : pendant 90 s, un echec de la sonde ne
+#      compte pas et le conteneur reste « starting ». C'est la valeur que porte l'image,
+#      et c'est bien elle que le conteneur execute.
+#   2. Celui de Coolify (interface > Healthchecks > Start Period) ne descend PAS dans le
+#      conteneur quand l'image porte deja son propre HEALTHCHECK : Coolify journalise
+#      « Custom healthcheck found in Dockerfile. » et laisse celui de l'image en place. Il
+#      s'en sert autrement — comme d'une ATTENTE SECHE dans sa propre boucle de
+#      deploiement, avant de commencer a interroger la sonde :
+#      « Waiting for the start period (N seconds) before starting healthcheck. »
+#      C'est donc LUI, et non la ligne ci-dessous, qui fixe le plancher de la fenetre
+#      entre « New container started. » et « Removing old containers. ».
+#
+# CE QUI LE PROUVE, sur l'instance et non par lecture (releve du 2026-08-28, en lecture
+# seule) : le conteneur en service depuis le deploiement 555 rend `docker inspect --format
+# '{{json .Config.Healthcheck}}'` -> "StartPeriod":90000000000, soit 90 s — alors que
+# Coolify portait 40 s a sa creation. Les deux valeurs coexistent sans se recouvrir. Et le
+# journal du meme deploiement 555 les montre a l'oeuvre :
+#
+#   13:35:23.541  New container started.
+#   13:35:23.559  Custom healthcheck found in Dockerfile.
+#   13:35:23.594  Waiting for the start period (40 seconds) before starting healthcheck.
+#   13:36:03.785  "healthy"
+#   13:36:04.033  Removing old containers.          <- 40,5 s apres le demarrage
+#
+# CONSEQUENCE POUR QUI TOUCHE A CES LIGNES : allonger ou raccourcir le 90 ci-dessous ne
+# deplacera PAS la fenetre de bascule ; cela ne change que la duree pendant laquelle un
+# demarrage rate est tolere sans marquer le conteneur « unhealthy ». La fenetre, elle, se
+# regle dans Coolify.
+#
 # ⚠️ CE QU'IL NE PROUVE PAS, ET QUI A COUTE UN BUILD DU SITE. Il teste qu'une connexion TCP
 # est acceptee : ni que le schema est charge, ni que la route REST le sert. Coolify attend
 # bien qu'il passe avant de marquer le deploiement « finished », mais le proxy route encore

@@ -28,15 +28,26 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 
 import { inspecterOrigineMedias } from '../scripts/verifier-origine-medias.mjs';
+import { harnaisDeBacs } from '../../../outils/banc-jetable.mjs';
+
+/* LE BAC JETABLE SE RETIRE, ET IL SE RETIRE MEME QUAND UN CAS CASSE.
+   `after()` est le `finally` de `node:test` : il joue que les cas soient verts ou rouges — et
+   une recette qui prouve en cassant a l echec pour regime normal, pas pour accident. Le filet
+   `process.on('exit')` du harnais reprend la main sur ce qu `after()` ne voit pas : un
+   `process.exit`, ou une erreur au chargement du module. Motif, mesure et perimetre du
+   retrait : `outils/banc-jetable.mjs`. */
+const bacs = harnaisDeBacs();
+after(() => bacs.rendreCompte(bacs.nettoyer()));
+
 
 const ORIGINE = 'https://echo.ayfiweb.fr';
 
 /** Fabrique un dist/ jetable : { 'chemin/relatif': 'contenu' }. */
 function dist(fichiers: Record<string, string>): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'garde-origine-medias-'));
+  const racine = bacs.creer('garde-origine-medias-');
   for (const [relatif, contenu] of Object.entries(fichiers)) {
     const complet = path.join(racine, relatif);
     fs.mkdirSync(path.dirname(complet), { recursive: true });

@@ -72,7 +72,7 @@ touches="$(git diff --cached --name-only --diff-filter=ACMRD)"
 if [ -n "$touches" ]; then
     # `README.md` est dans le motif depuis p2/wt-code-jeton : la racine est hors `apps/`,
     # donc une regression du README n aurait declenche AUCUN test sans cette entree.
-    if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.github/workflows/.+|README\.md|\.githooks/commit-msg|outils/gardes-au-commit\.js)$'; then
+    if ! printf '%s\n' "$touches" | grep -Eq '^(apps/[^/]+/.+|\.github/workflows/.+|README\.md|\.githooks/commit-msg|outils/gardes-au-commit\.js|outils/banc-jetable\.mjs)$'; then
         echo "gardes du code : aucune application gardee dans ce commit — 0 test lance" >&2
         exit 0
     fi

@@ -179,11 +179,31 @@ const LECTURES = {
 // n'est pas la sienne se fait desactiver dans la semaine. Ces prefixes sont
 // poses dans l'arbre EN PLUS des applications. Ils declenchent deja par
 // `LECTURES` : cette liste ne dit pas QUAND lancer, elle dit QUOI POSER.
-const SUPPORTS_HORS_APPLICATION = ['.github/workflows/', 'README.md', 'CREDITS.md'];
+// `outils/banc-jetable.mjs` est le seul de ces supports qui soit IMPORTE et non lu par
+// chemin : les tests des DEUX applications montent leurs bacs jetables par lui. Le graphe
+// d'imports le voit donc tout seul, et il n'a rien a faire dans `LECTURES` ; ce qu'il lui
+// faut, c'est etre POSE dans l'arbre temporaire, sans quoi les tests qui l'importent
+// echoueraient sur une absence au lieu d'une regression.
+const SUPPORTS_HORS_APPLICATION = [
+    '.github/workflows/',
+    'README.md',
+    'CREDITS.md',
+    'outils/banc-jetable.mjs',
+];
 
 // Toucher le declenchement lui-meme relance TOUT : c'est la regle qui a bouge,
 // et une regle de declenchement qui ne s'exerce pas est une convention de plus.
-const DECLENCHEURS_GLOBAUX = ['.githooks/commit-msg', 'outils/gardes-au-commit.js'];
+// `outils/banc-jetable.mjs` y figure pour une raison mecanique, pas par prudence : il vit
+// HORS de toute application, donc un commit qui ne toucherait que lui ne rendrait AUCUNE
+// application concernee — le declencheur sortirait a zero en disant « aucune application
+// gardee », sur un commit qui change la fabrique des bacs des deux suites. Le graphe
+// d'imports ne rattrape pas ce cas : il choisit QUELS tests lancer parmi une application
+// deja retenue, il ne retient pas l'application.
+const DECLENCHEURS_GLOBAUX = [
+    '.githooks/commit-msg',
+    'outils/gardes-au-commit.js',
+    'outils/banc-jetable.mjs',
+];
 
 // Le `test` de package.json ENUMERE les fichiers a lancer : le retoucher peut
 // retirer un test du lot sans supprimer une ligne de code. On relance donc

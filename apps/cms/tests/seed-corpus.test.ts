@@ -6,16 +6,26 @@
  * a moitie remplie, et la seconde execution rapprocherait sur un etat partiel.
  * D'ou la regle : on lit tout, on valide tout, puis seulement on ecrit.
  */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { FORMATS_DE_PARTAGE, chargerCorpus, exigerFormatDePartage } from '../scripts/seed/corpus.ts';
 import { SEPARATEUR, verifierFormatCredit } from '../scripts/seed/credits.ts';
 import { ErreurCorpus, MediaIntrouvable } from '../scripts/seed/erreurs.ts';
+import { harnaisDeBacs } from '../../../outils/banc-jetable.mjs';
+
+/* LE BAC JETABLE SE RETIRE, ET IL SE RETIRE MEME QUAND UN CAS CASSE.
+   `after()` est le `finally` de `node:test` : il joue que les cas soient verts ou rouges — et
+   une recette qui prouve en cassant a l echec pour regime normal, pas pour accident. Le filet
+   `process.on('exit')` du harnais reprend la main sur ce qu `after()` ne voit pas : un
+   `process.exit`, ou une erreur au chargement du module. Motif, mesure et perimetre du
+   retrait : `outils/banc-jetable.mjs`. */
+const bacs = harnaisDeBacs();
+after(() => bacs.rendreCompte(bacs.nettoyer()));
+
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 const DATA_REEL = path.join(ICI, '..', 'data');
@@ -25,7 +35,7 @@ const DATA_REEL = path.join(ICI, '..', 'data');
 /* ------------------------------------------------------------------ */
 
 function ecrireCorpusMinimal(): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-'));
+  const racine = bacs.creer('echo-corpus-');
   const ecrire = (rel: string, contenu: string) => {
     const cible = path.join(racine, rel);
     fs.mkdirSync(path.dirname(cible), { recursive: true });

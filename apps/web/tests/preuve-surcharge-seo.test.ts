@@ -10,7 +10,7 @@
  * Le dernier test est le plus important : il verifie que la garde signale quand elle
  * n a RIEN pu lire. Sans lui, un `dist/` vide passerait pour un site conforme.
  */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,6 +19,17 @@ import { spawnSync } from 'node:child_process';
 
 import { verifierSurchargeSeo } from '../scripts/preuve-surcharge-seo.mjs';
 import { ISSUES } from '../scripts/issues.mjs';
+import { harnaisDeBacs } from '../../../outils/banc-jetable.mjs';
+
+/* LE BAC JETABLE SE RETIRE, ET IL SE RETIRE MEME QUAND UN CAS CASSE.
+   `after()` est le `finally` de `node:test` : il joue que les cas soient verts ou rouges — et
+   une recette qui prouve en cassant a l echec pour regime normal, pas pour accident. Le filet
+   `process.on('exit')` du harnais reprend la main sur ce qu `after()` ne voit pas : un
+   `process.exit`, ou une erreur au chargement du module. Motif, mesure et perimetre du
+   retrait : `outils/banc-jetable.mjs`. */
+const bacs = harnaisDeBacs();
+after(() => bacs.rendreCompte(bacs.nettoyer()));
+
 
 const ORIGINE = 'https://echo.test';
 
@@ -41,7 +52,7 @@ function ecrire(racine: string, rel: string, contenu: string): void {
 
 /** Le corpus : A01 surcharge, A02 nu, A40 en noindex, une categorie, un dossier. */
 function corpusFactice(retouche: (c: any) => void = () => {}): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-seo-'));
+  const racine = bacs.creer('echo-corpus-seo-');
   const c = {
     a01: {
       code: 'A01',
@@ -89,7 +100,7 @@ function page(opts: {
 
 /** Un `dist/` conforme au corpus factice : la surcharge sort, le repli aussi. */
 function distSain(retouche: (d: Record<string, string | null>) => void = () => {}): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-dist-seo-'));
+  const racine = bacs.creer('echo-dist-seo-');
   const fichiers: Record<string, string | null> = {
     'article/col-des-trois-vents/index.html': page({
       titre: `${SURCHARGE.metaTitre} — L Echo`,
@@ -368,7 +379,7 @@ test('les trois issues sortent AUSSI en ligne de commande, pas seulement en fonc
     ISSUES.ANOMALIE
   );
   assert.equal(
-    lancer(fs.mkdtempSync(path.join(os.tmpdir(), 'echo-dist-absent-'))),
+    lancer(bacs.creer('echo-dist-absent-')),
     ISSUES.VERIFICATION_IMPOSSIBLE
   );
 

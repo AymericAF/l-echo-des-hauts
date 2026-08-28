@@ -20,16 +20,26 @@
  * (`lirePage` rend `null`, la boucle `continue`), et le verdict porterait alors sur un
  * echantillon dont personne n aurait choisi le contour.
  */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { construireMiroir, cheminsAMirroiter } from '../scripts/miroir-servi.mjs';
 import { verifierSurchargeSeo } from '../scripts/preuve-surcharge-seo.mjs';
 import { ISSUES } from '../scripts/issues.mjs';
+import { harnaisDeBacs } from '../../../outils/banc-jetable.mjs';
+
+/* LE BAC JETABLE SE RETIRE, ET IL SE RETIRE MEME QUAND UN CAS CASSE.
+   `after()` est le `finally` de `node:test` : il joue que les cas soient verts ou rouges — et
+   une recette qui prouve en cassant a l echec pour regime normal, pas pour accident. Le filet
+   `process.on('exit')` du harnais reprend la main sur ce qu `after()` ne voit pas : un
+   `process.exit`, ou une erreur au chargement du module. Motif, mesure et perimetre du
+   retrait : `outils/banc-jetable.mjs`. */
+const bacs = harnaisDeBacs();
+after(() => bacs.rendreCompte(bacs.nettoyer()));
+
 
 const ORIGINE = 'https://echo.test';
 
@@ -48,7 +58,7 @@ function ecrire(racine: string, rel: string, contenu: string): void {
 
 /** Le meme corpus factice que la preuve : A01 surcharge, A02 nu, A40 noindex. */
 function corpusFactice(): string {
-  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-miroir-'));
+  const racine = bacs.creer('echo-corpus-miroir-');
   const a01 = {
     code: 'A01',
     slug: 'col-des-trois-vents',
@@ -154,7 +164,7 @@ function siteSain(retouche: (s: Record<string, { statut: number; corps?: string 
 }
 
 function destination(): string {
-  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'echo-miroir-')), 'miroir');
+  return path.join(bacs.creer('echo-miroir-'), 'miroir');
 }
 
 async function miroir(
@@ -306,7 +316,7 @@ test('une origine illisible rend VERIFICATION IMPOSSIBLE en la NOMMANT', async (
 });
 
 test('un CORPUS absent rend VERIFICATION IMPOSSIBLE — le miroir n a pas de liste a ramener', async () => {
-  const vide = fs.mkdtempSync(path.join(os.tmpdir(), 'echo-corpus-vide-'));
+  const vide = bacs.creer('echo-corpus-vide-');
   const rapport = await construireMiroir({
     origine: ORIGINE,
     corpus: vide,

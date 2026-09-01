@@ -319,6 +319,43 @@ jobs:
             process.exit(rouge ? 1 : 0);
           '
 
+  modele:
+    name: Le modele et son mapping disent la meme chose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Une surcharge d alternative se compte par ce qu elle FAIT
+        # ELLE VIENT DU DEPOT DE DOCUMENTATION, et son demenagement EST le sujet
+        # (decision `b923fec4`, branche B). La-bas elle vivait a cote du document
+        # qu elle protegeait mais lisait CE depot-ci : sur le runner public du
+        # depot doc, le depot de code est absent, elle sortait en CODE 2, et elle
+        # ne gardait donc RIEN — elle ne tournait que si quelqu un y pensait,
+        # c est-a-dire le mode d echec meme qu elle a ete ecrite pour fermer.
+        #
+        # Ici elle lit son propre arbre : aucun clone, aucun `fetch`, aucun
+        # reseau, et elle tourne a chaque commit qui touche `mapping.ts` ou un
+        # schema — LA OU LA DEVIATION NAIT. Trois causes d incapacite ont disparu
+        # avec le voyage.
+        #
+        # ELLE NE VA PAS DANS `tests` : la suite `npm test` juge une application
+        # a la fois, avec ses dependances installees ; celle-ci confronte
+        # `apps/cms` a `apps/web` et ne depend de rien. Un job a elle coute un
+        # checkout et dit ce qu il juge dans son nom.
+        run: node outils/check-surcharges-alternative.js
+
+      - name: Et la garde elle-meme est prouvee EN LA CASSANT
+        # Le pas ci-dessus rend VERT dans deux cas indiscernables : le modele est
+        # coherent, ou l extracteur ne reconnait plus rien. La recette separe les
+        # deux — son cas 8 desarme l extracteur dans une copie de la garde et
+        # exige une INCAPACITE. Sans elle, le vert d au-dessus ne vaut pas grand
+        # chose.
+        run: node outils/check-surcharges-alternative.recette.mjs
+
   tests:
     name: ${{ matrix.app }} — la suite complete
     runs-on: ubuntu-latest

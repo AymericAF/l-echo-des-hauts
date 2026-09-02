@@ -135,3 +135,8 @@ build
 # Sauvegardes locales des champs CMS avant ecriture (configuration-seule.ts) :
 # etat d'une INSTANCE a un instant donne, pas une source — il ne se versionne pas.
 .sauvegardes/
+# Types TypeScript regeneres par Strapi a partir des schemas versionnes de
+# src/api/**/content-types/**/schema.json et src/components/**/*.json : sortie,
+# pas source. Non suivis, ils faisaient echouer le controle « arbre propre »
+# du crochet de pre-push depuis le checkout principal.
+types/generated/

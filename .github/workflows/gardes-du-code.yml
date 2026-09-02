@@ -172,6 +172,23 @@ jobs:
         # et un amendement qui ne corrige qu'un message ne lance RIEN.
         run: node outils/gardes-au-commit.recette.mjs
 
+      - name: Aucun instrument ne s adosse a la reference LOCALE main
+        # La reference locale `main` est detenue par le worktree `_wt/code-main-instr` :
+        # tant qu un worktree tient une branche, personne d autre ne peut la faire avancer,
+        # donc elle se perime toute seule. Constatee en retard sur origin/main le 2026-08-24
+        # (tache c65d3ad2). Une branche mesuree contre elle se croit a jour alors qu elle
+        # ne l est pas. La garde rend une SANTE : 0 aucun lecteur, 1 un lecteur NOMME,
+        # 2 incapacite — elle refuse de rendre 0 quand elle n a rien su lire.
+        run: node outils/check-lecteurs-ref-locale.js
+
+      - name: La recette de cette garde — elle la prouve en la cassant, dans les deux sens
+        # 14 cas, depots git jetables. Trois familles : elle MORD sur un lecteur (1-3),
+        # elle se TAIT sur ce qui n en est pas un (4-9 : origin/main, push origin main,
+        # les bancs d essai, la prose, les chemins) — c est la moitie qui decide de sa
+        # survie —, et elle rend INCAPACITE plutot que 0 quand elle est muette (10-13).
+        # Le cas 14 etablit que son exemption est NOMINATIVE et non une porte derobee.
+        run: node outils/check-lecteurs-ref-locale.recette.mjs
+
       - name: La recette du retrait de worktree REFUSE de se declarer conforme sur ubuntu
         # Elle ne peut pas tourner ici : son objet est une jonction NTFS, qui n existe
         # que sur Windows — et le job tourne sur ubuntu-latest. Ce pas n exerce donc pas

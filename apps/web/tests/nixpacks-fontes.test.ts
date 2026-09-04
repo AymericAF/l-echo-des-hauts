@@ -79,18 +79,30 @@ test('nixpacks.toml existe a la racine de la Base Directory du build', () => {
   );
 });
 
-test('la phase setup est declaree et ne remplace pas les nixPkgs du fournisseur', () => {
-  const source = fs.readFileSync(NIXPACKS, 'utf8');
-  assert.match(source, /\[phases\.setup\]/, 'la phase setup doit etre declaree');
-  const nixPkgs = source.match(/nixPkgs\s*=\s*\[([^\]]*)\]/);
-  if (nixPkgs !== null) {
-    assert.match(
-      nixPkgs[1],
-      /['"]\.\.\.['"]/,
-      "declarer nixPkgs sans le spread '...' ECRASE les paquets detectes par le " +
-        'fournisseur Node — le build perdrait node et npm.',
-    );
-  }
+test('la phase setup est declaree — c est elle qui porte les paquets du build', () => {
+  /* ~~et ne remplace pas les nixPkgs du fournisseur : declarer nixPkgs sans le spread '...'
+     ECRASE les paquets detectes par le fournisseur Node, le build perdrait node et npm.~~
+     — RETIRE le 2026-09-04, sur un fait mecanique et non sur un avis.
+
+     Le spread reinjecte `npm-9_x`, et `npm-9_x` N EXISTE PAS dans nixpkgs : il vient de
+     l overlay `railwayapp/nix-npm-overlay/archive/main.tar.gz`, que le fournisseur Node
+     ajoute de lui-meme et qui est la reference GitHub ayant rendu `429` le 2026-08-17
+     (deploiement `522`). L exiger revenait donc a exiger l appel qu on cherche a supprimer.
+
+     CE QU IL PROTEGEAIT REELLEMENT — que le build ne perde ni node ni npm — n est pas
+     abandonne, il a DEMENAGE : `tests/nixpacks-appels-github.test.ts` exige que `nixPkgs`
+     nomme le `nodejs_<majeure>` de `engines.node`, ce qui est la garantie directe la ou le
+     spread n en etait que le detour. Mesure du 2026-09-04 : `nodejs_22` seul rend node
+     v22.19.0 et npm 10.9.3, `npm ci` sort en 0 sur le lockfile reel, et sharp rasterise.
+
+     Ce qui reste ICI est le seul morceau dont ce fichier a besoin : que la phase existe,
+     puisque c est elle qui porte les `aptPkgs` des fontes. */
+  assert.match(
+    fs.readFileSync(NIXPACKS, 'utf8'),
+    /\[phases\.setup\]/,
+    'la phase setup doit etre declaree : sans elle, aucun paquet de fonte n est installe et '
+      + 'les images Open Graph sortent vides de tout glyphe, au bon format et au bon poids.',
+  );
 });
 
 for (const [constante, genre] of [

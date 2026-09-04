@@ -24,10 +24,70 @@
 # `sharp` interroge pour resoudre `font-family`. Poser les fichiers sans lui ne les rend
 # pas trouvables.
 #
-# NE PAS declarer `nixPkgs` ici sans le spread `'...'` : sans lui, la liste ecraserait les
-# paquets detectes par le fournisseur Node, et le build perdrait node et npm.
+# ~~NE PAS declarer `nixPkgs` ici sans le spread `'...'` : sans lui, la liste ecraserait les
+# paquets detectes par le fournisseur Node, et le build perdrait node et npm.~~
+#
+# ── 2026-09-04 : LA LISTE EST DESORMAIS ECRITE A LA MAIN, ET SANS LE SPREAD ─────────────
+#
+# La consigne barree ci-dessus disait vrai sur le RISQUE — remplacer la liste, c est reprendre
+# la charge de poser node — et faux sur le REMEDE : le spread reinjecte `npm-9_x`, et `npm-9_x`
+# n existe PAS dans nixpkgs. Il vient d un OVERLAY, que le fournisseur Node ajoute de lui-meme :
+#
+#     "nixOverlays": ["https://github.com/railwayapp/nix-npm-overlay/archive/main.tar.gz"]
+#
+# POURQUOI ON LE RETIRE. Le webhook Strapi `publish_to_coolify` code `&force=true` en dur dans
+# son URL, et dans Coolify 4.3.6 `force_rebuild` commande DEUX choses a la fois : la
+# desactivation de la deduplication d image — indispensable, le contenu vient de Strapi AU
+# BUILD — et `--no-cache`. Sous `--no-cache` la couche `#8` (`RUN nix-env -if
+# .nixpacks/nixpkgs-<sha>.nix`) est REJOUEE a chaque publication, et elle telechargeait DEUX
+# archives GitHub. Mesure sur le regime courant : 35 builds forces, 35 executions de la couche,
+# 70 sollicitations, 1 refus (~2,9 %) — le `429` du deploiement `522`, tombe sur l overlay :
+#
+#     #8  0.135 unpacking 'https://github.com/NixOS/nixpkgs/archive/23f9169c….tar.gz' …
+#     #8 43.25 unpacking 'https://github.com/railwayapp/nix-npm-overlay/archive/main.tar.gz' …
+#     #8 55.17 warning: error: unable to download '…': HTTP error 429
+#
+# ⚠️ NE PAS TOUCHER AU FORCAGE POUR AUTANT. Il a ete retire le 2026-08-12 puis REMIS le
+# 2026-08-13 (decisions `fae6cd9c` puis `b9b98998`) apres 18 heures pendant lesquelles publier
+# ne mettait plus rien en ligne — et cette panne-la est SILENCIEUSE : `200`, ligne de
+# deploiement creee, vert en 9 secondes, « Build step skipped ». On echangerait une panne
+# bruyante rattrapee en une relance contre une panne muette.
+#
+# CE QUE LE RETRAIT COUTE ET RAPPORTE, mesure et non estime (banc du 2026-09-04, image
+# `ghcr.io/railwayapp/nixpacks:ubuntu-1745885067`, archive nixpkgs `23f9169c…`) :
+#
+#     nodejs_22 SEUL           ->  node v22.19.0, npm 10.9.3      (l overlay est superflu)
+#     npm ci, lockfile reel    ->  sortie 0, 172 entrees          (lockfileVersion 3)
+#     sharp sous ce node       ->  0.35.3, PNG rasterise          (la raison d etre du fichier)
+#
+# ⚠️ ET CE QUE CE RETRAIT NE RAPPORTE PAS — la ligne a ne pas croire sur parole. L overlay
+# coute 0,7 s (43,25 -> 43,94 dans le journal du build 591), pas les 109 s du `--no-cache`.
+# Ces 109 s sont l archive NIXPKGS (43 s de depaquetage) et les 127 Mio tires de
+# `cache.nixos.org` : le retrait de l overlay ne les touche pas. Ce qu il ferme est le
+# RISQUE — une reference MUTABLE (`main`), retelechargee a chaque publication, sur une limite
+# de debit anonyme partagee par IP — pas le temps de build.
+#
+# ⚠️ LA SECONDE SOLLICITATION RESTE, ET ELLE N EST PAS SUPPRIMABLE D ICI. L URL de nixpkgs est
+# ecrite en dur dans le binaire nixpacks 1.41.0 (`coollabsio/coolify-helper:1.0.16`) ; seul le
+# `<sha>` est parametrable :
+#
+#     $ strings /usr/local/bin/nixpacks | grep fetchTarball
+#     import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/.tar.gz")
+#     (import (builtins.fetchTarball ""))        <- l overlay, lui, vient de `nixOverlays`
+#
+# Ne declarer AUCUN paquet nix ferait bien disparaitre la couche entiere (verifie : ni `COPY
+# .nixpacks/*.nix` ni `RUN nix-env` dans le Dockerfile engendre) — mais l image de base ne
+# porte NI node NI npm, aucun canal `<nixpkgs>`, et son Ubuntu 24.04 n offre que du node 18
+# quand `engines.node` exige `>= 22.12.0`. Fermer cette seconde moitie suppose de CHANGER DE
+# SUBSTRAT (image de build dediee, ou bascule sur le build pack Dockerfile) : ca ne vit plus
+# a cote de ce fichier, et ca se decide.
+#
+# Verrouille par `tests/nixpacks-appels-github.test.ts`, qui juge les DECLARATIONS de ce
+# fichier — pas le journal du build, qui reste la preuve terminale.
 
 [phases.setup]
+nixPkgs = ['nodejs_22']
+nixOverlays = []
 aptPkgs = ['fontconfig', 'fonts-dejavu-core', 'fonts-liberation']
 
 # ~~LA SURCHARGE `partage.seo` SE PROUVE ICI, ET C EST LE SEUL ENDROIT QUI LE PERMET.~~

@@ -312,7 +312,7 @@ test('un manifeste illisible ou vide est une INCAPACITE, et le motif est nomme',
   fs.rmSync(racine, { recursive: true, force: true });
 });
 
-test('le manifeste par defaut du depot se lit, et il porte les 94 medias du corpus', () => {
+test('le manifeste par defaut du depot se lit, et il porte les medias du corpus', () => {
   /* Le chemin par defaut TRAVERSE les deux applications (`apps/web` -> `apps/cms`). Le
      jour ou il se casse, la garde rendrait 2 partout sans que rien ne dise pourquoi. */
   const lecture = lireManifeste(MANIFESTE_PAR_DEFAUT);

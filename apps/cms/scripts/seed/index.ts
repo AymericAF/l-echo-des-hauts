@@ -225,7 +225,7 @@ async function seeder(): Promise<number> {
   // `inchanges` est un registre a part, jamais range en « mises a jour » : une
   // entree sautee n'a produit AUCUNE ecriture, donc aucune republication, donc
   // aucun deploiement. Les confondre ferait mentir le comptage exactement
-  // comme il mentait sur les 94 medias.
+  // comme il mentait sur les medias.
   console.log(
     `creations : ${somme(resultat.crees)} — mises a jour : ${somme(resultat.misAJour)} — ` +
       `inchanges (aucune ecriture emise) : ${somme(resultat.inchanges)}`

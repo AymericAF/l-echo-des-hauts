@@ -5,7 +5,7 @@
  * mediatheque est, depuis le 2026-08-10, PUBLIE sous chaque portrait d'auteur
  * comme ligne de credit. Jusque-la il dormait dans la mediatheque, et la seule
  * garde qui le regardait exigeait « non vide » : n'importe quelle phrase la
- * satisfaisait. Les 94 medias du manifeste rendaient donc une phrase qui ne
+ * satisfaisait. Les medias du manifeste rendaient donc une phrase qui ne
  * nommait NI ayant droit NI licence — un credit qui ne credite rien, ce qui est
  * pire qu'un credit absent puisqu'il a l'air de remplir l'obligation.
  *
@@ -121,8 +121,8 @@ test('le separateur est le tiret cadratin entoure d espaces, pas un tiret court'
 /**
  * `assert.throws` rend `undefined` : il verifie qu'on jette, jamais CE QU'ON
  * DIT. Or tout l'enjeu ici est le MESSAGE — un refus qui ne nomme ni le media
- * ni ce qui manque oblige a chercher sur 94 entrees, et c'est ce qui fait
- * desarmer une garde. On capture donc l'erreur pour la lire.
+ * ni ce qui manque oblige a chercher sur une centaine d'entrees, et c'est ce
+ * qui fait desarmer une garde. On capture donc l'erreur pour la lire.
  */
 function capturer(fn: () => unknown): Error {
   try {
@@ -198,7 +198,7 @@ test('la liste blanche est celle du §6.2 / D.3, et elle ne contient aucune lice
 /*                                                                      */
 /* CE QUE CE RETRAIT NE TOUCHE PAS, et c est tout l enjeu : la liste     */
 /* blanche n est opposee qu au SECOND segment. « Œuvre du projet » reste */
-/* l AYANT DROIT des 94 medias du corpus — premier segment, controle sur */
+/* l AYANT DROIT des medias du corpus — premier segment, controle sur    */
 /* son seul caractere non vide. Les tests ci-dessous exercent les deux   */
 /* sens : ce qui doit desormais etre REFUSE, et ce qui doit rester       */
 /* ACCEPTE au caractere pres.                                            */
@@ -229,15 +229,15 @@ test('composerCredit refuse « Œuvre du projet » en licence EN NOMMANT LE MEDI
       'couvertures/A05.svg'
     )
   );
-  // Un refus qui ne dit pas sur quel fichier il porte oblige a chercher sur 94
-  // entrees : c est ce qui fait desarmer une garde.
+  // Un refus qui ne dit pas sur quel fichier il porte oblige a chercher sur une
+  // centaine d entrees : c est ce qui fait desarmer une garde.
   assert.match(erreur.message, /couvertures\/A05\.svg/, 'le refus doit NOMMER le media');
   assert.match(erreur.message, /Œuvre du projet/);
   assert.match(erreur.message, /liste blanche/i);
 });
 
-test('LE CAS NORMAL EST INTACT — « Œuvre du projet » reste l AYANT DROIT des 94 medias', () => {
-  // C est exactement la ligne que portent les 94 medias du corpus reel, et
+test('LE CAS NORMAL EST INTACT — « Œuvre du projet » reste l AYANT DROIT des medias du corpus', () => {
+  // C est exactement la ligne que portent les medias du corpus reel, et
   // celle qui est PUBLIEE sous les cinq portraits d auteur.
   const credit = composerCredit(
     { ayantDroit: 'Œuvre du projet', licence: 'CC0 1.0' },

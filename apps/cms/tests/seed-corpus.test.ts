@@ -508,9 +508,10 @@ test('les 125 medias VERSIONNES portent une ligne de credit au format, ayant dro
 /* statut d'ayant droit recopie.                                         */
 /*                                                                      */
 /* Pourquoi un mecanisme et pas une relecture : la valeur vit dans un    */
-/* fichier de donnees de 94 entrees, qu'aucun test ne regardait au fond. */
-/* Une reecriture partielle du manifeste — 93 lignes changees sur 94 —   */
-/* ne ferait rougir strictement rien d'autre.                            */
+/* fichier de donnees que personne ne relit en entier, et qu'aucun       */
+/* test ne regardait au fond. Une reecriture partielle du manifeste      */
+/* — presque toutes les lignes changees — ne ferait rougir               */
+/* strictement rien d'autre.                                             */
 /* ------------------------------------------------------------------ */
 
 test('§13 point 4 applique : aucun media versionne ne porte le STATUT « Œuvre du projet » en licence', () => {

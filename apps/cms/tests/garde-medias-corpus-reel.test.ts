@@ -3,7 +3,7 @@
  *
  * POURQUOI CE FICHIER EXISTE EN PLUS DES DEUX AUTRES. `seed-voies.test.ts` juge
  * le module ; `seed-corpus.test.ts` juge un corpus MINIMAL fabrique pour
- * l'occasion. Ni l'un ni l'autre ne dit ce qui arriverait aux 94 medias
+ * l'occasion. Ni l'un ni l'autre ne dit ce qui arriverait aux medias
  * VERSIONNES — et c'est la seule question qui compte le jour ou quelqu'un pose
  * un fichier tiers dans ce depot. Un corpus de test est toujours conforme :
  * c'est celui qu'on a ecrit pour l'etre.

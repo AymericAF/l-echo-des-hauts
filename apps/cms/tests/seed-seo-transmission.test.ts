@@ -111,21 +111,21 @@ test('le corps envoye a Strapi porte la surcharge seo, sur les trois familles', 
 });
 
 /**
- * `imagePartage` est le SEUL champ que le corpus reel n exerce pas, et ce n est pas
- * un oubli : deux gardes independantes du §6.7 l interdisent aujourd hui.
+ * CE QUE CE CAS PROUVE, ET SUR QUOI. `imagePartage` EST exerce par le corpus reel
+ * depuis le 2026-08-14 (decision `426812f2`) : la famille `partage-seo` du §6.4
+ * porte la carte dediee de A01, et le rendu servi en est juge cote site
+ * (`apps/web`, recette `preuve-surcharge-seo`). Ce fichier-ci garde l autre
+ * moitie, celle qu un corpus reel ne peut pas montrer : le comportement du seed
+ * quand la surcharge est POSEE, retiree, ou mal formee.
  *
- *   - la repartition du §6.4 fixe le nombre de medias du corpus (102 atteignables) ;
- *     en ajouter un pour la demonstration ferait rougir `repartition-6-4.test.ts`,
- *     qui refuse tout ecart au plan editorial sans arbitrage ecrit ;
- *   - reutiliser `identite/partage-defaut.png` ferait rougir la garde « aucun media
- *     n est employe deux fois dans deux familles differentes » — il sert deja de
- *     repli de configuration.
+ * Le corpus est donc FABRIQUE ici a dessein — pas par impossibilite. Poser un cas
+ * de plus au corpus versionne ferait rougir `repartition-6-4.test.ts`, qui refuse
+ * tout ecart au plan editorial sans arbitrage ecrit, et c est tres bien ainsi :
+ * la volumetrie media est une decision editoriale, pas un geste de test.
  *
- * Surcharger ce champ sur des donnees reelles suppose donc de trancher la volumetrie
- * media, ce qui est une decision editoriale et non un geste technique. En attendant,
- * le CHEMIN est exerce ici, sur un corpus fabrique : ce qui doit etre prouve, c est
- * que la cle de manifeste devient un ID de mediatheque — envoyee telle quelle, elle
- * est refusee par Strapi, ou pire, ignoree.
+ * CE QUI DOIT ETRE PROUVE ICI : que la cle de manifeste devient un ID de
+ * mediatheque — envoyee telle quelle, elle est refusee par Strapi, ou pire,
+ * ignoree.
  */
 test('imagePartage part en ID de mediatheque, jamais en cle de manifeste', async () => {
   const racine = bacJetable('echo-seo-image');

@@ -13,7 +13,7 @@
  *
  * POURQUOI CE MODULE EXISTE. La seule garde qui regardait ce champ exigeait
  * « non vide » (`corpus.ts`, controle 5 du plan). Une phrase quelconque la
- * satisfaisait : les 94 medias du manifeste rendaient une legende editoriale
+ * satisfaisait : les medias du manifeste rendaient une legende editoriale
  * qui ne nommait NI ayant droit NI licence. Un credit qui ne credite rien est
  * pire qu'un credit absent — il a l'air de remplir l'obligation, et personne ne
  * revient dessus. Une garde qui verifie la PRESENCE et non la CONFORMITE ne
@@ -23,7 +23,7 @@
  * champs de la source (`ayantDroit`, `licence`, `modifications`). Composer la
  * ligne a partir d'eux fait de la source la SEULE origine du credit : le jour
  * ou la licence des assets du depot sera arretee (plan editorial §13, point 4),
- * une seule valeur change et les 94 lignes suivent. Stocker la phrase toute
+ * une seule valeur change et toutes les lignes suivent. Stocker la phrase toute
  * faite en ferait une seconde copie de la licence, a diverger — exactement ce
  * que ce depot corrige partout.
  *
@@ -50,7 +50,7 @@ const SEP = ` ${SEPARATEUR} `;
  * sommes l'ayant droit, aucune attribution tierce n'est due), jamais un
  * identifiant de licence publiable ; depuis que le §13 point 4 est tranche
  * (2026-08-10, decision `90276751`), tout media entrant au corpus porte une
- * licence formelle — `CC0 1.0` pour les 94 —, et le statut ne vaut plus que
+ * licence formelle — `CC0 1.0` pour tous —, et le statut ne vaut plus que
  * comme premier segment, l'`ayantDroit`.
  *
  * CE QUE LE RETRAIT NE CASSE PAS, et c'est la raison pour laquelle il est sans
@@ -179,7 +179,7 @@ export function verifierFormatCredit(credit: unknown): Verdict {
 /**
  * Compose la ligne de credit depuis les champs de la source, et NOMME LE MEDIA
  * quand elle ne peut pas l'etre. Une erreur qui ne dit pas sur quel fichier
- * elle porte oblige a chercher, sur 94 entrees.
+ * elle porte oblige a chercher, sur une centaine d'entrees.
  */
 export function composerCredit(source: SourceCredit, cle: string): string {
   const echec = (motif: string): never => {

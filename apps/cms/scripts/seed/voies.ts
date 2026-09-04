@@ -16,13 +16,13 @@
  *     REPRESENTEE (§6.3, D.1 et D.2). Une licence CC0 est necessaire et non
  *     suffisante — elle est cedee par le photographe, jamais par le sujet.
  *
- * LA VOIE SE DERIVE, ELLE NE SE RESSAISIT PAS. Une saisie a la main sur 94
- * entrees derive : c'est le defaut que ce depot corrige partout. Le seul fait
+ * LA VOIE SE DERIVE, ELLE NE SE RESSAISIT PAS. Une saisie a la main sur chaque
+ * entree derive : c'est le defaut que ce depot corrige partout. Le seul fait
  * DEJA su du manifeste qui determine une voie sans ambiguite est l'ayant droit :
  * « Œuvre du projet » veut dire que nous sommes l'ayant droit, donc voie B. Tout
  * le reste — A, C, D — se DECLARE, et c'est voulu : ce sont exactement les voies
  * qui portent des obligations, et une obligation deduite est une obligation
- * qu'on peut perdre par inadvertance. Resultat mesure : ZERO saisie sur les 94
+ * qu'on peut perdre par inadvertance. Resultat mesure : ZERO saisie sur les
  * medias versionnes, et aucun fichier tiers ne peut entrer sans dire d'ou il
  * vient.
  *

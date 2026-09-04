@@ -95,7 +95,7 @@ test('les relations d un article EN sont ecrites sur la localisation EN, pas sur
 /* Le rapprochement se fait sur le nom de fichier, et se contentait de   */
 /* retenir l'id : un media deja present gardait SES metadonnees, pour    */
 /* toujours. Corriger le manifeste ne changeait donc RIEN a ce qui est   */
-/* publie — et c'est precisement le cas ou l'on corrige : les 94 legendes*/
+/* publie — et c'est precisement le cas ou l'on corrige : les legendes   */
 /* ne creditaient rien, et elles etaient deja dans la mediatheque.       */
 /* ------------------------------------------------------------------ */
 

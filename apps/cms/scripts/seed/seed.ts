@@ -377,7 +377,7 @@ export async function executerSeed(
       // manifeste ne changeait rien a ce qui est PUBLIE. Or le `caption` est,
       // depuis le 2026-08-10, la ligne de credit rendue sous le portrait.
       // On ne reecrit que ce qui differe : une ecriture systematique ferait
-      // 94 requetes a chaque passage et ferait mentir le comptage.
+      // une requete par media a chaque passage et ferait mentir le comptage.
       // LES OCTETS, ET PAS SEULEMENT LA FICHE. Comparer les metadonnees ne
       // suffit pas : un fichier REDESSINE sous le meme nom garde les memes, et
       // restait donc celui du premier televersement pour toujours. Le 2026-08-16,
@@ -448,7 +448,7 @@ export async function executerSeed(
         if (memesOctets) compter(misAJour, 'media');
         journal(`media remis a jour : ${media.cle} — « ${media.caption} »`);
       } else if (memesOctets) {
-        // Le rapprochement comptait 94 « mises a jour » de medias sans en
+        // Le rapprochement comptait TOUS les medias en « mises a jour » sans en
         // ecrire une seule : la meme fiction que celle des articles, un cran
         // plus tot. Un fichier retrouve et laisse tel quel est INCHANGE.
         compter(inchanges, 'media');

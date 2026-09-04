@@ -1,14 +1,17 @@
 /**
  * LA REPARTITION DU §6.4, TENUE PAR UN COMPTAGE ET NON PAR UNE PHRASE.
  *
- * CE QUE CE FICHIER TRANCHE. Le plan editorial §6.4 annonce **128 entrees
- * media**, reparties en neuf familles. Le manifeste en portait **94**, et rien
- * ne disait si les onze manquantes existaient sans etre decrites — auquel cas
- * ce seraient des visuels publies sans credit — ou si elles restaient a
- * produire. Le comptage ci-dessous repond, famille par famille, et il repondra
- * encore le jour ou quelqu'un en ajoutera ou en retirera une.
+ * CE QUE CE FICHIER TRANCHE. Le plan editorial §6.4 annonce un effectif par
+ * famille ; le manifeste doit le porter exactement. Le comptage ci-dessous le
+ * verifie famille par famille, et il repondra encore le jour ou quelqu'un en
+ * ajoutera ou en retirera une. LE TOTAL DU CORPUS NE SE RECOPIE PAS : il se
+ * somme depuis la table `REPARTITION_6_4`, et le 128 annonce par le plan est
+ * CONTROLE contre cette somme plutot que cru sur parole.
  *
- * L ECART EST DE ONZE, ET IL SE DECOMPOSE EN DEUX CHOSES QUI N ONT RIEN A VOIR :
+ * L ECART DE ONZE, CONSTATE LE 2026-08-12 — le §6.4 annoncait alors 105 entrees
+ * et le manifeste en portait 94, sans que rien ne dise si les onze manquantes
+ * existaient sans etre decrites (des visuels publies sans credit) ou restaient
+ * a produire. IL SE DECOMPOSE EN DEUX CHOSES QUI N ONT RIEN A VOIR :
  *
  *   - **8 images d en-tete** (6 de rubrique, 2 de dossier) manquaient pour de
  *     bon : ni fichier, ni ligne au manifeste, ni `imageHero` sur l entree. Rien
@@ -125,7 +128,7 @@ test('le total atteignable est 125 — 128 annonces moins les 3 vignettes sans o
 
 test('aucun media n est employe deux fois dans deux familles differentes', () => {
   // Le total ne vaut que si les familles ne se recouvrent pas : un fichier
-  // employe en couverture ET en galerie serait compte deux fois, et le 102
+  // employe en couverture ET en galerie serait compte deux fois, et le total
   // masquerait un manquant.
   const corpus = chargerCorpus(DATA_REEL);
   const doubles = corpus.medias

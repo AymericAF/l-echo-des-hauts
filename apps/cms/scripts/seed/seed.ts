@@ -299,6 +299,42 @@ function resoudreMedias<T>(valeur: T, ids: Map<string, number>): T {
  * exactement celui qu A-07 veut — aucun composant — et non un composant vide.
  * A la creation, `createComponents` saute simplement la valeur `null`.
  *
+ * ✔ VÉRIFIÉ PAR ALLER-RETOUR RÉEL, LE 2026-09-04 (tâche `4e93b0ce`). Tout ce qui
+ * précède avait été établi EN LISANT le code de Strapi — `updateComponents`,
+ * `deleteOldComponents` —, jamais contre l'instance. Deux maillons restaient donc
+ * ouverts : la couche d'assainissement de l'API laisse-t-elle passer le `null`
+ * jusque-là, et l'ancienne ligne est-elle SUPPRIMÉE ou seulement DÉLIÉE ? Ni l'un
+ * ni l'autre ne se voyait sur le corpus, et pas par négligence : il n'y compte
+ * ZÉRO entrée portant un composant `seo` en base et n'en attendant aucun (compté
+ * à la source par l'avenant `d07873c4`). Sans une telle entrée, un assainisseur
+ * qui laisse passer le `null` rend exactement la MÊME sortie que celui qui
+ * l'écarte — et la relecture d'après-seed `0572c833` n'a donc rien pu conclure.
+ *
+ * L'état manquant a été FABRIQUÉ, sous écluse : un composant `seo` témoin posé
+ * PAR STRAPI — même PUT que le seed, `?locale=fr&status=published` — sur
+ * `la-fibre-est-arrivee-aux-sagnes`, qui n'attend aucun bloc `seo` au corpus.
+ * Inséré à la main en SQL, il aurait mesuré une copie de la règle, pas la règle.
+ *
+ *   avant  : 9 lignes dans `components_partage_seos`, 9 liées, 0 orpheline
+ *   témoin : +2 lignes (41 brouillon, 42 publié) sur l'entrée en repli
+ *   seed   : « composant "seo" : 1 entrée(s) lue(s), 0 attendue(s) » — 1 seule
+ *            réécriture, 261 entrées inchangées
+ *   après  : 9 lignes, les MÊMES ids qu'avant, 0 liaison orpheline
+ *
+ * Les deux maillons tombent ensemble. Le `null` ATTEINT bien `updateComponents` :
+ * s'il était écarté en amont, la clé serait absente et le `if (!has(...)) continue;`
+ * aurait laissé la ligne EN PLACE — elle a disparu. Et elle a disparu de la TABLE,
+ * pas seulement de la liaison : aucune ligne orpheline ne subsiste. Une seconde
+ * passe rend 0 écriture, donc l'état est revenu exactement à celui du corpus.
+ *
+ * Le prix payé, et sa preuve : zéro déploiement sur toute la fenêtre (dernier en
+ * date 12:28 UTC, opération de 13:35 à 13:38), et `strapi_webhooks.enabled` relu
+ * EN SQL — canal différent de celui qui l'a écrit — confirme le réarmement, URL
+ * arbitrée et événements intacts.
+ *
+ * Ce qui NE se déduit pas de là : `partage.seo` est un composant UNIQUE. Rien ici
+ * ne dit ce que Strapi fait d'un `null` sur un composant répétable ou une relation.
+ *
  * Corollaire a ne pas defaire : les six champs ne prennent PAS `efface()`. Le
  * corps emis ne porte aucun `id` de composant, donc Strapi supprime l ancienne
  * ligne et en cree une neuve — un champ omis retombe seul a son defaut. Mettre

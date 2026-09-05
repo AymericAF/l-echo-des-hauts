@@ -189,6 +189,21 @@ jobs:
         # Le cas 14 etablit que son exemption est NOMINATIVE et non une porte derobee.
         run: node outils/check-lecteurs-ref-locale.recette.mjs
 
+      - name: La recette du plancher de collecte — un banc a 0 cas ne passe plus au vert
+        # 5 cas, bancs jetables. MESURE du 2026-09-05 (Node 24.14.0) : `node --test` sur un
+        # fichier sans aucun cas ne sort pas seulement en 0, il le COMPTE COMME UN TEST QUI
+        # PASSE. Un banc vide — garde qui court-circuite le chargement, `describe` dont les
+        # `it` ont disparu a un merge — est alors indiscernable d un banc qui a tout verifie,
+        # et son vert VALIDE en silence toute la couverture du fichier. Meme forme d echec
+        # que partout ailleurs ici : une incapacite qui rend la meme sortie qu un succes.
+        #
+        # `outils/lancer-bancs.mjs` est desormais le point d entree du `npm test` des deux
+        # applications ; cette recette tient les deux moities — le vide rougit EN LE DISANT
+        # (code 2), et le plein reste VERT, ce qui est la moitie qui decide de sa survie :
+        # une garde qui rougit a tort se fait desactiver, et on perdrait la couverture EN
+        # PLUS du plancher. Un banc rouge, lui, reste en 1.
+        run: node outils/lancer-bancs.recette.mjs
+
       - name: La recette du retrait de worktree REFUSE de se declarer conforme sur ubuntu
         # Elle ne peut pas tourner ici : son objet est une jonction NTFS, qui n existe
         # que sur Windows — et le job tourne sur ubuntu-latest. Ce pas n exerce donc pas

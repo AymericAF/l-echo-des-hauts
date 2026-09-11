@@ -12,10 +12,43 @@
 //     JAMAIS l'index, et le code 0 obtenu mesure alors la méthode, pas le détecteur.
 //  2. Un dépôt sans HEAD ne rend aucun diff. Le commit initial vide n'est pas décoratif.
 //
+// ── LE DÉPÔT JETABLE EST BORNÉ, ET IL SE NETTOIE (2026-08-23, tâche `683bbc4a`) ────────────
+// Cette recette crée UN dépôt git par cas, et elle n'en effaçait AUCUN. Ce n'est pas une gêne de
+// disque : le répertoire temporaire est celui de l'utilisateur, partagé avec tout ce qui tourne
+// sur le poste, et un banc qui y laisse ses traces finit par juger sur celles des autres. C'est
+// le motif exact qui a borné `docs/check-outillage-mesure.recette.mjs` le même jour (commit
+// `b913937`), et cette passe en reprend la FORME plutôt que d'en inventer une seconde : deux
+// recettes qui nettoient de deux façons sont une convention de plus à tenir.
+//
+// Quatre bornes, et aucune ne remplace les trois autres :
+//
+//   · LE NOM. `mkdtemp` tirait six caractères au sort sous un préfixe commun à TOUTES les
+//     exécutions. Le nom porte désormais le PID de la course, son instant de départ et le rang
+//     du dépôt dans la course : deux exécutions concurrentes ne peuvent plus se disputer un nom,
+//     et un reliquat se rattache au processus qui l'a laissé.
+//   · LA CRÉATION. Un `mkdtemp` qui échoue faisait remonter une exception nue ; elle NOMME
+//     maintenant le chemin qu'elle n'a pas pu créer, et dit de quel côté est le défaut — c'est
+//     le banc qui n'a pas tenu, ce n'est pas le détecteur qui a mal jugé.
+//   · LE NETTOYAGE, DANS UN `finally`. Il ne suffit pas qu'il soit écrit : il faut qu'il tourne
+//     quand la recette casse au milieu, qui est précisément le moment où personne ne le fera à
+//     la main. Un nettoyage sur le chemin nominal ne nettoie que les jours où tout va bien. Il
+//     rend en outre la liste de ce qu'il n'a pas pu effacer, et cette liste ROUGIT la recette :
+//     c'est la seule position d'où son échec pèse encore sur le code de sortie.
+//   · CE QU'IL NE NETTOIE PAS. Le dépôt d'un cas EN ÉCHEC est CONSERVÉ, et son chemin imprimé.
+//     Un nettoyage qui emporte tout emporte aussi la seule matière qui explique le rouge —
+//     l'index, la sonde et le détecteur copié, dans l'état où le code de sortie a été lu. Tout
+//     conserver est un défaut ; conserver le fautif est le contraire d'un défaut.
+//
+// ⚠️ CE QUE CETTE PASSE NE FAIT PAS, écrit plutôt que laissé à croire : elle n'efface rien de ce
+// que les exécutions passées ont laissé dans le répertoire temporaire. Une suppression par MOTIF
+// dans le répertoire temporaire de l'utilisateur ne serait pas un nettoyage mais un balayage sur
+// les fichiers des autres. Ce qui est effacé ici, et rien d'autre, ce sont les chemins que CETTE
+// course a construits et gardés en mémoire.
+//
 // Usage : node .githooks/detect-secrets.recette.mjs
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, copyFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, copyFileSync, readFileSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -900,80 +933,186 @@ if (sansRegle.length) {
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
 
-let echecs = 0;
-for (const cas of CAS) {
-  const d = mkdtempSync(join(tmpdir(), 'recette-detect-'));
-  git(d, ['init', '-q']);
-  git(d, ['config', 'user.email', 'recette@local']);
-  git(d, ['config', 'user.name', 'recette']);
-  // Sans HEAD, `git diff --cached` ne rend rien et le détecteur sort 0 sans avoir rien lu.
-  git(d, ['commit', '-q', '--allow-empty', '-m', 'initial']);
-  copyFileSync(DETECTEUR, join(d, 'detect-secrets.js'));
-  // `base` : le fichier est d'abord COMMITÉ, puis modifié. Le diff est alors partiel, et le
-  // mot-clé peut vivre sur une ligne inchangée — ce qu'un fichier neuf ne sait pas reproduire.
-  if (cas.base !== undefined) {
-    writeFileSync(join(d, cas.fichier), cas.base, 'utf8');
-    git(d, ['add', cas.fichier]);
-    git(d, ['commit', '-q', '-m', 'base']);
-  }
-  writeFileSync(join(d, cas.fichier), cas.contenu, 'utf8');
-  git(d, ['add', cas.fichier]);
-  // Second fichier du MÊME commit : sert à prouver que le contexte ne franchit pas la
-  // frontière d'un fichier. Sans lui, un `token` isolé dans n'importe quel fichier de
-  // l'index rendrait suspect tout littéral long des autres.
-  if (cas.fichierAnnexe) {
-    writeFileSync(join(d, cas.fichierAnnexe), cas.contenuAnnexe, 'utf8');
-    git(d, ['add', cas.fichierAnnexe]);
-  }
-  // `fichierLibre` : ÉCRIT SUR LE DISQUE ET JAMAIS INDEXÉ. Sert au seul cas qu'un
-  // fichier annexe ne sait pas reproduire — une exemption posée à côté de git,
-  // qui ne doit PAS s'appliquer en silence.
-  if (cas.fichierLibre) {
-    writeFileSync(join(d, cas.fichierLibre), cas.contenuLibre, 'utf8');
-  }
+/* ── LE DÉPÔT JETABLE ─────────────────────────────────────────────────────────────────────
+   Le nom d'un dépôt appartient à SA course, et à elle seule : le PID, l'instant de départ, et le
+   rang du dépôt dans la course. Cf. l'en-tête, puce « LE NOM ». Le rang est écrit sur une largeur
+   de trois chiffres pour qu'un listing se trie dans l'ordre des cas — c'est un format d'affichage,
+   pas un compte de cas : la recette imprime le sien à sa dernière ligne. */
+const COURSE = `${process.pid}-${Date.now().toString(36)}`;
+let rangDuDepot = 0;
+const depots = [];
 
-  let code = 0;
-  let sortie = '';
+function depotJetable() {
+  const gabarit = join(tmpdir(), `recette-detect-${COURSE}-${String(++rangDuDepot).padStart(3, '0')}-`);
+  let d;
   try {
-    execFileSync(process.execPath, ['detect-secrets.js'], { cwd: d, stdio: 'pipe' });
+    d = mkdtempSync(gabarit);
   } catch (e) {
-    code = e.status ?? 1;
-    sortie = String(e.stderr ?? '');
+    /* Une erreur EXPLICITE, jamais une trace de pile : elle nomme le chemin qu'elle n'a pas pu
+       créer et dit de quel côté est le défaut. */
+    throw new Error(`DÉPÔT JETABLE NON CRÉÉ — mkdtemp(\`${gabarit}*\`) a échoué : `
+      + `${e.code || ''} ${String(e.message).split('\n')[0]}`
+      + `\n→ le banc d'essai n'a pas pu être monté ; ce cas ne dit RIEN du détecteur.`);
   }
-  const obtenu = code === 0 ? 'passe' : 'refuse';
-
-  // `regle` : LE CODE DE SORTIE NE DIT PAS QUI A REFUSÉ. Un cas
-  // « refuse » resterait vert alors qu'une AUTRE règle a tiré à la place de celle
-  // qu'on éprouve — et un resserrement pourrait alors casser la règle visée sans
-  // rien faire rougir. Quand le champ est présent, on exige que ce soit bien elle
-  // (ou, pour un cas « passe », qu'elle soit absente de la sortie).
-  //
-  // ⚠️ IL EST OBLIGATOIRE SUR TOUT CAS « refuse », depuis le 2026-08-22 — sauf les
-  // refus `sortieContient`, qui ne viennent d'aucune règle et portent déjà leur
-  // motif. Ce n'était pas le cas jusque-là, et le sabotage règle par règle du
-  // 2026-08-22 a montré ce que ça coûte : neutraliser `cle-secrete-stripe-live`
-  // laissait le cas « sk_live_ SEUL » AU VERT, parce que `litteral-haute-entropie`
-  // refusait à sa place. Le cas mesurait alors le refus, pas la détection.
-  // Cf. [[preuve-doit-exercer-critere-acceptation]].
-  // `regle` accepte une chaîne OU une liste : sur une même ligne, deux règles
-  // peuvent tirer (`token = "<littéral>"` arme l'assignation ET le littéral).
-  // N'en nommer qu'une laisserait l'autre s'éteindre sans que le cas rougisse.
-  const reglesAttendues = cas.regle === undefined ? [] : [].concat(cas.regle);
-  const reglesFautives = reglesAttendues.filter(
-    (n) => sortie.includes(`[${n}]`) !== (cas.attendu === 'refuse'));
-  const bonneRegle = reglesFautives.length === 0;
-  // `sortieContient` (facultatif) : pour les refus qui ne viennent PAS d'une règle
-  // mais d'un échec bruyant du détecteur (fichier d'exemptions malformé, non
-  // indexé...). Sans lui, ces cas resteraient verts si le refus venait d'une tout
-  // autre cause — un `exit 1` ne dit pas pourquoi.
-  const bonMotif = cas.sortieContient === undefined || sortie.includes(cas.sortieContient);
-  const ok = obtenu === cas.attendu && bonneRegle && bonMotif;
-  if (!ok) echecs++;
-  const pourquoi = !bonneRegle
-    ? ` — regle ${reglesFautives.join(', ')} ${cas.attendu === 'refuse' ? 'ABSENTE de' : 'PRESENTE dans'} la sortie`
-    : (!bonMotif ? ` — motif attendu absent de la sortie : ${JSON.stringify(cas.sortieContient)}` : '');
-  console.log(`  ${ok ? 'ok    ' : 'ECHEC '} ${cas.nom} — attendu ${cas.attendu}, obtenu ${obtenu}${pourquoi}`);
+  depots.push({ chemin: d, garder: null });
+  return d;
 }
 
-console.log(`\n${CAS.length - echecs}/${CAS.length} cas conformes`);
-process.exit(echecs ? 1 : 0);
+/* `garder` porte la RAISON de la conservation, jamais un booléen nu : elle s'imprime telle quelle,
+   pour qu'un dépôt survivant ne se lise jamais comme un oubli. */
+function conserverLeDernierDepot(raison) {
+  if (depots.length) depots[depots.length - 1].garder = raison;
+}
+
+/* ⚠️ LE PÉRIMÈTRE DE LA SUPPRESSION, ET IL N'EST PAS NÉGOCIABLE : ce nettoyage n'efface QUE les
+   chemins de `depots`, c'est-à-dire ceux que `depotJetable` a construits dans cette course et
+   gardés en mémoire. Jamais un balayage par motif sur le répertoire temporaire — c'est celui de
+   l'utilisateur, il porte les fichiers de tout ce qui tourne sur ce poste.
+
+   Il REND la liste de ce qu'il n'a pas pu effacer, au lieu de l'avaler. `maxRetries` couvre la
+   cause la plus banale sur un poste Windows — un analyseur qui tient encore un handle sur des
+   fichiers écrits la seconde d'avant ; ce qui survit aux reprises est un vrai reliquat. Ce qui
+   est CONSERVÉ À DESSEIN n'est pas un reliquat : il sort par l'autre liste. */
+function nettoyerLesDepots() {
+  const restants = [];
+  const gardes = [];
+  while (depots.length) {
+    const b = depots.shift();
+    if (b.garder) { gardes.push(`${b.chemin}  (${b.garder})`); continue; }
+    try { rmSync(b.chemin, { recursive: true, force: true, maxRetries: 5, retryDelay: 120 }); }
+    catch (e) { restants.push(`${b.chemin}  (${e.code || ''} ${String(e.message).split('\n')[0]})`); }
+  }
+  return { restants, gardes };
+}
+
+/* RENDRE COMPTE EST LA MOITIÉ DU DISPOSITIF, et cette fonction est appelée depuis le `finally`,
+   jamais depuis le verdict. Mesuré en cassant, le 2026-08-23 : une panne forcée au milieu de la
+   recette interrompt tout AVANT le verdict, et le dépôt conservé l'était alors EN SILENCE — le
+   défaut d'origine en miniature, un dépôt qui survit sans qu'une ligne le dise. Un dépôt effacé
+   sans un mot et un dépôt jamais créé se ressemblent exactement, vus de la sortie. */
+function rendreCompteDesDepots(restants, gardes) {
+  if (gardes.length) {
+    console.log(`\n  CONSERVÉS À DESSEIN (${gardes.length}) — le banc des cas fautifs, pour le diagnostic :`);
+    for (const g of gardes) console.log(`      ${g}`);
+    console.log("        → dépôt git complet : l'index, la sonde et le détecteur copié, dans l'état");
+    console.log('          où le code de sortie a été lu. À effacer une fois le rouge compris.');
+  }
+  if (restants.length) {
+    console.log(`\n  ECHEC nettoyage — ${restants.length} dépôt(s) jetable(s) n'ont pas pu être effacés :`);
+    for (const r of restants) console.log(`      ${r}`);
+    console.log("        → ce n'est pas un défaut du détecteur ; c'est le banc qui laisse des traces,");
+    console.log('          et un banc qui laisse des traces finit par juger sur celles des autres.');
+  }
+}
+
+/* Filet de dernier recours, pour les morts qui ne passent pas par le `finally` — et il y en a :
+   `process.exit()` ne déroule AUCUN `finally`. Un gestionnaire d'`exit` ne peut plus peser sur le
+   code de sortie ; ce qu'il peut encore faire, c'est ne pas mentir par omission. */
+process.on('exit', () => {
+  const { restants, gardes } = nettoyerLesDepots();
+  rendreCompteDesDepots(restants, gardes);
+});
+
+let echecs = 0;
+/* Le `finally` ci-dessous remplit ces trois-là ; le verdict, en bas, les lit. */
+let reliquats = [];
+let conserves = [];
+let finNormale = false;
+
+try {
+  for (const cas of CAS) {
+    const d = depotJetable();
+    git(d, ['init', '-q']);
+    git(d, ['config', 'user.email', 'recette@local']);
+    git(d, ['config', 'user.name', 'recette']);
+    // Sans HEAD, `git diff --cached` ne rend rien et le détecteur sort 0 sans avoir rien lu.
+    git(d, ['commit', '-q', '--allow-empty', '-m', 'initial']);
+    copyFileSync(DETECTEUR, join(d, 'detect-secrets.js'));
+    // `base` : le fichier est d'abord COMMITÉ, puis modifié. Le diff est alors partiel, et le
+    // mot-clé peut vivre sur une ligne inchangée — ce qu'un fichier neuf ne sait pas reproduire.
+    if (cas.base !== undefined) {
+      writeFileSync(join(d, cas.fichier), cas.base, 'utf8');
+      git(d, ['add', cas.fichier]);
+      git(d, ['commit', '-q', '-m', 'base']);
+    }
+    writeFileSync(join(d, cas.fichier), cas.contenu, 'utf8');
+    git(d, ['add', cas.fichier]);
+    // Second fichier du MÊME commit : sert à prouver que le contexte ne franchit pas la
+    // frontière d'un fichier. Sans lui, un `token` isolé dans n'importe quel fichier de
+    // l'index rendrait suspect tout littéral long des autres.
+    if (cas.fichierAnnexe) {
+      writeFileSync(join(d, cas.fichierAnnexe), cas.contenuAnnexe, 'utf8');
+      git(d, ['add', cas.fichierAnnexe]);
+    }
+    // `fichierLibre` : ÉCRIT SUR LE DISQUE ET JAMAIS INDEXÉ. Sert au seul cas qu'un
+    // fichier annexe ne sait pas reproduire — une exemption posée à côté de git,
+    // qui ne doit PAS s'appliquer en silence.
+    if (cas.fichierLibre) {
+      writeFileSync(join(d, cas.fichierLibre), cas.contenuLibre, 'utf8');
+    }
+
+    let code = 0;
+    let sortie = '';
+    try {
+      execFileSync(process.execPath, ['detect-secrets.js'], { cwd: d, stdio: 'pipe' });
+    } catch (e) {
+      code = e.status ?? 1;
+      sortie = String(e.stderr ?? '');
+    }
+    const obtenu = code === 0 ? 'passe' : 'refuse';
+
+    // `regle` : LE CODE DE SORTIE NE DIT PAS QUI A REFUSÉ. Un cas
+    // « refuse » resterait vert alors qu'une AUTRE règle a tiré à la place de celle
+    // qu'on éprouve — et un resserrement pourrait alors casser la règle visée sans
+    // rien faire rougir. Quand le champ est présent, on exige que ce soit bien elle
+    // (ou, pour un cas « passe », qu'elle soit absente de la sortie).
+    //
+    // ⚠️ IL EST OBLIGATOIRE SUR TOUT CAS « refuse », depuis le 2026-08-22 — sauf les
+    // refus `sortieContient`, qui ne viennent d'aucune règle et portent déjà leur
+    // motif. Ce n'était pas le cas jusque-là, et le sabotage règle par règle du
+    // 2026-08-22 a montré ce que ça coûte : neutraliser `cle-secrete-stripe-live`
+    // laissait le cas « sk_live_ SEUL » AU VERT, parce que `litteral-haute-entropie`
+    // refusait à sa place. Le cas mesurait alors le refus, pas la détection.
+    // Cf. [[preuve-doit-exercer-critere-acceptation]].
+    // `regle` accepte une chaîne OU une liste : sur une même ligne, deux règles
+    // peuvent tirer (`token = "<littéral>"` arme l'assignation ET le littéral).
+    // N'en nommer qu'une laisserait l'autre s'éteindre sans que le cas rougisse.
+    const reglesAttendues = cas.regle === undefined ? [] : [].concat(cas.regle);
+    const reglesFautives = reglesAttendues.filter(
+      (n) => sortie.includes(`[${n}]`) !== (cas.attendu === 'refuse'));
+    const bonneRegle = reglesFautives.length === 0;
+    // `sortieContient` (facultatif) : pour les refus qui ne viennent PAS d'une règle
+    // mais d'un échec bruyant du détecteur (fichier d'exemptions malformé, non
+    // indexé...). Sans lui, ces cas resteraient verts si le refus venait d'une tout
+    // autre cause — un `exit 1` ne dit pas pourquoi.
+    const bonMotif = cas.sortieContient === undefined || sortie.includes(cas.sortieContient);
+    const ok = obtenu === cas.attendu && bonneRegle && bonMotif;
+    if (!ok) {
+      echecs++;
+      /* LE DÉPÔT DU CAS FAUTIF SURVIT, et lui seul. C'est là que vit tout ce qui permet de
+         comprendre le rouge : l'index tel qu'il était, la sonde, et le détecteur copié. Un
+         nettoyage qui emporte tout emporte aussi le diagnostic. */
+      conserverLeDernierDepot(`cas en échec : ${cas.nom}`);
+    }
+    const pourquoi = !bonneRegle
+      ? ` — regle ${reglesFautives.join(', ')} ${cas.attendu === 'refuse' ? 'ABSENTE de' : 'PRESENTE dans'} la sortie`
+      : (!bonMotif ? ` — motif attendu absent de la sortie : ${JSON.stringify(cas.sortieContient)}` : '');
+    console.log(`  ${ok ? 'ok    ' : 'ECHEC '} ${cas.nom} — attendu ${cas.attendu}, obtenu ${obtenu}${pourquoi}`);
+  }
+  finNormale = true;
+} finally {
+  /* LE NETTOYAGE EST ICI, ET DANS UN `finally` — jamais sur le chemin nominal. Une recette
+     qui casse au milieu est exactement le moment où personne ne nettoiera à la main, et
+     c'est ainsi que le répertoire temporaire s'est rempli. */
+  if (!finNormale) conserverLeDernierDepot("cas en cours quand la recette s'est interrompue");
+  ({ restants: reliquats, gardes: conserves } = nettoyerLesDepots());
+  rendreCompteDesDepots(reliquats, conserves);
+}
+
+/* Le nettoyage a eu lieu dans le `finally` ci-dessus, et il a RENDU COMPTE lui-même : c'est la
+   seule position qui tienne quand la recette casse au milieu. Ce qui reste ici est l'arithmétique
+   du code de sortie — un dépôt qu'on n'a pas pu effacer ROUGIT, et c'est la seule position d'où
+   son échec pèse encore dessus. */
+console.log(`\n${CAS.length - echecs}/${CAS.length} cas conformes`
+  + (reliquats.length ? ` — RECETTE ROUGE : ${reliquats.length} dépôt(s) jetable(s) non nettoyé(s)` : ''));
+process.exit(echecs || reliquats.length ? 1 : 0);

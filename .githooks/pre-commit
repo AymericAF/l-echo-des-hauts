@@ -1,5 +1,19 @@
 #!/bin/sh
-# Garde de detection de secrets, executee par git AVANT d'ecrire le commit.
+# Les gardes executees par git AVANT d'ecrire le commit.
+#
+#   1. detect-secrets.js      — aucune valeur de secret n'entre dans l'historique.
+#   2. check-eol-octets.js    — aucun fichier `-text` n'entre avec des CRLF (mode `--indexe` :
+#                               il ne juge que ce que CE commit ajoute ou modifie).
+#   3. check-vrac.js          — GARDE LOCALE, hors du lot : aucun fichier de vrac n'entre par un
+#                               `git add -A` (elle ne juge que ce que CE commit AJOUTE). Elle
+#                               n'existe que dans le depot qui l'a posee (assistant-business-ia,
+#                               commit 06a89e5).
+#
+# Les gardes 1 et 2 voyagent dans le lot (verifier-alignement.mjs, LOT). La 3 vit dans son depot.
+# Ce crochet, lui, voyage PARTOUT : il porte donc l'appel de la garde locale, sans quoi
+# `verifier-alignement.mjs --corriger` l'effacerait du depot qui l'a ecrite en recopiant la
+# source (constat du 2026-09-11, tache e3d2ca72). Le cablage des trois est prouve par
+# `pre-commit.recette.mjs`, a la source.
 #
 # Enveloppe /bin/sh volontaire : sous Git for Windows les hooks tournent dans le
 # sh embarque, et un shebang "#!/usr/bin/env node" ne resout pas toujours node
@@ -11,20 +25,51 @@
 # repli correct si `git` lui-meme n'est pas resolvable dans ce PATH.
 repo="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
+NODE=""
 if command -v node >/dev/null 2>&1; then
-    node "$repo/.githooks/detect-secrets.js"
-    exit $?
+    NODE="node"
+else
+    for n in "/c/Program Files/nodejs/node.exe" "$LOCALAPPDATA/Programs/nodejs/node.exe"; do
+        if [ -x "$n" ]; then
+            NODE="$n"
+            break
+        fi
+    done
 fi
 
-for n in "/c/Program Files/nodejs/node.exe" "$LOCALAPPDATA/Programs/nodejs/node.exe"; do
-    if [ -x "$n" ]; then
-        "$n" "$repo/.githooks/detect-secrets.js"
-        exit $?
-    fi
-done
+if [ -z "$NODE" ]; then
+    echo "" >&2
+    echo "COMMIT REFUSE : node est introuvable, les gardes de pre-commit n ont pas pu" >&2
+    echo "s executer. Installe node, ou passe outre en connaissance de cause avec" >&2
+    echo "git commit --no-verify (voir .githooks/README.md)." >&2
+    exit 1
+fi
 
-echo "" >&2
-echo "COMMIT REFUSE : node est introuvable, la detection de secrets n a pas pu" >&2
-echo "s executer. Installe node, ou passe outre en connaissance de cause avec" >&2
-echo "git commit --no-verify (voir .githooks/README.md)." >&2
-exit 1
+# -- 1. les secrets : arret immediat, c'est le plus cher a defaire une fois pousse -----------
+"$NODE" "$repo/.githooks/detect-secrets.js" || exit $?
+
+# -- 2. les fins de ligne des fichiers `-text` ------------------------------------------------
+# Membre du lot depuis le 2026-09-11 : son ABSENCE est une anomalie, et elle ne se traduit PAS
+# par un silence. On DIT qu'elle manque, on ne fait pas semblant de l'avoir passee (le
+# verificateur d'alignement la signale aussi, ABSENT). Presente, son verdict est SANS APPEL —
+# code 1 (des CRLF entrent) comme code 2 (elle n'a pas pu juger) refusent le commit. Une
+# incapacite laissee passer ici vaudrait exactement le defaut qu'on ferme, puisque les octets,
+# eux, passeraient.
+if [ -f "$repo/.githooks/check-eol-octets.js" ]; then
+    "$NODE" "$repo/.githooks/check-eol-octets.js" --indexe || exit $?
+else
+    echo "AVERTISSEMENT : .githooks/check-eol-octets.js est absent de ce depot — les fins de" >&2
+    echo "ligne des fichiers -text n ont PAS ete verifiees pour ce commit." >&2
+fi
+
+# -- 3. le vrac ramasse par un `git add -A` — GARDE LOCALE ------------------------------------
+# Presente, son verdict est SANS APPEL, pour la meme raison que la garde 2 : codes 1 et 2
+# refusent. ABSENTE, elle se TAIT, et c'est voulu : hors du lot, son absence est l'etat normal
+# de tous les depots sauf un, et un avertissement a chaque commit du parc serait un bruit qu'on
+# apprend a ne plus lire. Contrepartie, nommee plutot que decouverte : si check-vrac.js
+# disparaissait du depot qui la porte, rien ne le dirait ici.
+if [ -f "$repo/.githooks/check-vrac.js" ]; then
+    "$NODE" "$repo/.githooks/check-vrac.js" || exit $?
+fi
+
+exit 0

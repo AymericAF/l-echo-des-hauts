@@ -113,9 +113,67 @@ atteignable.
 
 | Fichier | Rôle |
 | --- | --- |
-| `.githooks/pre-commit` | enveloppe `/bin/sh`, résout `node`, échoue bruyamment s'il manque |
+| `.githooks/pre-commit` | enveloppe `/bin/sh`, résout `node`, échoue bruyamment s'il manque, puis lance les **deux** gardes du lot ci-dessous — et une troisième, locale, là où elle existe |
 | `.githooks/detect-secrets.js` | la détection elle-même |
+| `.githooks/check-eol-octets.js` | aucun fichier `-text` n'entre avec des CRLF (voir l'encadré) |
+| `.githooks/check-eol-octets.recette.mjs` | sa recette — la garde prouvée en la cassant, un défaut injecté à la fois ; elle imprime son propre compte |
 | `.githooks/package.json` | `{"type": "commonjs"}` — **ne pas l'oublier en copiant le dossier** |
+
+> **LA SECONDE GARDE DU HOOK** (2026-08-21, tâche `cab7032c` ; remontée à la
+> source et propagée au parc le 2026-09-11, tâche `e3d2ca72`, décision `f5ba0013`).
+> Ce README décrit la détection de secrets, qui reste son sujet ; le hook en lance
+> désormais une seconde, et le taire ferait dire à ce tableau moins que ce que le
+> hook fait.
+>
+> Ce qu'elle refuse : un commit qui **introduit** des CRLF dans un fichier déclaré
+> `-text` au `.gitattributes`. Le piège tient en une phrase — `-text` ne promet pas
+> « ce fichier est en LF », il promet « git ne convertira rien ». Sans lui,
+> `core.autocrlf=true` normalisait au `git add` un fichier écrit en CRLF par un outil
+> Windows ; **avec** lui, git ne rattrape plus rien et les CRLF entrent tels quels dans
+> la base d'objets. La protection a retiré le filet, et rien ne surveillait l'écart.
+>
+> Ce que ça casse quand personne ne regarde : dans l'Écho, ces fichiers portent des
+> **empreintes** (`provenance.json`, recalculé par `docs/check-instruments-mesure.js`).
+> Changer leurs octets change leur SHA-256, donc invalide des déclarations de
+> provenance **en silence**. Et partout, un fichier converti en bloc devient
+> inmergeable — une seule vasque de conflit couvrant tout le fichier.
+>
+> Elle ne juge que ce que **ce** commit ajoute ou modifie (`--indexe`). Un défaut
+> préexistant que personne ne touche ne bloque personne : sans ce découpage, le hook
+> refuserait tous les commits de l'Écho tant que `scripts/fenetre-nettoyage.recette.mjs`
+> (en CRLF depuis `ec76462`, 2026-08-12) n'est pas arbitré — et un hook qui bloque tout
+> finit désarmé à coups de `--no-verify`. Dans l'Écho, le verdict **complet** sur
+> l'arbre entier est rendu par la CI, via `docs/ci-gardes.js`.
+>
+> **Ce qu'elle change dans le parc — mesuré AVANT de propager** (2026-09-11, lecture
+> seule, mode complet, les 42 dépôts) : 36 dépôts ne déclarent **aucun** fichier
+> `-text`, la garde n'y a rien à juger ; `ChosenPath` en déclare 8, tous binaires ;
+> `perf-lcp-esprit-cuir` 5, tous en LF ; `eden-terrasse` n'a aucun fichier suivi. Les
+> 5 checkouts de l'Écho portent un seul `-text` en CRLF, toujours le même
+> (`scripts/fenetre-nettoyage.recette.mjs`) — et ils portaient déjà la garde. Aucun
+> dépôt ne s'est donc vu refuser un commit sur un fichier que personne n'a touché.
+>
+> **Son absence ne vaut pas son succès** : membre du lot depuis le 2026-09-11, si elle
+> manque le hook le **dit** au lieu de faire semblant de l'avoir passée, et le
+> vérificateur d'alignement la signale `ABSENT`. Présente, son verdict est sans
+> appel — code 1 (des CRLF entrent) comme code 2 (elle n'a pas pu juger) refusent le
+> commit.
+
+> **LA TROISIÈME GARDE, LOCALE : `check-vrac.js`** (assistant-business-ia, commit
+> `06a89e5`, 2026-09-03). Elle refuse qu'un fichier de vrac entre par un `git add -A`
+> (plus de 100 Ko à la racine, plus de 1 Mo ailleurs, sur les seuls **ajouts**). Elle
+> n'est **pas** dans le lot : elle répond à un défaut propre à ce dépôt, dont la racine
+> est le répertoire de travail des runs. Le hook, lui, voyage partout : il porte donc
+> son appel, sans quoi `--corriger` l'aurait effacée du dépôt qui l'a écrite en
+> recopiant la source (constat du 2026-09-11). Présente, son verdict est sans appel
+> (codes 1 et 2) ; absente, **elle se tait** — c'est l'état normal de tous les dépôts
+> sauf un, et un avertissement à chaque commit du parc serait un bruit qu'on apprend à
+> ne plus lire. Contrepartie, nommée : si elle disparaissait d'assistant-business-ia,
+> **rien ne le dirait** au commit.
+>
+> Le câblage des trois gardes — chacune appelée, chacune capable de refuser, l'absence
+> de la seconde dite, celle de la troisième tue — est prouvé par
+> `pre-commit.recette.mjs`, qui vit à la source seulement.
 
 > **Pourquoi ce `package.json` de trois lignes** (2026-08-08, en armant
 > `assistant-business-ia`). `detect-secrets.js` est du CommonJS (`require`,
@@ -1361,9 +1419,10 @@ du disque — et sous Windows, où NTFS n'en porte pas, il l'écrit sous
 
 ## Source de vérité et alignement des copies
 
-Le détecteur n'existe pas en un exemplaire : il vit dans **38 copies** — la source
-et les 37 dépôts du parc, tel que le recense  — et chacune porte
-**6 fichiers**, soit **228 fichiers copiés** à garder identiques. La copie est volontaire : la garde voyage avec le
+Le détecteur n'existe pas en un exemplaire : il vit dans **43 copies** — la source
+et les 42 dépôts du parc (relevé du 2026-09-11), tel que le recense  — et chacune porte
+**8 fichiers** (6 jusqu'au 2026-09-11, entrée de la garde des fins de ligne dans le
+lot), soit **344 fichiers copiés** à garder identiques. La copie est volontaire : la garde voyage avec le
 code plutôt que de dépendre d'une configuration locale. Ce qui ne l'est pas, c'est
 qu'elles puissent diverger sans que rien ne le dise.
 
@@ -1383,13 +1442,16 @@ protection.
 | Fichier | Mode attendu dans l'index |
 | --- | --- |
 | `README.md` | `100644` |
+| `check-eol-octets.js` | `100644` (dans le lot depuis le 2026-09-11) |
+| `check-eol-octets.recette.mjs` | `100644` (dans le lot depuis le 2026-09-11) |
 | `detect-secrets.js` | `100644` |
 | `detect-secrets.recette.mjs` | `100644` |
 | `package.json` | `100644` |
 | `pre-commit` | **`100755`** |
 
 Vivent à la source **sans être copiés** : `verifier-alignement.mjs`,
-`EMPREINTES.txt`, `pre-push`, et le modèle de dépôt `~/.claude/.git-template/`.
+`EMPREINTES.txt`, `pre-push`, `pre-commit.recette.mjs`, et le modèle de dépôt
+`~/.claude/.git-template/`.
 Le lot est **explicite** dans le vérificateur, précisément pour qu'une propagation
 ne se fasse plus par « je copie tout le dossier ». Ces fichiers hors lot ne sont
 pas pour autant sans surveillance : ils sont couverts par l'audit de la source
@@ -1817,7 +1879,7 @@ ailleurs. Une garde qu'on entretient sans qu'elle serve finit par mentir.
 
 **Il ne duplique pas le détecteur.** Le workflow appelle
 `.githooks/detect-secrets.js` **déjà versionné dans le dépôt**, via son export
-`analyser(diff)`. Il hérite donc des 64 cas de recette et des trois angles morts
+`analyser(diff)`. Il hérite donc des cas de recette du détecteur et des trois angles morts
 fermés, et il n'y a **pas de quatrième copie à aligner** — seulement un fichier
 d'appel, hors du lot déployé. C'était le compromis central : une action qui
 embarquerait son propre détecteur aurait divergé du hook au premier correctif.

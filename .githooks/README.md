@@ -234,7 +234,7 @@ Trois propriétés en découlent, et ce sont elles qui rendent le choix défenda
   un dépôt tiers, un clone jetable, et tout dépôt délibérément laissé nu (voir
   `DEPOTS-DU-PARC.txt`, qui les nomme avec leur motif) ne portent pas
   `.githooks/` : l'amorceur sort immédiatement. Coût réel : un `test -f` par commit.
-- **Rien à défaire sur les 27 dépôts déjà armés.** Dès que `core.hooksPath` est
+- **Rien à défaire sur les dépôts déjà armés.** Dès que `core.hooksPath` est
   défini, git **ignore entièrement** `.git/hooks/` — les deux voies ne tournent
   jamais ensemble, il n'y a ni double exécution ni conflit. Le modèle ne concerne
   que ce qui sera cloné ensuite.
@@ -1420,7 +1420,7 @@ du disque — et sous Windows, où NTFS n'en porte pas, il l'écrit sous
 ## Source de vérité et alignement des copies
 
 Le détecteur n'existe pas en un exemplaire : il vit dans **43 copies** — la source
-et les 42 dépôts du parc (relevé du 2026-09-11), tel que le recense  — et chacune porte
+et les 42 dépôts du parc (relevé du 2026-09-11), tel que le recense `DEPOTS-DU-PARC.txt` — et chacune porte
 **8 fichiers** (6 jusqu'au 2026-09-11, entrée de la garde des fins de ligne dans le
 lot), soit **344 fichiers copiés** à garder identiques. La copie est volontaire : la garde voyage avec le
 code plutôt que de dépendre d'une configuration locale. Ce qui ne l'est pas, c'est
@@ -1484,32 +1484,76 @@ de marquage, que son contenu versionné correspond au disque, et que
 le cassant : le dispositif rougit, puis redevient vert une fois réparé.
 
 Chaque anomalie **nomme le dépôt et le fichier**. Une garde qui dit « ça ne
-correspond pas » envoie chercher dans 228 fichiers.
+correspond pas » envoie chercher dans 336 fichiers.
 
 `EMPREINTES.txt` est **généré**, pas édité. Le vérificateur contrôle d'abord la
 **source contre son propre manifeste** : si la source a bougé sans que les
-empreintes suivent, il rougit là plutôt que de juger 27 dépôts contre une
+empreintes suivent, il rougit là plutôt que de juger 42 dépôts contre une
 référence périmée — un vert obtenu contre une mauvaise référence est un mensonge.
 
 ### Où la vérification se déclenche, et pourquoi pas ailleurs
 
-Elle est accrochée au **`pre-push` de `~/.claude` uniquement**, et **seulement si
-le push emporte une modification de `.githooks/`**.
+Elle tourne à **deux moments**, et les deux sont nécessaires parce qu'aucun ne
+voit ce que l'autre voit.
+
+- **Au `pre-push` de `~/.claude`**, et **seulement si le push emporte une
+  modification de `.githooks/`**. C'est le *gate* : il empêche de **pousser** une
+  divergence. Le seul push retenu est celui qui vient de créer la divergence, au
+  moment où l'on a encore en main la correction qu'on vient d'écrire. Tout autre
+  push de `~/.claude` passe sans rien vérifier.
+- **À chaque rapport quotidien**, via `scripts/etat-alignement-parc.mjs` — le
+  complément périodique. Il rattrape ce que le gate ne **peut pas** voir : une
+  correction faite à la source, **committée et jamais poussée**. On corrige, on
+  commite, on passe à autre chose, et le parc reste divergent sans que rien ne
+  rougisse. Ce chemin n'est pas exotique, c'est le chemin ordinaire.
+
+Le complément ne remplace pas le gate et ne l'affaiblit pas : il ferme un trou
+que le gate a par construction. La mesure tourne **au moment** du rapport, pas
+dans un cron dont le verdict périmerait avant d'être lu — coût mesuré ~3 s à
+l'origine, 22 s sur le parc actuel, négligeable devant la rédaction du rapport.
+Et quand tout est aligné, elle ne rend **qu'une ligne**, en pied de rapport : une
+section qui parle pour ne rien dire s'apprend à sauter en une semaine, et le jour
+où elle dit quelque chose elle est sautée aussi.
+
+**Les quatre verdicts, et où chacun envoie chercher.** Ce n'est pas un détail de
+présentation : deux d'entre eux partagent le même code de sortie du vérificateur
+et n'appellent pas du tout le même geste.
+
+| Verdict | Ce qu'il dit | Où se fait la réparation |
+| --- | --- | --- |
+| `ALIGNE` | le parc a été comparé, il est conforme | rien — pied du rapport, une ligne |
+| `DERIVE` | une copie ne correspond plus à la source ; elle est **nommée**, fichier compris | dans la copie : `verifier-alignement.mjs --corriger` |
+| `SOURCE_DESYNC` | la source a bougé **sans que le manifeste suive** | à la **source** : `verifier-alignement.mjs --generer`. Les copies ne sont pas en cause — les juger contre un manifeste périmé donnerait un vert mensonger |
+| `IMPOSSIBLE` | la vérification **n'a pas eu lieu** | nulle part : personne n'a regardé. État **INCONNU** |
+
+**`IMPOSSIBLE` n'est pas un vert**, et c'est le mode d'échec que tout ce
+dispositif combat : « je n'ai pas pu regarder » n'est pas « tout va bien ». Pour
+la même raison, la ligne d'état **n'est jamais omise** du rapport, quel que soit
+le verdict — son absence serait indiscernable d'un parc aligné. Confondre
+`SOURCE_DESYNC` et `IMPOSSIBLE` envoie travailler sur la mauvaise chose.
+
+Deux garde-fous de mécanisme autour de ce complément, qui expliquent pourquoi il
+ne peut pas tomber en silence : il sort **toujours en code 0** (faire échouer le
+rapport parce qu'une copie a dérivé reviendrait à supprimer le rapport pour punir
+la dérive), et les noms de champs de son `--json` — `verdict`, `section`, `texte`
+— sont un **contrat** lu par `assistant.report_parc_resolu()` (migration 129).
+Les renommer casserait la garde en silence : un verdict illisible y est traité
+comme un verdict absent, et le rapport porterait `IMPOSSIBLE` tous les jours au
+lieu de la mesure réelle.
+
+**Et toujours pas ailleurs :**
 
 - **Pas dans `pre-commit`.** Une garde d'alignement au pre-commit refuserait les
-  commits des 27 dépôts dès que la source bouge — **y compris pendant la
+  commits des 42 dépôts dès que la source bouge — **y compris pendant la
   propagation elle-même**. Une garde qui se déclenche pendant qu'on la met à jour
   est un piège circulaire ; elle se fait désinstaller le jour même.
 - **Pas dans les copies.** La dérive n'est jamais créée dans un dépôt : elle est
-  créée à la source, puis oubliée. Bloquer 27 dépôts pour une faute commise dans
-  le 28e punit ceux qui n'ont rien fait, et arrête les boucles autonomes qui y
+  créée à la source, puis oubliée. Bloquer 42 dépôts pour une faute commise dans
+  le 43e punit ceux qui n'ont rien fait, et arrête les boucles autonomes qui y
   poussent.
-- **Pas en tâche périodique seule.** Elle détecterait la dérive des heures après,
-  quand celui qui l'a créée n'a plus le contexte. (Elle reste un bon *complément*,
-  pas un substitut.)
-- **Au `pre-push` de la source** : le seul push retenu est celui qui vient de
-  créer la divergence, au moment où l'on a encore en main la correction qu'on
-  vient d'écrire. Tout autre push de `~/.claude` passe sans rien vérifier.
+- **Pas en tâche périodique SEULE.** Le complément ci-dessus détecte la dérive
+  des heures après, quand celui qui l'a créée n'a plus le contexte. C'est
+  précisément pourquoi il s'ajoute au gate au lieu de le remplacer.
 
 Échappatoire assumée et documentée : `git push --no-verify`.
 
@@ -1780,7 +1824,7 @@ le commit initial venait d'un poste.
 **Un hook de pré-commit ne voit que ce qui passe par un poste.** Éditer un fichier
 dans le navigateur, accepter une suggestion de revue, fusionner une PR, appliquer
 un correctif Dependabot : tout cela écrit dans le dépôt **sans qu'aucun hook local
-ne s'exécute**. Armer 37 copies n'y change rien — ce n'est pas un défaut de
+ne s'exécute**. Armer 42 copies n'y change rien — ce n'est pas un défaut de
 l'armement, c'est une limite de l'endroit où la garde est posée.
 
 Et le second filet ne comble pas ce trou là où il compte : la protection de push

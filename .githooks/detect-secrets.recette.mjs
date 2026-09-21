@@ -64,6 +64,20 @@ const DETECTEUR = join(ICI, 'detect-secrets.js');
 // atterrissait ailleurs dans cette recette, il serait encore attrapé.
 const FAUX = 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f7081'; // secret-ok
 
+// --- Valeurs du témoin wp-config (2026-09-21, tâche 4109a139) -----------------
+// INVENTÉES, jamais recopiées d'un fichier réel — ni de `wpconfig.backup.php`,
+// qui est le fichier par lequel l'angle mort s'est manifesté.
+//
+// TOUTES FONT MOINS DE 32 CARACTÈRES, et ce n'est pas un hasard : `RE_LITTERAL`
+// cherche 32 caractères ou plus. Un sel de longueur réaliste (64) ferait tirer
+// `litteral-haute-entropie` EN PLUS de la règle visée, et le cas mesurerait alors
+// le refus, pas la détection — c'est exactement le défaut que le champ `regle`
+// existe pour empêcher (cf. le bloc « LE CORPUS SE GARDE LUI-MÊME » plus bas).
+// Ces cas éprouvent le RELIAGE clé↔valeur à travers une virgule, pas la longueur.
+const WPC_MDP = 'Qv7mZr2LpXd9Tn4A';                // secret-ok
+const WPC_SEL = 'k8Jq3Wv0Rb6Nx1Hs5Lm2Td7Yc4Pf9Z';  // secret-ok
+const WPC_JETON = 'd4F7hK2mQ9pR5tW8xZ3bN6vC1yE0u'; // secret-ok
+
 // --- Valeurs Stripe : la FORME du préfixe, jamais une valeur valide. ---------
 //
 // POURQUOI LES QUATRE PREMIÈRES SONT ASSEMBLÉES À L'EXÉCUTION, et pas écrites
@@ -875,6 +889,127 @@ const CAS = [
   // « secret » sont exactement ce que la règle d'entropie cherche).
   { nom: 'CONNUS : le fichier d exemptions ne se juge pas lui-même', fichier: '.secrets-connus',
     contenu: `${empreinte(CLE_G_A)}  cle-api-google  # secret connu, publie par construction\n`,
+    attendu: 'passe' },
+
+  // ══ LA CONSTANTE PHP `define()` (2026-09-21, tâche 4109a139) ═══════════════
+  //
+  // L'ANGLE MORT, MESURÉ AVANT D'ÉCRIRE LA RÈGLE. `wpconfig.backup.php` — un
+  // wp-config complet, avec identifiants de base, huit clés et sels, et un jeton
+  // de maintenance — a vécu suivi et poussé dans ~/.claude du 2026-07-06 au
+  // désuivi `1647a3a`, sans que le détecteur le signale UNE SEULE FOIS. Aucune
+  // des règles ne le voyait, et la raison tient en un caractère :
+  //
+  //     DB_PASSWORD=<valeur>              -> REFUSÉ   (RE_ASSIGNATION)
+  //     $db_password = '<valeur>';        -> REFUSÉ   (RE_ASSIGNATION)
+  //     define('DB_PASSWORD', '<valeur>') -> PASSAIT  <-- la forme de TOUT wp-config
+  //
+  // `RE_ASSIGNATION` exige `[:=]` ENTRE la clé et la valeur. Dans un `define()`,
+  // le séparateur est une VIRGULE : la clé et la valeur ne sont jamais mises en
+  // rapport, donc `cleSensible()` n'est jamais interrogée sur `DB_PASSWORD` et
+  // `valeurPlausible()` ne voit jamais la valeur. Ce n'est pas un défaut de
+  // vocabulaire — `DB_PASSWORD` passe `cleSensible()` sans rien y ajouter — c'est
+  // un défaut de RELIAGE, et c'est pour ça qu'aucun enrichissement de liste ne
+  // l'aurait fermé.
+  //
+  // LES DEUX SENS COMPTENT AUTANT. Une règle qui refuserait aussi les gabarits
+  // rendrait tout wp-config d'exemple incommittable — `wp-config-sample.php` est
+  // livré avec CHAQUE WordPress, et il porte exactement ces constantes. Les cas
+  // « passe » ci-dessous ne sont donc pas de la garniture : ce sont eux qui
+  // décident si la règle est tenable sur le parc.
+
+  { nom: 'PHP-DEFINE : define( DB_PASSWORD, <valeur> )', fichier: 'wpa.php',
+    contenu: `<?php\ndefine( 'DB_PASSWORD', '${WPC_MDP}' );\n`,
+    attendu: 'refuse', regle: 'constante-php-sensible' },
+
+  { nom: 'PHP-DEFINE : guillemets doubles et sans espaces', fichier: 'wpb.php',
+    contenu: `<?php\ndefine("DB_PASSWORD","${WPC_MDP}");\n`,
+    attendu: 'refuse', regle: 'constante-php-sensible' },
+
+  // Les huit clés et sels de WordPress : `AUTH_KEY` et `NONCE_SALT` arment déjà
+  // `key`/`salt` par leur marqueur (`auth`, `nonce`), le vocabulaire existant
+  // suffit — seul le reliage manquait.
+  { nom: 'PHP-DEFINE : AUTH_KEY', fichier: 'wpc.php',
+    contenu: `<?php\ndefine( 'AUTH_KEY', '${WPC_SEL}' );\n`,
+    attendu: 'refuse', regle: 'constante-php-sensible' },
+
+  { nom: 'PHP-DEFINE : NONCE_SALT', fichier: 'wpd.php',
+    contenu: `<?php\ndefine( 'NONCE_SALT', '${WPC_SEL}' );\n`,
+    attendu: 'refuse', regle: 'constante-php-sensible' },
+
+  { nom: 'PHP-DEFINE : *_TOKEN applicatif', fichier: 'wpe.php',
+    contenu: `<?php\ndefine( 'MAINT_BACKUP_TOKEN', '${WPC_JETON}' );\n`,
+    attendu: 'refuse', regle: 'constante-php-sensible' },
+
+  // LE FICHIER ENTIER, dans la forme où il a réellement été poussé.
+  { nom: 'PHP-DEFINE : wp-config témoin complet', fichier: 'wp-config.php',
+    contenu: `<?php\ndefine( 'DB_NAME', 'wp_demo' );\n`
+      + `define( 'DB_HOST', 'localhost' );\n`
+      + `define( 'DB_PASSWORD', '${WPC_MDP}' );\n`
+      + `define( 'SECURE_AUTH_KEY', '${WPC_SEL}' );\n`
+      + `define( 'LOGGED_IN_SALT', '${WPC_SEL}' );\n`
+      + `$table_prefix = 'wp_';\n`,
+    attendu: 'refuse', regle: 'constante-php-sensible' },
+
+  // ── L'AUTRE SENS : les gabarits DOIVENT passer ────────────────────────────
+  { nom: 'PHP-DEFINE faux positif : gabarit français « votre_mot_de_passe »', fichier: 'wpf.php',
+    contenu: `<?php\ndefine( 'DB_PASSWORD', 'votre_mot_de_passe' );\n`,
+    attendu: 'passe' },
+
+  // La valeur que WordPress livre lui-même dans `wp-config-sample.php`. Elle
+  // porte des ESPACES : c'est le cas qui oblige la règle à trancher entre un
+  // secret et de la prose, puisque `define()` délimite sa valeur par des quotes
+  // et peut donc porter n'importe quoi.
+  { nom: 'PHP-DEFINE faux positif : « put your unique phrase here » (wp-config-sample)',
+    fichier: 'wpg.php',
+    contenu: `<?php\ndefine( 'AUTH_KEY', 'put your unique phrase here' );\n`,
+    attendu: 'passe' },
+
+  { nom: 'PHP-DEFINE faux positif : valeur lue par getenv()', fichier: 'wph.php',
+    contenu: `<?php\ndefine( 'DB_PASSWORD', getenv('DB_PASSWORD') );\n`,
+    attendu: 'passe' },
+
+  { nom: 'PHP-DEFINE faux positif : valeur lue dans $_ENV', fichier: 'wpi.php',
+    contenu: `<?php\ndefine( 'DB_PASSWORD', $_ENV['DB_PASSWORD'] );\n`,
+    attendu: 'passe' },
+
+  { nom: 'PHP-DEFINE faux positif : chaîne vide', fichier: 'wpj.php',
+    contenu: `<?php\ndefine( 'DB_PASSWORD', '' );\n`,
+    attendu: 'passe' },
+
+  // BORNE DE VOCABULAIRE : la clé décide, et elle décide SEULE. `DB_NAME` finit
+  // par un qualificatif, `DB_HOST` ne porte aucun porteur — les deux voisinent
+  // un vrai mot de passe dans tout wp-config, et signaler la ligne entière
+  // plutôt que la bonne rendrait le message inutilisable.
+  { nom: 'PHP-DEFINE borne : DB_NAME / DB_HOST ne sont pas des secrets', fichier: 'wpk.php',
+    contenu: `<?php\ndefine( 'DB_NAME', 'wordpress_prod_01' );\ndefine( 'DB_HOST', 'mysql.exemple.fr:3306' );\n`,
+    attendu: 'passe' },
+
+  // BORNE DE PROSE, et c'est la borne qui rend la règle tenable. Une valeur de
+  // `define()` peut contenir des espaces, ce qu'aucune autre règle du détecteur
+  // n'accepte (le README mesure, section « Calibrage » point 13, que les valeurs
+  // à espaces fabriquent des milliers de signalements de prose). Une suite de
+  // mots purement alphabétiques sous une clé sensible est donc écartée — sans
+  // quoi chaque commentaire et chaque message d'erreur cité dans un `define()`
+  // rougirait, et la garde serait contournée au `--no-verify` dans la semaine.
+  { nom: 'PHP-DEFINE borne : prose sous une clé sensible', fichier: 'wpl.php',
+    contenu: `<?php\ndefine( 'APP_SECRET', 'a definir lors du deploiement' );\n`,
+    attendu: 'passe' },
+
+  // BORNE ASSUMÉE : `DB_USER` n'est PAS couvert, et ce n'est pas un oubli. Le
+  // couvrir demanderait d'ajouter `user` aux porteurs, mot le plus banal d'un
+  // dépôt (`USER=`, `user:`, `userId`...) — le coût en faux positifs serait sans
+  // rapport avec l'enjeu, un nom de compte n'ouvrant rien à lui seul. Ce cas
+  // FIXE l'arbitrage : si quelqu'un élargit un jour, il rougira et devra le
+  // mesurer plutôt que de l'élargir au jugé.
+  { nom: 'PHP-DEFINE borne : DB_USER hors périmètre (décision, pas oubli)', fichier: 'wpm.php',
+    contenu: `<?php\ndefine( 'DB_USER', 'wp_admin_prod_7' );\n`,
+    attendu: 'passe' },
+
+  // La dérogation de ligne doit valoir ici comme partout : c'est ce qui permet
+  // à `wp-config-sample.php` de porter une valeur d'allure réelle sans être
+  // condamné, et c'est tracé en revue plutôt que caché dans une exemption.
+  { nom: 'PHP-DEFINE : le marqueur secret-ok désamorce', fichier: 'wpn.php',
+    contenu: `<?php\ndefine( 'DB_PASSWORD', '${WPC_MDP}' ); // secret-ok\n`,
     attendu: 'passe' },
 ];
 

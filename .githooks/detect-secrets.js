@@ -320,6 +320,66 @@ const RE_MDP_APPLICATION = new RegExp(
 );
 
 // ---------------------------------------------------------------------------
+// LA CONSTANTE PHP `define()` (2026-09-21, tache 4109a139).
+//
+// CE QUI A ECHAPPE. `wpconfig.backup.php` — un wp-config complet : identifiants
+// de base, les huit cles et sels de WordPress, un jeton de maintenance — a ete
+// suivi et pousse dans ~/.claude du 2026-07-06 (23240b5) jusqu au desuivi
+// 1647a3a. Le detecteur ne l a signale AUCUNE FOIS. Le motif n etait pourtant pas
+// exotique : c est la forme de TOUT wp-config, donc de tout site WordPress du
+// parc.
+//
+// LA CAUSE TIENT EN UN CARACTERE, et elle merite d etre ecrite parce qu elle
+// n est pas celle qu on suppose :
+//
+//     DB_PASSWORD=<valeur>                 -> REFUSE   (RE_ASSIGNATION)
+//     $db_password = '<valeur>';           -> REFUSE   (RE_ASSIGNATION)
+//     define('DB_PASSWORD', '<valeur>')    -> PASSAIT
+//
+// `RE_ASSIGNATION` exige `[:=]` ENTRE la cle et la valeur. Dans un `define()` le
+// separateur est une VIRGULE, donc la cle et la valeur ne sont jamais mises en
+// rapport : `cleSensible()` n est jamais interrogee sur `DB_PASSWORD`, et
+// `valeurPlausible()` ne voit jamais la valeur. Ce n est PAS un trou de
+// vocabulaire — `DB_PASSWORD`, `AUTH_KEY`, `NONCE_SALT` passent tous
+// `cleSensible()` sans qu on y ajoute un seul mot — c est un trou de RELIAGE.
+// Aucun enrichissement de liste ne l aurait ferme, et c est pour cela que la
+// regle est une regle de FORME et non un mot de plus.
+//
+// CE QU ELLE NE COUVRE PAS, ET POURQUOI :
+//   - `DB_USER`. Le couvrir demanderait d ajouter `user` aux porteurs, mot le
+//     plus banal d un depot (`USER=`, `user:`, `userId`, `username`...). Le cout
+//     en faux positifs serait sans rapport avec l enjeu : un nom de compte
+//     n ouvre rien a lui seul, quand le mot de passe qui l accompagne ouvre
+//     tout. La recette FIXE cet arbitrage par un cas, pour qu un elargissement
+//     futur se mesure au lieu de se decider au jugé.
+//   - Les quotes ECHAPPEES a l interieur d une valeur (`'a\'b'`). Le gabarit
+//     s arrete a la premiere quote fermante ; la valeur jugee est alors tronquee,
+//     jamais fausse. Un secret engendre ne contient pas de quote.
+//   - Les autres appels a deux arguments (`putenv`, `setcookie`...). `putenv`
+//     porte un `=` dans sa chaine, donc RE_ASSIGNATION le voit deja.
+//
+// LA VALEUR PEUT PORTER DES ESPACES, ce qu aucune autre regle n accepte — et
+// c est la seule liberte que cette regle prend. Elle est bornee : `define()`
+// DELIMITE sa valeur par des quotes, on ne risque donc pas d avaler la fin d une
+// phrase comme le ferait un `:` suivi de prose (README, « Calibrage » point 13).
+// Mais on ne peut pas non plus tout accepter, car `wp-config-sample.php` — livre
+// avec CHAQUE WordPress — porte `'put your unique phrase here'`. D ou la borne
+// ci-dessous : une valeur faite UNIQUEMENT de mots alphabetiques separes
+// d espaces est de la prose ou un gabarit, jamais un secret engendre. Un vrai sel
+// WordPress porte des chiffres et des symboles, il ne peut pas se confondre.
+// ---------------------------------------------------------------------------
+const RE_DEFINE_PHP = new RegExp(
+  '\\bdefine\\s*\\(\\s*' +
+  '(["\'])([A-Za-z_][A-Za-z0-9_]{0,60})\\1' +   // 1er argument : le NOM, toujours quote
+  '\\s*,\\s*' +
+  '(["\'])([^"\']*)\\3',                        // 2e argument : la VALEUR, quotee elle aussi
+  'g'
+);
+
+// De la prose, pas un secret : uniquement des mots alphabetiques et des espaces.
+const RE_PROSE = /^[A-Za-z]+(?:[ \t]+[A-Za-z]+)+$/;
+
+// ---------------------------------------------------------------------------
 // LA REGLE DE COMPOSITION D UN NOM DE VARIABLE (2026-08-08, tache 249fdfd5).
 //
 // POURQUOI UNE REGLE ET PLUS UNE LISTE. En une nuit, deux runs independants ont
@@ -500,7 +560,16 @@ const RE_PLACEHOLDER = new RegExp(
   '\\$\\{|\\$\\(|\\$\\$|\\$[A-Za-z_]|\\$env:|%[A-Za-z_]|<[^>]*>|' +
   'process\\.env|os\\.environ|getenv|Get-EnvValeur|ENV\\[|secrets\\.|vault:|' +
   'x{3,}|\\*{3,}|\\.{3,}|_{4,}|-{4,}|={3,}|' +
-  'redact|masqu|changeme|change-me|placeholder|your[_-]|example|exemple|' +
+  // `votre[_-]` est l EQUIVALENT FRANCAIS EXACT de `your[_-]`, qui le precede
+  // depuis l origine (2026-09-21, tache 4109a139). Il manquait pour la meme
+  // raison que `factice`/`bidon` en 2026-08-08 : le vocabulaire de gabarit avait
+  // ete ecrit en anglais, sur une base de code redigee en francais. Sans lui,
+  // `define('DB_PASSWORD', 'votre_mot_de_passe')` — la valeur qu un wp-config
+  // d exemple francophone porte — se faisait signaler comme un vrai secret, et
+  // un wp-config de demonstration devenait incommittable. Le risque pris est
+  // celui, deja accepte, de `your[_-]` : un faux negatif sur un secret dont la
+  // valeur contiendrait litteralement « votre_ » ou « votre- ».
+  'redact|masqu|changeme|change-me|placeholder|your[_-]|votre[_-]|example|exemple|' +
   'dummy|sample|fake|todo|tbd|null|none|undefined|^true$|^false$|' +
   // Vocabulaire de gabarit ajoute le 2026-08-08 (branchement sur les depots de l Echo).
   // MESURE, pas jugement : sur echo-code, 4 commits reels sur 32 etaient refuses, et les
@@ -1038,6 +1107,26 @@ function analyser(diffFourni, options) {
         });
         break; // une trouvaille par ligne suffit a la refuser
       }
+    }
+
+    // La constante PHP : la cle et la valeur sont separees par une VIRGULE, donc
+    // RE_ASSIGNATION ne les relie jamais. Meme vocabulaire de cle et meme juge de
+    // valeur que l assignation — seul le RELIAGE est nouveau.
+    RE_DEFINE_PHP.lastIndex = 0;
+    let md;
+    while ((md = RE_DEFINE_PHP.exec(texte)) !== null) {
+      const nom = md[2];
+      const valeur = md[4];
+      if (RE_PROSE.test(valeur)) continue;        // prose ou gabarit, pas un secret
+      if (!cleSensible(nom)) continue;
+      if (!valeurPlausible(valeur, true)) continue;
+      if (valeurRepeteLaCle(nom, valeur)) continue;
+      trouvailles.push({
+        fichier, numero,
+        r: { nom: 'constante-php-sensible',
+             desc: 'constante PHP define("' + nom + '", ...) a valeur d allure secrete' },
+      });
+      break; // une trouvaille par ligne suffit a la refuser
     }
 
     if (litterauxSuspects(texte, voisinageDe(ajout)).length) {

@@ -47,7 +47,7 @@
 //
 // Usage : node .githooks/detect-secrets.recette.mjs
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, copyFileSync, readFileSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -63,6 +63,21 @@ const DETECTEUR = join(ICI, 'detect-secrets.js');
 // qu'elle sert à tester. Marqueur de ligne plutôt qu'exemption du fichier : si un VRAI secret
 // atterrissait ailleurs dans cette recette, il serait encore attrapé.
 const FAUX = 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f7081'; // secret-ok
+
+// EN-TÊTE PEM FACTICE, pour les cas du témoin d'arbre (2026-09-21, tâche `ffe59f10`).
+// Le corps n'est pas une clé : c'est le mot FACTICE répété. Ce qui est éprouvé là n'est
+// pas la finesse d'une règle mais le CHEMIN emprunté par le différentiel — d'où la règle
+// la moins ambiguë du détecteur, `cle-privee-pem`, qui ne demande aucun voisinage et ne
+// peut donc pas rendre un vert par accident de contexte.
+// Le marqueur `secret-ok` n'est pas décoratif : sans lui, cette recette se fait refuser
+// PAR LE DÉTECTEUR QU'ELLE ÉPROUVE dès qu'on la commite — constaté en propageant le lot
+// le 2026-09-21. Marqueur de ligne plutôt qu'exemption de fichier, même arbitrage que
+// `FAUX` ci-dessus : un VRAI en-tête PEM qui atterrirait ailleurs ici serait encore
+// attrapé. La ligne est isolée pour que le marqueur ne porte QUE sur elle.
+const FAUX_PEM = 'FACTICE\n'
+  + '-----BEGIN RSA PRIVATE KEY-----\n'   // secret-ok
+  + 'FACTICEFACTICEFACTICE\n'
+  + '-----END RSA PRIVATE KEY-----\n';
 
 // --- Valeurs du témoin wp-config (2026-09-21, tâche 4109a139) -----------------
 // INVENTÉES, jamais recopiées d'un fichier réel — ni de `wpconfig.backup.php`,
@@ -1011,6 +1026,109 @@ const CAS = [
   { nom: 'PHP-DEFINE : le marqueur secret-ok désamorce', fichier: 'wpn.php',
     contenu: `<?php\ndefine( 'DB_PASSWORD', '${WPC_MDP}' ); // secret-ok\n`,
     attendu: 'passe' },
+
+  // ── LE TÉMOIN D'ARBRE CERTIFIÉ (2026-09-21, tâche `ffe59f10`) ───────────────────────────
+  // Le détecteur ne lisait que `git diff --cached`. Un `git commit --amend` sans rien
+  // réindexer laisse l'index IDENTIQUE à HEAD : différentiel vide, zéro octet scanné,
+  // sortie 0 — et le commit produit, objet NEUF écrit par ce poste crochet armé, pouvait
+  // porter un secret que personne n'avait jamais regardé. Mécanisme repris d'`echo-code`
+  // (tâche `abf9a6c2`, commit `6e7cc93`) : un témoin dans `<git-dir>/detect-secrets-vu`.
+  //
+  // LES QUATRE CAS CI-DESSOUS SE TIENNENT PAR LES DEUX BOUTS, et aucun ne remplace les
+  // autres : deux exigent un REFUS (sans quoi le trou n'est pas fermé), deux exigent le
+  // SILENCE (sans quoi le correctif est une régression d'ergonomie, donc désinstallé).
+
+  { nom: 'AMENDEMENT : un contenu JAMAIS JUGÉ entre par --amend → REFUSE',
+    attendu: 'refuse', regle: 'cle-privee-pem',
+    env: { GIT_INDEX_FILE: '.git/index' },
+    montage: (d, g) => {
+      writeFileSync(join(d, 'sain.txt'), 'rien a signaler\n', 'utf8');
+      g(['add', 'sain.txt']);
+      g(['commit', '-q', '-m', 'socle']);
+      // Le secret entre dans HEAD PAR LA PLOMBERIE : aucun crochet n'est déclenché, et on
+      // n'a pas eu à désarmer quoi que ce soit pour fabriquer l'état.
+      writeFileSync(join(d, 'fuite.txt'), FAUX_PEM, 'utf8');
+      const blob = g(['hash-object', '-w', 'fuite.txt']).trim();
+      g(['update-index', '--add', '--cacheinfo', `100644,${blob},fuite.txt`]);
+      const arbre = g(['write-tree']).trim();
+      const commit = g(['commit-tree', arbre, '-p', 'HEAD', '-m', 'arrive sans crochet']).trim();
+      g(['update-ref', 'HEAD', commit]);
+      g(['reset', '-q', '--mixed', 'HEAD']);   // index == HEAD : `--cached` ne rend RIEN
+    } },
+
+  { nom: 'AMENDEMENT du COMMIT RACINE (aucun parent) → REFUSE quand même',
+    attendu: 'refuse', regle: 'cle-privee-pem',
+    env: { GIT_INDEX_FILE: '.git/index' },
+    montage: (d, g) => {
+      // Pas de `-p` : le commit posé N'A PAS DE PARENT. Sans le repli sur l'arbre vide,
+      // `HEAD^1` échouerait et le cas repasserait en silence — le trou par la porte du
+      // tout premier commit d'un dépôt, qui est justement celui qu'on recompose le plus.
+      writeFileSync(join(d, 'fuite.txt'), FAUX_PEM, 'utf8');
+      const blob = g(['hash-object', '-w', 'fuite.txt']).trim();
+      g(['update-index', '--add', '--cacheinfo', `100644,${blob},fuite.txt`]);
+      const arbre = g(['write-tree']).trim();
+      const commit = g(['commit-tree', arbre, '-m', 'racine sans crochet']).trim();
+      g(['update-ref', 'HEAD', commit]);
+      g(['reset', '-q', '--mixed', 'HEAD']);
+    } },
+
+  { nom: 'AMENDEMENT DE MESSAGE SEUL sur un arbre DÉJÀ CERTIFIÉ → SILENCIEUX',
+    attendu: 'passe',
+    // Le silence NE SUFFIT PAS : sans ce motif interdit, ce cas resterait vert alors que
+    // le détecteur aurait rejugé tout le différentiel du commit remplacé — c'est-à-dire
+    // exactement la régression d'ergonomie que le témoin existe pour éviter.
+    sortieNeContientPas: 'REMPLACE',
+    env: { GIT_INDEX_FILE: '.git/index' },
+    montage: (d, g) => {
+      // Le crochet est ARMÉ et le commit est un VRAI commit : c'est lui qui écrit le
+      // témoin. Le rejouer ensuite reproduit exactement ce que git fait à l'amendement.
+      writeFileSync(join(d, '.git', 'hooks', 'pre-commit'),
+        `#!/bin/sh\nexec "${process.execPath.replace(/\\/g, '/')}" "$(git rev-parse --show-toplevel)/detect-secrets.js"\n`,
+        'utf8');
+      writeFileSync(join(d, 'sain.txt'), 'rien a signaler\n', 'utf8');
+      g(['add', 'sain.txt']);
+      g(['commit', '-q', '-m', 'commit ordinaire, juge et certifie']);
+      // Rien n'est réindexé : l'index reste celui que le commit vient de certifier.
+    } },
+
+  { nom: 'COMMIT ORDINAIRE sous GIT_INDEX_FILE → SILENCIEUX (non-régression)',
+    attendu: 'passe',
+    env: { GIT_INDEX_FILE: '.git/index' },
+    montage: (d, g) => {
+      writeFileSync(join(d, 'sain.txt'), 'rien a signaler\n', 'utf8');
+      g(['add', 'sain.txt']);
+      g(['commit', '-q', '-m', 'socle']);
+      writeFileSync(join(d, 'neuf.txt'), 'du contenu neuf et sain\n', 'utf8');
+      g(['add', 'neuf.txt']);   // l'index AJOUTE quelque chose : chemin ordinaire
+    } },
+
+  // LE TROU ASSUMÉ, écrit pour être VERT — il fixe une décision, il ne la cache pas.
+  // `echo-code` rejuge, en plus, tout ce qui a changé depuis le témoin quand HEAD ne
+  // correspond pas à ce qui a été certifié. Cette branche-là est ÉCARTÉE ici : sur 37
+  // copies dont la plupart ont un distant, HEAD bouge sans crochet à chaque `pull`,
+  // `merge` ou `rebase`, et le premier commit d'après rejugerait des centaines de commits
+  // venus d'ailleurs. Le périmètre reste celui de la décision `5ebd908f` : ce qui dort
+  // déjà dans l'historique relève de la rotation. Si quelqu'un élargit un jour, ce cas
+  // rougira et il devra le mesurer plutôt que de l'élargir au jugé.
+  { nom: "TROU ASSUMÉ : --amend qui RÉINDEXE, par-dessus un HEAD jamais jugé → passe",
+    attendu: 'passe',
+    env: { GIT_INDEX_FILE: '.git/index' },
+    montage: (d, g) => {
+      writeFileSync(join(d, 'sain.txt'), 'rien a signaler\n', 'utf8');
+      g(['add', 'sain.txt']);
+      g(['commit', '-q', '-m', 'socle']);
+      writeFileSync(join(d, 'fuite.txt'), FAUX_PEM, 'utf8');
+      const blob = g(['hash-object', '-w', 'fuite.txt']).trim();
+      g(['update-index', '--add', '--cacheinfo', `100644,${blob},fuite.txt`]);
+      const arbre = g(['write-tree']).trim();
+      const commit = g(['commit-tree', arbre, '-p', 'HEAD', '-m', 'arrive sans crochet']).trim();
+      g(['update-ref', 'HEAD', commit]);
+      g(['reset', '-q', '--mixed', 'HEAD']);
+      // On réindexe un fichier SAIN : l'index dit alors quelque chose de neuf, donc le
+      // chemin ordinaire s'applique et la fuite déjà dans HEAD reste hors de portée.
+      writeFileSync(join(d, 'autre.txt'), 'du contenu neuf et sain\n', 'utf8');
+      g(['add', 'autre.txt']);
+    } },
 ];
 
 // ── LE CORPUS SE GARDE LUI-MÊME (2026-08-22, tâche 9ebc291c) ────────────────
@@ -1163,6 +1281,19 @@ try {
     // Sans HEAD, `git diff --cached` ne rend rien et le détecteur sort 0 sans avoir rien lu.
     git(d, ['commit', '-q', '--allow-empty', '-m', 'initial']);
     copyFileSync(DETECTEUR, join(d, 'detect-secrets.js'));
+
+    /* `montage` : LE CAS CONSTRUIT SON PROPRE ÉTAT DE DÉPÔT (2026-09-21, tâche `ffe59f10`).
+       Les cas du témoin d'arbre ne se laissent pas décrire par « un fichier, un contenu » : ce
+       qu'ils éprouvent n'est pas un TEXTE mais une SITUATION — un contenu déjà dans HEAD que
+       personne n'a jugé, un arbre déjà certifié, un commit racine sans parent. Le montage les
+       fabrique à la plomberie (`hash-object` / `update-index` / `write-tree` / `commit-tree` /
+       `update-ref`), JAMAIS avec `--no-verify` : fabriquer l'état en désarmant le crochet
+       reviendrait à prouver le crochet en le désarmant. Même méthode que la recette jumelle
+       d'`echo-code` (`outils/gardes-au-commit.recette.mjs`, tâche `abf9a6c2`).
+       Quand il est présent, la mise en scène par défaut ci-dessous ne s'applique PAS. */
+    if (cas.montage) {
+      cas.montage(d, (args) => git(d, args));
+    } else {
     // `base` : le fichier est d'abord COMMITÉ, puis modifié. Le diff est alors partiel, et le
     // mot-clé peut vivre sur une ligne inchangée — ce qu'un fichier neuf ne sait pas reproduire.
     if (cas.base !== undefined) {
@@ -1185,15 +1316,24 @@ try {
     if (cas.fichierLibre) {
       writeFileSync(join(d, cas.fichierLibre), cas.contenuLibre, 'utf8');
     }
-
-    let code = 0;
-    let sortie = '';
-    try {
-      execFileSync(process.execPath, ['detect-secrets.js'], { cwd: d, stdio: 'pipe' });
-    } catch (e) {
-      code = e.status ?? 1;
-      sortie = String(e.stderr ?? '');
     }
+
+    /* `env` : ce que git pose pour ses crochets, et que cette recette ne posait pas.
+       MESURE du 2026-09-21 (git 2.53.0.windows.2) : git exporte `GIT_INDEX_FILE=.git/index`
+       à tout crochet `pre-commit`, au commit ordinaire COMME à l'amendement — c'est par là
+       que le détecteur sait qu'un commit est en train de s'écrire. Les cas qui n'en posent
+       pas mesurent donc le chemin « appel à la main », exactement celui qu'ils mesuraient
+       avant le témoin : leur verdict ne bouge pas d'un iota. */
+    const env = cas.env ? { ...process.env, ...cas.env } : process.env;
+
+    /* `spawnSync` et non `execFileSync` (2026-09-21) : le second ne rend stderr QUE
+       lorsqu'il lève, donc `sortie` restait VIDE sur tout cas « passe » — et les contrôles
+       de règle y étaient vrais à vide. Or un cas du témoin d'arbre se prouve précisément
+       par ce que le détecteur N'A PAS dit en passant. */
+    const r = spawnSync(process.execPath, ['detect-secrets.js'], { cwd: d, encoding: 'utf8', env });
+    if (r.error) throw r.error;
+    const code = r.status ?? 1;
+    const sortie = String(r.stderr ?? '');
     const obtenu = code === 0 ? 'passe' : 'refuse';
 
     // `regle` : LE CODE DE SORTIE NE DIT PAS QUI A REFUSÉ. Un cas
@@ -1221,7 +1361,13 @@ try {
     // indexé...). Sans lui, ces cas resteraient verts si le refus venait d'une tout
     // autre cause — un `exit 1` ne dit pas pourquoi.
     const bonMotif = cas.sortieContient === undefined || sortie.includes(cas.sortieContient);
-    const ok = obtenu === cas.attendu && bonneRegle && bonMotif;
+    /* `sortieNeContientPas` : L'ABSENCE EST PARFOIS TOUTE LA PREUVE. Un cas « passe » du
+       témoin d'arbre passerait AUSSI si le détecteur avait scanné tout le différentiel et
+       ne l'avait trouvé propre que par chance — le silence ne dit pas par quel chemin il
+       est arrivé. Nommer ce que la sortie ne doit PAS porter distingue les deux. */
+    const bonSilence = cas.sortieNeContientPas === undefined
+      || !sortie.includes(cas.sortieNeContientPas);
+    const ok = obtenu === cas.attendu && bonneRegle && bonMotif && bonSilence;
     if (!ok) {
       echecs++;
       /* LE DÉPÔT DU CAS FAUTIF SURVIT, et lui seul. C'est là que vit tout ce qui permet de
@@ -1231,7 +1377,8 @@ try {
     }
     const pourquoi = !bonneRegle
       ? ` — regle ${reglesFautives.join(', ')} ${cas.attendu === 'refuse' ? 'ABSENTE de' : 'PRESENTE dans'} la sortie`
-      : (!bonMotif ? ` — motif attendu absent de la sortie : ${JSON.stringify(cas.sortieContient)}` : '');
+      : (!bonMotif ? ` — motif attendu absent de la sortie : ${JSON.stringify(cas.sortieContient)}`
+        : (!bonSilence ? ` — motif INTERDIT present dans la sortie : ${JSON.stringify(cas.sortieNeContientPas)}` : ''));
     console.log(`  ${ok ? 'ok    ' : 'ECHEC '} ${cas.nom} — attendu ${cas.attendu}, obtenu ${obtenu}${pourquoi}`);
   }
   finNormale = true;

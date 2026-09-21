@@ -1140,6 +1140,160 @@ function analyser(diffFourni, options) {
   return trouvailles;
 }
 
+// ---------------------------------------------------------------------------
+// LE TEMOIN D ARBRE CERTIFIE (2026-09-21, tache ffe59f10)
+//
+// L ANGLE MORT, REPRODUIT AVANT D ETRE FERME. Tout ce qui precede ne juge que
+// `git diff --cached`. Or un amendement (`--amend`) SANS RIEN REINDEXER laisse
+// l index IDENTIQUE a HEAD : le differentiel fait ZERO octet, le detecteur ne
+// scanne RIEN, et il rend 0. Le commit produit -- un objet NEUF, ecrit par ce
+// poste, crochet arme -- peut donc porter un secret que personne n a jamais
+// regarde. Reproduit le 2026-09-21 sur un depot jetable : un secret pose dans
+// HEAD a la plomberie (`hash-object` / `update-index` / `write-tree` /
+// `commit-tree` / `update-ref`), jamais en desarmant le crochet -- fabriquer
+// l etat par `--no-verify` reviendrait a prouver le crochet en le desarmant.
+//
+// Ce n est pas un contournement : corriger un message, ajouter un fichier
+// oublie, recomposer un commit sont des gestes quotidiens. Et c est plus grave
+// qu ailleurs : un test rate se rattrape en integration continue, un secret
+// commite reste dans l historique meme apres correction.
+//
+// LA QUESTION QUI SE DECIDE, ET CELLE QUI NE SE DECIDE PAS. « Est-ce un
+// amendement ? » est INDECIDABLE ici -- mesure du 2026-09-21 sur git
+// 2.53.0.windows.2 : un amendement ne se distingue d un `git commit -m`
+// ordinaire par AUCUN argument ni AUCUNE variable d environnement vue du
+// crochet, les deux posant exactement `GIT_INDEX_FILE=.git/index`. La seule
+// question decidable est : CE CONTENU A-T-IL DEJA ETE JUGE ?
+//
+// LE MECANISME EST REPRIS, PAS REINVENTE. C est celui pose le 2026-08-11 dans
+// `echo-code` (tache abf9a6c2, commit 6e7cc93, `outils/gardes-au-commit.js`
+// § LE TEMOIN) pour le MEME defaut sur le crochet qui lance les tests : un
+// fichier temoin dans le repertoire git, portant le sha de l arbre certifie par
+// la derniere execution verte. Meme forme, meme place, memes garde-fous -- deux
+// temoins de deux formes seraient une convention de plus a tenir.
+//
+// CE QUI EST REPRIS A L IDENTIQUE, et chaque point porte sa raison :
+//   - le temoin vit dans `<git-dir>/` et n est JAMAIS versionne. Il dit « ce
+//     poste a juge ce contenu », ce qui n a aucun sens a partager ;
+//   - il ne porte QU UN sha, le dernier certifie. Un historique n apporterait
+//     rien : un amendement porte sur la tete ;
+//   - il n est ecrit que sur un verdict VERT, et seulement si quelque chose a
+//     REELLEMENT ete juge. Certifier un arbre que personne n a regarde
+//     rouvrirait exactement la porte qu il ferme ;
+//   - sa PERTE ne fait qu ELARGIR le prochain jugement, jamais le retrecir.
+//     Toute panne (pas de git-dir, lecture impossible, contenu illisible,
+//     ecriture refusee) retombe donc du cote qui scanne ;
+//   - `HEAD^1` et non `HEAD^` : sur un commit de fusion, le premier parent est
+//     celui contre lequel le differentiel se lit.
+//
+// CE QUI EST DELIBEREMENT ECARTE DE LA VERSION `echo-code`, et pourquoi. Sa
+// troisieme branche rejuge tout ce qui a change depuis le temoin des que le
+// contenu de HEAD n est pas celui qui a ete certifie. Elle est juste pour un
+// depot UNIQUE ; elle ne l est pas pour 37 copies dont la plupart ont un
+// distant. Apres un `pull`, une fusion ou un rebasage, HEAD bouge sans qu aucun
+// crochet ne tourne : le premier commit d apres rejugerait le delta entier --
+// des centaines de commits venus d ailleurs, avec le taux de faux positifs qui
+// va avec. Un crochet qui bloque trop est desinstalle dans la semaine (cf.
+// « Calibrage »). Le perimetre reste donc celui de la decision 5ebd908f : ce
+// qui dort deja dans l historique releve de la rotation, pas du crochet. Ce qui
+// change ici, et RIEN d autre : un commit que CE POSTE ECRIT ne peut plus
+// naitre sans que son apport ait ete juge.
+// ---------------------------------------------------------------------------
+const TEMOIN = 'detect-secrets-vu';
+// L arbre vide de git : le parent d un commit racine, quand il faut en nommer un.
+const ARBRE_VIDE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
+// stderr etouffe VOLONTAIREMENT, meme motif qu au registre d exemptions :
+// l absence de HEAD, de parent ou de git-dir sont des cas NORMAUX, et un
+// « fatal: » affiche a chaque commit ferait passer la garde pour cassee -- donc
+// desinstaller. Toute panne rend null, et null elargit le jugement.
+function gitOuNull(args) {
+  try { return git(args, undefined, ['ignore', 'pipe', 'ignore']).trim(); }
+  catch (e) { return null; }
+}
+
+// Memoise : sur le chemin vert ordinaire le temoin est lu PUIS ecrit, et sans
+// cela `rev-parse --git-dir` serait paye deux fois. Un processus de crochet ne
+// change pas de depot en cours de route ; `undefined` distingue « pas encore
+// demande » de `null`, qui est un resultat.
+let CHEMIN_TEMOIN;
+function cheminDuTemoin() {
+  if (CHEMIN_TEMOIN === undefined) {
+    const dir = gitOuNull(['rev-parse', '--git-dir']);
+    CHEMIN_TEMOIN = dir === null ? null : path.join(dir, TEMOIN);
+  }
+  return CHEMIN_TEMOIN;
+}
+
+function lireLeTemoin() {
+  const p = cheminDuTemoin();
+  if (p === null) return null;
+  try {
+    const v = fs.readFileSync(p, 'utf8').trim();
+    // 40 ou 64 : sha-1 aujourd hui, sha-256 le jour ou un depot y passera.
+    return /^[0-9a-f]{40}$|^[0-9a-f]{64}$/.test(v) ? v : null;
+  } catch (e) { return null; }
+}
+
+function certifier(arbre) {
+  if (!arbre) return;
+  const p = cheminDuTemoin();
+  if (p === null) return;
+  try { fs.writeFileSync(p, arbre + '\n', 'utf8'); }
+  catch (e) { /* un temoin non ecrit n elargit que le prochain jugement */ }
+}
+
+// Rend { diff, arbre } : le differentiel a juger, et l arbre a certifier s il
+// ressort vert. `arbre` vaut null quand rien n a ete juge -- on ne certifie
+// jamais un contenu qu on n a pas regarde.
+function differentielAJuger() {
+  const OPTS = ['-U' + CONTEXTE_LIGNES, '--no-color', '--no-ext-diff', '--diff-filter=ACMR'];
+  const lire = (queue) => {
+    try { return git(['diff', '--cached'].concat(OPTS).concat(queue)); }
+    catch (e) {
+      console.error('pre-commit: impossible de lire l index git : ' + e.message);
+      process.exit(1);
+    }
+  };
+
+  // git pose GIT_INDEX_FILE pour tous ses crochets -- mesure du 2026-09-21 sur
+  // git 2.53.0.windows.2, au commit ordinaire COMME a l amendement. Hors de la,
+  // aucun commit n est en train de s ecrire (appel a la main, mesure en pire
+  // cas, recette) : il n y a rien a certifier, et le chemin d avant vaut.
+  if (process.env.GIT_INDEX_FILE === undefined) return { diff: lire([]), arbre: null };
+
+  const futurArbre = gitOuNull(['write-tree']);      // l arbre qui SERA commite
+
+  // 1. Cet arbre EXACT a deja ete certifie par une execution verte : il n y a
+  //    rien de neuf a juger, quel que soit le geste. C est ici que passe
+  //    l amendement de message seul, et il ne coute pas un octet de scan.
+  //    JUGE EN PREMIER, ET C EST MESURE : interroger HEAD avant le temoin
+  //    coutait un demarrage de `git` de plus (~40 ms sur ce poste) sur
+  //    precisement le geste dont on veut qu il ne coute rien.
+  if (futurArbre !== null && futurArbre === lireLeTemoin()) {
+    return { diff: '', arbre: null };
+  }
+
+  const arbreDeHead = gitOuNull(['rev-parse', 'HEAD^{tree}']);
+
+  // 2. L index dit quelque chose de neuf par rapport a HEAD : chemin ORDINAIRE,
+  //    identique a ce qu il etait avant ce temoin. Un `futurArbre` nul (index en
+  //    conflit de fusion, depot sans HEAD) retombe ici, du cote qui scanne.
+  if (futurArbre === null || arbreDeHead === null || futurArbre !== arbreDeHead) {
+    return { diff: lire([]), arbre: futurArbre };
+  }
+
+  // 3. L index n ajoute RIEN a HEAD, et pourtant un commit s ecrit : ce commit
+  //    REMPLACE HEAD, son parent sera donc HEAD^1. Son apport reel est
+  //    diff(HEAD^1, index) -- exactement ce que `--cached` seul ne montre pas.
+  const parent = gitOuNull(['rev-parse', '--verify', '--quiet', 'HEAD^1^{commit}']) || ARBRE_VIDE;
+  const tete = gitOuNull(['rev-parse', '--short', 'HEAD']) || '(racine)';
+  console.error('pre-commit: l index n ajoute rien a ' + tete + ', et aucun temoin ne dit que'
+    + ' cet arbre a ete juge -- ce commit le REMPLACE, on juge son apport contre '
+    + (parent === ARBRE_VIDE ? 'l arbre vide' : parent.slice(0, 7)) + '.');
+  return { diff: lire([parent]), arbre: futurArbre };
+}
+
 // Utilisable comme module : c'est ainsi que le taux de faux positifs se mesure
 // sur les commits deja faits, avant d'imposer la garde a tout le monde.
 if (require.main !== module) {
@@ -1147,8 +1301,12 @@ if (require.main !== module) {
   return;
 }
 
-const t = analyser();
-if (t.length === 0) process.exit(0);
+const { diff: aJuger, arbre: arbreACertifier } = differentielAJuger();
+const t = analyser(aJuger);
+if (t.length === 0) {
+  certifier(arbreACertifier);
+  process.exit(0);
+}
 
 const L = console.error;
 L('');

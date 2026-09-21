@@ -1573,15 +1573,99 @@ lieu de la mesure réelle.
 
 ## Ce que ce hook ne fait pas
 
-- Il ne regarde **que ce qui est mis en scène**. Un secret déjà dans HEAD ou dans
-  l'historique lui est invisible — c'est le périmètre de la décision `5ebd908f`
-  (rotation et réécriture d'historique).
+- Il ne regarde **que ce qui est mis en scène** — ~~donc un `git commit --amend` sans
+  réindexation ne lui montrait rien~~ **corrigé le 2026-09-21, voir la section
+  ci-dessous**. Ce qui dort déjà dans l'historique **sans qu'on le recommette** lui
+  reste invisible : c'est le périmètre de la décision `5ebd908f` (rotation et
+  réécriture d'historique).
 - Il ne remplace pas le `.gitignore` : ne pas versionner un fichier reste plus
   sûr que de compter sur la détection de son contenu.
 - Il ne voit **que ce qui passe par un poste**. Ce qui est écrit directement chez
   GitHub — édition dans le navigateur, suggestion de revue acceptée, fusion de PR,
   correctif Dependabot — ne déclenche aucun hook, par construction. Cette limite
   est mesurée et tranchée dans « Le troisième chemin », en fin de document.
+
+### `git commit --amend` ne passe plus au travers (2026-09-21, tâche `ffe59f10`)
+
+**Le défaut, reproduit avant d'être fermé.** Le détecteur lisait
+`git diff --cached --diff-filter=ACMR`. Un `git commit --amend` **sans rien
+réindexer** laisse l'index identique à HEAD : le différentiel fait **0 octet**, rien
+n'est scanné, sortie 0. Le commit produit est pourtant un **objet neuf, écrit par ce
+poste, hook armé** — et il peut porter un secret que personne n'a jamais regardé.
+
+Reproduit sur un dépôt jetable, un secret posé dans `HEAD` **à la plomberie**
+(`hash-object` / `update-index` / `write-tree` / `commit-tree` / `update-ref`), jamais
+par `--no-verify` : fabriquer l'état en désarmant le hook reviendrait à prouver le
+hook en le désarmant.
+
+```
+differentiel --cached = 0 octets
+$ git commit --amend -m "correction du message"
+[master 13253cc] correction du message
+ 1 file changed, 4 insertions(+)
+ create mode 100644 secret.txt
+EXIT=0
+```
+
+Ce n'est pas un contournement : corriger un message, ajouter un fichier oublié,
+recomposer un commit sont des gestes quotidiens. Et c'est plus cher qu'ailleurs — un
+test raté se rattrape en CI, un secret commité reste dans l'historique même après
+correction.
+
+**La question qui se décide.** « Est-ce un amendement ? » est **indécidable** ici :
+mesuré sur git 2.53.0.windows.2, un `--amend` ne se distingue d'un `git commit -m`
+par **aucun** argument ni **aucune** variable d'environnement vue du hook — les deux
+posent exactement `GIT_INDEX_FILE=.git/index`. La seule question décidable est :
+**ce contenu a-t-il déjà été jugé ?**
+
+**Le mécanisme est repris, pas réinventé.** C'est le **témoin d'arbre certifié** posé
+le 2026-08-11 dans `echo-code` (tâche `abf9a6c2`, commit `6e7cc93`) pour le même
+défaut sur le hook qui lance les tests : un fichier dans le répertoire git portant le
+sha de l'arbre certifié par la dernière exécution verte.
+
+| Situation | Ce qui est jugé |
+| --- | --- |
+| l'arbre à commiter **est** celui du témoin | rien — c'est l'amendement de message seul |
+| l'index **ajoute** quelque chose à HEAD | `git diff --cached`, **exactement comme avant** |
+| l'index n'ajoute **rien**, et aucun témoin ne dit que cet arbre a été jugé | le différentiel **complet contre `HEAD^1`** (l'arbre vide si HEAD est racine) |
+
+Le témoin vit dans `<git-dir>/detect-secrets-vu`, **jamais versionné** (il dit « ce
+poste a jugé ce contenu »), ne porte qu'un sha, et n'est écrit **que** sur un verdict
+vert **après** avoir réellement jugé quelque chose. Toute panne — pas de git-dir,
+lecture impossible, contenu illisible, écriture refusée — **élargit** le prochain
+jugement, jamais l'inverse.
+
+**Coût mesuré** (ce poste, 21 passages, médiane, dépôt de 40 fichiers) :
+
+| Geste | Avant | Après | Écart |
+| --- | --- | --- | --- |
+| amendement de **message seul** | 498 ms | 537 ms | **+0,04 s** — un `git write-tree` et une lecture de fichier, **0 octet scanné** |
+| **commit ordinaire** | 564 ms | 621 ms | **+0,06 s** — chemin inchangé, plus le témoin |
+| amendement d'un contenu **jamais jugé** | (ne scannait rien) | le différentiel complet du commit remplacé | c'est le but |
+
+Sans le témoin, chaque `--amend` de message rejugerait le commit entier : correct,
+mais c'est une régression d'ergonomie, et un hook qui coûte se fait désinstaller.
+
+**Ce qui est délibérément écarté de la version `echo-code`.** Sa branche « le contenu
+de HEAD n'est pas celui qui a été certifié » rejuge tout ce qui a changé depuis le
+témoin. Juste pour **un** dépôt, faux pour **37 copies dont la plupart ont un
+distant** : après un `pull`, une fusion ou un rebasage, HEAD bouge sans qu'aucun hook
+ne tourne, et le premier commit d'après rejugerait des centaines de commits venus
+d'ailleurs. Le périmètre reste celui de `5ebd908f`. Ce qui change, et rien d'autre :
+**un commit que ce poste écrit ne peut plus naître sans que son apport ait été jugé.**
+Le cas `TROU ASSUMÉ : --amend qui RÉINDEXE, par-dessus un HEAD jamais jugé` de la
+recette **fixe** cet arbitrage : qui l'élargira un jour le verra rougir, et devra le
+mesurer plutôt que de l'élargir au jugé.
+
+**Le registre `.secrets-connus` n'est pas invalidé**, et c'est exercé plutôt
+qu'affirmé : le correctif ne touche que la **source du différentiel**, `empreinteDe`
+et tout l'appareil du registre sont identiques à l'octet. L'unique registre du parc
+(`maj-divi5-zeller`, une entrée) rejoué contre sa valeur réelle rend **0 trouvaille
+avec le registre et 39 sans**, avant comme après.
+
+**Cinq cas neufs** dans `detect-secrets.recette.mjs`, prouvés en cassant dans les deux
+sens : les deux « refuse » rougissaient avant le correctif, les trois « passe »
+étaient déjà verts et le sont restés (138/138).
 
 ### Trois angles morts mesurés, **fermés le 2026-08-08** (tâche `b01265b7`)
 

@@ -312,7 +312,7 @@ deux règles heuristiques ci-dessous, et c'est tout leur intérêt.
 | `sk_live_` / `rk_live_` | `cle-secrete-stripe-live` **(2026-08-08)** |
 | `whsec_` | `secret-webhook-stripe` **(2026-08-08)** |
 | `user:motdepasse@hôte` dans une URL | `url-avec-identifiants` |
-| `/webhook/<chemin opaque>` (n8n) | `url-webhook-a-chemin-opaque` **(2026-08-09)** |
+| `/webhook/<chemin opaque>` et `/form/<chemin opaque>` (n8n) | `url-webhook-a-chemin-opaque` **(2026-08-09 ; préfixes du Formulaire ajoutés le 2026-09-22)** |
 
 #### `url-webhook-a-chemin-opaque` — quand l'URL **est** le mot de passe (2026-08-09, tâche `74ecea95`)
 
@@ -357,13 +357,20 @@ comme un nom. Deux formes, et deux seulement :
    il ne se lit pas. Exiger « aucune suite de 3 lettres » aurait raté **un jeton
    hexadécimal sur trois**.
 
+Depuis le 2026-09-22 la règle est ancrée sur **quatre** préfixes : `/webhook/`,
+`/webhook-test/`, `/webhook-waiting/` — et `/form/`, `/form-test/`, les deux
+chemins du **déclencheur Formulaire** de n8n, qui s'authentifie exactement comme
+le webhook (ni compte, ni jeton : le chemin *est* le mot de passe). La définition
+de l'opacité, elle, n'a pas bougé d'un caractère. Le relevé qui l'a fait entrer est
+au § « Le relevé `/form*/` du parc » plus bas.
+
 **Ce que la définition exclut délibérément** — écrit pour être *vu*, pas découvert :
 
 | Exclu | Pourquoi |
 | --- | --- |
 | Le chemin **sémantique** | dès qu'un morceau est un mot, le chemin *nomme* quelque chose : il n'a jamais été un secret. Relevé sur les 38 dépôts : **70 segments distincts** suivent `/webhook*/`, **69 portent un mot**, **un seul** est opaque. |
-| Le sémantique **à suffixe tiré** (`mail-draft-<8 hexa>`, 4 fois dans le parc) | le suffixe est bien un secret partiel, mais le mot de tête rend la règle indécidable — il faudrait juger « ce nom est-il assez nommé ? », et c'est la porte ouverte au bruit qu'on vient de fermer. **Trou assumé**, fixé par un cas de recette. |
-| `/form/` et `/form-test/` (déclencheur Formulaire n8n) | s'authentifient par la même obscurité, mais `/form/contact` est trop courant pour qu'on ajoute ce préfixe **sans une mesure à part**. |
+| Le sémantique **à suffixe tiré** (`mail-draft-<8 hexa>`, 4 fois dans le parc) | le suffixe est bien un secret partiel, mais le mot de tête rend la règle indécidable — il faudrait juger « ce nom est-il assez nommé ? », et c'est la porte ouverte au bruit qu'on vient de fermer. **Trou assumé**, fixé par un cas de recette — et **mesuré le 2026-09-22** : aucune valeur de N ne sépare un tirage d'une date, cf. le § « Le relevé `/form*/` du parc » plus bas. |
+| `/form-waiting/` (le chemin du nœud d'attente) | compté par la mesure du 2026-09-22 — **zéro segment dans le parc** — mais hors de son périmètre : une règle de sécurité ne s'élargit pas par ricochet. Fixé par le cas `wd9.md`. |
 | Le segment de **moins de 16 caractères** | trop court pour être un tirage ; c'est la longueur qui empêche `/webhook/v2` de rougir. |
 
 **Pourquoi elle n'est pas `empreintable`** : même raison qu'`url-avec-identifiants`.
@@ -782,6 +789,112 @@ C'est ce tableau qui a fait retenir 1 plutôt que les « 3 à 5 » envisagés au
 départ : à N=3, le commentaire d'en-tête d'un script de sauvegarde suffit à faire
 rougir sa ligne `CONTAINER=`. Une détection sur un fichier figé ne coûte rien ;
 une détection sur un fichier vivant fait désinstaller la garde.
+
+### Le relevé `/form*/` du parc, et le calibrage de la forme B (2026-09-22)
+
+Deux trous avaient été laissés ouverts le 2026-08-09, **faute de mesure** et non
+faute d'y avoir pensé. L'arbitrage du 2026-08-10 (tâche de contrôle `d5712185`)
+les avait jugés acceptables en l'état. Voici la mesure ; elle ferme le premier et
+**laisse le second ouvert, en disant pourquoi**.
+
+**Le périmètre balayé** : 43 dépôts — les 42 du parc, dérivés comme
+`verifier-alignement.mjs` les dérive (les quatre racines à plat, plus les chemins
+de `DEPOTS-DU-PARC.txt`), **plus** `~/.claude` lui-même, que la découverte écarte
+en tant que *source* mais qui porte des fichiers suivis comme les autres. Fichiers
+**suivis par git**, texte, non binaires, jusqu'à 4 Mo : **13 601 lus**.
+
+#### Forme A — `/form/` et `/form-test/` : le préfixe entre
+
+Le relevé, mené exactement comme celui des 70 segments `/webhook*/` de 2026-08-09 :
+
+| Préfixe | Segments distincts dans le parc |
+| --- | --- |
+| `/webhook*/` | 66 |
+| `/form*/` | **1** |
+
+Ce **1** est le mot que la prose de ce lot écrivait pour énoncer la crainte —
+`.githooks/README.md`, `.githooks/detect-secrets.js` et
+`.githooks/detect-secrets.recette.mjs`, dans les 42 copies. **Zéro** chemin de
+formulaire applicatif dans tout le parc. La crainte « `/form/contact` est trop
+courant » ne portait donc sur **rien de mesurable**, et là où elle porterait un
+jour, elle est **déjà couverte deux fois** : un tel chemin fait moins de 16
+caractères, et son unique morceau est un mot. Les deux clauses qui protègent
+`/webhook/task-update` protègent `/form/devis` à l'identique — le préfixe n'ajoute
+aucun jugement nouveau, il applique le jugement existant à un second chemin qui
+s'authentifie par la même obscurité.
+
+Le parc ne porte qu'**un seul** déclencheur Formulaire exporté
+(`~/projects/assistant-business-ia`, `n8n/workflows/m2-pipeline-maintenance.json`,
+nœud `n8n-nodes-base.formTrigger` à la ligne 1458) : il est **authentifié**
+(`authentication: n8nUserAuth`) et son export **ne porte aucun chemin**. Son chemin
+n'a donc jamais été un secret, et il n'est dans aucun fichier.
+
+**La preuve, dans les deux sens.** Le cas `wd4.md` de la recette, écrit en
+2026-08-09 comme trou assumé (`attendu: 'passe'`) avec la note « si quelqu'un
+décide un jour de le couvrir, c'est CE cas qui doit changer, délibérément »,
+**bascule en `refuse`** : c'est le témoin engendré qui mord, rejoint par `wd4b`
+(`/form-test/`) et `wd4c` (jeton nu). Dans l'autre sens, `wd6`, `wd7` et `wd8`
+tiennent les chemins de formulaire **ordinaires** muets — dont un de 26 caractères,
+pour que ce soit la clause « aucun morceau n'est un mot » qui travaille seule.
+Recette : **144/144**.
+
+Sur le parc, le pire cas comparé **clé à clé** (dépôt, fichier, ligne, règle) :
+**143 avant, 143 après, zéro apparue, zéro disparue**. C'est cohérent avec le
+relevé — il n'y avait rien à trouver — et c'est le témoin engendré, pas le parc,
+qui prouve que la règle mord.
+
+#### Forme B — le sémantique à suffixe tiré : **rien ne change**, et voici pourquoi
+
+La piste jamais explorée : ne plus juger le segment entier, mais chercher **un
+morceau opaque d'au moins N caractères** parmi ses morceaux. Calibrée de N=3 à
+N=10 sur des **témoins engendrés** (aucune valeur du parc n'est recopiée) :
+
+| N | tirage 6 | tirage 8 | tirage 24 | date `202609` | année `2026` | version `v2026` | horodatage 8 chiffres | tête `a1b-` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 3 | × | × | × | × | × | × | × | × |
+| 4 | × | × | × | × | × | × | × | · |
+| 5 | × | × | × | × | · | × | × | · |
+| 6 | × | × | × | × | · | · | × | · |
+| 7 | · | × | × | · | · | · | × | · |
+| 8 | · | × | × | · | · | · | × | · |
+| 9 | · | · | × | · | · | · | · | · |
+| 10 | · | · | × | · | · | · | · | · |
+
+Les trois premières colonnes sont les CIBLES : un × y est une réussite. Les cinq
+suivantes sont des PIÈGES — des noms de points d'entrée parfaitement légitimes :
+tout × y est un faux positif. Le même calibrage joué sur le parc réel donne, par
+rapport à la règle actuelle : **+5 segments à N=3**, **+4 de N=4 à N=6**, **+2 à
+N=7 et N=8**, **+1 à partir de N=9**.
+
+**Aucun N ne sépare**, et la raison n'est pas un réglage à affiner :
+
+- le tirage réellement présent dans le parc fait **six** caractères
+  (`~/.claude/skills/mail-draft/SKILL.md`, lignes 59 et 60 — deux segments
+  distincts, une occurrence chacun). Le couvrir impose **N ≤ 6** ;
+- or à **N ≤ 6**, un suffixe de **date** à six chiffres rougit exactement pareil,
+  et à N=4 une simple **année** suffit. Pour ce test, un tirage et un horodatage
+  sont le **même objet** — « un morceau qui porte des chiffres ». Il n'y a rien à
+  séparer ;
+- à **N ≥ 7**, la règle rate ce pour quoi on l'aurait écrite ;
+- à **N=3**, le parc rougit pour de bon : `~/.claude/scripts/n8n-backup.sh` ligne
+  165 et le cas `wc6.md` de la recette, dans les 42 copies. C'est exactement ce que
+  la note de `wc6.md` dit depuis 2026-08-09 : c'est un morceau **voisin** qui sauve
+  le segment, jamais le morceau seul ;
+- et à **tout N**, un suffixe tiré **tout en lettres** échappe, la règle mère tenant
+  « morceau de 3 lettres et plus » pour un mot.
+
+**Ce que la mesure a trouvé au passage, et qui vaut plus que la règle.** Le segment
+le plus opaque du parc n'est pas un `mail-draft-` : c'est un chemin de webhook à
+trois mots suivis d'un morceau de **24 hexadécimaux**, dans
+`~/projects/assistant-business-ia`, `docs/GUIDE.md`, lignes **1432, 1433 et 1441**.
+C'est l'URL de notification que **Coolify** appelle sur échec de déploiement —
+un point d'entrée **vivant**, dont le chemin est le seul mot de passe, posé dans un
+fichier suivi, et **qu'aucune règle ne voit aujourd'hui**. La variante l'attraperait
+à tout N ≤ 24 ; mais couvrir un point d'entrée en élargissant un motif jusqu'à ce
+qu'il morde sur les dates n'est pas le bon remède. Les deux vrais remèdes sont en
+amont : **ne pas coller de tirage au nom d'un point d'entrée**, ou **l'authentifier
+par en-tête** — et, pour celui-ci, sortir la valeur du fichier suivi et la faire
+tourner.
 
 ## L'échappatoire
 

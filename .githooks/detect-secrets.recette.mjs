@@ -750,6 +750,16 @@ const CAS = [
   // il faudrait juger « ce nom est-il assez nommé ? », et c'est la porte ouverte
   // au bruit qu'on vient de fermer. Si quelqu'un décide un jour de le couvrir,
   // c'est CE cas qui doit changer, délibérément.
+  //
+  // MESURÉ LE 2026-09-22, ET LAISSÉ OUVERT. La piste jamais explorée — ne plus
+  // juger le segment entier mais chercher UN MORCEAU opaque d'au moins N
+  // caractères — a été calibrée de N=3 à N=10 sur témoins engendrés. Le tirage
+  // réellement présent dans le parc fait SIX caractères, donc le couvrir impose
+  // N ≤ 6 ; or à N ≤ 6 un suffixe de DATE à six chiffres rougit à l'identique, et
+  // à N ≥ 7 la règle rate ce pour quoi on l'aurait écrite. Aucun N ne sépare,
+  // parce qu'il n'y a rien à séparer : pour ce test, un tirage et un horodatage
+  // sont le MÊME objet — « un morceau qui porte des chiffres ». Le tableau complet
+  // est dans `.githooks/README.md`, § « Le calibrage ». CE CAS RESTE `passe`.
   { nom: 'WEBHOOK : TROU ASSUMÉ — sémantique à suffixe tiré (mail-draft-<hexa>)', fichier: 'wd1.md',
     contenu: 'Appel : https://n8n.exemple.fr/webhook/mail-draft-7f3a9c21\n',
     attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
@@ -764,11 +774,44 @@ const CAS = [
   { nom: 'WEBHOOK : BORNE — UUID hors d un chemin de webhook', fichier: 'wd3.md',
     contenu: `Tache : https://cockpit.exemple.fr/api/taches/${UUID_WH}\n`,
     attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
-  // TROU ASSUMÉ, lui aussi écrit pour être vu : le déclencheur Formulaire de n8n
-  // s'authentifie par la même obscurité, mais `/form/contact` est trop courant
-  // pour qu'on ajoute ce préfixe sans une mesure à part.
-  { nom: 'WEBHOOK : TROU ASSUMÉ — /form/ n est pas couvert', fichier: 'wd4.md',
+  // LE TROU EST FERMÉ (2026-09-22). C'était le cas écrit « pour être vu » le
+  // 2026-08-09 : `attendu: 'passe'`, avec pour seul motif que `/form/contact`
+  // serait trop courant. La mesure l'a démenti — relevé sur les 43 dépôts du parc,
+  // 13 607 fichiers suivis : UN SEUL segment distinct suit `/form*/`, et c'est le
+  // mot que la prose du détecteur écrit pour énoncer la crainte. Zéro chemin de
+  // formulaire applicatif. Le cas bascule donc en `refuse`, délibérément, comme sa
+  // note d'origine le prévoyait. C'est LUI le témoin engendré qui mord.
+  { nom: 'FORM : TÉMOIN — /form/ + identifiant engendré', fichier: 'wd4.md',
     contenu: `Formulaire : https://n8n.exemple.fr/form/${UUID_WH}\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'FORM : TÉMOIN — /form-test/ mord aussi', fichier: 'wd4b.md',
+    contenu: `Formulaire : https://n8n.exemple.fr/form-test/${UUID_WH}\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'FORM : TÉMOIN — jeton nu sous /form/', fichier: 'wd4c.md',
+    contenu: `Formulaire : https://n8n.exemple.fr/form/${JETON_WH}\n`,
+    attendu: 'refuse', regle: 'url-webhook-a-chemin-opaque' },
+  // LES BORNES DU PRÉFIXE AJOUTÉ — c'est l'autre sens de la preuve. Ce sont les
+  // chemins de formulaire ORDINAIRES, ceux dont la crainte de 2026-08-09 parlait.
+  // Ils restent muets, et pas par chance : `/form/<mot>` échoue DEUX fois — sous
+  // 16 caractères, et son morceau est un mot. Le second cas retire la première
+  // protection (26 caractères) pour que ce soit la clause « aucun morceau n'est un
+  // mot » qui travaille seule, et qu'on le voie.
+  { nom: 'FORM : BORNE — chemin applicatif court', fichier: 'wd6.md',
+    contenu: 'Formulaire : https://n8n.exemple.fr/form/inscription\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'FORM : BORNE — chemin applicatif LONG, que des mots', fichier: 'wd7.md',
+    contenu: 'Formulaire : https://n8n.exemple.fr/form/demande-de-devis-client\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  { nom: 'FORM : BORNE — le sémantique vaut aussi en -test', fichier: 'wd8.md',
+    contenu: 'Formulaire : https://n8n.exemple.fr/form-test/demande-de-devis-client\n',
+    attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
+  // BORNE DE PÉRIMÈTRE, écrite pour que le choix se voie : `/form-waiting/` (le
+  // chemin du nœud d'attente) N'A PAS été ajouté. La mesure l'a compté — zéro
+  // segment dans le parc — mais il n'était pas dans le périmètre demandé, et on
+  // n'élargit pas une règle de sécurité par ricochet. Ce cas rougira le jour où
+  // quelqu'un l'ajoutera, ce qui est exactement ce qu'on lui demande.
+  { nom: 'FORM : BORNE DE PÉRIMÈTRE — /form-waiting/ n est pas couvert', fichier: 'wd9.md',
+    contenu: `Formulaire : https://n8n.exemple.fr/form-waiting/${UUID_WH}\n`,
     attendu: 'passe', regle: 'url-webhook-a-chemin-opaque' },
   { nom: 'WEBHOOK : BORNE — le préfixe cité en documentation', fichier: 'wd5.md',
     contenu: 'Les points d entree vivent sous /webhook/<nom-lisible>.\n',

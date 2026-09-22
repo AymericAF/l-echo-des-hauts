@@ -197,9 +197,10 @@ const REGLES_MOTIF = [
   //     rendre la regle indecidable : il faudrait juger « ce nom est-il assez
   //     nomme ? », et c est la porte ouverte au bruit qu on vient de fermer. Ces
   //     chemins ne sont PAS couverts — c est un trou assume, pas un oubli.
-  //   - `/form/` ET `/form-test/` (declencheur Formulaire n8n), qui s authentifient
-  //     eux aussi par l obscurite. `/form/contact` est trop courant pour qu on
-  //     ajoute ce prefixe sans une mesure a part.
+  //   - `/form-waiting/`, que la mesure du 2026-09-22 a bien compte (ZERO segment
+  //     dans le parc) mais qui n etait pas dans son perimetre : le declencheur
+  //     Formulaire expose `/form/` et `/form-test/`, le troisieme chemin appartient
+  //     au noeud d attente. Il se fermera d un mot, deliberement, pas par ricochet.
   //   - LE SEGMENT DE MOINS DE 16 CARACTERES : trop court pour etre un tirage, et
   //     c est la longueur qui empeche `/webhook/v2` ou `/webhook/a1b2` de rougir.
   //
@@ -216,11 +217,62 @@ const REGLES_MOTIF = [
   // sont toutes deux la nouvelle regle sur le MEME artefact genere par le meme
   // pipeline, dans deux autres clones. Les 8 depots qui portent des chemins
   // SEMANTIQUES (69 des 70 segments du parc) sont restes a ZERO.
+  //
+  // `/form/` ET `/form-test/` SONT ENTRES LE 2026-09-22 (tache de mesure).
+  // Le declencheur Formulaire de n8n a le meme modele de securite que le webhook :
+  // ni compte ni jeton, le chemin EST le mot de passe. Le prefixe avait ete ecarte
+  // sur une CRAINTE — `/form/contact` serait trop courant — jamais sur un releve.
+  //
+  // LE RELEVE, sur les 43 depots du parc (13 607 fichiers suivis, texte) : UN SEUL
+  // segment distinct suit `/form*/` dans tout le parc, et c est le mot que CE
+  // fichier ecrit trois lignes plus haut pour expliquer la crainte. Zero chemin de
+  // formulaire applicatif. Le parc ne porte qu UN declencheur Formulaire exporte
+  // (assistant-business-ia, n8n/workflows/m2-pipeline-maintenance.json) : il est
+  // authentifie (`n8nUserAuth`) et son export ne porte AUCUN chemin — son chemin
+  // n a donc jamais ete un secret, et il n est pas dans les fichiers.
+  //
+  // La crainte n etait pas infondee, elle etait DEJA COUVERTE : `/form/contact`
+  // echoue deux fois — moins de 16 caracteres, et son unique morceau est un mot.
+  // Les deux clauses qui protegent `/webhook/task-update` protegent `/form/devis`
+  // a l identique. Le prefixe n ajoute donc AUCUN jugement nouveau : il applique
+  // le jugement existant a un second chemin qui s authentifie par la meme obscurite.
+  //
+  // PREUVE DANS LES DEUX SENS : le cas `wd4.md` de la recette, ecrit en 2026-08-09
+  // comme TROU ASSUME (`attendu: passe`), bascule en `refuse` — c est le temoin
+  // ENGENDRE qui mord ; et `wd6.md`/`wd7.md` prouvent que les chemins de formulaire
+  // ORDINAIRES (`/form/<mot>`, `/form-test/<mot>`) restent muets. Sur le parc, le
+  // pire cas compare CLE A CLE (depot, fichier, ligne, regle) ne bouge pas d une
+  // detection : aucune apparue, aucune disparue.
+  //
+  // LA FORME B RESTE UN TROU, ET LA MESURE DIT POURQUOI. La variante envisagee —
+  // ne plus juger le segment entier mais chercher UN MORCEAU opaque d au moins N
+  // caracteres — a ete calibree de N=3 a N=10 sur des temoins ENGENDRES :
+  //
+  //   N       | tirage 6 | tirage 8 | date 202609 | annee 2026 | version v2026
+  //   3       |    x     |    x     |      x      |     x      |      x
+  //   4       |    x     |    x     |      x      |     x      |      x
+  //   5       |    x     |    x     |      x      |     .      |      x
+  //   6       |    x     |    x     |      x      |     .      |      .
+  //   7 et 8  |    .     |    x     |      .      |     .      |      .
+  //   9 et +  |    .     |    .     |      .      |     .      |      .
+  //
+  // Le tirage reellement present dans le parc fait SIX caracteres (deux segments,
+  // ~/.claude/skills/mail-draft/SKILL.md L59 et L60). Le couvrir impose donc N <= 6 ;
+  // or a N <= 6 un suffixe de DATE a six chiffres rougit exactement pareil. Au-dessus
+  // de 6, la regle rate ce pour quoi on l aurait ecrite. Aucun N ne separe, parce qu
+  // il n y a rien a separer : un tirage et un horodatage sont le MEME objet pour ce
+  // test — « un morceau qui porte des chiffres ». Le trou reste ouvert, mesure.
+  //
+  // Et il reste ouvert d un cran de plus que ce qu on lit ici : un suffixe tire
+  // TOUT EN LETTRES (`lettre-brouillon-qxzvbn`) n est opaque pour AUCUN N, la regle
+  // mere tenant « morceau de 3 lettres et plus » pour un mot. Le seul filet qui
+  // couvrirait ces chemins n est pas un motif : c est de nommer les points d entree
+  // sans y coller de tirage, ou de les authentifier par en-tete.
   // Cf. [[un-controle-se-prouve-en-cassant-ce-qu-il-protege]].
   // ---------------------------------------------------------------------------
-  { nom: 'url-webhook-a-chemin-opaque', desc: 'URL de webhook n8n dont le chemin opaque EST le mot de passe',
+  { nom: 'url-webhook-a-chemin-opaque', desc: 'URL de webhook ou de formulaire n8n dont le chemin opaque EST le mot de passe',
     re: new RegExp(
-      '\\/webhook(?:-test|-waiting)?\\/' +
+      '\\/(?:webhook(?:-test|-waiting)?|form(?:-test)?)\\/' +
       '(?:' +
         // Forme 1 : UUID canonique — la valeur engendree par defaut.
         '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' +

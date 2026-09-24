@@ -1454,6 +1454,48 @@ pas par un marqueur) et `securite/rotation-stripe-preparation.md` ligne 323 (une
 fausse clé d'illustration dans un script de recette — `secret-ok` la lève, si
 quelqu'un rouvre ce fichier). Aucun des deux n'est touché par le travail courant.
 
+### Les trois instruments de mesure, versionnés (2026-09-24, tâche `dc053119`)
+
+Les trois mesures ci-dessus — et celles des sections voisines — ont été faites le
+2026-08-08 (run `31eb92d7`) avec des scripts restés dans le brouillon de la
+session, donc perdus. Ils sont réécrits et versionnés dans `~/.claude/scripts/`
+(ils ne font **pas** partie du lot copié dans le parc), chacun avec son témoin :
+
+| Instrument | Ce qu'il mesure | Quand s'en servir | Témoin |
+| --- | --- | --- | --- |
+| `mesure-secrets-historique.mjs <dépôt> [--arbre-seul]` | le détecteur passé sur **chaque blob atteignable depuis toutes les refs**, chaque trouvaille classée « arbre courant » ou « historique seul, présent dans X commits sur N » | savoir ce qu'un dépôt **expose** (un clone emporte tout l'historique) ; avant de déclarer un dépôt sain ; après un retrait, pour vérifier qu'un secret « retiré » n'est pas un secret révoqué | un secret planté puis retiré : **invisible** avec `--arbre-seul`, **retrouvé** sans |
+| `mesure-gabarit-mdp-application.mjs <dépôt\|dossier> [--historique]` | le **format** « 4 groupes de 4 lettres minuscules » en position de valeur et en fin de ligne, **quelle que soit la clé** | balayer ce que la garde ne voit pas par construction : `RE_MDP_APPLICATION` n'agit que sous une clé qui nomme un secret. Marche aussi sur un dossier hors git | une valeur fictive au format Google sous une clé anodine : **ignorée par le détecteur, vue par le gabarit** ; la prose qui continue n'est pas comptée |
+| `mesure-cout-garde-par-commit.mjs <dépôt> [--max N]` | le **nombre de commits que la garde aurait refusés**, en rejouant chaque commit comme le hook le voit (lignes ajoutées, `-U1`), et à part le nombre de signalements | décider d'armer ou de laisser nu un dépôt ; juger le coût d'un élargissement de règle | un dépôt fabriqué, 1 commit fautif (3 signalements) sur 5 : **« 1 refus sur 5 »** |
+
+**Trois issues, trois codes — pour les trois.** `0` CONFORME : mesure faite, sur un
+volume non nul, rien trouvé. `1` ANOMALIE : mesure faite, quelque chose trouvé.
+`2` IMPOSSIBLE : la mesure n'a **pas** eu lieu — pas un dépôt, détecteur absent ou
+illisible, registre `.secrets-connus` qui fait sortir le détecteur, panne de `git`.
+**Zéro cible examinée est un abandon, jamais un succès** : un dépôt sans commit rend
+2, pas « 0 refus sur 0 » en vert. Un instrument qui sort en 0 sans avoir rien mesuré
+est exactement le défaut que ces instruments servent à trouver. Aucun n'imprime
+jamais une valeur : règle, chemin, ligne, commit — la valeur du gabarit est masquée.
+
+```sh
+node ~/.claude/scripts/mesure-secrets-historique.test.mjs       # témoins : 3 scripts,
+node ~/.claude/scripts/mesure-gabarit-mdp-application.test.mjs  # dépôts fabriqués sous
+node ~/.claude/scripts/mesure-cout-garde-par-commit.test.mjs    # $MESURE_TMP (défaut : tmp)
+```
+
+**Pourquoi la mesure par commit refusé n'est pas la mesure par signalement.** On ne
+mesure pas le coût d'une garde par ce qu'elle **voit**, mais par ce qu'elle
+**bloque**. Un signalement ne coûte rien à personne ; un refus interrompt quelqu'un,
+et c'est la répétition des refus qui fait taper `--no-verify` puis désinstaller la
+garde. Compter les signalements additionne des choses qui ne coûtent pas la même
+chose : les 48 à 62 signalements de `ChosenPath` tombent **tous dans le commit
+d'import** — une gêne, une fois — alors que six signalements étalés sur six commits
+en coûteraient six. Et la mesure par signalement ne répond pas à la seule question
+qui décide : *qu'aurait-elle arrêté ?* — c'est en posant celle-là que `le-rucher-seo`
+est apparu comme le dépôt où la garde aurait bloqué **le commit même** qui a introduit
+la clé Stripe live. Rejoué le 2026-09-24 avec l'instrument versionné :
+`le-rucher-seo` **2 refus sur 38** (`ba9fff18`, `7dc72035` — les deux du tableau
+ci-dessus), `ChosenPath` **1 refus sur 50** (le commit racine d'import, 856 fichiers).
+
 ### Les 4 dépôts publics : examinés, rien à corriger
 
 `cockpit-api`, `my-api`, `nuxtjs_course`, `Obsidian` n'ont pas de clone sur ce

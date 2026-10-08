@@ -1,0 +1,23 @@
+/* L ATTENDU DU PIED reste passe explicitement : `p2/wt-f866e743` appelait
+   `ecartsPiedDePage(dist)` parce qu a sa base la fonction lisait sa reference
+   elle-meme. Elle prend desormais `attendu` en second parametre — le laisser
+   tomber rendrait `undefined` et la comparaison ne porterait plus sur rien.
+
+   ET `null` N EST PAS `[]`. Quand la Configuration manque, on NE JUGE PAS : lui
+   passer une liste vide accuserait chaque page de servir un lien en trop, soit
+   119 ecarts fabriques par l absence de l attendu — une incapacite deguisee en
+   anomalie, exactement ce que la convention d `issues.mjs` interdit. */
+const pied = reseauxDeReference === null ? null : ecartsPiedDePage(dist, reseauxDeReference);
+if (pied === null) {
+  console.log(
+    `Pied de page : NON JUGE — ${source.poseur} ne rend aucune Configuration ` +
+      `« ${LOCALE_REFERENCE} », ou aucune liste de reseaux.`,
+  );
+} else {
+  const comptePied = LOCALES.map((locale) => `${pied.inspectees[locale]} page(s) ${locale}`).join(', ');
+  console.log(
+    pied.ecarts.length === 0
+      ? `Pied de page : bloc de reseaux conforme a la Configuration sur ${comptePied}.`
+      : `Pied de page : ${pied.ecarts.length} ecart(s) — ${comptePied} inspectees.`,
+  );
+}

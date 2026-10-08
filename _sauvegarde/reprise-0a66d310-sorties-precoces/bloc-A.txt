@@ -1,0 +1,20 @@
+/*
+ * L ABSENCE DE CONFIGURATION N INTERROMPT PLUS — mesure du 2026-08-19, tache `0a66d310`.
+ *
+ * Elle sortait ici en `2`. Or elle ne prive d attendu QUE le pied de page : le credit du
+ * portrait lit `auteurs`, les liens sociaux et les mentions legales lisent `dist/`, les
+ * types de blocs ont ete inspectes bien avant. PROUVE EN FABRIQUANT L ECART, cible
+ * `--reel`, `source.configuration` force a `null` : la sortie s arretait sur les trois
+ * lignes de l incapacite et CINQ familles disparaissaient — credit du portrait, liens de
+ * reseaux, mentions legales, pied de page, types de blocs — SANS MEME leur ligne de
+ * resume, qui est pourtant imprimee plus bas et sans condition.
+ *
+ * L incapacite est CONSERVEE mais BORNEE a la famille qu elle prive : `null` ici, et le
+ * pied de page rend « NON JUGE » au lieu de le rendre pour tout le monde. Ce n est pas
+ * une cascade : les quatre autres familles ne consomment pas cette donnee.
+ */
+const configurationReference = await source.configuration(LOCALE_REFERENCE);
+const reseauxDeReference =
+  configurationReference == null || !Array.isArray(configurationReference.reseaux)
+    ? null
+    : configurationReference.reseaux.map((reseau) => reseau.url);

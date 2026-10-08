@@ -1,0 +1,23 @@
+if (blocs.site.length > 0) issues.push(ISSUES.ANOMALIE);
+if (blocs.banc.length > 0) issues.push(ISSUES.VERIFICATION_IMPOSSIBLE);
+if (controle13.issue !== ISSUES.CONFORME) issues.push(controle13.issue);
+
+/*
+ * L ARBITRAGE EN UN SEUL POINT, ET IL GARDE LE MESSAGE DE SUCCES.
+ *
+ * `1` prime sur `2`, comme avant : un defaut constate est un fait etabli, une incapacite
+ * ne porte que sur ce qu on n a PAS pu juger. Ce qui change est qu il n y a plus qu UN
+ * endroit ou l ordre est ecrit, au lieu de neuf `process.exit` dont l ordre etait celui
+ * des lignes.
+ *
+ * ET C EST CE `process.exit` QUI GARDE LE `console.log` FINAL. C est le defaut qui s est
+ * glisse dans la correction du controle 13 le 2026-08-16 : le `process.exit` retire
+ * tenait AUSSI lieu de garde pour le message de succes, et la sortie a imprime « AUCUNE
+ * page » puis « TENU — 0 page(s) » sept lignes plus bas. Tant que ce bloc precede le
+ * message, aucun verdict rouge ne peut coexister avec le vert final.
+ */
+if (issues.length > 0) {
+  process.exit(
+    issues.includes(ISSUES.ANOMALIE) ? ISSUES.ANOMALIE : ISSUES.VERIFICATION_IMPOSSIBLE,
+  );
+}

@@ -1,0 +1,90 @@
+/**
+ * LES CINQ FAMILLES S IMPRIMENT TOUTES AVANT DE SORTIR — 2026-08-19, tache `0a66d310`.
+ *
+ * Chacune de ces cinq sorties rendait son verdict PUIS interrompait. Le recensement du
+ * 2026-08-17 (commit `0c07982`) avait classe « cible refusee / instance injoignable /
+ * build echoue » comme portant sur le meme objet que tout l aval — ce qui reste vrai, et
+ * ces trois-la n ont pas bouge. Il n avait rien dit des cinq ci-dessous.
+ *
+ * CE QU ELLES MASQUAIENT, MESURE EN FABRIQUANT L ECART SUR LA CIBLE `--reel`, une famille
+ * a la fois (script greffe local, aucune ecriture en production) :
+ *
+ *   ecart fabrique                            ce qui n a PAS ete imprime
+ *   ---------------------------------------   ----------------------------------------
+ *   `.js` depose dans dist/                    blocs.banc + blocs.site
+ *   aria-hidden retire d un glyphe social      mentions, pied, credit (details) + blocs.*
+ *   <main> vide sur /mentions-legales/         pied, credit (details) + blocs.*
+ *   href du pied detourne                      credit (details) + blocs.*
+ *   credit du portrait reecrit                 blocs.banc + blocs.site
+ *
+ * LA LIGNE QUI COMPTE EST LA DERNIERE COLONNE, ET ELLE EST LA MEME PARTOUT : les CINQ
+ * supprimaient `blocs.site`. Or `blocs.site` — « le site a cesse de rendre un type que la
+ * source lui pose » — est la SEULE famille de ce script qui n a AUCUNE ligne de resume :
+ * les cinq autres impriment leur compte plus haut sans condition, lui n existe que dans le
+ * bloc final. Il disparaissait donc SANS TRACE. C est exactement le defaut ferme par
+ * `77273f9` puis `0c07982`, revenu par cinq portes situees un cran plus haut.
+ *
+ * ELLES NE PRODUISENT PAS UNE CASCADE D INCAPACITES, et c est ce qui les separe des trois
+ * qui restent : ce sont cinq ANOMALIES independantes, sur cinq objets differents, dont
+ * aucune ne prive la suivante de quoi juger. Le script accumulait DEJA leurs comptes en
+ * tete — les `console.log` de resume sont inconditionnels. Les cinq `process.exit`
+ * contredisaient donc le bloc de resume qui les precede : on annoncait « 9 manquement(s) »
+ * et « 1 ecart(s) » puis on ne detaillait que le premier.
+ */
+const issues = [];
+
+if (rapport.manquements.length > 0) {
+  /* CETTE SORTIE-CI NE POUVAIT PAS TIRER, et elle est conservee telle quelle pour la
+     raison inverse des autres. `npm run build` = `astro build && node
+     scripts/index-pagefind.mjs` : `integrations/garde-t09.mjs` inspecte `dist/` a
+     `astro:build:done` et LEVE, `index-pagefind.mjs` le REFAIT apres depot de l index et
+     sort non nul. Un manquement dans la sortie fait donc echouer le BUILD, et le script
+     sort en amont sur `code !== 0`. Rien n ecrit dans `dist/` entre ce build et cette
+     inspection. Mesure : il a fallu greffer un depot de `.js` APRES le build pour la voir
+     tirer une seule fois. Elle reste comme troisieme lecture — mais elle n interrompt plus
+     personne, puisqu une sortie qui ne peut pas tirer n a aucune raison de tronquer une
+     liste le jour ou elle le pourrait. */
+  console.error('\n✖ Manquements dans la sortie :');
+  for (const manquement of rapport.manquements) console.error(`  - ${manquement}`);
+  issues.push(rapport.issue);
+}
+
+if (ecartsSociaux.length > 0) {
+  console.error('\n✖ Accessibilite des liens de reseaux :');
+  for (const ecart of ecartsSociaux) console.error(`  - ${ecart}`);
+  issues.push(ISSUES.ANOMALIE);
+}
+
+if (mentions.issue !== ISSUES.CONFORME) {
+  console.error(
+    mentions.issue === ISSUES.VERIFICATION_IMPOSSIBLE
+      ? '\n⛔ Mentions legales — VERIFICATION IMPOSSIBLE, aucune page n a ete jugee :'
+      : '\n✖ Mentions legales absentes de la page servie :',
+  );
+  for (const manquement of mentions.manquements) console.error(`  - ${manquement}`);
+  issues.push(mentions.issue);
+}
+
+if (pied === null) {
+  console.error(
+    `\n⛔ Pied de page — VERIFICATION IMPOSSIBLE :\n` +
+      `  - ${source.poseur} ne rend aucune Configuration « ${LOCALE_REFERENCE} », ou aucune liste\n` +
+      '    de reseaux : le pied de page n a plus d attendu, et le comparer a lui-meme ne\n' +
+      '    prouverait rien. Les autres familles de ce rapport ne consomment pas cette\n' +
+      '    donnee et ont bien ete jugees.\n',
+  );
+  issues.push(ISSUES.VERIFICATION_IMPOSSIBLE);
+} else if (pied.ecarts.length > 0) {
+  console.error('\n✖ Pied de page (les deux locales) :');
+  for (const ecart of pied.ecarts) console.error(`  - ${ecart}`);
+  issues.push(ISSUES.ANOMALIE);
+}
+
+if (credits.ecarts.length > 0 || credits.controles === 0) {
+  console.error('\n✖ Credit du portrait sur la page auteur :');
+  for (const ecart of credits.ecarts) console.error(`  - ${ecart}`);
+  if (credits.controles === 0) {
+    console.error('  - aucune page auteur avec portrait : la preuve ne prouverait rien');
+  }
+  issues.push(ISSUES.ANOMALIE);
+}

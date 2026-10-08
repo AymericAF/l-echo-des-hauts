@@ -1,0 +1,110 @@
+// ===== HARNAIS D ECART — FICHIER TEMPORAIRE, NE PAS COMMITER =====
+{
+  const E = process.env.ECART ?? '';
+  const lire = (p) => fs.readFileSync(path.join(dist, p), 'utf8');
+  const ecrire = (p, t) => fs.writeFileSync(path.join(dist, p), t);
+  if (E === 'manquements') {
+    fs.writeFileSync(path.join(dist, 'faux-script.js'), 'console.log(1);\n');
+    console.log('[ECART] faux-script.js depose dans dist/ APRES le build');
+  }
+  if (E === 'sociaux') {
+    const p = 'index.html';
+    let h = lire(p);
+    const avant = h;
+    h = h.replace(
+      /(<a\b[^>]*class="[^"]*liens-sociaux__lien[^"]*"[^>]*>[\s\S]*?<svg\b)([^>]*?)\s*aria-hidden="true"/,
+      '$1$2',
+    );
+    if (h === avant) throw new Error('[ECART] sociaux : rien remplace');
+    ecrire(p, h);
+    console.log('[ECART] aria-hidden retire d un glyphe social sur /index.html');
+  }
+  if (E === 'mentions') {
+    const p = path.join('mentions-legales', 'index.html');
+    let h = lire(p);
+    const avant = h;
+    h = h.replace(/<main[\s\S]*?<\/main>/, '<main></main>');
+    if (h === avant) throw new Error('[ECART] mentions : rien remplace');
+    ecrire(p, h);
+    console.log('[ECART] <main> vide sur /mentions-legales/ (page toujours presente)');
+  }
+  if (E === 'pied') {
+    const p = 'index.html';
+    let h = lire(p);
+    const avant = h;
+    h = h.replace(
+      /(<nav class="liens-sociaux"[\s\S]*?<a\b[^>]*href=")([^"]*)"/,
+      '$1https://exemple.invalide/detourne"',
+    );
+    if (h === avant) throw new Error('[ECART] pied : rien remplace');
+    ecrire(p, h);
+    console.log('[ECART] un href du pied detourne sur /index.html');
+  }
+  if (E === 'credits') {
+    const slugs = fs.readdirSync(path.join(dist, 'auteur'));
+    let fait = false;
+    for (const slug of slugs) {
+      const f = path.join('auteur', slug, 'index.html');
+      if (!fs.existsSync(path.join(dist, f))) continue;
+      let h = lire(f);
+      const avant = h;
+      h = h.replace(
+        /(<p[^>]*class="[^"]*index__credit[^"]*"[^>]*>)([\s\S]*?)(<\/p>)/,
+        '$1CREDIT FABRIQUE$3',
+      );
+      if (h !== avant) {
+        ecrire(f, h);
+        console.log('[ECART] credit reecrit sur /auteur/' + slug + '/');
+        fait = true;
+        break;
+      }
+    }
+    if (!fait) throw new Error('[ECART] credits : rien remplace');
+  }
+  if (E === 'config') {
+    source.configuration = async () => null;
+    console.log('[ECART] source.configuration force a null');
+  }
+  if (E === 'rendu' || E === 'rendu+pied') {
+    // Le site cesse de rendre un type que la source lui pose : on retire la signature
+    // `bloc-citation` d une page article deja construite, AVANT `inspecterBlocs`.
+    const slugs = fs.readdirSync(path.join(dist, 'article'));
+    let fait = false;
+    for (const slug of slugs) {
+      const f = path.join('article', slug, 'index.html');
+      if (!fs.existsSync(path.join(dist, f))) continue;
+      const h = lire(f);
+      if (!h.includes('bloc-citation')) continue;
+      ecrire(f, h.split('bloc-citation').join('bloc-zzzcitation'));
+      console.log('[ECART] signature bloc-citation effacee sur /article/' + slug + '/');
+      fait = true;
+      break;
+    }
+    if (!fait) throw new Error('[ECART] rendu : aucune page article ne porte bloc-citation');
+  }
+  if (E === 'rendu+pied') {
+    const p = 'index.html';
+    let h = lire(p);
+    const avant = h;
+    h = h.replace(
+      /(<nav class="liens-sociaux"[\s\S]*?<a\b[^>]*href=")([^"]*)"/,
+      '$1https://exemple.invalide/detourne"',
+    );
+    if (h === avant) throw new Error('[ECART] rendu+pied : href non remplace');
+    ecrire(p, h);
+    console.log('[ECART] un href du pied detourne sur /index.html');
+  }
+  if (E === 'vide') {
+    // Cas extreme : on retire TOUTES les pages HTML de la sortie apres le build.
+    // Sert a verifier que l accumulation ne fabrique pas une cascade illisible.
+    let retirees = 0;
+    for (const f of fs.readdirSync(dist, { recursive: true })) {
+      const r = String(f).replace(/\\/g, '/');
+      if (!r.endsWith('.html')) continue;
+      fs.rmSync(path.join(dist, r));
+      retirees += 1;
+    }
+    console.log('[ECART] ' + retirees + ' page(s) HTML retirees de dist/ APRES le build');
+  }
+}
+// ===== FIN HARNAIS =====

@@ -1,0 +1,6 @@
+ * TROIS SORTIES PRECOCES RESTENT, ET ELLES SEULES — recensement acheve le 2026-08-19,
+ * tache `0a66d310`. Cible refusee, instance injoignable, build echoue portent sur le MEME
+ * objet que tout l aval : sans cible, sans acces ou sans `dist/`, ce qui suit ne juge
+ * rien. Les accumuler ne produirait que des incapacites en cascade — du bruit qui fait
+ * desactiver le dispositif. Les six autres ont ete fabriquees une a une sur `--reel` et
+ * s accumulent desormais : voir l encadre qui precede `const issues = []`.
